@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  OPERATIONS
+  FINANCE
+  FRANCHISE
+}
+
+enum StationType {
+  PUBLIC
+  FLEET
+  FRANCHISE
+  BSS_HUB
+}
+
+enum AssetType {
+  CHARGER
+  BSS
+  TRANSFORMER
+  SOLAR
+}
+
+enum Ownership {
+  COMPANY
+  FRANCHISE
+}
+
+enum InstalledBy {
+  COMPANY
+  FRANCHISE
+}
+
+enum AssetStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  DECOMMISSIONED
+}
+
+enum ChargerStatus {
+  AVAILABLE
+  CHARGING
+  FAULT
+  OFFLINE
+  RESERVED
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  FAULTED
+  CANCELLED
+}
+
+enum FranchiseType {
+  LAND_OWNER
+  INVESTOR
+  LAND_AND_INVESTOR
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSED
+  PAID
+  DISPUTED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String
+  avatar     String?
+  googleId   String   @unique
+  role       Role     @default(OPERATIONS)
+  isActive   Boolean  @default(true)
+  franchiseId String?
+  franchise  Franchise? @relation(fields: [franchiseId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sessions   Session[]
+
+  @@map("users")
+}
+
+model Station {
+  id              String      @id @default(cuid())
+  name            String
+  latitude        Float
+  longitude       Float
+  address         String
+  city            String
+  state           String
+  pincode         String?
+  stationType     StationType @default(PUBLIC)
+  electricityRate Float       // ₹ per kWh (buy rate)
+  sellingRate     Float       // ₹ per kWh (sell rate)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  assets     Asset[]
+  bss        BSS[]
+  sessions   Session[]
+  revenues   Revenue[]
+
+  @@map("stations")
+}
+
+model Franchise {
+  id                  String        @id @default(cuid())
+  name                String
+  contactName         String
+  contactEmail        String
+  contactPhone        String?
+  franchiseType       FranchiseType @default(INVESTOR)
+  revenueSharePercent Float         @default(20)  // %
+  investmentAmount    Float         @default(0)
+  isActive            Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  assets      Asset[]
+  settlements Settlement[]
+  users       User[]
+
+  @@map("franchises")
+}
+
+model Asset {
+  id             String      @id @default(cuid())
+  stationId      String
+  station        Station     @relation(fields: [stationId], references: [id])
+  assetType      AssetType
+  name           String
+  capacity       Float?      // kW or kWh depending on type
+  oem            String?     // Original Equipment Manufacturer
+  installedBy    InstalledBy @default(COMPANY)
+  ownership      Ownership   @default(COMPANY)
+  franchiseId    String?
+  franchise      Franchise?  @relation(fields: [franchiseId], references: [id])
+  commissionDate DateTime?
+  status         AssetStatus @default(ACTIVE)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  charger Charger?
+
+  @@map("assets")
+}
+
+model Charger {
+  id            String        @id @default(cuid())
+  assetId       String        @unique
+  asset         Asset         @relation(fields: [assetId], references: [id])
+  connectorType String        // CCS, CHAdeMO, Type2, AC, DC
+  powerRating   Float         // kW
+  ocppId        String?       @unique
+  status        ChargerStatus @default(AVAILABLE)
+  lastHeartbeat DateTime?
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  sessions Session[]
+
+  @@map("chargers")
+}
+
+model BSS {
+  id                  String   @id @default(cuid())
+  stationId           String
+  station             Station  @relation(fields: [stationId], references: [id])
+  name                String
+  numberOfBatteries   Int
+  batteryType         String   // Li-ion, LFP, etc.
+  batteryCapacityKwh  Float    // capacity per battery
+  swapPrice           Float    // ₹ per swap
+  rentalPriceDaily    Float    // ₹ per day
+  rentalPriceMonthly  Float    // ₹ per month
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  bssUsage BSSUsage[]
+
+  @@map("bss")
+}
+
+model BSSUsage {
+  id          String   @id @default(cuid())
+  bssId       String
+  bss         BSS      @relation(fields: [bssId], references: [id])
+  date        DateTime @default(now())
+  swapCount   Int      @default(0)
+  rentalCount Int      @default(0)
+  swapRevenue Float    @default(0)
+  rentalRevenue Float  @default(0)
+  createdAt   DateTime @default(now())
+
+  @@map("bss_usage")
+}
+
+model Session {
+  id          String        @id @default(cuid())
+  chargerId   String
+  charger     Charger       @relation(fields: [chargerId], references: [id])
+  stationId   String
+  station     Station       @relation(fields: [stationId], references: [id])
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id])
+  startTime   DateTime      @default(now())
+  endTime     DateTime?
+  energyKwh   Float         @default(0)
+  revenue     Float         @default(0)
+  status      SessionStatus @default(ACTIVE)
+  ocppTransactionId String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("sessions")
+}
+
+model Revenue {
+  id                String   @id @default(cuid())
+  stationId         String
+  station           Station  @relation(fields: [stationId], references: [id])
+  date              DateTime
+  chargingRevenue   Float    @default(0)   // kWh × selling_rate
+  bssSwapRevenue    Float    @default(0)
+  bssRentalRevenue  Float    @default(0)
+  totalRevenue      Float    @default(0)
+  electricityCost   Float    @default(0)   // kWh × electricity_rate
+  operatingCost     Float    @default(0)   // maintenance etc.
+  franchisePayout   Float    @default(0)
+  grossMargin       Float    @default(0)   // revenue - electricity cost
+  netRevenue        Float    @default(0)   // gross - franchise payout - operating cost
+  energyKwh         Float    @default(0)
+  sessionsCount     Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([stationId, date])
+  @@map("revenues")
+}
+
+model Settlement {
+  id            String           @id @default(cuid())
+  franchiseId   String
+  franchise     Franchise        @relation(fields: [franchiseId], references: [id])
+  periodStart   DateTime
+  periodEnd     DateTime
+  totalRevenue  Float            @default(0)
+  franchiseShare Float           @default(0)
+  companyShare  Float            @default(0)
+  status        SettlementStatus @default(PENDING)
+  notes         String?
+  settledAt     DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@map("settlements")
+}
