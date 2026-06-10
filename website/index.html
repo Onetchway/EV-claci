@@ -3,492 +3,381 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Electriva — Powering the Future of Electric Mobility</title>
-  <meta name="description" content="Electriva is a leading EV Charging Point Operator (CPO) in India, building one of the nation's most extensive, high-speed and truly green charging networks. AC & DC fast charging, battery swapping, EPC and franchise opportunities." />
-  <meta name="theme-color" content="#07150F" />
-  <meta property="og:title" content="Electriva — Powering the Future of Electric Mobility" />
+  <title>ElectriVa — Powering the Future of Electric Mobility</title>
+  <meta name="description" content="ElectriVa is a leading EV Charging Point Operator (CPO) in India — building one of the nation's most extensive, high-speed and truly green charging networks. AC & DC fast charging, battery swapping, turnkey EPC and franchise opportunities." />
+  <meta name="theme-color" content="#07150f" />
+  <meta property="og:title" content="ElectriVa — Powering the Future of Electric Mobility" />
   <meta property="og:description" content="Building the sustainable, high-speed backbone of tomorrow's transportation." />
   <meta property="og:type" content="website" />
+  <link rel="canonical" href="https://www.electriva.in/" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="css/styles.css" />
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
 </head>
-<body>
-  <!-- ───────────────────────── Header ───────────────────────── -->
+<body id="top">
+
+  <!-- ============================ Header ============================ -->
   <header class="nav" id="nav">
     <div class="container nav__inner">
-      <a class="brand" href="#top" aria-label="Electriva home">
+      <a class="brand" href="index.html" aria-label="ElectriVa home">
         <span class="brand__mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
-            <path d="M13 2L4.5 13.5H11l-1 8.5L19.5 10H13l0-8z" fill="currentColor"/>
-          </svg>
+          <svg viewBox="0 0 32 32" width="30" height="30"><path d="M17 3L7 17h6l-1 12 11-15h-7l1-11z" fill="currentColor"/></svg>
         </span>
-        <span class="brand__text">Electri<span>va</span></span>
+        <span class="brand__text">Electri<span>Va</span></span>
       </a>
-
       <nav class="nav__links" id="navLinks" aria-label="Primary">
-        <a href="#solutions">Solutions</a>
-        <a href="#products">Products</a>
-        <a href="#software">Software</a>
-        <a href="#network">Network</a>
-        <a href="#franchise">Franchise</a>
-        <a href="#about">About</a>
-        <a class="btn btn--ghost nav__cta" href="#contact">Contact</a>
-        <a class="btn btn--primary nav__cta" href="#franchise">Become a Partner</a>
+        <a href="solutions.html">Solutions</a>
+        <a href="products.html">Products</a>
+        <a href="network.html">Network</a>
+        <a href="franchise.html">Franchise</a>
+        <a href="about.html">About</a>
+        <a class="btn btn--ghost nav__cta" href="contact.html">Contact</a>
+        <a class="btn btn--primary nav__cta" href="franchise.html">Become a Partner</a>
       </nav>
-
       <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
-        <span></span><span></span><span></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
     </div>
   </header>
 
-  <main id="top">
-    <!-- ───────────────────────── Hero ───────────────────────── -->
-    <section class="hero">
-      <div class="hero__bg" aria-hidden="true"></div>
-      <div class="container hero__inner">
-        <div class="hero__copy">
-          <span class="eyebrow">Keeping India Charged ⚡</span>
-          <h1>Powering the future of <span class="grad">electric mobility</span>.</h1>
-          <p class="lede">
-            Electriva is a leading EV Charging Point Operator building one of India's most
-            extensive, high-speed and <strong>truly green</strong> charging networks —
-            from 2-wheelers to e-buses.
-          </p>
-          <div class="hero__actions">
-            <a class="btn btn--primary btn--lg" href="#network">Find a charger</a>
-            <a class="btn btn--ghost-light btn--lg" href="#franchise">Partner with us</a>
-          </div>
-          <ul class="hero__chips">
-            <li>1,350+ charging points</li>
-            <li>35+ cities</li>
-            <li>10 MW+ solar</li>
-            <li>17+ states</li>
-          </ul>
+  <main>
+  <!-- ============================ Hero ============================ -->
+  <section class="hero">
+    <div class="container hero__grid">
+      <div class="hero__text reveal">
+        <span class="eyebrow">⚡ EV Charging Point Operator · India &amp; Nepal</span>
+        <h1>Powering the Future of <span class="accent">Electric Mobility</span></h1>
+        <p class="hero__lead">ElectriVa is building the sustainable, high-speed backbone of tomorrow's transportation — one of India's most extensive, reliable and truly-green charging networks.</p>
+        <div class="hero__cta">
+          <a class="btn btn--primary btn--lg" href="franchise.html">Partner With Us <span class="arrow">→</span></a>
+          <a class="btn btn--ghost btn--lg" href="solutions.html">Explore Solutions</a>
         </div>
-        <div class="hero__visual" aria-hidden="true">
-          <div class="hero__card glass">
-            <div class="hero__card-top">
-              <span class="dot dot--live"></span> Live session
-            </div>
-            <div class="hero__gauge">
-              <svg viewBox="0 0 120 120">
-                <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
-                <circle class="ring-fg" cx="60" cy="60" r="52"></circle>
-              </svg>
-              <div class="hero__gauge-text">
-                <strong>82%</strong>
-                <span>240 kW</span>
-              </div>
-            </div>
-            <div class="hero__card-rows">
-              <div><span>Energy</span><b>41.6 kWh</b></div>
-              <div><span>Time</span><b>00:18:42</b></div>
-              <div><span>Cost</span><b>₹ 624</b></div>
-            </div>
-          </div>
-          <div class="hero__pill glass pill--1">DC Hypercharger · 480 kW</div>
-          <div class="hero__pill glass pill--2">☀ Solar net-metered</div>
+        <div class="hero__trust">
+          <div><b><span data-count="1350" data-suffix="+">1,350+</span></b><span>Charging Points</span></div>
+          <div><b><span data-count="35" data-suffix="+">35+</span></b><span>Cities</span></div>
+          <div><b><span data-count="10" data-suffix="MW+">10MW+</span></b><span>Solar Installed</span></div>
         </div>
       </div>
-    </section>
 
-    <!-- ───────────────────────── Trust bar ───────────────────────── -->
-    <section class="trust">
-      <div class="container">
-        <p class="trust__label">Trusted by leading OEMs, fleets &amp; government bodies</p>
-        <div class="trust__logos">
-          <span>TATA Motors</span><span>Tesla</span><span>KIA</span><span>Ather</span>
-          <span>Zomato</span><span>Zepto</span><span>Indian Oil</span><span>AAI</span>
-          <span>AICTSL</span><span>CREST</span>
+      <div class="hero__visual reveal" data-d="2">
+        <div class="hero__float hero__float--1">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.5 13.5H11l-1 8.5L19.5 10H13l0-8z"/></svg>
+          Truly-Green Energy
+        </div>
+        <div class="charger-card">
+          <div class="charger-card__top">
+            <span class="charger-card__status"><i class="dot-live"></i> Charging · Live</span>
+            <span style="font-family:var(--font-head);font-weight:600;font-size:.85rem;color:#9fc7b3">Infinity DC · CCS2</span>
+          </div>
+          <div class="charger-card__kw">120 <small>kW</small></div>
+          <div class="charger-card__bar"><i></i></div>
+          <div class="charger-card__meta"><span>State of charge · 64%</span><span>ETA 18 min</span></div>
+          <div class="charger-card__grid">
+            <div><b>₹312</b><span>SESSION</span></div>
+            <div><b>28.4</b><span>kWh</span></div>
+            <div><b>99.6%</b><span>UPTIME</span></div>
+          </div>
+        </div>
+        <div class="hero__float hero__float--2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1 14.5l-4-4 1.4-1.4 2.6 2.6 5.6-5.6L18 9.5z"/></svg>
+          RFID · Frictionless Access
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ───────────────────────── Stats / Traction ───────────────────────── -->
-    <section class="stats" id="stats">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Traction &amp; scale</span>
-          <h2>Proven operational capability at massive scale</h2>
-        </div>
-        <div class="stats__grid">
-          <div class="stat" data-count="1350" data-suffix="+">
-            <strong class="stat__num">0</strong>
-            <span>Charging points</span>
-          </div>
-          <div class="stat" data-count="375" data-suffix="+">
-            <strong class="stat__num">0</strong>
-            <span>Site equivalents</span>
-          </div>
-          <div class="stat" data-count="10" data-suffix=" MW+">
-            <strong class="stat__num">0</strong>
-            <span>Solar installed</span>
-          </div>
-          <div class="stat" data-count="35" data-suffix="+">
-            <strong class="stat__num">0</strong>
-            <span>Cities covered</span>
-          </div>
-          <div class="stat" data-count="1000" data-suffix="+">
-            <strong class="stat__num">0</strong>
-            <span>Battery swap stations</span>
-          </div>
-          <div class="stat" data-count="17" data-suffix="+">
-            <strong class="stat__num">0</strong>
-            <span>States &amp; Nepal</span>
-          </div>
+  <!-- ============================ Logos ============================ -->
+  <section class="logos">
+    <div class="container">
+      <p>Trusted by leading fleets, OEMs &amp; institutions</p>
+      <div class="marquee">
+        <div class="marquee__track">
+          <span>Ather</span><span>Zomato</span><span>Zepto</span><span>Magenta</span><span>Snap-E</span><span>BatterySmart</span><span>EV Cityride</span><span>BSES</span><span>Convergence</span>
+          <span>Ather</span><span>Zomato</span><span>Zepto</span><span>Magenta</span><span>Snap-E</span><span>BatterySmart</span><span>EV Cityride</span><span>BSES</span><span>Convergence</span>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ───────────────────────── Solutions ───────────────────────── -->
-    <section class="section solutions" id="solutions">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Solutions</span>
-          <h2>Charging infrastructure for every segment</h2>
-          <p class="section-sub">Tailored solutions that capture demand across all major market segments — ensuring high utilisation and long-term contracted revenue.</p>
-        </div>
-        <div class="cards cards--4">
-          <article class="card">
-            <div class="card__icon">🏠</div>
-            <h3>Residential &amp; Commercial</h3>
-            <p>Home charging for RWAs alongside premium destination charging for hotels, corporate offices and public parking.</p>
-          </article>
-          <article class="card">
-            <div class="card__icon">🛣️</div>
-            <h3>Transit &amp; Highways</h3>
-            <p>High-speed charging corridors engineered for public transport, logistics routes and inter-city travellers.</p>
-          </article>
-          <article class="card">
-            <div class="card__icon">🚚</div>
-            <h3>Fleet Operators</h3>
-            <p>Strategic long-term agreements and dedicated captive hubs for last-mile, logistics and delivery fleets.</p>
-          </article>
-          <article class="card">
-            <div class="card__icon">🏛️</div>
-            <h3>Government &amp; OEMs</h3>
-            <p>Municipal bus fleets, public land MoUs and bundled OEM offerings backed by deep institutional partnerships.</p>
-          </article>
-        </div>
+  <!-- ============================ Intro ============================ -->
+  <section class="section">
+    <div class="container">
+      <div class="section__head center reveal">
+        <span class="eyebrow">Who We Are</span>
+        <h2>Driving the future of sustainable transport</h2>
+        <p class="lead">ElectriVa — a brand of Zivah International Private Limited — is a leading EV Charging Point Operator committed to building one of the nation's most extensive, high-speed and truly-green charging networks across two-wheelers, three-wheelers, four-wheelers and buses.</p>
       </div>
-    </section>
+      <div class="grid grid-4">
+        <article class="card reveal" data-d="1">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg></div>
+          <h3>1,200+ Operations</h3>
+          <p>Charging points and battery-swapping stations deployed and running at scale.</p>
+        </article>
+        <article class="card reveal" data-d="2">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.7-7-11a7 7 0 1114 0c0 5.3-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+          <h3>35+ Cities</h3>
+          <p>Coverage across 17+ states in India with active expansion into Nepal.</p>
+        </article>
+        <article class="card reveal" data-d="3">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h3l2-5 4 9 2-4h7"/></svg></div>
+          <h3>2W to e-Bus</h3>
+          <p>Comprehensive charging capability for every electric vehicle segment.</p>
+        </article>
+        <article class="card reveal" data-d="4">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></div>
+          <h3>Truly-Green</h3>
+          <p>Solar net-metering integration — 10&nbsp;MW+ installed and growing.</p>
+        </article>
+      </div>
+    </div>
+  </section>
 
-    <!-- ───────────────────────── Products ───────────────────────── -->
-    <section class="section section--alt products" id="products">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Product portfolio</span>
-          <h2>Versatile technology for 2W, 3W, 4W &amp; Bus</h2>
-          <p class="section-sub">Proprietary, in-house manufactured hardware — from compact AC units to megawatt-class hyperchargers.</p>
-        </div>
-        <div class="cards cards--3">
-          <article class="product">
-            <div class="product__tag">AC Chargers</div>
-            <h3>Trio &amp; Nimbus</h3>
-            <p class="product__spec">9.9 kW &amp; 22 kW AC</p>
-            <p>Reliable everyday charging for homes, workplaces and destinations.</p>
-            <ul class="ticks">
-              <li>Trio AC001 — 9.9 kW</li>
-              <li>Nimbus — 22 kW AC</li>
-              <li>RFID + app access</li>
-            </ul>
-          </article>
-          <article class="product product--feature">
-            <div class="product__tag product__tag--hot">DC Fast</div>
+  <!-- ====================== Core capabilities ====================== -->
+  <section class="section section--soft">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow">Why ElectriVa</span>
+        <h2>Five core capabilities, one integrated platform</h2>
+        <p class="lead">A decade of evolution — from renewable-energy roots to nationwide EV infrastructure leadership.</p>
+      </div>
+      <div class="grid grid-3">
+        <article class="card reveal" data-d="1">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg></div>
+          <h3>Platform</h3>
+          <p>A vertically-integrated EV infrastructure platform connecting hardware, software and energy.</p>
+        </article>
+        <article class="card reveal" data-d="2">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16v10H4z"/><path d="M8 7V5h8v2M9 17v3M15 17v3"/></svg></div>
+          <h3>Hardware</h3>
+          <p>In-house proprietary charger manufacturing from a 10,000 sq.&nbsp;ft. facility.</p>
+        </article>
+        <article class="card reveal" data-d="3">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l4 4 14-14M3 20h18"/></svg></div>
+          <h3>Execution</h3>
+          <p>Nationwide, global-grade EPC execution from concept to commissioning.</p>
+        </article>
+        <article class="card reveal" data-d="1">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 7.5l3 8M16.5 7.5l-3 8"/></svg></div>
+          <h3>Network</h3>
+          <p>A rapidly-growing, technologically-agnostic charging network with high uptime.</p>
+        </article>
+        <article class="card reveal" data-d="2">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11a4 4 0 10-8 0M2 20a6 6 0 0112 0M22 20a6 6 0 00-9-5.2"/></svg></div>
+          <h3>Partnerships</h3>
+          <p>Unrivalled OEM, fleet, and institutional partnerships across the ecosystem.</p>
+        </article>
+        <article class="card reveal card--dark" data-d="3" style="display:flex;flex-direction:column;justify-content:center">
+          <h3 style="margin-bottom:14px">A one-stop solution</h3>
+          <p style="margin-bottom:20px">From design to manufacture to 24/7 operation — everything under one roof.</p>
+          <a class="link-arrow" href="solutions.html" style="color:var(--green-300)">See how it works <span class="arrow">→</span></a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== Products preview ====================== -->
+  <section class="section">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow">Product Portfolio</span>
+        <h2>Versatile charging technology for every segment</h2>
+        <p class="lead">Proprietary hardware engineered in-house — catering to 2W, 3W, 4W and bus fleets.</p>
+      </div>
+      <div class="grid grid-3">
+        <article class="card product reveal" data-d="1">
+          <div class="product__media"><span class="product__tag">AC Charging</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M9 6h6M12 10v5M9.5 13l2.5-3 2.5 3"/></svg>
+          </div>
+          <div class="product__body">
+            <h3>Trio &amp; Nimbus AC</h3>
+            <p>Compact, reliable AC chargers for homes, offices and destination charging.</p>
+            <ul class="product__specs"><li>Trio · 9.9 kW</li><li>Nimbus · 22 kW</li></ul>
+          </div>
+        </article>
+        <article class="card product reveal" data-d="2">
+          <div class="product__media"><span class="product__tag">DC Fast</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M10 6h4M12 9l-2 4h4l-2 4"/></svg>
+          </div>
+          <div class="product__body">
             <h3>Infinity DC Series</h3>
-            <p class="product__spec">30 kW → 480 kW</p>
-            <p>Dual-gun DC fast and hyper charging for rapid turnaround and fleet uptime.</p>
-            <ul class="ticks">
-              <li>Range 30 kW to 480 kW</li>
-              <li>Dual-gun options</li>
-              <li>Built for 24/7/365 operation</li>
-            </ul>
-          </article>
-          <article class="product">
-            <div class="product__tag">Battery Swapping</div>
-            <h3>BSS Infrastructure</h3>
-            <p class="product__spec">Rapid 2W / 3W swap</p>
-            <p>Instant energy replenishment for high-frequency 2W and 3W mobility.</p>
-            <ul class="ticks">
-              <li>1,000+ swap stations</li>
-              <li>Seconds, not minutes</li>
-              <li>Ideal for delivery fleets</li>
-            </ul>
-          </article>
-        </div>
+            <p>High-power dual-gun DC fast chargers for highways and commercial hubs.</p>
+            <ul class="product__specs"><li>30 kW → 480 kW</li><li>Dual Gun</li></ul>
+          </div>
+        </article>
+        <article class="card product reveal" data-d="3">
+          <div class="product__media"><span class="product__tag">Swapping</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h8"/></svg>
+          </div>
+          <div class="product__body">
+            <h3>Battery Swapping</h3>
+            <p>BSS infrastructure for rapid 2W/3W energy replenishment in seconds.</p>
+            <ul class="product__specs"><li>2W &amp; 3W</li><li>Rapid Swap</li></ul>
+          </div>
+        </article>
       </div>
-    </section>
+      <div class="center" style="margin-top:42px"><a class="btn btn--ghost btn--lg reveal" href="products.html">View full product range <span class="arrow">→</span></a></div>
+    </div>
+  </section>
 
-    <!-- ───────────────────────── Software ───────────────────────── -->
-    <section class="section software" id="software">
-      <div class="container software__inner">
-        <div class="software__copy">
-          <span class="eyebrow eyebrow--dark">The software ecosystem</span>
-          <h2>One intelligent, vertically-integrated stack</h2>
-          <p class="section-sub">A technologically-agnostic platform ensuring high network uptime, a frictionless user experience and real-time asset management.</p>
-
-          <div class="split">
-            <div class="split__col">
-              <h4>For drivers</h4>
-              <ul class="ticks">
-                <li>Seamless station discovery &amp; routing</li>
-                <li>Real-time availability</li>
-                <li>Cashless, RFID-enabled access</li>
-                <li>Live session management</li>
-              </ul>
-            </div>
-            <div class="split__col">
-              <h4>For operators &amp; franchises</h4>
-              <ul class="ticks">
-                <li>Charging Station Management System (CSMS)</li>
-                <li>Dynamic pricing &amp; utilisation</li>
-                <li>Remote diagnostics &amp; IoT monitoring</li>
-                <li>Automated error management</li>
-              </ul>
-            </div>
-          </div>
-          <div class="store-badges">
-            <a class="store" href="#contact"> App Store</a>
-            <a class="store" href="#contact"> Google Play</a>
-          </div>
-        </div>
-
-        <div class="software__phone" aria-hidden="true">
-          <div class="phone">
-            <div class="phone__notch"></div>
-            <div class="phone__screen">
-              <div class="app-head">
-                <span>Hi, Raj 👋</span>
-                <span class="app-bal">₹ 1,240</span>
-              </div>
-              <div class="app-map">
-                <span class="map-pin map-pin--a"></span>
-                <span class="map-pin map-pin--b"></span>
-                <span class="map-pin map-pin--c"></span>
-              </div>
-              <div class="app-card">
-                <div class="app-card__top">
-                  <b>Nimbus · MG Road</b>
-                  <span class="badge badge--free">Available</span>
-                </div>
-                <div class="app-card__row"><span>22 kW AC</span><span>₹16/kWh</span></div>
-                <button class="app-btn">Start charging</button>
-              </div>
-            </div>
-          </div>
-        </div>
+  <!-- ====================== Stats band (dark) ====================== -->
+  <section class="section section--dark">
+    <div class="container">
+      <div class="section__head center reveal">
+        <span class="eyebrow">Traction &amp; Scale</span>
+        <h2>Proven operational capability at massive scale</h2>
       </div>
-    </section>
-
-    <!-- ───────────────────────── Network / Map ───────────────────────── -->
-    <section class="section section--dark network" id="network">
-      <div class="container">
-        <div class="section-head section-head--light">
-          <span class="eyebrow">Our network</span>
-          <h2>A nationwide network, growing fast</h2>
-          <p class="section-sub">Rapid deployment across metros and Tier-2 cities — with our first international footprint already live in Nepal.</p>
-        </div>
-        <div class="network__grid">
-          <div class="network__map">
-            <div class="map-glow"></div>
-            <ul class="map-list">
-              <li><b>Delhi NCR</b><span>123 sites awarded · 81 live</span></li>
-              <li><b>Indore (AICTSL)</b><span>Solar-enabled public charging</span></li>
-              <li><b>Chandigarh (CREST)</b><span>24 awarded · 20 completed</span></li>
-              <li><b>Kerala</b><span>Where it all began</span></li>
-              <li><b>Nepal</b><span>60+ points · international</span></li>
-            </ul>
-          </div>
-          <div class="network__facts">
-            <div class="fact"><strong>240 kW</strong><span>DC hyperchargers deployed for transit fleets (PMI &amp; DTC)</span></div>
-            <div class="fact"><strong>123→81</strong><span>Delhi municipal sites awarded &amp; completed</span></div>
-            <div class="fact"><strong>10 MW+</strong><span>Solar capacity integrated across sites</span></div>
-            <div class="fact"><strong>AAI</strong><span>Charging infrastructure at key airports</span></div>
-          </div>
-        </div>
+      <div class="stats">
+        <div class="stat reveal" data-d="1"><b><span data-count="1350" data-suffix="+">1,350+</span></b><span>Charging Points</span></div>
+        <div class="stat reveal" data-d="2"><b><span data-count="375" data-suffix="+">375+</span></b><span>Site Equivalents</span></div>
+        <div class="stat reveal" data-d="3"><b><span data-count="10" data-suffix="MW+">10MW+</span></b><span>Solar Installed</span></div>
+        <div class="stat reveal" data-d="4"><b><span data-count="35" data-suffix="+">35+</span></b><span>Cities Covered</span></div>
       </div>
-    </section>
+      <p class="center reveal" style="margin-top:36px;color:#8fb6a3">Rapid nationwide deployment across 17+ states · strong presence in metros &amp; Tier-2 cities.</p>
+    </div>
+  </section>
 
-    <!-- ───────────────────────── Why Electriva ───────────────────────── -->
-    <section class="section why" id="why">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Why Electriva</span>
-          <h2>Five core capabilities, one platform</h2>
-        </div>
-        <div class="cards cards--5">
-          <article class="mini"><span class="mini__n">01</span><h3>Platform</h3><p>Vertically-integrated EV infrastructure platform.</p></article>
-          <article class="mini"><span class="mini__n">02</span><h3>Hardware</h3><p>In-house, proprietary charger manufacturing.</p></article>
-          <article class="mini"><span class="mini__n">03</span><h3>Execution</h3><p>Nationwide, global-grade EPC expertise.</p></article>
-          <article class="mini"><span class="mini__n">04</span><h3>Network</h3><p>Rapidly growing, technology-agnostic network.</p></article>
-          <article class="mini"><span class="mini__n">05</span><h3>Partnerships</h3><p>Unrivalled OEM, fleet &amp; institutional ties.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── Sustainability ───────────────────────── -->
-    <section class="section section--green sustain" id="sustainability">
-      <div class="container sustain__inner">
-        <div class="sustain__copy">
-          <span class="eyebrow">Sustainability</span>
-          <h2>Charging toward a greener tomorrow</h2>
-          <p class="section-sub">Born from renewable-energy roots, we're building the sustainable backbone of tomorrow's mobility.</p>
-          <ul class="ticks ticks--light">
-            <li><b>Solar integration</b> — renewable energy reduces every charge's footprint</li>
-            <li><b>Circular economy</b> — resource efficiency and reduced waste</li>
-            <li><b>Battery lifecycle</b> — responsible reuse, repurposing &amp; recycling</li>
+  <!-- ====================== Software ====================== -->
+  <section class="section">
+    <div class="container">
+      <div class="feature-row">
+        <div class="feature-row__text reveal">
+          <span class="eyebrow">The Software Ecosystem</span>
+          <h2>An intelligent, vertically-integrated software stack</h2>
+          <p class="lead" style="margin-top:14px">Our proprietary digital ecosystem ensures high network uptime, a frictionless user experience and real-time asset management.</p>
+          <ul class="feature-list">
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l4 4L19 6"/></svg></span><div><b>For Drivers</b>Seamless station discovery, real-time availability and frictionless RFID &amp; UPI payments.</div></li>
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l4 4L19 6"/></svg></span><div><b>For Operators &amp; Franchises</b>A complete Charging Station Management System (CSMS) with dynamic pricing &amp; automated error management.</div></li>
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l4 4L19 6"/></svg></span><div><b>IoT Management</b>Cloud-connected monitoring, remote diagnostics and live utilisation tracking of every grid point.</div></li>
           </ul>
+          <div style="margin-top:30px"><a class="btn btn--primary" href="solutions.html#software">Explore the platform <span class="arrow">→</span></a></div>
         </div>
-        <div class="sustain__metric">
-          <div class="bigfig">
-            <strong class="stat__num" data-count="1350000" data-suffix="">0</strong>
-            <span>kg CO₂ emissions saved annually</span>
+        <div class="feature-row__visual reveal" data-d="2">
+          <div class="charger-card" style="aspect-ratio:5/4;display:flex;flex-direction:column;justify-content:center">
+            <div class="charger-card__top"><span class="charger-card__status"><i class="dot-live"></i> Network · Online</span><span style="font-size:.8rem;color:#9fc7b3">CSMS Dashboard</span></div>
+            <div class="charger-card__grid" style="grid-template-columns:repeat(2,1fr);margin-top:22px">
+              <div><b>99.6%</b><span>NETWORK UPTIME</span></div>
+              <div><b>1,350+</b><span>CONNECTED POINTS</span></div>
+              <div><b>24/7</b><span>REMOTE MONITORING</span></div>
+              <div><b>Dynamic</b><span>SMART PRICING</span></div>
+            </div>
+            <div class="charger-card__bar" style="margin-top:24px"><i></i></div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ───────────────────────── Franchise / Models ───────────────────────── -->
-    <section class="section franchise" id="franchise">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Partner with us</span>
-          <h2>Two pathways to revenue &amp; scale</h2>
-          <p class="section-sub">Whether you want a fully-managed flagship hub or a high-return franchise, we operate the technology so you can focus on growth.</p>
-        </div>
-        <div class="cards cards--2">
-          <article class="model">
-            <h3>CoCo</h3>
-            <p class="model__full">Company-Owned, Company-Operated</p>
-            <p>Fully owned and managed by Electriva — ensuring the highest standards across flagship locations and strategic hubs.</p>
-          </article>
-          <article class="model model--feature">
-            <div class="model__badge">Most popular</div>
-            <h3>PoCo</h3>
-            <p class="model__full">Partner-Owned, Company-Operated</p>
-            <p>You own the asset, we operate the technology — enabling rapid network expansion.</p>
-            <div class="model__share">Franchisee revenue share <strong>15–20%</strong> of gross revenues</div>
-            <a class="btn btn--primary" href="#contact">Apply for a franchise</a>
-          </article>
-        </div>
+  <!-- ====================== EPC process ====================== -->
+  <section class="section section--soft">
+    <div class="container">
+      <div class="section__head center reveal">
+        <span class="eyebrow">End-to-End Turnkey EPC</span>
+        <h2>From concept to completion — a holistic solution</h2>
+        <p class="lead">Nationwide, global-grade EPC execution expertise, delivered under one roof.</p>
       </div>
-    </section>
+      <div class="steps">
+        <div class="step reveal" data-d="1"><h3>Design &amp; Plan</h3><p>Site assessment and custom infrastructure architecture.</p></div>
+        <div class="step reveal" data-d="2"><h3>Manufacture</h3><p>Deploying our proprietary, in-house charging hardware.</p></div>
+        <div class="step reveal" data-d="3"><h3>Execute &amp; Install</h3><p>Seamless civil and electrical commissioning on the ground.</p></div>
+        <div class="step reveal" data-d="4"><h3>Manage</h3><p>24/7 software monitoring and maintenance support.</p></div>
+        <div class="step reveal" data-d="4"><h3>Scale</h3><p>Expand sites with a flexible, partner-led franchise model.</p></div>
+      </div>
+    </div>
+  </section>
 
-    <!-- ───────────────────────── About / Timeline ───────────────────────── -->
-    <section class="section section--alt about" id="about">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Our journey</span>
-          <h2>A decade of evolution — from solar roots to EV leadership</h2>
-        </div>
-        <ol class="timeline">
-          <li>
-            <span class="timeline__year">2016–2018</span>
-            <h3>Foundation</h3>
-            <p>Began as a rooftop-solar pioneer (Zivah) across 4 states, then strategically pivoted into EV charger development.</p>
-          </li>
-          <li>
-            <span class="timeline__year">2020–2022</span>
-            <h3>Launch &amp; manufacturing</h3>
-            <p>Launched our first station in Kerala, incorporated Electriva and opened a 10,000 sq. ft. manufacturing facility.</p>
-          </li>
-          <li>
-            <span class="timeline__year">2023–2025</span>
-            <h3>Scale &amp; international</h3>
-            <p>Expanded across major Northern &amp; Central Indian hubs and went global with 60+ points in Nepal.</p>
-          </li>
-        </ol>
+  <!-- ====================== Segments ====================== -->
+  <section class="section">
+    <div class="container">
+      <div class="section__head center reveal">
+        <span class="eyebrow">Markets We Serve</span>
+        <h2>Tailored infrastructure across every market segment</h2>
       </div>
-    </section>
+      <div class="grid grid-3">
+        <article class="card reveal" data-d="1">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V9l9-6 9 6v12M9 21v-6h6v6"/></svg></div>
+          <h3>Residential &amp; Commercial</h3>
+          <p>Home solutions for RWAs alongside premium destination charging for hotels, offices and public parking.</p>
+        </article>
+        <article class="card reveal" data-d="2">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17h18M5 17V9l4-4h6l4 4v8M9 17v3M15 17v3"/></svg></div>
+          <h3>Transit &amp; Highways</h3>
+          <p>High-speed charging corridors for public transport, logistics routes and inter-city travellers.</p>
+        </article>
+        <article class="card reveal" data-d="3">
+          <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/><path d="M5 18H3V7h11v11M14 9h4l3 4v5h-2"/></svg></div>
+          <h3>Fleet Operators &amp; Govt</h3>
+          <p>Strategic long-term agreements and dedicated captive hubs for OEMs and municipal bus fleets.</p>
+        </article>
+      </div>
+    </div>
+  </section>
 
-    <!-- ───────────────────────── CTA / Contact ───────────────────────── -->
-    <section class="section cta" id="contact">
-      <div class="container cta__inner">
-        <div class="cta__copy">
-          <h2>Let's build the charging network of tomorrow</h2>
-          <p>Talk to us about public charging, fleet partnerships, EPC projects or franchise opportunities.</p>
-          <ul class="cta__contacts">
-            <li>🌐 <a href="https://www.electriva.in" target="_blank" rel="noopener">www.electriva.in</a></li>
-            <li>📍 New Delhi, India</li>
-            <li>🏢 A brand of Zivah International Private Limited</li>
-          </ul>
+  <!-- ====================== Final CTA ====================== -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-band reveal">
+        <span class="eyebrow">Join the Revolution</span>
+        <h2>Green energy is the future</h2>
+        <p>ElectriVa isn't just building chargers — we're building the sustainable backbone of tomorrow's mobility. Partner with us to power your city.</p>
+        <div class="hero__cta">
+          <a class="btn btn--light btn--lg" href="franchise.html">Become a Partner <span class="arrow">→</span></a>
+          <a class="btn btn--ghost btn--lg" href="contact.html">Talk to Our Team</a>
         </div>
-        <form class="cta__form" id="leadForm" novalidate>
-          <div class="field">
-            <label for="name">Name</label>
-            <input id="name" name="name" type="text" required placeholder="Your name" />
-          </div>
-          <div class="field">
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email" required placeholder="you@company.com" />
-          </div>
-          <div class="field">
-            <label for="interest">I'm interested in</label>
-            <select id="interest" name="interest">
-              <option>Public charging</option>
-              <option>Franchise (PoCo)</option>
-              <option>Fleet / OEM partnership</option>
-              <option>EPC project</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="msg">Message</label>
-            <textarea id="msg" name="msg" rows="3" placeholder="Tell us a little about your project"></textarea>
-          </div>
-          <button class="btn btn--primary btn--lg" type="submit">Send enquiry</button>
-          <p class="form-note" id="formNote" hidden>Thanks! We'll be in touch shortly.</p>
-        </form>
       </div>
-    </section>
+    </div>
+  </section>
   </main>
 
-  <!-- ───────────────────────── Footer ───────────────────────── -->
+  <!-- ============================ Footer ============================ -->
   <footer class="footer">
-    <div class="container footer__inner">
-      <div class="footer__brand">
-        <a class="brand" href="#top">
-          <span class="brand__mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="M13 2L4.5 13.5H11l-1 8.5L19.5 10H13l0-8z" fill="currentColor"/></svg>
-          </span>
-          <span class="brand__text">Electri<span>va</span></span>
-        </a>
-        <p>Powering the future of electric mobility. Keeping India charged.</p>
-      </div>
-      <nav class="footer__cols" aria-label="Footer">
+    <div class="container">
+      <div class="footer__top">
         <div>
-          <h4>Solutions</h4>
-          <a href="#solutions">Residential</a>
-          <a href="#solutions">Transit &amp; Highways</a>
-          <a href="#solutions">Fleet</a>
-          <a href="#solutions">Government</a>
-        </div>
-        <div>
-          <h4>Products</h4>
-          <a href="#products">AC Chargers</a>
-          <a href="#products">DC Fast</a>
-          <a href="#products">Battery Swapping</a>
-          <a href="#software">Software</a>
+          <a class="brand" href="index.html"><span class="brand__mark"><svg viewBox="0 0 32 32" width="30" height="30"><path d="M17 3L7 17h6l-1 12 11-15h-7l1-11z" fill="currentColor"/></svg></span><span class="brand__text">Electri<span>Va</span></span></a>
+          <p class="footer__about">Powering the future of electric mobility. A brand of Zivah International Private Limited — building one of India's most extensive, truly-green EV charging networks.</p>
+          <div class="footer__social">
+            <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5A2.5 2.5 0 110 3.51a2.5 2.5 0 014.98 0zM.2 8.4h4.56V24H.2zM8.3 8.4h4.37v2.13h.06c.6-1.14 2.08-2.34 4.28-2.34 4.58 0 5.43 3 5.43 6.92V24h-4.56v-6.86c0-1.64-.03-3.74-2.28-3.74-2.28 0-2.63 1.78-2.63 3.62V24H8.3z"/></svg></a>
+            <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2c3.2 0 3.6 0 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.25.07 1.62.07 4.81s-.01 3.56-.07 4.81c-.15 3.23-1.66 4.77-4.92 4.92-1.25.06-1.62.07-4.85.07s-3.6-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92C2.16 15.56 2.15 15.19 2.15 12s.01-3.56.08-4.81c.15-3.23 1.66-4.77 4.92-4.92C8.4 2.21 8.8 2.2 12 2.2zm0 3.3a6.5 6.5 0 100 13 6.5 6.5 0 000-13zm0 10.7a4.2 4.2 0 110-8.4 4.2 4.2 0 010 8.4zm6.7-10.9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/></svg></a>
+            <a href="#" aria-label="Twitter / X"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.3 8.3L23 22h-6.6l-5.2-6.8L5.3 22H2l7.8-8.9L1.5 2h6.8l4.7 6.2zM17.7 20h1.7L7 4H5.2z"/></svg></a>
+          </div>
         </div>
         <div>
           <h4>Company</h4>
-          <a href="#about">About</a>
-          <a href="#network">Network</a>
-          <a href="#franchise">Franchise</a>
-          <a href="#contact">Contact</a>
+          <div class="footer__links">
+            <a href="about.html">About Us</a>
+            <a href="about.html#timeline">Our Journey</a>
+            <a href="network.html">Network &amp; Coverage</a>
+            <a href="franchise.html">Partners &amp; Franchise</a>
+          </div>
         </div>
-      </nav>
-    </div>
-    <div class="container footer__bottom">
-      <span>© <span id="year">2026</span> Electriva · A brand of Zivah International Private Limited</span>
-      <span>New Delhi, India · www.electriva.in</span>
+        <div>
+          <h4>Solutions</h4>
+          <div class="footer__links">
+            <a href="products.html">AC &amp; DC Chargers</a>
+            <a href="products.html#swapping">Battery Swapping</a>
+            <a href="solutions.html#software">Software &amp; CSMS</a>
+            <a href="solutions.html#epc">Turnkey EPC</a>
+          </div>
+        </div>
+        <div>
+          <h4>Get in Touch</h4>
+          <div class="footer__links">
+            <a href="mailto:info@electriva.in">info@electriva.in</a>
+            <a href="tel:+911140000000">+91 11 4000 0000</a>
+            <a href="contact.html">New Delhi, India</a>
+            <a href="contact.html">Contact Form</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <span>© <span id="year">2026</span> ElectriVa · Zivah International Private Limited. All rights reserved.</span>
+        <span><a href="#top">Back to top ↑</a></span>
+      </div>
     </div>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="js/main.js" defer></script>
 </body>
 </html>
