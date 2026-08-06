@@ -117,7 +117,7 @@
       status.textContent =
         "Thanks, " + name + ". Your enquiry has been captured in the browser only — " +
         "connect this form to a mail service or CRM to receive it. In the meantime, " +
-        "email AJ@nakjminfra.com and we will respond within one working day.";
+        "email connect@nakjiminfra.com and we will respond within one working day.";
       status.setAttribute("data-state", "ok");
       form.reset();
       status.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });

@@ -8,7 +8,7 @@
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
 <script>document.documentElement.classList.add("js");</script>
 <link rel="stylesheet" href="assets/styles.css">
 </head>
@@ -18,7 +18,9 @@
 <div class="utility">
   <div class="wrap">
     <a href="tel:+919971535940">+91 99715 35940</a>
-    <a href="mailto:AJ@nakjminfra.com">AJ@nakjminfra.com</a>
+    <span class="utility__sep" aria-hidden="true">|</span>
+    <a href="mailto:connect@nakjiminfra.com">connect@nakjiminfra.com</a>
+    <span class="utility__sep" aria-hidden="true">|</span>
     <a href="contact.html">Request a Site Survey</a>
   </div>
 </div>
@@ -26,7 +28,7 @@
 <header class="nav">
   <div class="wrap">
     <a class="nav__logo" href="index.html" aria-label="NAKJM Infrastructure home">
-      <img src="assets/logo.svg" alt="NAKJM Infrastructure" width="168" height="50">
+      <img src="assets/logo.png" alt="NAKJM Infrastructure" width="172" height="53">
     </a>
     <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Toggle navigation">
       <span></span>
@@ -40,7 +42,7 @@
         <li><a href="contact.html">Contact</a></li>
       </ul>
       <div class="nav__cta">
-        <a class="btn btn--primary" href="contact.html">Commission a Project <span class="btn__arrow">→</span></a>
+        <a class="btn btn--primary" href="contact.html">Commission a project <span class="btn__arrow">&rarr;</span></a>
       </div>
     </nav>
   </div>
@@ -48,21 +50,17 @@
 
 <main id="main">
 
-  <section class="hero">
+  <section class="hero hero--short">
+    <div class="hero__bg">
+      <img src="assets/img/tesla-super.jpg" alt="Tesla Supercharger installation delivered by NAKJM" loading="eager">
+    </div>
     <div class="wrap">
-      <div class="hero__grid">
-        <div class="hero__copy">
-          <span class="eyebrow">Our company</span>
-          <h1>The execution engine behind India's charging build-out.</h1>
-          <p class="lede">
-            NAKJM Infrastructure Pvt Ltd is a next-generation infrastructure company —
-            fifteen years of EPC discipline applied to the fastest-moving category in
-            Indian construction.
-          </p>
-        </div>
-        <div class="hero__media">
-          <img src="assets/img/tesla-supercharger.jpg" alt="Tesla Supercharger installation delivered by NAKJM" loading="eager">
-        </div>
+      <div class="hero__inner">
+        <span class="eyebrow">Our company</span>
+        <h1>The execution engine behind <span class="accent">India's build-out.</span></h1>
+        <p class="lede">NAKJM Infrastructure Pvt Ltd is a next-generation infrastructure company &mdash; fifteen years of EPC discipline applied to the fastest-moving category in Indian construction.</p>
+        
+        
       </div>
     </div>
   </section>
@@ -74,7 +72,7 @@
         <ul class="quicklinks__list">
           <li><a href="#mission">Mission &amp; Vision</a></li>
           <li><a href="#values">Core Values</a></li>
-          <li><a href="#numbers">By the Numbers</a></li>
+          <li><a href="#impact">Our Impact</a></li>
           <li><a href="#advantage">Our Advantage</a></li>
           <li><a href="#footprint">Operating Footprint</a></li>
           <li><a href="#workforce">Workforce</a></li>
@@ -87,20 +85,20 @@
   <section class="section" id="mission">
     <div class="wrap">
       <div class="grid grid--2 reveal">
-        <article class="panel panel--muted">
-          <span class="eyebrow">Mission</span>
+        <article class="card">
+          <span class="eyebrow">Our mission</span>
           <h3>Engineering India's transition to sustainable mobility</h3>
           <p>
-            To engineer and execute India's transition to sustainable mobility through
-            uncompromising infrastructure deployment.
+            To engineer and execute India's transition to sustainable mobility
+            through uncompromising infrastructure deployment.
           </p>
         </article>
-        <article class="panel panel--accent">
-          <span class="eyebrow">Vision</span>
+        <article class="card" style="border-top-color:var(--red-600)">
+          <span class="eyebrow">Our vision</span>
           <h3>The singular, trusted execution engine</h3>
           <p>
-            To be the singular, trusted execution engine for the world's leading energy
-            and automotive brands in India.
+            To be the singular, trusted execution engine for the world's leading
+            energy and automotive brands in India.
           </p>
         </article>
       </div>
@@ -111,8 +109,8 @@
   <section class="section section--paper" id="values">
     <div class="wrap">
       <div class="section-head section-head--center">
-        <span class="eyebrow">Core values</span>
-        <h2>Three commitments we do not trade away</h2>
+        <span class="eyebrow">Our core values</span>
+        <h2>Three commitments we <span class="accent">do not trade away.</span></h2>
       </div>
       <div class="grid grid--3 reveal">
         <article class="card">
@@ -122,7 +120,7 @@
             </svg>
           </div>
           <h3>Precision execution</h3>
-          <p>Absolute adherence to engineering tolerances — on the pad, in the panel and at the connection.</p>
+          <p>Absolute adherence to engineering tolerances &mdash; on the pad, in the panel and at the connection.</p>
         </article>
         <article class="card">
           <div class="card__icon" aria-hidden="true">
@@ -146,48 +144,42 @@
     </div>
   </section>
 
-  <!-- numbers -->
-  <section class="section" id="numbers">
+  <!-- impact -->
+  <section class="section section--navy" id="impact">
     <div class="wrap">
-      <div class="section-head section-head--center">
-        <span class="eyebrow">By the numbers</span>
-        <h2>Track record</h2>
+      <div class="section-head">
+        <span class="eyebrow">Our impact</span>
+        <h2>Track <span class="accent">record.</span></h2>
       </div>
-      <ul class="stats reveal">
-        <li class="stat"><div class="stat__num" data-count-to="15" data-suffix="+">15+</div><div class="stat__label">Years total EPC experience</div></li>
-        <li class="stat"><div class="stat__num" data-count-to="7" data-suffix="+">7+</div><div class="stat__label">Years EV charging expertise</div></li>
-        <li class="stat"><div class="stat__num" data-count-to="300" data-suffix="+">300+</div><div class="stat__label">EV stations delivered</div></li>
-        <li class="stat"><div class="stat__num" data-count-to="15" data-suffix="+">15+</div><div class="stat__label">Large EV charging hubs</div></li>
+      <ul class="assure reveal">
+        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="15" data-suffix="+">15+</strong><span>Years total EPC experience</span></li>
+        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="7" data-suffix="+">7+</strong><span>Years EV charging expertise</span></li>
+        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="300" data-suffix="+">300+</strong><span>EV stations delivered</span></li>
+        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="15" data-suffix="+">15+</strong><span>Large EV charging hubs</span></li>
       </ul>
-      <div class="grid grid--2 reveal" style="margin-top:1.5rem">
-        <article class="card">
-          <h3>In-house civil &amp; electrical teams</h3>
-          <p>Dedicated crews on our own payroll — not subcontracted labour assembled per project.</p>
-        </article>
-        <article class="card">
-          <h3>100% hardware-agnostic execution</h3>
-          <p>Every station we build is specified around the client's chosen OEM, never around ours.</p>
-        </article>
-      </div>
+      <ul class="assure reveal" style="margin-top:1.5rem">
+        <li><strong style="font-size:1.5rem;font-family:var(--font-display)">In-house</strong><span>Dedicated civil &amp; electrical teams</span></li>
+        <li><strong style="font-size:1.5rem;font-family:var(--font-display)">100%</strong><span>Hardware-agnostic execution</span></li>
+      </ul>
     </div>
   </section>
 
   <!-- advantage -->
-  <section class="section section--paper" id="advantage">
+  <section class="section" id="advantage">
     <div class="wrap">
       <div class="section-head">
         <span class="eyebrow">Our advantage</span>
-        <h2>Why unified beats fragmented</h2>
+        <h2>Why unified beats <span class="accent">fragmented.</span></h2>
         <p class="lede">
-          The difference is not marginal. It shows up in the schedule, the budget and the
-          quality of the connection.
+          The difference is not marginal. It shows up in the schedule, the budget
+          and the quality of the connection.
         </p>
       </div>
       <div class="table-scroll reveal">
         <table class="compare">
           <thead>
             <tr>
-              <th scope="col">&nbsp;</th>
+              <th scope="col"><span class="sr-only">Criterion</span></th>
               <th scope="col">Traditional fragmented contractors</th>
               <th scope="col">The NAKJM next-gen EPC</th>
             </tr>
@@ -195,18 +187,18 @@
           <tbody>
             <tr>
               <th scope="row">Vendor dependency</th>
-              <td><span class="mark-no" aria-hidden="true">✕</span>Fragmented across 4+ vendors</td>
-              <td><span class="mark-yes" aria-hidden="true">✓</span>100% unified in-house execution</td>
+              <td><span class="mark-no" aria-hidden="true">&#10007;</span>Fragmented across 4+ vendors</td>
+              <td><span class="mark-yes" aria-hidden="true">&#10003;</span>100% unified in-house execution</td>
             </tr>
             <tr>
               <th scope="row">Fabrication speed</th>
-              <td><span class="mark-no" aria-hidden="true">✕</span>Outsourced with variable delays</td>
-              <td><span class="mark-yes" aria-hidden="true">✓</span>In-house MS fabrication facility for fast-tracking</td>
+              <td><span class="mark-no" aria-hidden="true">&#10007;</span>Outsourced with variable delays</td>
+              <td><span class="mark-yes" aria-hidden="true">&#10003;</span>In-house MS fabrication facility for fast-tracking</td>
             </tr>
             <tr>
               <th scope="row">Technical integration</th>
-              <td><span class="mark-no" aria-hidden="true">✕</span>Basic standard wiring</td>
-              <td><span class="mark-yes" aria-hidden="true">✓</span>4+ years deep expertise in hardware-agnostic EV integration</td>
+              <td><span class="mark-no" aria-hidden="true">&#10007;</span>Basic standard wiring</td>
+              <td><span class="mark-yes" aria-hidden="true">&#10003;</span>4+ years deep expertise in hardware-agnostic EV integration</td>
             </tr>
           </tbody>
         </table>
@@ -214,42 +206,41 @@
     </div>
   </section>
 
-  <!-- footprint + workforce -->
-  <section class="section" id="footprint">
+  <!-- footprint -->
+  <section class="section section--paper" id="footprint">
     <div class="wrap">
-      <div class="split reveal">
+      <div class="section-head">
+        <span class="eyebrow">Nationwide presence. Centralised command.</span>
+        <h2>Command centre: <span class="accent">Delhi NCR.</span></h2>
+      </div>
+      <div class="grid grid--2 reveal" style="align-items:center">
         <div>
-          <span class="eyebrow">Operating footprint</span>
-          <h2>Command centre: Delhi NCR</h2>
-          <p class="lede">
-            Executing standard 100 km operational radiuses and dedicated outstation
-            multi-state rollouts.
+          <img src="assets/img/india-map.jpg" alt="Map of India showing NAKJM's Delhi NCR headquarters dispatching crews to states nationwide" loading="lazy" style="border:1px solid var(--line);background:#fff">
+          <p style="margin-top:1.5rem">
+            Executing standard 100 km operational radiuses and dedicated
+            outstation multi-state rollouts. Our Gurgaon command centre plans,
+            dispatches and supervises every site on a hub-and-spoke model that
+            keeps supervision close to the work.
           </p>
-          <p>
-            Our Gurgaon command centre plans, dispatches and supervises every site. Crews
-            deploy on a hub-and-spoke model that keeps supervision close to the work even
-            when the programme runs across several states at once.
-          </p>
-          <p><a class="link-more" href="projects.html">See where we have built</a></p>
         </div>
         <div id="workforce">
           <span class="eyebrow">Workforce</span>
-          <h3 style="margin-bottom:1.25rem">Three tiers of in-house capability</h3>
+          <h3 style="margin-bottom:1.5rem">Three tiers of in-house capability</h3>
           <div class="tier">
-            <h4>Engineering command</h4>
-            <p>Experienced commissioning engineers ensuring quality and safety protocols.</p>
+            <span class="tier__mark" aria-hidden="true"></span>
+            <div><h4>Engineering command</h4><p>Experienced commissioning engineers ensuring quality and safety protocols.</p></div>
           </div>
           <div class="tier">
-            <h4>Specialised technical units</h4>
-            <p>In-house electrical teams, fabrication specialists and fitters.</p>
+            <span class="tier__mark" aria-hidden="true"></span>
+            <div><h4>Specialised technical units</h4><p>In-house electrical teams, fabrication specialists and fitters.</p></div>
           </div>
           <div class="tier">
-            <h4>Heavy civil workforce</h4>
-            <p>In-house civil teams for rapid turnaround.</p>
+            <span class="tier__mark" aria-hidden="true"></span>
+            <div><h4>Heavy civil workforce</h4><p>In-house civil teams for rapid turnaround.</p></div>
           </div>
-          <p class="callout" style="margin-top:1.25rem">
-            <strong>Operational edge:</strong> fully licensed, night-shift capable, ready
-            for on-demand crew expansion.
+          <p class="callout" style="margin-top:1.5rem">
+            <strong>Operational edge:</strong> fully licensed, night-shift
+            capable, ready for on-demand crew expansion.
           </p>
         </div>
       </div>
@@ -257,18 +248,21 @@
   </section>
 
   <section class="cta">
+    <div class="cta__bg">
+      <img src="assets/img/hub-electriva.jpg" alt="" aria-hidden="true" loading="lazy">
+    </div>
     <div class="wrap">
-      <div class="cta__grid">
-        <div class="cta__copy">
-          <h2>Commission the future of your <em>infrastructure</em>.</h2>
-          <p>Tell us the site, the load and the timeline. We will come back with a feasibility view and a single-contract delivery plan.</p>
-          <div class="hero__actions">
-            <a class="btn btn--primary" href="contact.html">Start a conversation <span class="btn__arrow">→</span></a>
-            <a class="btn btn--ghost-light" href="tel:+919971535940">+91 99715 35940</a>
-          </div>
-        </div>
-        <div class="cta__media">
-          <img src="assets/img/cta-sunset.jpg" alt="Completed EV charging forecourt at sunset" loading="lazy">
+      <div class="cta__inner">
+        <span class="eyebrow">Start a project</span>
+        <h2>Building the <span class="accent">new energy era.</span></h2>
+        <p>
+          Send us the site, the sanctioned load and the timeline. We come back
+          with a feasibility view and a single-contract delivery plan &mdash;
+          civil, electrical and charging under one accountable team.
+        </p>
+        <div class="cta__actions">
+          <a class="btn btn--primary" href="contact.html">Commission a project <span class="btn__arrow">&rarr;</span></a>
+          <a class="btn btn--ghost-light" href="tel:+919971535940">+91 99715 35940</a>
         </div>
       </div>
     </div>
@@ -280,10 +274,11 @@
   <div class="wrap">
     <div class="footer__grid">
       <div class="footer__brand">
-        <img src="assets/logo-light.svg" alt="NAKJM Infrastructure" width="190" height="57">
+        <img src="assets/logo-light.png" alt="NAKJM Infrastructure" width="196" height="61">
         <p>
-          NAKJM Infrastructure Pvt Ltd — next-generation mega-builders. Turnkey civil,
-          electrical and EV charging infrastructure, executed in-house.
+          NAKJM Infrastructure Pvt Ltd &mdash; next-generation mega-builders.
+          Turnkey civil, electrical and EV charging infrastructure, executed
+          entirely in-house.
         </p>
       </div>
       <div>
@@ -293,7 +288,7 @@
           <li><a href="capabilities.html#power">Electrical Engineering</a></li>
           <li><a href="capabilities.html#application">EV Infrastructure</a></li>
           <li><a href="capabilities.html#networks">Charging Networks</a></li>
-          <li><a href="capabilities.html#amc">O&amp;M and AMC</a></li>
+          <li><a href="capabilities.html#safety">O&amp;M and AMC</a></li>
         </ul>
       </div>
       <div>
@@ -310,14 +305,14 @@
         <h4>Get in touch</h4>
         <ul>
           <li><a href="tel:+919971535940">+91 99715 35940</a></li>
-          <li><a href="mailto:AJ@nakjminfra.com">AJ@nakjminfra.com</a></li>
-          <li>59, SS Omnia Mall,<br>Gurgaon — Sector 86</li>
+          <li><a href="mailto:connect@nakjiminfra.com">connect@nakjiminfra.com</a></li>
+          <li>CoWynd Managed Office, First Floor,<br>Plot 103, Dwarka Sector 19,<br>New Delhi &mdash; 110075</li>
         </ul>
       </div>
     </div>
     <div class="footer__bottom">
       <span>&copy; <span data-year>2026</span> NAKJM Infrastructure Pvt Ltd. All rights reserved.</span>
-      <span>Building tomorrow, together.</span>
+      <span>Building Tomorrow, Together.</span>
     </div>
   </div>
 </footer>

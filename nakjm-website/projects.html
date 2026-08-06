@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Projects — NAKJM Infrastructure</title>
-<meta name="description" content="Marquee clients and delivered projects: 120-station EV rollouts, mega-scale charging hubs, industrial factories, educational campuses and corporate fit-outs.">
+<meta name="description" content="Marquee clients and delivered projects: Electriva, VinFast, XPulse and Tesla charging hubs, industrial factories, educational campuses and corporate fit-outs.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
 <script>document.documentElement.classList.add("js");</script>
 <link rel="stylesheet" href="assets/styles.css">
 </head>
@@ -18,7 +18,9 @@
 <div class="utility">
   <div class="wrap">
     <a href="tel:+919971535940">+91 99715 35940</a>
-    <a href="mailto:AJ@nakjminfra.com">AJ@nakjminfra.com</a>
+    <span class="utility__sep" aria-hidden="true">|</span>
+    <a href="mailto:connect@nakjiminfra.com">connect@nakjiminfra.com</a>
+    <span class="utility__sep" aria-hidden="true">|</span>
     <a href="contact.html">Request a Site Survey</a>
   </div>
 </div>
@@ -26,7 +28,7 @@
 <header class="nav">
   <div class="wrap">
     <a class="nav__logo" href="index.html" aria-label="NAKJM Infrastructure home">
-      <img src="assets/logo.svg" alt="NAKJM Infrastructure" width="168" height="50">
+      <img src="assets/logo.png" alt="NAKJM Infrastructure" width="172" height="53">
     </a>
     <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Toggle navigation">
       <span></span>
@@ -40,7 +42,7 @@
         <li><a href="contact.html">Contact</a></li>
       </ul>
       <div class="nav__cta">
-        <a class="btn btn--primary" href="contact.html">Commission a Project <span class="btn__arrow">→</span></a>
+        <a class="btn btn--primary" href="contact.html">Commission a project <span class="btn__arrow">&rarr;</span></a>
       </div>
     </nav>
   </div>
@@ -48,30 +50,82 @@
 
 <main id="main">
 
-  <section class="hero">
+  <section class="hero hero--short">
+    <div class="hero__bg">
+      <img src="assets/img/hub-tesla.jpg" alt="Tesla Supercharger station delivered by NAKJM in Gurgaon" loading="eager">
+    </div>
     <div class="wrap">
-      <div class="hero__grid">
-        <div class="hero__copy">
-          <span class="eyebrow">Projects</span>
-          <h1>Proof of scale, on the ground.</h1>
-          <p class="lede">
-            300+ EV stations, 15+ large charging hubs, ten factory units and a ground-up
-            school campus — all executed by the same in-house teams.
-          </p>
-        </div>
-        <div class="hero__media">
-          <img src="assets/img/highway-hub.jpg" alt="Multi-vehicle highway charging hub delivered by NAKJM" loading="eager">
-        </div>
+      <div class="hero__inner">
+        <span class="eyebrow">Projects</span>
+        <h1>Proof of scale, <span class="accent">on the ground.</span></h1>
+        <p class="lede">300+ EV stations, 15+ large charging hubs, ten factory units and a ground-up school campus &mdash; all executed by the same in-house teams.</p>
+        
+        
       </div>
     </div>
   </section>
 
-  <!-- marquee clients table -->
+  <!-- mega hubs -->
   <section class="section">
     <div class="wrap">
       <div class="section-head">
+        <span class="eyebrow">Project execution</span>
+        <h2>Mega-scale EV hubs &amp; <span class="accent">highway charging.</span></h2>
+        <p class="lede">Delivering future-ready charging infrastructure at scale.</p>
+      </div>
+      <div class="grid grid--2 reveal">
+        <a class="tile" href="#economics" style="aspect-ratio:16/10">
+          <img src="assets/img/hub-electriva.jpg" alt="Electriva multi-vehicle highway charging hub in Delhi NCR at dusk" loading="lazy">
+          <div class="tile__body">
+            <span class="tile__kicker">Delhi NCR</span>
+            <h3>Electriva &mdash; multi-vehicle highway charging hub</h3>
+            <p>Canopied corridor hub built on precision civil pads with underground HT routing.</p>
+            <span class="tile__stat">120+ chargers &middot; AC &amp; DC fast chargers</span>
+          </div>
+        </a>
+        <a class="tile" href="#economics" style="aspect-ratio:16/10">
+          <img src="assets/img/hub-vinfast.jpg" alt="VinFast OEM delivery hub and commercial fleet depot" loading="lazy">
+          <div class="tile__body">
+            <span class="tile__kicker">OEM delivery hub</span>
+            <h3>VinFast &mdash; commercial fleet depot</h3>
+            <p>High-density charger array sized for OEM delivery and fleet duty cycles.</p>
+            <span class="tile__stat">60+ chargers &middot; AC &amp; DC fast chargers</span>
+          </div>
+        </a>
+        <a class="tile" href="#economics" style="aspect-ratio:16/10">
+          <img src="assets/img/hub-xpulse.jpg" alt="XPulse heavy-duty fleet charging hub at Samalkha, Haryana" loading="lazy">
+          <div class="tile__body">
+            <span class="tile__kicker">Samalkha, Haryana</span>
+            <h3>XPulse &mdash; heavy-duty fleet charging hub</h3>
+            <p>Corridor hub for heavy commercial vehicles on continuous duty cycles.</p>
+            <span class="tile__stat">70+ chargers &middot; DC fast chargers</span>
+          </div>
+        </a>
+        <a class="tile" href="#economics" style="aspect-ratio:16/10">
+          <img src="assets/img/hub-tesla.jpg" alt="Tesla Supercharger station in Gurgaon, Haryana" loading="lazy">
+          <div class="tile__body">
+            <span class="tile__kicker">Gurgaon, Haryana</span>
+            <h3>Tesla &mdash; Supercharger station</h3>
+            <p>Full civil, electrical and mounting works to Supercharger specification.</p>
+            <span class="tile__stat">16 Superchargers &middot; 250 kW DC</span>
+          </div>
+        </a>
+      </div>
+      <ul class="assure reveal" style="margin-top:2.5rem">
+        <li><strong>Large-scale deployment</strong><span>High-capacity hubs enabling multi-vehicle charging.</span></li>
+        <li><strong>Fast &amp; reliable charging</strong><span>DC fast chargers ensuring minimal downtime.</span></li>
+        <li><strong>Safe &amp; future-ready</strong><span>Built with top safety standards and scalable infrastructure.</span></li>
+        <li><strong>Sustainable mobility</strong><span>Powering cleaner roads for a better tomorrow.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- economics -->
+  <section class="section section--paper" id="economics">
+    <div class="wrap">
+      <div class="section-head">
         <span class="eyebrow">Marquee clients</span>
-        <h2>Project economics</h2>
+        <h2>Project <span class="accent">economics.</span></h2>
         <p class="lede">A representative view of programme categories, brands and contract values.</p>
       </div>
       <div class="table-scroll reveal">
@@ -84,91 +138,21 @@
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Multi-station rollout</td>
-              <td>Electriva (Delhi NCR) — 120 stations</td>
-              <td class="val">₹1.5 Cr</td>
-            </tr>
-            <tr>
-              <td>EV charging hubs</td>
-              <td>Terra Motors (5 hubs), XPulse (6 hubs)</td>
-              <td class="val">₹1 Cr+</td>
-            </tr>
-            <tr>
-              <td>Educational infrastructure</td>
-              <td>Dynasty International School (ground-up build)</td>
-              <td class="val">₹10 Cr <span style="font-weight:500;color:var(--slate-500)">(ongoing)</span></td>
-            </tr>
-            <tr>
-              <td>Corporate office</td>
-              <td>HPCL Staff Office (Lucknow) — 30,000 sq ft</td>
-              <td class="val">₹1 Cr</td>
-            </tr>
-            <tr>
-              <td>Industrial development</td>
-              <td>Bawana Factories — 10 units, 40,000 sq ft each</td>
-              <td class="val">₹60 Lakh</td>
-            </tr>
-            <tr>
-              <td>Strategic partners</td>
-              <td>DLF, Ansal Group, ERA Group</td>
-              <td class="val">Master Vendor Status</td>
-            </tr>
+            <tr><td>Multi-station rollout</td><td>Electriva (Delhi NCR) &mdash; 120 stations</td><td class="val">&#8377;1.5 Cr</td></tr>
+            <tr><td>EV charging hubs</td><td>Terra Motors (5 hubs), XPulse (6 hubs)</td><td class="val">&#8377;1 Cr+</td></tr>
+            <tr><td>Educational infrastructure</td><td>Dynasty International School (ground-up build)</td><td class="val">&#8377;10 Cr <span style="font-weight:500;color:var(--muted)">(ongoing)</span></td></tr>
+            <tr><td>Corporate office</td><td>HPCL Staff Office (Lucknow) &mdash; 30,000 sq ft</td><td class="val">&#8377;1 Cr</td></tr>
+            <tr><td>Industrial development</td><td>Bawana Factories &mdash; 10 units, 40,000 sq ft each</td><td class="val">&#8377;60 Lakh</td></tr>
+            <tr><td>Strategic partners</td><td>DLF, Ansal Group, ERA Group</td><td class="val">Master Vendor Status</td></tr>
           </tbody>
         </table>
       </div>
-    </div>
-  </section>
-
-  <!-- EV hubs -->
-  <section class="section section--paper">
-    <div class="wrap">
-      <div class="section-head">
-        <span class="eyebrow">Project execution</span>
-        <h2>Mega-scale EV hubs &amp; highway charging</h2>
-      </div>
-      <div class="grid grid--2 reveal">
-        <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/highway-hub.jpg" alt="Multi-vehicle highway charging hub with steel canopy over multiple bays" loading="lazy">
-          </div>
-          <div class="mediacard__body">
-            <span class="mediacard__kicker">Highway</span>
-            <h3>Multi-vehicle highway charging hub</h3>
-            <p>Canopied corridor hub with multiple DC bays, built on precision civil pads with underground HT routing.</p>
-          </div>
-        </article>
-        <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/fleet-depot.jpg" alt="Commercial fleet depot with rows of DC chargers and electric trucks" loading="lazy">
-          </div>
-          <div class="mediacard__body">
-            <span class="mediacard__kicker">Fleet</span>
-            <h3>Commercial fleet depot</h3>
-            <p>High-density charger arrays sized for heavy commercial vehicles on continuous duty cycles.</p>
-          </div>
-        </article>
-        <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/civil-execution.jpg" alt="Finished charging forecourt showing precise kerbs, bays and road markings" loading="lazy">
-          </div>
-          <div class="mediacard__body">
-            <span class="mediacard__kicker">Civil</span>
-            <h3>Precision civil execution</h3>
-            <p>Levelled pads, kerbing, drainage and markings finished to hardware mounting tolerances.</p>
-          </div>
-        </article>
-        <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/ultrafast.jpg" alt="Ultra-fast charging units with managed cabling" loading="lazy">
-          </div>
-          <div class="mediacard__body">
-            <span class="mediacard__kicker">Ultra-fast</span>
-            <h3>Ultra-fast highway infrastructure</h3>
-            <p>High-power units commissioned with full thermal, insulation and earth-resistance testing.</p>
-          </div>
-        </article>
-      </div>
+      <ul class="assure reveal" style="margin-top:2.5rem">
+        <li><strong>Diverse portfolio</strong><span>Across sectors and scales.</span></li>
+        <li><strong>Proven execution</strong><span>Trusted by leading brands.</span></li>
+        <li><strong>Strong economics</strong><span>Delivering value that lasts.</span></li>
+        <li><strong>Long-term partnerships</strong><span>Built on trust and performance.</span></li>
+      </ul>
     </div>
   </section>
 
@@ -177,87 +161,84 @@
     <div class="wrap">
       <div class="section-head">
         <span class="eyebrow">Hardware agnosticism</span>
-        <h2>OEM &amp; CPO deployments</h2>
-        <p class="lede">
-          Seamless execution across all major EV original equipment manufacturers and
-          charge point operators.
-        </p>
+        <h2>OEM &amp; CPO <span class="accent">deployments.</span></h2>
+        <p class="lede">One platform. Any hardware. Limitless possibilities.</p>
       </div>
       <div class="grid grid--3 reveal">
         <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/tesla-supercharger.jpg" alt="Tesla Supercharger units on a landscaped forecourt" loading="lazy">
-          </div>
+          <div class="mediacard__img"><img src="assets/img/tesla-super.jpg" alt="Tesla Supercharger units installed on a landscaped forecourt" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">OEM</span>
             <h3>Tesla Supercharger integration</h3>
-            <p>Full civil, electrical and mounting works delivered to Supercharger specification.</p>
+            <p>Seamless integration with global DC fast charging standards.</p>
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/cpo-rollout.jpg" alt="Charging bays integrated into a Jio-bp fuel station forecourt" loading="lazy">
-          </div>
+          <div class="mediacard__img"><img src="assets/img/cpo-forecourt.jpg" alt="Charging bays integrated into a Jio-bp and Adani fuel retail forecourt" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">CPO</span>
             <h3>Tier-1 CPO network rollout</h3>
-            <p>Forecourt charging integrated into live fuel retail sites without disrupting operations.</p>
+            <p>Interoperable with leading CPO hardware across India.</p>
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/dc-integration.jpg" alt="Multiple DC fast chargers from different manufacturers installed together" loading="lazy">
-          </div>
+          <div class="mediacard__img"><img src="assets/img/dc-multibrand.jpg" alt="DC fast chargers from several manufacturers installed side by side" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Multi-brand</span>
             <h3>Hardware-agnostic DC integration</h3>
-            <p>Mixed-OEM DC estates commissioned side by side on a common electrical backbone.</p>
+            <p>Works with any OEM hardware &mdash; AC or DC.</p>
           </div>
         </article>
       </div>
+      <ul class="assure reveal" style="margin-top:2.5rem">
+        <li><strong>Hardware agnostic</strong><span>Compatible with leading OEMs &amp; CPOs.</span></li>
+        <li><strong>Future ready</strong><span>Adaptable to evolving technologies.</span></li>
+        <li><strong>Reliable &amp; secure</strong><span>Robust integrations with highest uptime.</span></li>
+        <li><strong>Scalable nationwide</strong><span>Deploy at any scale across locations.</span></li>
+      </ul>
     </div>
   </section>
 
   <!-- backend -->
-  <section class="section section--paper">
+  <section class="section section--navy">
     <div class="wrap">
       <div class="section-head">
         <span class="eyebrow">The backend</span>
-        <h2>Industrial-grade infrastructure</h2>
-        <p class="lede">The work most contractors subcontract — and we do ourselves.</p>
+        <h2>Industrial-grade <span class="accent">infrastructure.</span></h2>
+        <p class="lede">Built for reliability. Engineered for performance.</p>
       </div>
       <div class="grid grid--3 reveal">
         <article class="mediacard">
-          <div class="mediacard__img" style="aspect-ratio:4/5">
-            <img src="assets/img/trenching.jpg" alt="Heavy cable trenching with ducted HT and LT conduits" loading="lazy">
-          </div>
+          <div class="mediacard__img" style="aspect-ratio:4/3"><img src="assets/img/trenching.jpg" alt="Heavy cable trenching with ducted HT and LT conduits" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Civil</span>
             <h3>Heavy cable trenching</h3>
-            <p>Precision trenching and ducting for safe underground HT/LT routing.</p>
+            <p>Robust underground cabling for safe and uninterrupted power flow.</p>
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img" style="aspect-ratio:4/5">
-            <img src="assets/img/transformer.jpg" alt="Transformer installed on a concrete plinth ready for commissioning" loading="lazy">
-          </div>
+          <div class="mediacard__img" style="aspect-ratio:4/3"><img src="assets/img/transformer.jpg" alt="Transformer on a concrete plinth ready for commissioning" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Power</span>
             <h3>Transformer &amp; RMU commissioning</h3>
-            <p>High-capacity transformers sited, plinthed and commissioned to national codes.</p>
+            <p>High-efficiency systems ensuring stable and reliable power distribution.</p>
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img" style="aspect-ratio:4/5">
-            <img src="assets/img/panel.jpg" alt="Interior of a custom HT/LT panel with busbars and breakers" loading="lazy">
-          </div>
+          <div class="mediacard__img" style="aspect-ratio:4/3"><img src="assets/img/panel.jpg" alt="Interior of a custom HT/LT panel with busbars and breakers" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Power</span>
             <h3>HT/LT panel engineering</h3>
-            <p>Custom panels built and wired in-house for heavy, sustained load profiles.</p>
+            <p>Precision-engineered panels for maximum safety and performance.</p>
           </div>
         </article>
       </div>
+      <ul class="assure reveal" style="margin-top:2.5rem">
+        <li><strong>Built to last</strong><span>Industrial-grade materials for long-term reliability.</span></li>
+        <li><strong>Engineered for excellence</strong><span>Precision execution with stringent quality standards.</span></li>
+        <li><strong>Safe &amp; compliant</strong><span>Adhering to highest safety and regulatory norms.</span></li>
+        <li><strong>Powering growth</strong><span>Strong infrastructure for scalable operations.</span></li>
+      </ul>
     </div>
   </section>
 
@@ -265,71 +246,73 @@
   <section class="section">
     <div class="wrap">
       <div class="section-head">
-        <span class="eyebrow">Beyond EV networks</span>
-        <h2>Industrial, educational and corporate delivery</h2>
+        <span class="eyebrow">Proof of scale</span>
+        <h2>Beyond <span class="accent">EV networks.</span></h2>
+        <p class="lede">From clean mobility to infrastructure, we build what India needs.</p>
       </div>
       <div class="grid grid--2 reveal">
         <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/solar-canopy.jpg" alt="Solar-canopied charging forecourt with several vehicles charging" loading="lazy">
-          </div>
+          <div class="mediacard__img"><img src="assets/img/solar-canopy.jpg" alt="Solar-canopied charging forecourt with vehicles charging" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">National EV rollouts</span>
             <h3>120 stations deployed</h3>
             <p>Delivered for Electriva, Terra Motors and XPulse across multi-state programmes.</p>
-            <p class="mediacard__meta">Electriva (Delhi NCR) — ₹1.5 Cr</p>
+            <p class="mediacard__meta">Electriva (Delhi NCR) &mdash; &#8377;1.5 Cr</p>
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/factory.jpg" alt="Aerial view of ten factory units under steel-frame construction" loading="lazy">
-          </div>
+          <div class="mediacard__img"><img src="assets/img/factory.jpg" alt="Aerial view of ten factory units under steel-frame construction" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Heavy industrial</span>
             <h3>10 factories, Bawana</h3>
-            <p>40,000 sq ft each — structural steel, floorplates and services delivered in sequence.</p>
-            <p class="mediacard__meta">₹60 Lakh</p>
+            <p>40,000 sq ft each &mdash; structural steel, floorplates and services in sequence.</p>
+            <p class="mediacard__meta">&#8377;60 Lakh</p>
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/school.jpg" alt="Dynasty International School campus with sports fields and residential block" loading="lazy">
-          </div>
+          <div class="mediacard__img"><img src="assets/img/school.jpg" alt="Dynasty International School campus with sports fields and residences" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Educational</span>
-            <h3>Dynasty International School &amp; Motel</h3>
+            <h3>Dynasty School &amp; Motel</h3>
             <p>Complete ground-up build including academic blocks, sports facilities and residences.</p>
-            <p class="mediacard__meta">₹10 Cr — ongoing</p>
+            <p class="mediacard__meta">&#8377;10 Cr &mdash; ongoing</p>
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img">
-            <img src="assets/img/office.jpg" alt="Completed corporate office interior with glazed meeting rooms" loading="lazy">
-          </div>
+          <div class="mediacard__img"><img src="assets/img/office.jpg" alt="Completed corporate office interior with glazed meeting rooms" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Corporate</span>
             <h3>HPCL Staff Office, Lucknow</h3>
             <p>30,000 sq ft corporate fit-out delivered to programme.</p>
-            <p class="mediacard__meta">₹1 Cr</p>
+            <p class="mediacard__meta">&#8377;1 Cr</p>
           </div>
         </article>
       </div>
+      <ul class="assure reveal" style="margin-top:2.5rem">
+        <li><strong>Diverse expertise</strong><span>Across sectors and complexities.</span></li>
+        <li><strong>End-to-end delivery</strong><span>Concept to commissioning.</span></li>
+        <li><strong>Quality &amp; compliance</strong><span>Built to the highest standards.</span></li>
+        <li><strong>Scale that matters</strong><span>Projects that drive real impact.</span></li>
+      </ul>
     </div>
   </section>
 
   <section class="cta">
+    <div class="cta__bg">
+      <img src="assets/img/hub-electriva.jpg" alt="" aria-hidden="true" loading="lazy">
+    </div>
     <div class="wrap">
-      <div class="cta__grid">
-        <div class="cta__copy">
-          <h2>Commission the future of your <em>infrastructure</em>.</h2>
-          <p>Tell us the site, the load and the timeline. We will come back with a feasibility view and a single-contract delivery plan.</p>
-          <div class="hero__actions">
-            <a class="btn btn--primary" href="contact.html">Start a conversation <span class="btn__arrow">→</span></a>
-            <a class="btn btn--ghost-light" href="tel:+919971535940">+91 99715 35940</a>
-          </div>
-        </div>
-        <div class="cta__media">
-          <img src="assets/img/cta-sunset.jpg" alt="Completed EV charging forecourt at sunset" loading="lazy">
+      <div class="cta__inner">
+        <span class="eyebrow">Start a project</span>
+        <h2>Building the <span class="accent">new energy era.</span></h2>
+        <p>
+          Send us the site, the sanctioned load and the timeline. We come back
+          with a feasibility view and a single-contract delivery plan &mdash;
+          civil, electrical and charging under one accountable team.
+        </p>
+        <div class="cta__actions">
+          <a class="btn btn--primary" href="contact.html">Commission a project <span class="btn__arrow">&rarr;</span></a>
+          <a class="btn btn--ghost-light" href="tel:+919971535940">+91 99715 35940</a>
         </div>
       </div>
     </div>
@@ -341,10 +324,11 @@
   <div class="wrap">
     <div class="footer__grid">
       <div class="footer__brand">
-        <img src="assets/logo-light.svg" alt="NAKJM Infrastructure" width="190" height="57">
+        <img src="assets/logo-light.png" alt="NAKJM Infrastructure" width="196" height="61">
         <p>
-          NAKJM Infrastructure Pvt Ltd — next-generation mega-builders. Turnkey civil,
-          electrical and EV charging infrastructure, executed in-house.
+          NAKJM Infrastructure Pvt Ltd &mdash; next-generation mega-builders.
+          Turnkey civil, electrical and EV charging infrastructure, executed
+          entirely in-house.
         </p>
       </div>
       <div>
@@ -354,7 +338,7 @@
           <li><a href="capabilities.html#power">Electrical Engineering</a></li>
           <li><a href="capabilities.html#application">EV Infrastructure</a></li>
           <li><a href="capabilities.html#networks">Charging Networks</a></li>
-          <li><a href="capabilities.html#amc">O&amp;M and AMC</a></li>
+          <li><a href="capabilities.html#safety">O&amp;M and AMC</a></li>
         </ul>
       </div>
       <div>
@@ -371,14 +355,14 @@
         <h4>Get in touch</h4>
         <ul>
           <li><a href="tel:+919971535940">+91 99715 35940</a></li>
-          <li><a href="mailto:AJ@nakjminfra.com">AJ@nakjminfra.com</a></li>
-          <li>59, SS Omnia Mall,<br>Gurgaon — Sector 86</li>
+          <li><a href="mailto:connect@nakjiminfra.com">connect@nakjiminfra.com</a></li>
+          <li>CoWynd Managed Office, First Floor,<br>Plot 103, Dwarka Sector 19,<br>New Delhi &mdash; 110075</li>
         </ul>
       </div>
     </div>
     <div class="footer__bottom">
       <span>&copy; <span data-year>2026</span> NAKJM Infrastructure Pvt Ltd. All rights reserved.</span>
-      <span>Building tomorrow, together.</span>
+      <span>Building Tomorrow, Together.</span>
     </div>
   </div>
 </footer>

@@ -4,37 +4,43 @@ A responsive, five-page marketing site for **NAKJM Infrastructure Pvt Ltd**, a
 next-generation EPC company delivering turnkey civil, electrical and EV charging
 infrastructure across India.
 
-## Reference and content
+> **Building Tomorrow, Together.**
 
-The **structure and layout language** are modelled on
-[bv.com (Black & Veatch)](https://www.bv.com/) — the utility bar and mega-nav,
-the statement hero, the quick-links strip, the stats band, the three-card
-solutions spotlight, the lifecycle rail, the project card grids and the closing
-CTA banner all follow that pattern. Brand, colour and copy are NAKJM's own.
+## Reference and source material
 
-All **content** — mission, vision, core values, the three-pillar stack, the
-execution flow, charging network tiers, hub anatomy, safety protocols, client
-list, project economics and contact details — comes from the *NAKJM
-Infrastructure* company profile deck. The project photography is extracted from
-that same deck.
+The **layout language** follows two established engineering-corporation sites:
+[bv.com (Black & Veatch)](https://www.bv.com/) for the utility bar, quick-links
+strip, capability sections and closing CTA banner, and
+[larsentoubro.com (L&T)](https://www.larsentoubro.com/) for the full-bleed
+statement hero, dark stat band, full-bleed feature strips and the overlaid
+portfolio tiles.
+
+**Brand, content and photography** all come from the *NAKJM Infrastructure*
+company profile deck: the navy/red palette and logo, mission and vision, core
+values, the three-pillar stack, the nine-stage execution flow, charging network
+tiers, turnkey hub anatomy, safety protocols, the tier-1 OEM/CPO client list,
+marquee project economics, operating footprint and contact details. The project
+photography is extracted from that same deck at full render resolution.
 
 ## Structure
 
 ```
 nakjm-website/
-├── index.html              # Home — hero, stats, problem/solution, stack,
-│                           #   solutions, execution flow, projects, clients,
-│                           #   safety, CTA
-├── capabilities.html       # Three pillars in depth, charging networks,
-│                           #   hub anatomy, execution flow, safety & QA
-├── projects.html           # Marquee clients table + project galleries
-├── about.html              # Mission, vision, values, footprint, workforce
+├── index.html              # Home — hero, stats, problem/solution, the stack,
+│                           #   charging strip, mega hubs, execution flow,
+│                           #   clients, safety, CTA
+├── capabilities.html       # Three pillars, charging networks, hub anatomy,
+│                           #   execution flow, safety & QA
+├── projects.html           # Mega hubs, project economics, OEM/CPO deployments,
+│                           #   industrial backend, beyond-EV work
+├── about.html              # Mission, vision, values, impact, advantage,
+│                           #   footprint, workforce
 ├── contact.html            # Contact details + project enquiry form
 ├── assets/
 │   ├── styles.css          # Design system + responsive layout
 │   ├── script.js           # Nav, scroll reveal, animated counters, form
-│   ├── logo.svg            # Wordmark (dark, for light backgrounds)
-│   ├── logo-light.svg      # Wordmark (light, for the footer)
+│   ├── logo.png            # Official logo, transparent (dark backgrounds off)
+│   ├── logo-light.png      # Official logo recoloured for the navy footer
 │   ├── favicon.svg
 │   └── img/                # Project photography (17 images)
 ├── firebase.json           # Firebase Hosting config
@@ -46,11 +52,16 @@ nakjm-website/
 
 | Token | Value | Used for |
 |---|---|---|
-| Navy | `#1B2A4A` / `#16233D` | Headings, nav, hero and footer backgrounds |
-| Orange | `#E9722B` | Primary actions, stat figures, accents |
-| Red | `#D6202A` | Logo mark only |
-| Paper | `#F7F8FA` | Alternating section backgrounds |
-| Type | Inter 400–800 | Everything |
+| Navy 900 | `#00132F` | Utility bar, footer, hero scrim |
+| Navy 800 | `#001E4B` | Brand navy — headings, dark sections, stat band |
+| Red 600 | `#B90F19` | Brand red — accents, eyebrows, primary buttons |
+| Ink / Body | `#0D1526` / `#4B566B` | Headings and body copy |
+| Paper | `#F4F6F9` | Alternating section backgrounds |
+| Display type | Montserrat 700/800 | Headlines, numerals, table headers |
+| Body type | Inter 400–700 | Everything else |
+
+Headlines follow the deck's device of setting the second phrase in red — in
+markup that is `<span class="accent">`.
 
 ## Run it locally
 
@@ -66,28 +77,35 @@ Opening `index.html` directly in a browser also works.
 
 ## Deploy
 
-See **[DEPLOY-GOOGLE-CLOUD.md](DEPLOY-GOOGLE-CLOUD.md)** for a full walkthrough
-of three Google Cloud options. The short version:
+See **[DEPLOY-GOOGLE-CLOUD.md](DEPLOY-GOOGLE-CLOUD.md)** for the full
+walkthrough. The short version:
 
 ```bash
-# Firebase Hosting — free HTTPS + custom domain (recommended)
-npm install -g firebase-tools
-firebase login
+# Cloud Storage bucket — upload the files and make them public
+./deploy-gcs.sh your-bucket-name your-project-id
+
+# or Firebase Hosting — free HTTPS + custom domain
+npm install -g firebase-tools && firebase login
 cd nakjm-website && firebase use --add
 firebase deploy --only hosting
-
-# or Cloud Storage bucket
-./deploy-gcs.sh your-bucket-name your-project-id
 ```
 
-## Notes
+## Accessibility
 
-- Pure HTML/CSS/vanilla JS. The only external request is Google Fonts.
-- Accessible: semantic landmarks, skip link, keyboard-operable nav, visible
-  focus rings, `prefers-reduced-motion` support, and content that stays visible
-  when JavaScript is unavailable.
-- **The contact form is a front-end demo — it does not submit anywhere yet.**
-  Wire it to a form service or to the `/backend` in this repository before
-  launch. Handler: bottom of `assets/script.js`.
-- Client names in the trust band are set as text. Swap in official logo files
-  only once you have permission to use each mark.
+Semantic landmarks, a skip link, keyboard-operable navigation, visible focus
+rings, `prefers-reduced-motion` support, and content that stays visible when
+JavaScript is unavailable. All text was checked against its background: body
+copy meets WCAG AA and the large display numerals meet the large-text
+threshold. Verified free of horizontal overflow at 320, 390, 768, 1024 and
+1440px.
+
+## Before launch
+
+- **The contact form does not submit anywhere.** It is a front-end demo. Wire it
+  to a form service or to the `/backend` in this repository. Handler: bottom of
+  `assets/script.js`; markup in `contact.html`.
+- **Client names in the trust band are set as text**, not logos. Swap in
+  official logo files only once you have permission to use each mark.
+- **Photography is extracted from the company deck.** Replace with original
+  high-resolution files where you have them — several deck images are
+  renders/visualisations rather than site photographs.
