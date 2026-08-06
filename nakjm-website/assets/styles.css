@@ -393,7 +393,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .trust__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 0.85rem;
 }
 .trust__item {
@@ -416,7 +416,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 1px;
   background: var(--slate-200);
   border: 1px solid var(--slate-200);
@@ -446,8 +446,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .grid { display: grid; gap: clamp(1rem, 2.2vw, 1.75rem); }
 .grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 720px) { .grid--2 { grid-template-columns: 1fr; } }
-.grid--3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-.grid--4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.grid--3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+.grid--4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
 
 .card {
   background: #fff;
@@ -523,7 +523,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 .split {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: clamp(1.75rem, 4vw, 3.5rem);
   align-items: center;
 }
@@ -536,7 +536,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 /* ---------- problem / solution ---------- */
 
-.contrast { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+.contrast { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1.5rem; }
 .panel {
   border-radius: var(--r-md);
   padding: clamp(1.5rem, 3vw, 2.25rem);
@@ -613,7 +613,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 /* ---------- pillars ---------- */
 
-.pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; position: relative; }
+.pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 1.5rem; position: relative; }
 .pillar {
   background: #fff;
   border: 1px solid var(--slate-200);
@@ -653,7 +653,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .rail {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(190px, 1fr);
+  grid-auto-columns: minmax(min(100%, 190px), 1fr);
   gap: 0.85rem;
   overflow-x: auto;
   padding-bottom: 1rem;
@@ -791,7 +791,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 .contact-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: clamp(1.75rem, 4vw, 3rem);
 }
 .contact-list { display: grid; gap: 1.25rem; }
@@ -838,7 +838,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   box-shadow: 0 0 0 3px rgba(233, 114, 43, 0.16);
 }
 .field textarea { resize: vertical; min-height: 130px; }
-.field--row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.1rem; }
+.field--row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 1.1rem; }
 .form__note { font-size: 0.85rem; color: var(--slate-400); }
 
 .form__status {
@@ -864,7 +864,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   gap: clamp(1.75rem, 3vw, 2.5rem);
   padding-bottom: 2.75rem;
 }
-@media (max-width: 860px) { .footer__grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); } }
+@media (max-width: 860px) { .footer__grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); } }
 .footer__brand img { width: 180px; height: auto; margin-bottom: 1.1rem; }
 .footer__brand p { font-size: 0.92rem; max-width: 34ch; }
 .footer h4 {
