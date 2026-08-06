@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 66" role="img" aria-label="NAKJM Infrastructure">
-  <g font-family="Inter, Helvetica, Arial, sans-serif" font-weight="800">
-    <text x="4" y="34" font-size="34" letter-spacing="1.5" fill="#1B2A4A">NAK</text>
-    <path d="M76 34 L84 18 L92 34 Z" fill="#D6202A"/>
-    <text x="96" y="34" font-size="34" letter-spacing="1.5" fill="#1B2A4A">JM</text>
-    <text x="5" y="60" font-size="23" letter-spacing="0.4" fill="#D6202A">Infrastructure</text>
-  </g>
-</svg>
