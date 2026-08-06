@@ -114,6 +114,9 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .section--navy { background: var(--navy-800); color: #E6EAF2; }
 .section--navy h2,
 .section--navy h3 { color: #fff; }
+/* cards keep their own light surface, so their text stays dark */
+.section--navy .card h3,
+.section--navy .panel h3 { color: var(--navy-700); }
 
 .eyebrow {
   display: inline-block;
@@ -441,7 +444,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 /* ---------- generic cards ---------- */
 
 .grid { display: grid; gap: clamp(1rem, 2.2vw, 1.75rem); }
-.grid--2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 720px) { .grid--2 { grid-template-columns: 1fr; } }
 .grid--3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .grid--4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 
