@@ -82,7 +82,7 @@ The bucket should now contain the five HTML files plus an `assets/` folder.
 1. Still in the bucket, open the **Configuration** tab (on some layouts this is
    under the bucket's overflow menu → **Edit website configuration**).
 2. Set **Index (main) page suffix** to `index.html`.
-3. Set **Error (404) page** to `index.html`.
+3. Set **Error (404) page** to `404.html` — the site ships a branded one.
 4. Save.
 
 ### A6. Check it is live
@@ -277,11 +277,16 @@ or public access prevention is still enforced on the bucket.
 **403 when creating the bucket.**
 Billing is not enabled on the project.
 
-**The contact form does not send anything.**
-That is expected — it is currently a front-end demo. To make it work, either
-point it at a form service (Formspree, Basin) by setting the `<form>` action, or
-wire it to the existing `/backend` in this repository. The form is in
-`contact.html` and its submit handler is at the bottom of `assets/script.js`.
+**The contact form opens an email client instead of sending directly.**
+That is the built-in fallback, and it works on a static bucket with no backend.
+To post submissions server-side instead, set `FORM_ENDPOINT` near the bottom of
+`assets/script.js` to a URL that accepts a `POST` (Formspree, Basin, a Cloud
+Function, or the `/backend` in this repository).
+
+**Canonical URLs point at the wrong domain.**
+`SITE` in `build.py` defaults to `https://www.nakjiminfra.com`. If you are
+serving from a bucket URL or another domain, change it and re-run
+`python3 build.py` so the canonical, Open Graph and sitemap URLs match.
 
 **Bucket name already taken.**
 Cloud Storage bucket names are globally unique across every Google Cloud

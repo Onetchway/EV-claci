@@ -100,11 +100,53 @@
     });
   }
 
-  /* ---- enquiry form (front-end demo) ---- */
+  /* ---- enquiry form ----------------------------------------------------
+     Set FORM_ENDPOINT to a URL that accepts a POST (Formspree, Basin, a Cloud
+     Function, or the /backend in this repository) and submissions are sent
+     there over fetch. Leave it empty and the form falls back to opening the
+     visitor's mail client with the enquiry pre-filled, so enquiries still
+     reach the inbox on a purely static host.
+     -------------------------------------------------------------------- */
+
+  var FORM_ENDPOINT = "";
+  var FORM_MAILTO = "connect@nakjiminfra.com";
+
   var form = document.getElementById("enquiry-form");
   var status = document.getElementById("form-status");
 
-  if (form && status) {
+  function setStatus(msg, state) {
+    if (!status) return;
+    status.textContent = msg;
+    status.setAttribute("data-state", state || "ok");
+    status.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "center"
+    });
+  }
+
+  function fieldValue(f, key) {
+    return f.elements[key] && f.elements[key].value.trim();
+  }
+
+  function buildMailto(f) {
+    var subject = "Project enquiry — " + (fieldValue(f, "company") || "NAKJM website");
+    var lines = [
+      "Name: " + (fieldValue(f, "name") || "—"),
+      "Company: " + (fieldValue(f, "company") || "—"),
+      "Email: " + (fieldValue(f, "email") || "—"),
+      "Phone: " + (fieldValue(f, "phone") || "—"),
+      "Scope of work: " + (fieldValue(f, "scope") || "—"),
+      "Site location: " + (fieldValue(f, "location") || "—"),
+      "",
+      "Project details:",
+      fieldValue(f, "message") || "—"
+    ];
+    return "mailto:" + FORM_MAILTO +
+      "?subject=" + encodeURIComponent(subject) +
+      "&body=" + encodeURIComponent(lines.join("\n"));
+  }
+
+  if (form) {
     form.addEventListener("submit", function (e) {
       e.preventDefault();
 
@@ -113,14 +155,44 @@
         return;
       }
 
-      var name = (form.elements.name && form.elements.name.value.trim()) || "there";
-      status.textContent =
-        "Thanks, " + name + ". Your enquiry has been captured in the browser only — " +
-        "connect this form to a mail service or CRM to receive it. In the meantime, " +
-        "email connect@nakjiminfra.com and we will respond within one working day.";
-      status.setAttribute("data-state", "ok");
-      form.reset();
-      status.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+      var name = fieldValue(form, "name") || "there";
+      var button = form.querySelector('button[type="submit"]');
+
+      if (!FORM_ENDPOINT) {
+        window.location.href = buildMailto(form);
+        setStatus(
+          "Thanks, " + name + ". Your email client should now be open with the " +
+          "enquiry filled in — press send and we will reply within one working " +
+          "day. If nothing opened, email " + FORM_MAILTO + " directly."
+        );
+        return;
+      }
+
+      if (button) { button.disabled = true; }
+      setStatus("Sending your enquiry…");
+
+      fetch(FORM_ENDPOINT, {
+        method: "POST",
+        headers: { Accept: "application/json" },
+        body: new FormData(form)
+      })
+        .then(function (res) {
+          if (!res.ok) { throw new Error("Request failed: " + res.status); }
+          form.reset();
+          setStatus(
+            "Thanks, " + name + ". Your enquiry is with us and we will reply " +
+            "within one working day."
+          );
+        })
+        .catch(function () {
+          setStatus(
+            "Sorry — that did not send. Please email " + FORM_MAILTO +
+            " or call +91 99715 35940 and we will pick it up straight away."
+          );
+        })
+        .then(function () {
+          if (button) { button.disabled = false; }
+        });
     });
   }
 })();

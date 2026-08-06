@@ -45,13 +45,13 @@ gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
 echo "==> Configuring index and 404 pages"
 gcloud storage buckets update "gs://$BUCKET" \
   --web-main-page-suffix=index.html \
-  --web-error-page=index.html
+  --web-error-page=404.html
 
 echo "==> Uploading site files"
 gcloud storage rsync "$SITE_DIR" "gs://$BUCKET" \
   --recursive \
   --delete-unmatched-destination-objects \
-  --exclude='^\.git/.*|.*\.sh$|.*\.md$|^firebase\.json$'
+  --exclude='^\.git/.*|.*\.sh$|.*\.md$|.*\.py$|^firebase\.json$'
 
 echo "==> Setting cache headers on static assets"
 gcloud storage objects update "gs://$BUCKET/assets/**" \

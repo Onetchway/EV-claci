@@ -15,11 +15,48 @@ NAV = [("index.html", "Home"), ("capabilities.html", "Capabilities"),
        ("projects.html", "Projects"), ("about.html", "Our Company"),
        ("contact.html", "Contact")]
 
+SITE = "https://www.nakjiminfra.com"
 
-def head(title, desc, page):
+# Organization schema, emitted once on the homepage so search engines can
+# resolve the company, its address and its contact point.
+ORG_JSONLD = """{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "NAKJM Infrastructure Pvt Ltd",
+  "alternateName": "NAKJM Infrastructure",
+  "description": "Next-generation EPC company delivering turnkey civil, electrical and EV charging infrastructure across India with 100%% in-house execution.",
+  "url": "%s/",
+  "logo": "%s/assets/logo.png",
+  "slogan": "Building Tomorrow, Together.",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "CoWynd Managed Office, First Floor, Plot 103, Dwarka Sector 19",
+    "addressLocality": "New Delhi",
+    "addressRegion": "Delhi",
+    "postalCode": "110075",
+    "addressCountry": "IN"
+  },
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "%s",
+    "email": "%s",
+    "contactType": "sales",
+    "areaServed": "IN"
+  },
+  "knowsAbout": [
+    "EPC contracting", "EV charging infrastructure", "HT/LT electrical works",
+    "Civil and structural construction", "MS fabrication", "Grid integration"
+  ]
+}""" % (SITE, SITE, PHONE, EMAIL)
+
+
+def head(title, desc, page, jsonld=None):
     links = "\n".join(
         '        <li><a href="%s"%s>%s</a></li>' %
         (h, ' aria-current="page"' if h == page else "", t) for h, t in NAV)
+    canonical = SITE + "/" + ("" if page == "index.html" else page)
+    og_img = SITE + "/assets/img/hub-electriva.jpg"
+    schema = ('\n<script type="application/ld+json">\n%s\n</script>' % jsonld) if jsonld else ""
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,12 +64,25 @@ def head(title, desc, page):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <meta name="description" content="{desc}">
+<link rel="canonical" href="{canonical}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NAKJM Infrastructure">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{desc}">
+<meta property="og:url" content="{canonical}">
+<meta property="og:image" content="{og_img}">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="{desc}">
+<meta name="twitter:image" content="{og_img}">
+<meta name="theme-color" content="#001E4B">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
 <script>document.documentElement.classList.add("js");</script>
-<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/styles.css">{schema}
 </head>
 <body>
 <a class="skip" href="#main">Skip to main content</a>
@@ -200,11 +250,17 @@ SAFETY_CARDS = """
       </div>
 """
 
-CLIENTS = ["Tesla", "VinFast", "MG", "Tata Passenger Electric Mobility", "Jio-bp",
-           "Adani TotalEnergies", "Electriva", "Terra Charge", "Exicom",
-           "XPulse EV Charging", "V-Green", "ChargZe"]
+CLIENTS = [("tesla", "Tesla"), ("vinfast", "VinFast"), ("mg", "MG"),
+           ("tata", "Tata Passenger Electric Mobility"), ("jiobp", "Jio-bp"),
+           ("adani", "Adani TotalEnergies"), ("electriva", "Electriva"),
+           ("terra", "Terra Charge"), ("exicom", "Exicom"),
+           ("xpulse", "XPulse EV Charging"), ("vgreen", "V-Green"),
+           ("chargze", "ChargZe")]
 
-TRUST = "\n".join('        <li class="trust__item">%s</li>' % c for c in CLIENTS)
+TRUST = "\n".join(
+    '        <li class="trust__item">'
+    '<img src="assets/img/clients/%s.png" alt="%s" loading="lazy" width="180" height="46">'
+    '</li>' % (f, n) for f, n in CLIENTS)
 
 
 def quicklinks(label, items):
@@ -251,7 +307,7 @@ index = head(
     "NAKJM Infrastructure Pvt Ltd is a next-generation EPC company delivering "
     "turnkey civil, electrical and EV charging infrastructure across India with "
     "100% in-house execution.",
-    "index.html")
+    "index.html", jsonld=ORG_JSONLD)
 
 index += hero(
     "hero.jpg",
@@ -1179,7 +1235,7 @@ about += """
       </div>
       <div class="grid grid--2 reveal" style="align-items:center">
         <div>
-          <img src="assets/img/india-map.jpg" alt="Map of India showing NAKJM's Delhi NCR headquarters dispatching crews to states nationwide" loading="lazy" style="border:1px solid var(--line);background:#fff">
+          <img src="assets/img/india-map.jpg" width="900" height="845" alt="Map of India showing NAKJM's Delhi NCR headquarters dispatching crews to states nationwide" loading="lazy" style="border:1px solid var(--line);background:#fff;height:auto">
           <p style="margin-top:1.5rem">
             Executing standard 100 km operational radiuses and dedicated
             outstation multi-state rollouts. Our Gurgaon command centre plans,
@@ -1338,9 +1394,8 @@ contact += f"""
               <div class="form__status" id="form-status" role="status" aria-live="polite"></div>
               <button class="btn btn--primary" type="submit">Send enquiry <span class="btn__arrow">&rarr;</span></button>
               <p class="form__note">
-                This form is a front-end demo &mdash; it does not yet submit
-                anywhere. Connect it to your mail service or CRM endpoint before
-                going live, or email <a href="mailto:{EMAIL}">{EMAIL}</a> directly.
+                We reply within one working day. Prefer email? Write to
+                <a href="mailto:{EMAIL}">{EMAIL}</a> directly.
               </p>
             </form>
           </div>
@@ -1353,9 +1408,81 @@ contact += f"""
 
 contact += FOOTER
 
-for name, body in [("index.html", index), ("capabilities.html", cap),
-                   ("projects.html", proj), ("about.html", about),
-                   ("contact.html", contact)]:
+# --------------------------------------------------------------------------
+# 404
+# --------------------------------------------------------------------------
+
+notfound = head("Page not found — NAKJM Infrastructure",
+                "That page could not be found. Return to NAKJM Infrastructure's "
+                "home page or contact us directly.",
+                "404.html")
+
+notfound += """
+  <section class="hero hero--short">
+    <div class="hero__bg">
+      <img src="assets/img/hub-xpulse.jpg" alt="" aria-hidden="true" loading="eager">
+    </div>
+    <div class="wrap">
+      <div class="hero__inner">
+        <span class="eyebrow">Error 404</span>
+        <h1>That page has <span class="accent">moved on.</span></h1>
+        <p class="lede">
+          The page you were looking for is not here. Everything we build is
+          still a click away.
+        </p>
+        <div class="hero__actions">
+          <a class="btn btn--primary" href="index.html">Back to home <span class="btn__arrow">&rarr;</span></a>
+          <a class="btn btn--ghost-light" href="contact.html">Contact us</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Try one of these</span>
+        <h2>Where would you <span class="accent">like to go?</span></h2>
+      </div>
+      <div class="grid grid--4 reveal">
+        <article class="card"><h3><a href="capabilities.html">Capabilities</a></h3><p>The three-pillar stack: civil, electrical and EV infrastructure.</p></article>
+        <article class="card"><h3><a href="projects.html">Projects</a></h3><p>Mega-scale charging hubs and delivered project economics.</p></article>
+        <article class="card"><h3><a href="about.html">Our Company</a></h3><p>Mission, values, operating footprint and workforce.</p></article>
+        <article class="card"><h3><a href="contact.html">Contact</a></h3><p>Start a project enquiry or request a site survey.</p></article>
+      </div>
+    </div>
+  </section>
+"""
+
+notfound += FOOTER
+
+# --------------------------------------------------------------------------
+# write everything
+# --------------------------------------------------------------------------
+
+PAGES = [("index.html", index), ("capabilities.html", cap),
+         ("projects.html", proj), ("about.html", about),
+         ("contact.html", contact), ("404.html", notfound)]
+
+for name, body in PAGES:
     with open(os.path.join(OUT, name), "w") as f:
         f.write(body)
     print("wrote", name, len(body))
+
+# sitemap — 404 is deliberately excluded
+today = "2026-08-06"
+urls = "\n".join(
+    "  <url>\n    <loc>%s/%s</loc>\n    <lastmod>%s</lastmod>\n"
+    "    <changefreq>monthly</changefreq>\n    <priority>%s</priority>\n  </url>"
+    % (SITE, "" if h == "index.html" else h, today, "1.0" if h == "index.html" else "0.8")
+    for h, _ in NAV)
+
+with open(os.path.join(OUT, "sitemap.xml"), "w") as f:
+    f.write('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            + urls + "\n</urlset>\n")
+print("wrote sitemap.xml")
+
+with open(os.path.join(OUT, "robots.txt"), "w") as f:
+    f.write("User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\n" % SITE)
+print("wrote robots.txt")

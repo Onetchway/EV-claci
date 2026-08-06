@@ -36,17 +36,46 @@ nakjm-website/
 ├── about.html              # Mission, vision, values, impact, advantage,
 │                           #   footprint, workforce
 ├── contact.html            # Contact details + project enquiry form
+├── 404.html                # Branded not-found page
+├── sitemap.xml             # The five public pages
+├── robots.txt
 ├── assets/
 │   ├── styles.css          # Design system + responsive layout
 │   ├── script.js           # Nav, scroll reveal, animated counters, form
-│   ├── logo.png            # Official logo, transparent (dark backgrounds off)
+│   ├── logo.png            # Official logo, transparent background
 │   ├── logo-light.png      # Official logo recoloured for the navy footer
 │   ├── favicon.svg
-│   └── img/                # Project photography (17 images)
+│   └── img/                # Project photography
+│       └── clients/        # The twelve OEM / CPO client marks
+├── build.py                # Regenerates the pages from a shared shell
 ├── firebase.json           # Firebase Hosting config
 ├── deploy-gcs.sh           # One-command Cloud Storage deploy
 └── DEPLOY-GOOGLE-CLOUD.md  # Step-by-step hosting guide
 ```
+
+`build.py` emits the pages from one shared header/footer so the nav, footer and
+contact details stay consistent. The committed HTML **is** the deliverable — you
+can edit it directly and ignore the script, but if you change something shared
+across all pages, editing `build.py` and re-running `python3 build.py` is less
+error-prone.
+
+## The enquiry form
+
+`assets/script.js` starts with two constants:
+
+```js
+var FORM_ENDPOINT = "";                        // POST target
+var FORM_MAILTO   = "connect@nakjiminfra.com"; // fallback
+```
+
+With `FORM_ENDPOINT` empty (the default) a submission opens the visitor's mail
+client with every field pre-filled and addressed to `FORM_MAILTO` — so enquiries
+reach you on a purely static host with no backend at all.
+
+Set `FORM_ENDPOINT` to a URL that accepts a `POST` — a Formspree or Basin form,
+a Cloud Function, or the `/backend` in this repository — and submissions are
+sent there over `fetch` instead, with success and failure messages handled
+in-page.
 
 ## Design system
 
@@ -99,13 +128,26 @@ copy meets WCAG AA and the large display numerals meet the large-text
 threshold. Verified free of horizontal overflow at 320, 390, 768, 1024 and
 1440px.
 
+## SEO
+
+Every page carries a canonical URL, Open Graph and Twitter card tags, and a
+theme colour. The homepage additionally emits `Organization` JSON-LD covering
+the company name, logo, postal address and contact point. `sitemap.xml` and
+`robots.txt` both point at `https://www.nakjiminfra.com` — **update `SITE` in
+`build.py` and re-run it if the site is served from a different domain**,
+otherwise the canonical tags will point at the wrong host.
+
 ## Before launch
 
-- **The contact form does not submit anywhere.** It is a front-end demo. Wire it
-  to a form service or to the `/backend` in this repository. Handler: bottom of
-  `assets/script.js`; markup in `contact.html`.
-- **Client names in the trust band are set as text**, not logos. Swap in
-  official logo files only once you have permission to use each mark.
-- **Photography is extracted from the company deck.** Replace with original
-  high-resolution files where you have them — several deck images are
+- **Confirm the domain.** `SITE` in `build.py` is set to
+  `https://www.nakjiminfra.com`. If you launch on a Cloud Storage bucket URL or
+  a different domain, change it and re-run the build so the canonical, Open
+  Graph and sitemap URLs are correct.
+- **Decide how the form should deliver.** The mailto fallback works today; point
+  `FORM_ENDPOINT` at a service if you want submissions posted server-side.
+- **Client logos are taken from your company deck.** Confirm you hold permission
+  to display each mark publicly — a client relationship does not by itself grant
+  trademark use on a marketing site.
+- **Photography is extracted from the deck.** Replace with original
+  high-resolution files where you have them; several deck images are
   renders/visualisations rather than site photographs.

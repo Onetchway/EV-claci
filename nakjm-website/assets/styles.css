@@ -685,17 +685,27 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 @media (max-width: 760px)  { .trust__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 480px)  { .trust__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .trust__item {
-  min-height: 96px;
+  min-height: 118px;
   display: grid; place-items: center;
-  padding: 1rem 1.25rem; text-align: center;
+  padding: 1.4rem 1.5rem; text-align: center;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  font-family: var(--font-display);
-  font-weight: 700; font-size: 0.95rem; color: var(--navy-800);
-  letter-spacing: -0.01em;
-  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+  background: #fff;
+  transition: background 0.2s var(--ease);
 }
-.trust__item:hover { background: var(--navy-800); color: #fff; }
+.trust__item:hover { background: var(--paper); }
+/* Client marks sit at mixed intrinsic sizes; cap the height and let width
+   follow so every logo reads at a comparable optical weight. */
+.trust__item img {
+  max-height: 46px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  filter: grayscale(1);
+  opacity: 0.72;
+  transition: filter 0.25s var(--ease), opacity 0.25s var(--ease);
+}
+.trust__item:hover img { filter: grayscale(0); opacity: 1; }
 
 /* ---------- workforce tiers ---------- */
 
