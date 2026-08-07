@@ -10,7 +10,7 @@ export const metadata = buildMetadata({
   description:
     "Electriva, VinFast, XPulse and Tesla charging hubs, industrial estates, educational campuses and corporate fit-outs — delivered across India.",
   path: "/projects/",
-  image: "/images/hub-tesla.jpg",
+  image: "/images/hub-tesla.webp",
 });
 
 export default function ProjectsPage() {
@@ -28,7 +28,7 @@ export default function ProjectsPage() {
         title="Proof of scale,"
         accent="on the ground."
         lede="1,000+ chargers across 300+ sites, ten factory units and a ground-up school campus — all executed by the same in-house teams."
-        image="/images/hub-tesla.jpg"
+        image="/images/hub-tesla.webp"
         imageAlt="Tesla Supercharger station delivered by NAKJM in Gurgaon"
         crumbs={[
           { name: "Home", href: "/" },

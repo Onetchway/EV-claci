@@ -13,7 +13,7 @@ export const metadata = buildMetadata({
   description:
     "Civil engineering, electrical EPC, EV charging infrastructure, renewables, industrial construction and consultancy — six disciplines delivered under one contract.",
   path: "/services/",
-  image: "/images/transformer.jpg",
+  image: "/images/transformer.webp",
 });
 
 export default function ServicesPage() {
@@ -31,7 +31,7 @@ export default function ServicesPage() {
         title="Six disciplines."
         accent="One contract."
         lede="Every discipline sits inside the same team, so a site moves from feasibility to energisation without crossing a single vendor boundary."
-        image="/images/transformer.jpg"
+        image="/images/transformer.webp"
         imageAlt="High-capacity transformer commissioned by NAKJM"
         crumbs={[
           { name: "Home", href: "/" },

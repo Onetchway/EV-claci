@@ -25,7 +25,7 @@ export function Testimonials() {
               <p className="max-w-[22ch] text-[clamp(1.75rem,4vw,3.25rem)] font-light leading-[1.15] tracking-tight text-white md:max-w-[26ch]">
                 “{current.quote}”
               </p>
-              <footer className="mt-9 text-sm text-white/45">
+              <footer className="mt-9 text-sm text-white/60">
                 <span className="text-white/80">{current.author}</span> — {current.role}
               </footer>
             </motion.blockquote>

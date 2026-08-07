@@ -55,7 +55,7 @@ export function Header() {
         className={cn(
           "fixed inset-x-0 top-0 z-50 transition-all duration-500 ease-swift",
           stuck || mobileOpen
-            ? "border-b border-navy/8 bg-white/85 backdrop-blur-xl"
+            ? "border-b border-navy/10 bg-white/85 backdrop-blur-xl"
             : "border-b border-transparent bg-transparent",
         )}
       >
@@ -230,7 +230,7 @@ export function Header() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.06 + i * 0.05, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                  className="border-b border-navy/8"
+                  className="border-b border-navy/10"
                 >
                   <div className="flex items-center justify-between">
                     <Link

@@ -12,13 +12,13 @@ export const metadata = buildMetadata({
   description:
     "In-house MS fabrication, 50+ civil and electrical crew, 7.4 kW to 250 kW charging deployment, and a Delhi NCR command centre running multi-state rollouts.",
   path: "/capabilities/",
-  image: "/images/panel.jpg",
+  image: "/images/panel.webp",
 });
 
 const plant = [
-  { title: "In-house MS fabrication", body: "Canopies, charger superstructures, custom panels and enclosures built on our schedule — not a supplier's.", image: "/images/panel.jpg" },
-  { title: "Heavy civil plant", body: "Excavation, trenching and earthworks equipment with crews licensed to run it through the night.", image: "/images/trenching.jpg" },
-  { title: "Electrical test bench", body: "Thermal, insulation and earth-resistance diagnostics carried out before any site is energised.", image: "/images/transformer.jpg" },
+  { title: "In-house MS fabrication", body: "Canopies, charger superstructures, custom panels and enclosures built on our schedule — not a supplier's.", image: "/images/panel.webp" },
+  { title: "Heavy civil plant", body: "Excavation, trenching and earthworks equipment with crews licensed to run it through the night.", image: "/images/trenching.webp" },
+  { title: "Electrical test bench", body: "Thermal, insulation and earth-resistance diagnostics carried out before any site is energised.", image: "/images/transformer.webp" },
 ];
 
 const ratings = {
@@ -41,7 +41,7 @@ export default function CapabilitiesPage() {
         title="The plant, the crews,"
         accent="the command centre."
         lede="Capability is not a claim — it is equipment on the yard, licensed people on the payroll and a facility that answers to our own programme."
-        image="/images/panel.jpg"
+        image="/images/panel.webp"
         imageAlt="Custom HT/LT panel engineered and wired by NAKJM"
         crumbs={[
           { name: "Home", href: "/" },
@@ -85,7 +85,7 @@ export default function CapabilitiesPage() {
 
           <div className="mt-16 grid gap-14 lg:grid-cols-2">
             <Reveal>
-              <h3 className="text-eyebrow uppercase text-white/45">Low-voltage & distributed</h3>
+              <h3 className="text-eyebrow uppercase text-white/60">Low-voltage & distributed</h3>
               <div className="mt-6 flex flex-wrap gap-3">
                 {ratings.low.map((r) => (
                   <span key={r} className="border border-white/25 px-5 py-2.5 text-sm tabular-nums text-white">
@@ -93,7 +93,7 @@ export default function CapabilitiesPage() {
                   </span>
                 ))}
               </div>
-              <ul className="mt-8 space-y-3 text-white/55">
+              <ul className="mt-8 space-y-3 text-white/70">
                 {["Dedicated residential charging", "High-density apartment installations", "Luxury villa installations", "Direct OEM installations for MG & VinFast"].map((i) => (
                   <li key={i} className="border-b border-white/10 pb-3">{i}</li>
                 ))}
@@ -109,7 +109,7 @@ export default function CapabilitiesPage() {
                   </span>
                 ))}
               </div>
-              <ul className="mt-8 space-y-3 text-white/55">
+              <ul className="mt-8 space-y-3 text-white/70">
                 {["Ultra-fast highway chargers", "Corridor charging hubs", "Heavy fleet charging depots", "Public commercial infrastructure"].map((i) => (
                   <li key={i} className="border-b border-white/10 pb-3">{i}</li>
                 ))}
@@ -125,7 +125,7 @@ export default function CapabilitiesPage() {
           <Reveal variant="scale">
             <div className="relative aspect-square w-full border border-navy/10">
               <Image
-                src="/images/india-map.jpg"
+                src="/images/govt-works.webp"
                 alt="Map of India showing NAKJM's Delhi NCR command centre dispatching crews nationwide"
                 fill
                 sizes="(max-width: 1024px) 100vw, 45vw"

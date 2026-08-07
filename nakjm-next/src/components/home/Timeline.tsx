@@ -24,11 +24,11 @@ export function Timeline() {
           lede="We did not arrive at EV infrastructure — we built our way to it, from foundations and floorplates to the fastest-growing charging networks in the country."
         />
 
-        <div ref={ref} className="relative mt-16 lg:mt-24">
+        <div ref={ref} className="relative mt-12 lg:mt-16">
           {/* spine */}
-          <div className="absolute bottom-0 left-[7px] top-0 w-px bg-navy/12 md:left-[8.5rem]" />
+          <div className="absolute bottom-0 left-[7px] top-0 w-px bg-navy/10 md:left-[9.25rem]" />
           <motion.div
-            className="absolute left-[7px] top-0 w-px origin-top bg-crimson md:left-[8.5rem]"
+            className="absolute left-[7px] top-0 w-px origin-top bg-crimson md:left-[9.25rem]"
             style={{ scaleY, height: "100%" }}
           />
 
@@ -37,11 +37,11 @@ export function Timeline() {
               key={entry.year}
               initial={{ opacity: 0, y: 34 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "0px 0px -14% 0px" }}
+              viewport={{ once: true, amount: 0.25 }}
               transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1], delay: (i % 3) * 0.05 }}
-              className="relative grid grid-cols-1 gap-2 pb-14 pl-10 md:grid-cols-[8rem_1fr] md:gap-12 md:pb-20 md:pl-0"
+              className="relative grid grid-cols-1 gap-2 pb-10 pl-10 md:grid-cols-[8rem_1fr] md:gap-12 md:pb-14 md:pl-0"
             >
-              <span className="absolute left-0 top-2 h-4 w-4 rounded-full border-[3px] border-crimson bg-white md:left-[7.55rem]" />
+              <span className="absolute left-0 top-2 h-4 w-4 rounded-full border-[3px] border-crimson bg-white md:left-[8.75rem]" />
 
               <div className="text-[clamp(1.5rem,2.4vw,2rem)] font-medium leading-none tracking-tight text-navy md:text-right">
                 {entry.year}

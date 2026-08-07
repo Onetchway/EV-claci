@@ -17,7 +17,7 @@ export const metadata = buildMetadata({
   description:
     "NAKJM Infrastructure Pvt. Ltd. delivers turnkey civil, electrical and EV charging infrastructure across India. 1,000+ chargers, 300+ sites, 100% in-house execution since 2013.",
   path: "/",
-  image: "/images/hub-electriva.jpg",
+  image: "/images/hub-electriva.webp",
 });
 
 export default function HomePage() {

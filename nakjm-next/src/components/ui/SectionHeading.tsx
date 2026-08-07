@@ -59,7 +59,7 @@ export function SectionHeading({
           <p
             className={cn(
               "mt-7 max-w-measure text-lede",
-              light ? "text-white/60" : "text-ink/60",
+              light ? "text-white/75" : "text-ink/60",
               align === "center" && "mx-auto",
             )}
           >

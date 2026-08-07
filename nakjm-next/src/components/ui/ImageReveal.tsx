@@ -39,7 +39,7 @@ export function ImageReveal({
         className="h-full w-full"
         initial={{ scale: 1.14 }}
         whileInView={{ scale: 1 }}
-        viewport={{ once: true, margin: "0px 0px -8% 0px" }}
+        viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
       >
         {fill ? (
@@ -69,7 +69,7 @@ export function ImageReveal({
         className="absolute inset-0 z-10 origin-right bg-navy-800"
         initial={{ scaleX: 1 }}
         whileInView={{ scaleX: 0 }}
-        viewport={{ once: true, margin: "0px 0px -8% 0px" }}
+        viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 1.05, ease: [0.76, 0, 0.24, 1] }}
       />
     </div>

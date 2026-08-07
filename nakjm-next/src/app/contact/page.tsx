@@ -10,7 +10,7 @@ export const metadata = buildMetadata({
   description:
     "Send us the site, the sanctioned load and the timeline. NAKJM returns a feasibility view and a single-contract delivery plan.",
   path: "/contact/",
-  image: "/images/hub-vinfast.jpg",
+  image: "/images/hub-vinfast.webp",
 });
 
 const contactFaqs = [
@@ -37,7 +37,7 @@ export default function ContactPage() {
         title="Building the"
         accent="new energy era."
         lede="Send us the site, the sanctioned load and the timeline. We come back with a feasibility view and a single-contract delivery plan."
-        image="/images/hub-vinfast.jpg"
+        image="/images/hub-vinfast.webp"
         imageAlt="VinFast OEM delivery hub delivered by NAKJM"
         crumbs={[
           { name: "Home", href: "/" },

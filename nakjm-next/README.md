@@ -187,15 +187,29 @@ npm run deploy:all   # hosting + the enquiry function
 ## Images
 
 Static export has no image optimisation server, so `images.unoptimized` is on
-and assets are pre-encoded instead: every JPEG in `public/images/` ships with a
-matching WebP (2.69 MB → 1.20 MB across the set).
+and `next/image` serves whatever file you point it at — the `formats` key in
+`next.config.ts` does nothing here. Assets are therefore pre-encoded: every
+photograph ships as a single WebP at 2200px wide (2880px for the hero), which
+is what the markup references directly. `og-default.jpg` stays JPEG because
+some social scrapers still refuse WebP.
 
-**Known limitation, worth stating plainly:** the project photography is
-extracted from the company profile deck, where each slide is a single 1672×941
-flattened image. That is the ceiling on their resolution — no processing
-recovers detail the source does not contain. Replacing `public/images/*.jpg`
-with the original photographs is the single biggest visual upgrade available to
-this site.
+**The photography is licensed stock, not NAKJM's own work.** It was replaced
+after the deck-extracted crops (some as small as 1107×173) proved far too low
+resolution to display. The current set comes from Wikimedia Commons under CC BY,
+CC BY-SA and public-domain licences, credited on `/credits`.
+
+Two things follow from that, and both matter before launch:
+
+1. **The images do not show NAKJM projects.** A photograph captioned as a
+   charging hub is a real charging hub somewhere in the world — not the
+   Electriva, VinFast, XPulse or Tesla site the surrounding copy describes.
+   Alt text has been written to describe what is actually pictured rather than
+   the project it illustrates, but the pairing is still illustrative.
+   Substituting the company's own site photography is the single biggest
+   improvement available to this site, and it removes this problem entirely.
+2. **CC BY-SA is share-alike.** The crops in `public/images/` are derivatives
+   of share-alike originals. `/credits` names each photographer, licence and
+   source; keep it in place for as long as those images are used.
 
 ---
 
@@ -204,7 +218,10 @@ this site.
 - [ ] Set `NEXT_PUBLIC_SITE_URL` to the live origin
 - [ ] Set the Firebase functions secrets above
 - [ ] Add `NEXT_PUBLIC_GA_ID` / `NEXT_PUBLIC_GTM_ID` if analytics are wanted
-- [ ] Replace deck-extracted photography with originals
+- [ ] **Replace the licensed stock photography with NAKJM's own site photographs.**
+      Until then the site illustrates its projects with other people's sites —
+      see the Images section above
+- [ ] Keep `/credits` published for as long as the CC BY / CC BY-SA images are used
 - [ ] Confirm trademark permission for the client logos in `public/images/clients/`
       — a client relationship is not by itself a licence to display a mark
 - [ ] Confirm the two partner spellings carried over from the source deck:

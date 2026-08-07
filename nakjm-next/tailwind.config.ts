@@ -41,7 +41,9 @@ const config: Config = {
         lede: ["clamp(1.0625rem, 1.35vw, 1.375rem)", { lineHeight: "1.55", letterSpacing: "-0.011em" }],
         eyebrow: ["0.6875rem", { lineHeight: "1", letterSpacing: "0.22em", fontWeight: "500" }],
       },
-      spacing: { section: "clamp(6rem, 13vw, 14rem)", gutter: "clamp(1.5rem, 5vw, 5rem)" },
+      // 13vw stacked top+bottom put ~450px of dead band between sections on a
+      // laptop. This keeps the rhythm generous without the page reading empty.
+      spacing: { section: "clamp(4.25rem, 7.5vw, 8.5rem)", gutter: "clamp(1.5rem, 5vw, 5rem)" },
       maxWidth: { shell: "96rem", measure: "44rem", wide: "78rem" },
       transitionTimingFunction: {
         editorial: "cubic-bezier(0.16, 1, 0.3, 1)",

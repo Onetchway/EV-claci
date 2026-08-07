@@ -65,7 +65,7 @@ export function PinnedProcess() {
   const current = processSteps[active] ?? processSteps[0]!;
 
   return (
-    <section ref={root} className="grain relative bg-navy-950 text-white/60">
+    <section ref={root} className="grain relative bg-navy-950 text-white/75">
       <div className="shell lg:grid lg:grid-cols-2 lg:gap-20">
         {/* pinned plate */}
         <div
@@ -102,7 +102,7 @@ export function PinnedProcess() {
             <span className="text-5xl font-medium leading-none tracking-tight text-white tabular-nums">
               {current.no}
             </span>
-            <span className="text-sm text-white/35">/ 09 stages</span>
+            <span className="text-sm text-white/55">/ 09 stages</span>
           </div>
 
           <div className="relative mt-5 h-px w-full bg-white/15">
@@ -130,9 +130,10 @@ export function PinnedProcess() {
               key={step.no}
               data-step
               className={cn(
-                "border-t border-white/10 py-12 transition-opacity duration-500 lg:py-20",
+                "relative border-t border-white/10 py-12 transition-opacity duration-500 lg:py-16",
                 i === processSteps.length - 1 && "border-b",
-                "lg:opacity-30",
+                // Dimming marks focus; it must never take the copy below readable.
+                "lg:opacity-60",
                 i === active && "lg:opacity-100",
               )}
             >
@@ -148,9 +149,18 @@ export function PinnedProcess() {
                 <div className="absolute inset-0 bg-gradient-to-t from-navy-950/70 to-transparent" />
               </div>
 
+              {/* The active stage carries a crimson marker, so focus never rests
+                  on opacity alone — that reads as "greyed out", not "current". */}
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute left-0 top-0 hidden h-px bg-crimson transition-all duration-500 ease-editorial lg:block",
+                  i === active ? "w-24 opacity-100" : "w-0 opacity-0",
+                )}
+              />
               <span className="text-eyebrow uppercase text-crimson-400">Stage {step.no}</span>
               <h3 className="mt-4 text-title text-white">{step.title}</h3>
-              <p className="mt-4 max-w-measure text-white/55">
+              <p className="mt-4 max-w-measure text-white/70">
                 <strong className="font-medium text-white/85">{step.sub}.</strong> {step.body}
               </p>
             </article>

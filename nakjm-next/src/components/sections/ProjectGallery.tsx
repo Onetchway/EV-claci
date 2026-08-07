@@ -89,7 +89,7 @@ export function ProjectGallery() {
                     <h2 className="mt-3 max-w-[24ch] text-xl font-medium leading-tight tracking-tight text-white">
                       {project.title}
                     </h2>
-                    <p className="mt-2 text-sm text-white/50">
+                    <p className="mt-2 text-sm text-white/70">
                       {project.location} · {project.completion}
                     </p>
                   </div>

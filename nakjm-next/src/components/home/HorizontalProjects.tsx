@@ -73,14 +73,14 @@ export function HorizontalProjects() {
               <Link
                 key={project.slug}
                 href={`/projects/${project.slug}/`}
-                className="group relative block w-[78vw] shrink-0 overflow-hidden bg-navy-950 sm:w-[52vw] lg:w-[36vw]"
+                className="group relative block w-[78vw] shrink-0 overflow-hidden bg-navy-950 sm:w-[52vw] lg:w-[27vw]"
               >
-                <div className="relative aspect-[4/5] w-full overflow-hidden lg:aspect-[3/4]">
+                <div className="relative aspect-[4/5] w-full overflow-hidden lg:aspect-auto lg:h-[clamp(20rem,calc(100vh-26rem),44rem)]">
                   <Image
                     src={project.hero}
                     alt={project.title}
                     fill
-                    sizes="(max-width: 640px) 78vw, (max-width: 1024px) 52vw, 36vw"
+                    sizes="(max-width: 640px) 78vw, (max-width: 1024px) 52vw, 27vw"
                     className="object-cover transition-transform duration-[1.2s] ease-editorial group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(0,10,28,0.95)_0%,rgba(0,10,28,0.6)_38%,rgba(0,10,28,0.05)_75%)]" />
@@ -97,7 +97,7 @@ export function HorizontalProjects() {
                     {project.metrics.slice(0, 2).map((m) => (
                       <span key={m.label} className="text-sm text-white/70">
                         <span className="font-medium text-white">{m.value}</span>{" "}
-                        <span className="text-white/45">{m.label.toLowerCase()}</span>
+                        <span className="text-white/60">{m.label.toLowerCase()}</span>
                       </span>
                     ))}
                   </div>

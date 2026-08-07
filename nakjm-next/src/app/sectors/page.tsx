@@ -12,7 +12,7 @@ export const metadata = buildMetadata({
   description:
     "EV charging, government works for MCD, PWD and BSES, warehousing and industrial, solar, MS fabrication, HT/LT electrical, educational and corporate delivery.",
   path: "/sectors/",
-  image: "/images/factory.jpg",
+  image: "/images/factory.webp",
 });
 
 export default function SectorsPage() {
@@ -30,7 +30,7 @@ export default function SectorsPage() {
         title="One team,"
         accent="every terrain."
         lede="Government works to private megahubs — the same in-house civil and electrical teams carry their discipline across every sector we serve."
-        image="/images/factory.jpg"
+        image="/images/factory.webp"
         imageAlt="Large-scale steel-frame construction by NAKJM"
         crumbs={[
           { name: "Home", href: "/" },
@@ -62,10 +62,10 @@ export default function SectorsPage() {
                     {/* detail eases open on hover; always open on touch */}
                     <div className="grid grid-rows-[0fr] opacity-0 transition-all duration-700 ease-editorial group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus-within:grid-rows-[1fr] group-focus-within:opacity-100 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100">
                       <div className="overflow-hidden">
-                        <p className="pt-4 text-sm text-white/60">{sector.body}</p>
+                        <p className="pt-4 text-sm text-white/75">{sector.body}</p>
                         <ul className="mt-4 space-y-1.5">
                           {sector.points.map((p) => (
-                            <li key={p} className="flex gap-3 text-sm text-white/50">
+                            <li key={p} className="flex gap-3 text-sm text-white/70">
                               <span aria-hidden className="mt-[0.55em] h-1 w-1 shrink-0 bg-crimson" />
                               {p}
                             </li>

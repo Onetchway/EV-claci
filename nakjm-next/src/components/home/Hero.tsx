@@ -35,8 +35,8 @@ export function Hero() {
         style={reduced ? undefined : { y, scale }}
       >
         <Image
-          src="/images/hero.jpg"
-          alt="EV charging infrastructure delivered by NAKJM Infrastructure"
+          src="/images/hero.webp"
+          alt="A large open charging forecourt with rows of charging bays"
           fill
           priority
           sizes="100vw"
@@ -79,7 +79,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 26 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.95, ease: EASE, delay: 0.85 }}
-          className="mt-9 max-w-[46ch] text-lede text-white/65"
+          className="mt-9 max-w-[46ch] text-lede text-white/80"
         >
           Total EPC solutions for the next generation of national
           infrastructure — civil, electrical and EV charging delivered by one
@@ -113,7 +113,7 @@ export function Hero() {
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1, ease: EASE, delay: 1.15 }}
-        className="absolute inset-x-0 bottom-0 z-10 border-t border-white/12 bg-navy-950/50 backdrop-blur-md"
+        className="absolute inset-x-0 bottom-0 z-10 border-t border-white/15 bg-navy-950/50 backdrop-blur-md"
       >
         <div className="shell grid grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, i) => (
@@ -128,7 +128,7 @@ export function Hero() {
                   format={stat.format === "year" ? "year" : "number"}
                 />
               </div>
-              <div className="mt-2 text-xs text-white/45 lg:text-sm">{stat.label}</div>
+              <div className="mt-2 text-xs text-white/60 lg:text-sm">{stat.label}</div>
             </div>
           ))}
         </div>

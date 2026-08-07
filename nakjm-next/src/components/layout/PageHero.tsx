@@ -56,7 +56,7 @@ export function PageHero({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="mb-8 flex flex-wrap items-center gap-2 text-xs text-white/40"
+            className="mb-8 flex flex-wrap items-center gap-2 text-xs text-white/60"
           >
             {crumbs.map((c, i) => (
               <span key={c.href} className="flex items-center gap-2">
@@ -112,7 +112,7 @@ export function PageHero({
             initial={{ opacity: 0, y: 22 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, ease: EASE, delay: 0.68 }}
-            className="mt-8 max-w-[52ch] text-lede text-white/60"
+            className="mt-8 max-w-[52ch] text-lede text-white/75"
           >
             {lede}
           </motion.p>

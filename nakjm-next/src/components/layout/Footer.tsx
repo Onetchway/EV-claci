@@ -22,7 +22,7 @@ const socials = [
 
 export function Footer() {
   return (
-    <footer className="grain relative bg-navy-950 text-white/55">
+    <footer className="grain relative bg-navy-950 text-white/70">
       <div className="shell py-20 lg:py-28">
         <div className="grid gap-14 lg:grid-cols-[1.6fr_repeat(3,1fr)] lg:gap-10">
           <div>
@@ -47,7 +47,7 @@ export function Footer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`${site.name} on ${s.label}`}
-                    className="group relative grid h-11 w-11 place-items-center overflow-hidden border border-white/15 text-white/60 transition-all duration-300 ease-swift hover:-translate-y-1 hover:border-crimson hover:text-white"
+                    className="group relative grid h-11 w-11 place-items-center overflow-hidden border border-white/15 text-white/75 transition-all duration-300 ease-swift hover:-translate-y-1 hover:border-crimson hover:text-white"
                   >
                     <span
                       aria-hidden
@@ -70,7 +70,7 @@ export function Footer() {
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="group inline-flex items-center text-sm text-white/55 transition-colors duration-300 hover:text-white"
+                      className="group inline-flex items-center text-sm text-white/70 transition-colors duration-300 hover:text-white"
                     >
                       <span className="mr-0 h-px w-0 bg-crimson transition-all duration-300 ease-swift group-hover:mr-2 group-hover:w-4" />
                       {link.label}
@@ -84,7 +84,7 @@ export function Footer() {
 
         <div className="mt-16 grid gap-10 border-t border-white/10 pt-12 md:grid-cols-3">
           <div>
-            <h2 className="text-eyebrow uppercase text-white/40">Head office</h2>
+            <h2 className="text-eyebrow uppercase text-white/60">Head office</h2>
             <p className="mt-4 text-sm leading-relaxed text-white/70">
               CoWynd Managed Office, First Floor,
               <br />
@@ -94,7 +94,7 @@ export function Footer() {
             </p>
           </div>
           <div>
-            <h2 className="text-eyebrow uppercase text-white/40">Speak to us</h2>
+            <h2 className="text-eyebrow uppercase text-white/60">Speak to us</h2>
             <p className="mt-4 space-y-1 text-sm text-white/70">
               <a href={`tel:${site.phoneHref}`} className="block transition-colors hover:text-white">
                 {site.phone}
@@ -105,7 +105,7 @@ export function Footer() {
             </p>
           </div>
           <div>
-            <h2 className="text-eyebrow uppercase text-white/40">Start a project</h2>
+            <h2 className="text-eyebrow uppercase text-white/60">Start a project</h2>
             <Link
               href="/contact"
               className="link-sweep mt-4 text-crimson-400 transition-colors hover:text-white"
@@ -115,9 +115,10 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col gap-3 border-t border-white/10 pt-8 text-xs text-white/35 md:flex-row md:items-center md:justify-between">
+        <div className="mt-14 flex flex-col gap-3 border-t border-white/10 pt-8 text-xs text-white/55 md:flex-row md:items-center md:justify-between">
           <p>
-            © {new Date().getFullYear()} {site.legalName}. All rights reserved.
+            {/* legalName already ends in "Ltd." — don't add a second full stop. */}
+            © {new Date().getFullYear()} {site.legalName} All rights reserved.
           </p>
           <p className="tracking-[0.18em] uppercase">{site.tagline}</p>
         </div>

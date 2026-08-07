@@ -104,7 +104,7 @@
   }
 
   .hairline-light {
-    @apply h-px w-full bg-white/12;
+    @apply h-px w-full bg-white/15;
   }
 
   /* ---- link with a sweeping underline --------------------------------- */

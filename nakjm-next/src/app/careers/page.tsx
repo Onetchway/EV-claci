@@ -12,7 +12,7 @@ export const metadata = buildMetadata({
   description:
     "Join a 50+ strong in-house civil and electrical team building India's charging backbone. Open roles across engineering, commissioning, fabrication and HSE.",
   path: "/careers/",
-  image: "/images/trenching.jpg",
+  image: "/images/trenching.webp",
 });
 
 export default function CareersPage() {
@@ -30,7 +30,7 @@ export default function CareersPage() {
         title="Build things that"
         accent="stay built."
         lede="We hire people onto our own payroll, not onto a project. That is why our crews get better every year instead of starting over on every site."
-        image="/images/trenching.jpg"
+        image="/images/trenching.webp"
         imageAlt="NAKJM crew executing precision cable trenching"
         crumbs={[
           { name: "Home", href: "/" },

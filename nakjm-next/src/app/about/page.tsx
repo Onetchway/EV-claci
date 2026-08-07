@@ -15,7 +15,7 @@ export const metadata = buildMetadata({
   description:
     "From a first charger in 2013 to 1,000+ installed. NAKJM Infrastructure's journey, mission, values and the 50+ strong in-house team behind every site.",
   path: "/about/",
-  image: "/images/tesla-super.jpg",
+  image: "/images/tesla-super.webp",
 });
 
 const values = [
@@ -51,7 +51,7 @@ export default function AboutPage() {
         title="From first charger"
         accent="to 1,000 and counting."
         lede="NAKJM Infrastructure has been building since 2013 — civil construction first, then the charging backbone of India's EV transition. Same in-house teams, every site."
-        image="/images/tesla-super.jpg"
+        image="/images/tesla-super.webp"
         imageAlt="Tesla Supercharger installation delivered by NAKJM"
         crumbs={[
           { name: "Home", href: "/" },
@@ -121,7 +121,7 @@ export default function AboutPage() {
           <Reveal variant="scale">
             <div className="relative aspect-[4/3] overflow-hidden">
               <Image
-                src="/images/trenching.jpg"
+                src="/images/trenching.webp"
                 alt="NAKJM crew executing precision cable trenching"
                 fill
                 sizes="(max-width: 1024px) 100vw, 45vw"
@@ -135,7 +135,7 @@ export default function AboutPage() {
             <h2 className="mt-7 text-headline text-white">
               50+ people. Two trades. <span className="text-crimson-400">One command.</span>
             </h2>
-            <p className="mt-7 max-w-measure text-white/55">
+            <p className="mt-7 max-w-measure text-white/70">
               Civil and electrical under one roof — not subcontracted labour
               assembled per project. That is what lets a site move from
               earthworks to energisation without waiting on anyone else&apos;s
@@ -150,12 +150,12 @@ export default function AboutPage() {
               ].map((tier) => (
                 <div key={tier.t} className="bg-navy-950 p-7">
                   <dt className="text-eyebrow uppercase text-white">{tier.t}</dt>
-                  <dd className="mt-3 text-sm text-white/50">{tier.d}</dd>
+                  <dd className="mt-3 text-sm text-white/70">{tier.d}</dd>
                 </div>
               ))}
             </dl>
 
-            <p className="mt-8 border-l-2 border-crimson pl-6 text-sm text-white/60">
+            <p className="mt-8 border-l-2 border-crimson pl-6 text-sm text-white/75">
               <strong className="font-medium text-crimson-400">Operational edge:</strong>{" "}
               fully licensed, night-shift capable, ready for on-demand crew expansion.
             </p>

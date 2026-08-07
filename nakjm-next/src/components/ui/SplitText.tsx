@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,12 @@ interface SplitTextProps {
  */
 export function SplitText({ text, className, delay = 0, as = "h2" }: SplitTextProps) {
   const reduced = useReducedMotion();
+  const ref = useRef<HTMLElement>(null);
+  // `amount` measures how much of the element is on screen and is stable.
+  // The negative root margin this replaced silently failed to fire for
+  // headings that entered near the top of the viewport, leaving the words
+  // parked below their mask — a blank band where the title should be.
+  const inView = useInView(ref, { once: true, amount: 0.15 });
   const Tag = as;
   const words = text.split(" ");
 
@@ -26,7 +33,7 @@ export function SplitText({ text, className, delay = 0, as = "h2" }: SplitTextPr
   }
 
   return (
-    <Tag className={cn("inline", className)} aria-label={text}>
+    <Tag ref={ref as never} className={cn("inline", className)} aria-label={text}>
       {words.map((word, i) => (
         <span
           key={`${word}-${i}`}
@@ -37,8 +44,7 @@ export function SplitText({ text, className, delay = 0, as = "h2" }: SplitTextPr
           <motion.span
             className="inline-block"
             initial={{ y: "115%" }}
-            whileInView={{ y: "0%" }}
-            viewport={{ once: true, margin: "0px 0px -10% 0px" }}
+            animate={inView ? { y: "0%" } : { y: "115%" }}
             transition={{ duration: 0.95, ease: [0.16, 1, 0.3, 1], delay: delay + i * 0.055 }}
           >
             {word}

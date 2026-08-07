@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, type Variants } from "framer-motion";
+import { useRef } from "react";
+import { motion, useInView, type Variants } from "framer-motion";
 import type { ElementType, ReactNode } from "react";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -43,14 +44,19 @@ export function Reveal({
   repeat = false,
 }: RevealProps) {
   const MotionTag = motion[as as keyof typeof motion] as typeof motion.div;
+  const ref = useRef<HTMLDivElement>(null);
+  // useInView re-observes when the node moves in the DOM. whileInView binds its
+  // observer once, so anything GSAP re-parents into a ScrollTrigger pin-spacer
+  // could never fire and stayed at opacity 0.
+  const inView = useInView(ref, { once: !repeat, amount: 0.12 });
 
   return (
     <MotionTag
+      ref={ref}
       data-reveal
       className={className}
       initial="hidden"
-      whileInView="show"
-      viewport={{ once: !repeat, margin: "0px 0px -12% 0px" }}
+      animate={inView ? "show" : "hidden"}
       variants={variants[variant]}
       transition={{ delay }}
     >
@@ -72,13 +78,15 @@ export function RevealGroup({
   as?: ElementType;
 }) {
   const MotionTag = motion[as as keyof typeof motion] as typeof motion.div;
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.12 });
 
   return (
     <MotionTag
+      ref={ref}
       className={className}
       initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "0px 0px -10% 0px" }}
+      animate={inView ? "show" : "hidden"}
       variants={{ hidden: {}, show: { transition: { staggerChildren: stagger } } }}
     >
       {children}

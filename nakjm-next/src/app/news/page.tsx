@@ -12,7 +12,7 @@ export const metadata = buildMetadata({
   description:
     "Project completions, partnerships and milestones from NAKJM Infrastructure — including the 1,000-charger milestone and the Tesla Supercharger site in Gurgaon.",
   path: "/news/",
-  image: "/images/hub-vinfast.jpg",
+  image: "/images/hub-vinfast.webp",
 });
 
 const fmt = new Intl.DateTimeFormat("en-IN", {
@@ -38,7 +38,7 @@ export default function NewsPage() {
         title="From site,"
         accent="not from a press office."
         lede="Completions, partnerships and milestones — recorded as they happen."
-        image="/images/hub-vinfast.jpg"
+        image="/images/hub-vinfast.webp"
         imageAlt="VinFast OEM delivery hub delivered by NAKJM"
         crumbs={[
           { name: "Home", href: "/" },

@@ -18,7 +18,7 @@ export function Services() {
           lede="Civil, electrical and EV under one accountable team — so nothing crosses a vendor boundary and nothing falls between contracts."
         />
 
-        <RevealGroup className="mt-16 lg:mt-24" stagger={0.07}>
+        <RevealGroup className="mt-12 lg:mt-16" stagger={0.07}>
           {services.map((service) => (
             <RevealItem key={service.slug}>
               <Link

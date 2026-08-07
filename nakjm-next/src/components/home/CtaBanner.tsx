@@ -6,7 +6,7 @@ export function CtaBanner() {
   return (
     <section className="relative overflow-hidden bg-navy-950">
       <Image
-        src="/images/hub-electriva.jpg"
+        src="/images/hub-electriva.webp"
         alt=""
         fill
         sizes="100vw"
@@ -19,7 +19,7 @@ export function CtaBanner() {
         <h2 className="mt-8 max-w-[15ch] text-headline text-white">
           Building the <span className="text-crimson-400">new energy era.</span>
         </h2>
-        <p className="mt-8 max-w-[52ch] text-lede text-white/60">
+        <p className="mt-8 max-w-[52ch] text-lede text-white/75">
           Send us the site, the sanctioned load and the timeline. We come back
           with a feasibility view and a single-contract delivery plan.
         </p>

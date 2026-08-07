@@ -4,7 +4,7 @@ import { clients } from "@/lib/data/company";
 /** Infinite logo rail. The list is duplicated so the loop has no seam. */
 export function Marquee() {
   return (
-    <section className="border-y border-navy/8 bg-white py-14">
+    <section className="border-y border-navy/10 bg-white py-14">
       <div className="shell">
         <p className="text-center text-eyebrow uppercase text-ink/35">
           Trusted by the tier-1 mobility ecosystem

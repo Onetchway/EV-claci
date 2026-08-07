@@ -13,7 +13,7 @@ export const metadata = buildMetadata({
   description:
     "A thousand chargers is measurable displaced combustion. How NAKJM builds the energy transition — and builds it once, correctly.",
   path: "/sustainability/",
-  image: "/images/solar-canopy.jpg",
+  image: "/images/solar-canopy.webp",
 });
 
 export default function SustainabilityPage() {
@@ -31,7 +31,7 @@ export default function SustainabilityPage() {
         title="We do not report"
         accent="the transition. We build it."
         lede="Every charger installed displaces fuel across its whole service life. That is not a pledge — it is infrastructure, in the ground, compounding daily."
-        image="/images/solar-canopy.jpg"
+        image="/images/solar-canopy.webp"
         imageAlt="Solar-canopied charging forecourt delivered by NAKJM"
         crumbs={[
           { name: "Home", href: "/" },

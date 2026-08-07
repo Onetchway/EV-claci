@@ -13,7 +13,7 @@ export default function NotFound() {
     <>
       <section className="relative flex min-h-[80svh] items-end overflow-hidden bg-navy-950 pb-20 pt-44">
         <Image
-          src="/images/hub-xpulse.jpg"
+          src="/images/hub-xpulse.webp"
           alt=""
           fill
           priority
@@ -30,7 +30,7 @@ export default function NotFound() {
           <h1 className="-mt-6 max-w-[16ch] text-headline text-white">
             That page has <span className="text-crimson-400">moved on.</span>
           </h1>
-          <p className="mt-8 max-w-[46ch] text-lede text-white/55">
+          <p className="mt-8 max-w-[46ch] text-lede text-white/70">
             The page you were looking for is not here. Everything we build is
             still a click away.
           </p>
