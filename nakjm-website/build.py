@@ -11,10 +11,52 @@ PORTAL = "www.nakjiminfra.com"
 ADDR_HTML = ("CoWynd Managed Office, First Floor,<br>Plot 103, Dwarka Sector 19,<br>"
              "New Delhi &mdash; 110075")
 
+# Grouped navigation: (label, href, [children]). A group with children
+# renders as a hover/focus dropdown on desktop and an accordion on mobile.
+NAV_TREE = [
+    ("Home", "index.html", []),
+    ("Sectors", "sectors.html", []),
+    ("What We Do", "capabilities.html", [
+        ("Capabilities", "capabilities.html"),
+        ("How We Work", "process.html"),
+    ]),
+    ("Projects", "projects.html", [
+        ("Featured Projects", "projects.html"),
+        ("Partners & Clients", "partners.html"),
+    ]),
+    ("Company", "about.html", []),
+    ("Contact", "contact.html", []),
+]
+
+# flat list still drives the sitemap
 NAV = [("index.html", "Home"), ("capabilities.html", "Capabilities"),
        ("process.html", "How We Work"), ("sectors.html", "Sectors"),
        ("projects.html", "Projects"), ("partners.html", "Partners"),
        ("about.html", "Company"), ("contact.html", "Contact")]
+
+
+def nav_markup(page):
+    rows = []
+    for label, href, kids in NAV_TREE:
+        if not kids:
+            cur = ' aria-current="page"' if href == page else ""
+            rows.append('        <li><a href="%s"%s>%s</a></li>' % (href, cur, label))
+            continue
+        active = page in [h for _, h in kids]
+        rows.append(
+            '        <li class="nav__group%s">\n'
+            '          <a href="%s" class="nav__parent"%s>%s'
+            '<svg class="nav__caret" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></a>\n'
+            '          <button class="nav__expand" type="button" aria-expanded="false" aria-label="Show %s menu"></button>\n'
+            '          <ul class="nav__drop">\n%s\n          </ul>\n'
+            '        </li>' % (
+                " is-active" if active else "", href,
+                ' aria-current="page"' if active else "", label, label,
+                "\n".join(
+                    '            <li><a href="%s"%s>%s</a></li>' %
+                    (h, ' aria-current="page"' if h == page else "", t)
+                    for t, h in kids)))
+    return "\n".join(rows)
 
 SITE = "https://www.nakjiminfra.com"
 
@@ -52,9 +94,7 @@ ORG_JSONLD = """{
 
 
 def head(title, desc, page, jsonld=None):
-    links = "\n".join(
-        '        <li><a href="%s"%s>%s</a></li>' %
-        (h, ' aria-current="page"' if h == page else "", t) for h, t in NAV)
+    links = nav_markup(page)
     canonical = SITE + "/" + ("" if page == "index.html" else page)
     og_img = SITE + "/assets/img/hub-electriva.jpg"
     schema = ('\n<script type="application/ld+json">\n%s\n</script>' % jsonld) if jsonld else ""
@@ -126,6 +166,10 @@ def head(title, desc, page, jsonld=None):
 FOOTER = f"""
 </main>
 
+<button class="totop" type="button" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</button>
+
 <footer class="footer">
   <div class="wrap">
     <div class="footer__grid">
@@ -163,6 +207,20 @@ FOOTER = f"""
           <li><a href="tel:{TEL}">{PHONE}</a></li>
           <li><a href="mailto:{EMAIL}">{EMAIL}</a></li>
           <li>{ADDR_HTML}</li>
+        </ul>
+        <ul class="social" aria-label="NAKJM on social media">
+          <li><a class="social__link" href="https://www.linkedin.com/company/nakjm/" target="_blank" rel="noopener noreferrer" aria-label="NAKJM Infrastructure on LinkedIn">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm7 0h3.8v1.71h.05c.53-.95 1.83-1.96 3.77-1.96 4.03 0 4.78 2.5 4.78 5.76V21h-4v-5.66c0-1.35-.03-3.09-1.96-3.09-1.96 0-2.26 1.46-2.26 2.99V21h-4V9Z"/></svg>
+            <span class="sr-only">LinkedIn</span>
+          </a></li>
+          <li><a class="social__link" href="https://www.instagram.com/nakjm_infrastructure/" target="_blank" rel="noopener noreferrer" aria-label="NAKJM Infrastructure on Instagram">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.8 3.8 0 0 1-1.38-.9 3.8 3.8 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16Zm0 1.98c-3.15 0-3.5.01-4.74.07-1.14.05-1.76.24-2.17.4-.55.21-.94.47-1.35.88-.41.41-.67.8-.88 1.35-.16.41-.35 1.03-.4 2.17-.06 1.24-.07 1.59-.07 4.74s.01 3.5.07 4.74c.05 1.14.24 1.76.4 2.17.21.55.47.94.88 1.35.41.41.8.67 1.35.88.41.16 1.03.35 2.17.4 1.24.06 1.59.07 4.74.07s3.5-.01 4.74-.07c1.14-.05 1.76-.24 2.17-.4.55-.21.94-.47 1.35-.88.41-.41.67-.8.88-1.35.16-.41.35-1.03.4-2.17.06-1.24.07-1.59.07-4.74s-.01-3.5-.07-4.74c-.05-1.14-.24-1.76-.4-2.17a3.6 3.6 0 0 0-.88-1.35 3.6 3.6 0 0 0-1.35-.88c-.41-.16-1.03-.35-2.17-.4-1.24-.06-1.59-.07-4.74-.07Zm0 3.37a4.49 4.49 0 1 1 0 8.98 4.49 4.49 0 0 1 0-8.98Zm0 7.4a2.91 2.91 0 1 0 0-5.82 2.91 2.91 0 0 0 0 5.82Zm5.72-7.6a1.05 1.05 0 1 1-2.1 0 1.05 1.05 0 0 1 2.1 0Z"/></svg>
+            <span class="sr-only">Instagram</span>
+          </a></li>
+          <li><a class="social__link" href="https://www.youtube.com/@Nakjm_Infrastructure" target="_blank" rel="noopener noreferrer" aria-label="NAKJM Infrastructure on YouTube">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M23.5 6.9a3 3 0 0 0-2.12-2.13C19.5 4.25 12 4.25 12 4.25s-7.5 0-9.38.52A3 3 0 0 0 .5 6.9C0 8.79 0 12 0 12s0 3.21.5 5.1a3 3 0 0 0 2.12 2.13c1.88.52 9.38.52 9.38.52s7.5 0 9.38-.52a3 3 0 0 0 2.12-2.13C24 15.21 24 12 24 12s0-3.21-.5-5.1ZM9.6 15.6V8.4l6.2 3.6-6.2 3.6Z"/></svg>
+            <span class="sr-only">YouTube</span>
+          </a></li>
         </ul>
       </div>
     </div>
@@ -260,6 +318,10 @@ CLIENTS = [("tesla", "Tesla"), ("vinfast", "VinFast"), ("mg", "MG"),
            ("xpulse", "XPulse EV Charging"), ("vgreen", "V-Green"),
            ("chargze", "ChargZe")]
 
+MARQUEE = "\n".join(
+    '          <img src="assets/img/clients/%s.png" alt="" loading="lazy" '
+    'width="180" height="38">' % f for f, _ in CLIENTS)
+
 TRUST = "\n".join(
     '        <li class="trust__item">'
     '<img src="assets/img/clients/%s.png" alt="%s" loading="lazy" width="180" height="46">'
@@ -291,7 +353,7 @@ def hero(img, alt, eyebrow, h1, lede, actions="", extra="", short=False):
     <div class="wrap">
       <div class="hero__inner">
         <span class="eyebrow">{eyebrow}</span>
-        <h1><span class="mask-up"><span>{h1}</span></span></h1>
+        <h1 data-split><span class="mask-up"><span>{h1}</span></span></h1>
         <p class="lede">{lede}</p>
         {actions}
         {extra}
@@ -492,7 +554,7 @@ index += """
 
   <!-- charging solutions strip -->
   <section class="strip strip--navy">
-    <div class="strip__media">
+    <div class="strip__media img-reveal">
       <img src="assets/img/hub-xpulse.jpg" alt="XPulse heavy-duty fleet charging hub at Samalkha, Haryana" loading="lazy">
     </div>
     <div class="strip__copy">
@@ -525,7 +587,7 @@ index += """
         <p class="lede">Delivering future-ready charging infrastructure at scale.</p>
       </div>
       <div class="grid grid--2" data-stagger="110">
-        <a class="tile" href="projects.html" style="aspect-ratio:16/10">
+        <a class="tile" href="projects.html" style="aspect-ratio:2/1">
           <img src="assets/img/hub-electriva.jpg" alt="Electriva multi-vehicle highway charging hub in Delhi NCR at dusk" loading="lazy">
           <div class="tile__body">
             <span class="tile__kicker">Delhi NCR</span>
@@ -534,7 +596,7 @@ index += """
             <span class="tile__stat">120+ chargers &middot; AC &amp; DC fast chargers</span>
           </div>
         </a>
-        <a class="tile" href="projects.html" style="aspect-ratio:16/10">
+        <a class="tile" href="projects.html" style="aspect-ratio:2/1">
           <img src="assets/img/hub-vinfast.jpg" alt="VinFast OEM delivery hub and commercial fleet depot" loading="lazy">
           <div class="tile__body">
             <span class="tile__kicker">OEM delivery hub</span>
@@ -543,7 +605,7 @@ index += """
             <span class="tile__stat">60+ chargers &middot; AC &amp; DC fast chargers</span>
           </div>
         </a>
-        <a class="tile" href="projects.html" style="aspect-ratio:16/10">
+        <a class="tile" href="projects.html" style="aspect-ratio:2/1">
           <img src="assets/img/hub-xpulse.jpg" alt="XPulse heavy-duty fleet charging hub at Samalkha, Haryana" loading="lazy">
           <div class="tile__body">
             <span class="tile__kicker">Samalkha, Haryana</span>
@@ -552,7 +614,7 @@ index += """
             <span class="tile__stat">70+ chargers &middot; DC fast chargers</span>
           </div>
         </a>
-        <a class="tile" href="projects.html" style="aspect-ratio:16/10">
+        <a class="tile" href="projects.html" style="aspect-ratio:2/1">
           <img src="assets/img/hub-tesla.jpg" alt="Tesla Supercharger station in Gurgaon, Haryana" loading="lazy">
           <div class="tile__body">
             <span class="tile__kicker">Gurgaon, Haryana</span>
@@ -598,9 +660,12 @@ index += """
           manufacturers and charge point operators.
         </p>
       </div>
-      <ul class="trust__grid" data-stagger="45">
-""" + TRUST + """
-      </ul>
+      <div class="marquee rise" aria-hidden="true">
+        <div class="marquee__track">
+""" + MARQUEE + MARQUEE + """
+        </div>
+      </div>
+      <p class="sr-only">Clients include Tesla, VinFast, MG, Tata Passenger Electric Mobility, Jio-bp, Adani TotalEnergies, Electriva, Terra Charge, Exicom, XPulse EV Charging, V-Green and ChargZe.</p>
       <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Trusted partnerships</strong><span>Strong collaborations with industry leaders.</span></li>
         <li><strong>Seamless integration</strong><span>Compatible with leading OEM and CPO platforms.</span></li>
@@ -664,7 +729,7 @@ cap += quicklinks("On this page", [
 cap += """
   <!-- pillar 1 -->
   <section class="strip" id="foundation">
-    <div class="strip__media">
+    <div class="strip__media img-reveal">
       <img src="assets/img/factory.jpg" alt="Ten factory units under steel-frame construction at Bawana" loading="lazy">
     </div>
     <div class="strip__copy">
@@ -685,7 +750,7 @@ cap += """
 
   <!-- pillar 2 -->
   <section class="strip strip--flip strip--navy" id="power">
-    <div class="strip__media">
+    <div class="strip__media img-reveal">
       <img src="assets/img/transformer.jpg" alt="High-capacity transformer commissioned on a concrete plinth" loading="lazy">
     </div>
     <div class="strip__copy">
@@ -706,7 +771,7 @@ cap += """
 
   <!-- pillar 3 -->
   <section class="strip" id="application">
-    <div class="strip__media">
+    <div class="strip__media img-reveal">
       <img src="assets/img/dc-multibrand.jpg" alt="DC fast chargers from several manufacturers installed side by side" loading="lazy">
     </div>
     <div class="strip__copy">
@@ -772,7 +837,7 @@ cap += """
 
   <!-- anatomy -->
   <section class="strip strip--flip strip--navy" id="anatomy">
-    <div class="strip__media">
+    <div class="strip__media img-reveal">
       <img src="assets/img/hub-anatomy.jpg" alt="Cutaway of a turnkey charging hub showing canopy, chargers, civil pads, transformer and underground cabling" loading="lazy">
     </div>
     <div class="strip__copy">
@@ -854,7 +919,7 @@ proj += """
         <p class="lede">Delivering future-ready charging infrastructure at scale.</p>
       </div>
       <div class="grid grid--2" data-stagger="110">
-        <a class="tile" href="#economics" style="aspect-ratio:16/10">
+        <a class="tile" href="#economics" style="aspect-ratio:2/1">
           <img src="assets/img/hub-electriva.jpg" alt="Electriva multi-vehicle highway charging hub in Delhi NCR at dusk" loading="lazy">
           <div class="tile__body">
             <span class="tile__kicker">Delhi NCR</span>
@@ -863,7 +928,7 @@ proj += """
             <span class="tile__stat">120+ chargers &middot; AC &amp; DC fast chargers</span>
           </div>
         </a>
-        <a class="tile" href="#economics" style="aspect-ratio:16/10">
+        <a class="tile" href="#economics" style="aspect-ratio:2/1">
           <img src="assets/img/hub-vinfast.jpg" alt="VinFast OEM delivery hub and commercial fleet depot" loading="lazy">
           <div class="tile__body">
             <span class="tile__kicker">OEM delivery hub</span>
@@ -872,7 +937,7 @@ proj += """
             <span class="tile__stat">60+ chargers &middot; AC &amp; DC fast chargers</span>
           </div>
         </a>
-        <a class="tile" href="#economics" style="aspect-ratio:16/10">
+        <a class="tile" href="#economics" style="aspect-ratio:2/1">
           <img src="assets/img/hub-xpulse.jpg" alt="XPulse heavy-duty fleet charging hub at Samalkha, Haryana" loading="lazy">
           <div class="tile__body">
             <span class="tile__kicker">Samalkha, Haryana</span>
@@ -881,7 +946,7 @@ proj += """
             <span class="tile__stat">70+ chargers &middot; DC fast chargers</span>
           </div>
         </a>
-        <a class="tile" href="#economics" style="aspect-ratio:16/10">
+        <a class="tile" href="#economics" style="aspect-ratio:2/1">
           <img src="assets/img/hub-tesla.jpg" alt="Tesla Supercharger station in Gurgaon, Haryana" loading="lazy">
           <div class="tile__body">
             <span class="tile__kicker">Gurgaon, Haryana</span>
@@ -946,7 +1011,7 @@ proj += """
       </div>
       <div class="grid grid--3" data-stagger="110">
         <article class="mediacard">
-          <div class="mediacard__img"><img src="assets/img/tesla-super.jpg" alt="Tesla Supercharger units installed on a landscaped forecourt" loading="lazy"></div>
+          <div class="mediacard__img img-reveal"><img src="assets/img/tesla-super.jpg" alt="Tesla Supercharger units installed on a landscaped forecourt" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">OEM</span>
             <h3>Tesla Supercharger integration</h3>
@@ -954,7 +1019,7 @@ proj += """
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img"><img src="assets/img/cpo-forecourt.jpg" alt="Charging bays integrated into a Jio-bp and Adani fuel retail forecourt" loading="lazy"></div>
+          <div class="mediacard__img img-reveal"><img src="assets/img/cpo-forecourt.jpg" alt="Charging bays integrated into a Jio-bp and Adani fuel retail forecourt" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">CPO</span>
             <h3>Tier-1 CPO network rollout</h3>
@@ -962,7 +1027,7 @@ proj += """
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img"><img src="assets/img/dc-multibrand.jpg" alt="DC fast chargers from several manufacturers installed side by side" loading="lazy"></div>
+          <div class="mediacard__img img-reveal"><img src="assets/img/dc-multibrand.jpg" alt="DC fast chargers from several manufacturers installed side by side" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Multi-brand</span>
             <h3>Hardware-agnostic DC integration</h3>
@@ -989,7 +1054,7 @@ proj += """
       </div>
       <div class="grid grid--3" data-stagger="110">
         <article class="mediacard">
-          <div class="mediacard__img" style="aspect-ratio:4/3"><img src="assets/img/trenching.jpg" alt="Heavy cable trenching with ducted HT and LT conduits" loading="lazy"></div>
+          <div class="mediacard__img img-reveal" style="aspect-ratio:4/3"><img src="assets/img/trenching.jpg" alt="Heavy cable trenching with ducted HT and LT conduits" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Civil</span>
             <h3>Heavy cable trenching</h3>
@@ -997,7 +1062,7 @@ proj += """
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img" style="aspect-ratio:4/3"><img src="assets/img/transformer.jpg" alt="Transformer on a concrete plinth ready for commissioning" loading="lazy"></div>
+          <div class="mediacard__img img-reveal" style="aspect-ratio:4/3"><img src="assets/img/transformer.jpg" alt="Transformer on a concrete plinth ready for commissioning" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Power</span>
             <h3>Transformer &amp; RMU commissioning</h3>
@@ -1005,7 +1070,7 @@ proj += """
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img" style="aspect-ratio:4/3"><img src="assets/img/panel.jpg" alt="Interior of a custom HT/LT panel with busbars and breakers" loading="lazy"></div>
+          <div class="mediacard__img img-reveal" style="aspect-ratio:4/3"><img src="assets/img/panel.jpg" alt="Interior of a custom HT/LT panel with busbars and breakers" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Power</span>
             <h3>HT/LT panel engineering</h3>
@@ -1032,7 +1097,7 @@ proj += """
       </div>
       <div class="grid grid--2" data-stagger="110">
         <article class="mediacard">
-          <div class="mediacard__img"><img src="assets/img/solar-canopy.jpg" alt="Solar-canopied charging forecourt with vehicles charging" loading="lazy"></div>
+          <div class="mediacard__img img-reveal"><img src="assets/img/solar-canopy.jpg" alt="Solar-canopied charging forecourt with vehicles charging" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">National EV rollouts</span>
             <h3>120 stations deployed</h3>
@@ -1041,7 +1106,7 @@ proj += """
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img"><img src="assets/img/factory.jpg" alt="Aerial view of ten factory units under steel-frame construction" loading="lazy"></div>
+          <div class="mediacard__img img-reveal"><img src="assets/img/factory.jpg" alt="Aerial view of ten factory units under steel-frame construction" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Heavy industrial</span>
             <h3>10 factories, Bawana</h3>
@@ -1050,7 +1115,7 @@ proj += """
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img"><img src="assets/img/school.jpg" alt="Dynasty International School campus with sports fields and residences" loading="lazy"></div>
+          <div class="mediacard__img img-reveal"><img src="assets/img/school.jpg" alt="Dynasty International School campus with sports fields and residences" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Educational</span>
             <h3>Dynasty School &amp; Motel</h3>
@@ -1059,7 +1124,7 @@ proj += """
           </div>
         </article>
         <article class="mediacard">
-          <div class="mediacard__img"><img src="assets/img/office.jpg" alt="Completed corporate office interior with glazed meeting rooms" loading="lazy"></div>
+          <div class="mediacard__img img-reveal"><img src="assets/img/office.jpg" alt="Completed corporate office interior with glazed meeting rooms" loading="lazy"></div>
           <div class="mediacard__body">
             <span class="mediacard__kicker">Corporate</span>
             <h3>HPCL Staff Office, Lucknow</h3>
@@ -1310,7 +1375,7 @@ about += """
 
   <!-- team -->
   <section class="strip strip--navy" id="team">
-    <div class="strip__media">
+    <div class="strip__media img-reveal">
       <img src="assets/img/trenching.jpg" alt="NAKJM crew's precision cable trenching work" loading="lazy">
     </div>
     <div class="strip__copy">
@@ -1400,7 +1465,7 @@ about += """
         <h2>Command centre: <span class="accent">Delhi NCR.</span></h2>
       </div>
       <div class="grid grid--2" data-stagger="110" style="align-items:center">
-        <div>
+        <div class="img-reveal">
           <img src="assets/img/india-map.jpg" width="900" height="845" alt="Map of India showing NAKJM's Delhi NCR headquarters dispatching crews to states nationwide" loading="lazy" style="border:1px solid var(--line);background:#fff;height:auto">
         </div>
         <div>
@@ -1661,7 +1726,7 @@ process += """
           <span class="eyebrow">The delivery system</span>
           <h2>Follow one site <span class="accent">through the system.</span></h2>
           <p class="lede">Each stage hands to the next inside the same team &mdash; nothing crosses a vendor boundary.</p>
-          <div class="process__stage" aria-hidden="true">
+          <div class="process__stage img-reveal" aria-hidden="true" data-parallax="0.08">
 """ + _frames + """
           </div>
           <div class="process__readout" aria-hidden="true">

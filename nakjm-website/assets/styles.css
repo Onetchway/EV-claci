@@ -1182,3 +1182,273 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .progress { display: none; }
   .sector__detail { grid-template-rows: 1fr; opacity: 1; }
 }
+
+/* ==========================================================================
+   DROPDOWN NAVIGATION, SOCIAL, AND EXTENDED MOTION
+   ========================================================================== */
+
+/* ---------- mega-style dropdown menus ---------- */
+
+.nav__group { position: relative; }
+.nav__parent { display: flex; align-items: center; gap: 0.4rem; }
+.nav__caret {
+  width: 9px; height: 6px; flex: none;
+  transition: transform 0.3s var(--ease);
+}
+.nav__group:hover .nav__caret,
+.nav__group:focus-within .nav__caret { transform: rotate(180deg); }
+.nav__group.is-active > .nav__parent { color: var(--red-600); }
+.nav__group.is-active > .nav__parent::after { transform: scaleX(1); }
+
+/* the button is only used on mobile, where it toggles the accordion */
+.nav__expand { display: none; }
+
+.nav__drop {
+  position: absolute;
+  top: 100%;
+  left: -0.4rem;
+  min-width: 246px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--red-600);
+  box-shadow: var(--sh-lg);
+  padding: 0.5rem 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.28s var(--ease), transform 0.28s var(--ease),
+    visibility 0s linear 0.28s;
+  z-index: 30;
+}
+.nav__group:hover > .nav__drop,
+.nav__group:focus-within > .nav__drop {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+.nav__drop a {
+  display: block;
+  padding: 0.8rem 1.25rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  border-left: 3px solid transparent;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease),
+    padding-left 0.25s var(--ease);
+}
+.nav__drop a::after { display: none; }
+.nav__drop a:hover {
+  background: var(--paper);
+  border-left-color: var(--red-600);
+  padding-left: 1.5rem;
+}
+.nav__drop a[aria-current="page"] { color: var(--red-600); border-left-color: var(--red-600); }
+
+/* mobile: dropdowns become tap-to-open accordions */
+@media (max-width: 1240px) {
+  .nav__group { display: grid; grid-template-columns: 1fr auto; align-items: center; }
+  .nav__parent { border-bottom: 0 !important; }
+  .nav__caret { display: none; }
+  .nav__expand {
+    display: block;
+    width: 46px; height: 46px;
+    border: 1px solid var(--line);
+    background: #fff;
+    cursor: pointer;
+    position: relative;
+    align-self: center;
+  }
+  .nav__expand::before,
+  .nav__expand::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 13px; height: 2px;
+    background: var(--navy-800);
+    transform: translate(-50%, -50%);
+    transition: transform 0.3s var(--ease), opacity 0.3s var(--ease);
+  }
+  .nav__expand::after { transform: translate(-50%, -50%) rotate(90deg); }
+  .nav__expand[aria-expanded="true"]::after { transform: translate(-50%, -50%) rotate(0); opacity: 0; }
+
+  /* max-height rather than grid-template-rows: 0fr, which only collapses the
+     first row and leaves later items visible while the group reads closed. */
+  .nav__drop {
+    position: static;
+    grid-column: 1 / -1;
+    min-width: 0;
+    border: 0;
+    border-left: 2px solid var(--line);
+    box-shadow: none;
+    margin: 0 0 0 0.25rem;
+    padding: 0;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    display: block;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.35s var(--ease);
+  }
+  .nav__group[data-open="true"] > .nav__drop { max-height: 400px; }
+  .nav__drop a { padding: 0.75rem 1rem; }
+  .nav__drop a:hover { padding-left: 1.15rem; }
+}
+
+/* ---------- social icons ---------- */
+
+.social { display: flex; gap: 0.6rem; margin-top: 1.75rem; }
+.social__link {
+  position: relative;
+  width: 42px; height: 42px;
+  display: grid; place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #AEBBD1;
+  overflow: hidden;
+  transition: color 0.3s var(--ease), border-color 0.3s var(--ease),
+    transform 0.3s var(--ease);
+}
+.social__link svg { width: 19px; height: 19px; position: relative; z-index: 2; }
+/* brand colour floods up from the bottom on hover */
+.social__link::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: var(--red-600);
+  transform: translateY(101%);
+  transition: transform 0.35s var(--ease);
+  z-index: 1;
+}
+.social__link:hover, .social__link:focus-visible {
+  color: #fff;
+  border-color: var(--red-600);
+  transform: translateY(-3px);
+}
+.social__link:hover::before, .social__link:focus-visible::before { transform: translateY(0); }
+
+/* ---------- extended motion ---------- */
+
+/* section headings slide their red rule out as they enter */
+.js .eyebrow::after { transform: scaleX(0); transform-origin: left; }
+.js .is-visible .eyebrow::after,
+.js .eyebrow.is-visible::after { transform: scaleX(1); transition: transform 0.7s var(--ease) 0.15s; }
+.js .section-head--center .eyebrow::after { transform-origin: center; }
+
+/* subtle depth parallax — script.js sets --pz from scroll position */
+.js [data-parallax] { will-change: transform; }
+
+/* image reveal: a navy panel wipes away to expose the photo */
+.js .img-reveal { position: relative; overflow: hidden; }
+.js .img-reveal::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: var(--navy-800);
+  transform-origin: right;
+  transition: transform 0.95s cubic-bezier(0.76, 0, 0.24, 1);
+  z-index: 2;
+}
+.js .img-reveal.is-visible::after { transform: scaleX(0); }
+.js .img-reveal img { transform: scale(1.12); transition: transform 1.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.js .img-reveal.is-visible img { transform: scale(1); }
+
+/* letter-by-letter hero wordmark (script.js splits the text) */
+.js .split-word > span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.8em) rotate(3deg);
+  transition: opacity 0.7s var(--ease), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.js .split-word.is-visible > span { opacity: 1; transform: none; }
+
+/* infinite logo marquee */
+.marquee {
+  overflow: hidden;
+  border-block: 1px solid var(--line);
+  padding: 1.75rem 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.marquee__track {
+  display: flex;
+  gap: clamp(2.5rem, 6vw, 5rem);
+  width: max-content;
+  animation: marquee-scroll 42s linear infinite;
+}
+.marquee:hover .marquee__track { animation-play-state: paused; }
+.marquee__track img {
+  height: 38px; width: auto;
+  filter: grayscale(1);
+  opacity: 0.6;
+  transition: filter 0.3s var(--ease), opacity 0.3s var(--ease);
+}
+.marquee__track img:hover { filter: grayscale(0); opacity: 1; }
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* magnetic-ish button sheen */
+.btn { position: relative; overflow: hidden; }
+.btn > * { position: relative; z-index: 2; }
+.btn::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--ease);
+  z-index: 1;
+}
+.btn:hover::before { transform: translateX(120%); }
+
+/* counters get a slight scale pop when they finish */
+.counted { animation: pop 0.45s var(--ease); }
+@keyframes pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+/* section dividers draw themselves in */
+.js .numblock { position: relative; }
+.js .numblock::before {
+  content: "";
+  position: absolute; top: -1px; left: 0; right: 0; height: 1px;
+  background: var(--red-600);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.9s var(--ease);
+}
+.js .numblock.is-visible::before { transform: scaleX(1); }
+
+/* back-to-top */
+.totop {
+  position: fixed;
+  right: clamp(1rem, 3vw, 2rem);
+  bottom: clamp(1rem, 3vw, 2rem);
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  background: var(--navy-800);
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(14px);
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease),
+    visibility 0s linear 0.3s, background 0.25s var(--ease);
+  z-index: 90;
+}
+.totop.is-shown { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+.totop:hover { background: var(--red-600); }
+.totop svg { width: 18px; height: 18px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .js .eyebrow::after { transform: scaleX(1) !important; }
+  .js .img-reveal::after { display: none; }
+  .js .img-reveal img { transform: none !important; }
+  .js .split-word > span { opacity: 1 !important; transform: none !important; }
+  .marquee__track { animation: none; flex-wrap: wrap; width: auto; justify-content: center; }
+  .btn::before { display: none; }
+  .counted { animation: none; }
+  .js .numblock::before { transform: scaleX(1) !important; }
+  .js [data-parallax] { transform: none !important; }
+}

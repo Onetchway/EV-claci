@@ -42,12 +42,40 @@
     });
   }
 
+  /* ---- dropdown menus --------------------------------------------------
+     Desktop opens them on hover/focus purely in CSS. Below the nav
+     breakpoint each group becomes a tap-to-open accordion driven by the
+     button that CSS reveals there. */
+
+  Array.prototype.forEach.call(document.querySelectorAll(".nav__group"), function (group) {
+    var expander = group.querySelector(".nav__expand");
+    if (!expander) { return; }
+
+    expander.addEventListener("click", function () {
+      var open = group.getAttribute("data-open") === "true";
+      group.setAttribute("data-open", String(!open));
+      expander.setAttribute("aria-expanded", String(!open));
+    });
+  });
+
+  // Escape closes any open desktop dropdown by moving focus out of it
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") { return; }
+    var openDrop = document.activeElement && document.activeElement.closest(".nav__group");
+    if (openDrop) {
+      var parent = openDrop.querySelector(".nav__parent");
+      if (parent) { parent.focus(); }
+    }
+  });
+
   /* ---- scroll progress bar + condensed nav -----------------------------
      Both read the same scroll position, so they share one rAF-throttled
      handler rather than each attaching their own scroll listener. */
 
   var progressBar = document.querySelector(".progress__bar");
   var nav = document.querySelector(".nav");
+  var toTop = document.querySelector(".totop");
+  var parallaxEls = document.querySelectorAll("[data-parallax]");
   var ticking = false;
 
   function onScroll() {
@@ -62,6 +90,20 @@
     if (nav) {
       nav.classList.toggle("is-stuck", y > 120);
     }
+    if (toTop) {
+      toTop.classList.toggle("is-shown", y > 700);
+    }
+    if (parallaxEls.length && !reduceMotion) {
+      var vh = window.innerHeight;
+      Array.prototype.forEach.call(parallaxEls, function (el) {
+        var rect = el.getBoundingClientRect();
+        if (rect.bottom < -200 || rect.top > vh + 200) { return; }
+        var depth = parseFloat(el.getAttribute("data-parallax")) || 0.12;
+        // -1 at the top of the viewport, +1 at the bottom
+        var mid = (rect.top + rect.height / 2 - vh / 2) / (vh / 2);
+        el.style.transform = "translate3d(0," + (mid * depth * 60).toFixed(2) + "px,0)";
+      });
+    }
     ticking = false;
   }
 
@@ -72,9 +114,16 @@
     }
   }
 
-  if (progressBar || nav) {
+  if (progressBar || nav || toTop || parallaxEls.length) {
     window.addEventListener("scroll", requestScroll, { passive: true });
+    window.addEventListener("resize", requestScroll);
     onScroll();
+  }
+
+  if (toTop) {
+    toTop.addEventListener("click", function () {
+      window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    });
   }
 
   /* ---- hero entrance ---- */
@@ -83,11 +132,38 @@
     window.requestAnimationFrame(function () { hero.classList.add("is-ready"); });
   }
 
+  /* Split any [data-split] element into per-word spans so they can rise in
+     sequence. Runs before the reveal observer is wired up below. */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-split]"), function (el) {
+    if (reduceMotion) { return; }
+    var walk = function (node) {
+      Array.prototype.slice.call(node.childNodes).forEach(function (child) {
+        if (child.nodeType === 3 && child.textContent.trim()) {
+          var frag = document.createDocumentFragment();
+          child.textContent.split(/(\s+)/).forEach(function (word) {
+            if (!word.trim()) { frag.appendChild(document.createTextNode(word)); return; }
+            var span = document.createElement("span");
+            span.textContent = word;
+            frag.appendChild(span);
+          });
+          node.replaceChild(frag, child);
+        } else if (child.nodeType === 1) {
+          walk(child);
+        }
+      });
+    };
+    walk(el);
+    el.classList.add("split-word");
+    Array.prototype.forEach.call(el.querySelectorAll("span"), function (sp, i) {
+      sp.style.transitionDelay = (i * 55) + "ms";
+    });
+  });
+
   /* ---- reveal on scroll -------------------------------------------------
      One observer drives .reveal, .rise, .fade-in, .mask-up, [data-stagger]
      and the timeline items. Each element is unobserved once it has played. */
 
-  var revealSelector = ".reveal, .rise, .fade-in, .mask-up, [data-stagger], .tl-item";
+  var revealSelector = ".reveal, .rise, .fade-in, .mask-up, [data-stagger], .tl-item, .img-reveal, .split-word, .eyebrow, .numblock";
   var revealables = document.querySelectorAll(revealSelector);
 
   // give every staggered child an increasing delay
@@ -135,8 +211,12 @@
       if (start === null) { start = ts; }
       var progress = Math.min((ts - start) / duration, 1);
       var eased = 1 - Math.pow(1 - progress, 3);
-      el.textContent = prefix + Math.round(target * eased) + suffix;
-      if (progress < 1) { window.requestAnimationFrame(frame); }
+      el.textContent = prefix + Math.round(target * eased).toLocaleString("en-IN") + suffix;
+      if (progress < 1) {
+        window.requestAnimationFrame(frame);
+      } else {
+        el.classList.add("counted");
+      }
     }
     window.requestAnimationFrame(frame);
   }
