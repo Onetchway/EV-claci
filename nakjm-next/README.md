@@ -224,5 +224,5 @@ Two things follow from that, and both matter before launch:
 - [ ] Keep `/credits` published for as long as the CC BY / CC BY-SA images are used
 - [ ] Confirm trademark permission for the client logos in `public/images/clients/`
       — a client relationship is not by itself a licence to display a mark
-- [ ] Confirm the two partner spellings carried over from the source deck:
-      **Norbeorker** (2020) and **Livanto Green** (2024)
+- [x] Partner names confirmed by the client: **Noberoker** (2020) and
+      **Livanto Green** (2025, alongside the VinFast OEM entry)
