@@ -12,8 +12,9 @@ ADDR_HTML = ("CoWynd Managed Office, First Floor,<br>Plot 103, Dwarka Sector 19,
              "New Delhi &mdash; 110075")
 
 NAV = [("index.html", "Home"), ("capabilities.html", "Capabilities"),
-       ("projects.html", "Projects"), ("about.html", "Our Company"),
-       ("contact.html", "Contact")]
+       ("process.html", "How We Work"), ("sectors.html", "Sectors"),
+       ("projects.html", "Projects"), ("partners.html", "Partners"),
+       ("about.html", "Company"), ("contact.html", "Contact")]
 
 SITE = "https://www.nakjiminfra.com"
 
@@ -87,6 +88,8 @@ def head(title, desc, page, jsonld=None):
 <body>
 <a class="skip" href="#main">Skip to main content</a>
 
+<div class="progress" aria-hidden="true"><div class="progress__bar"></div></div>
+
 <div class="utility">
   <div class="wrap">
     <a href="tel:{TEL}">{PHONE}</a>
@@ -140,16 +143,16 @@ FOOTER = f"""
           <li><a href="capabilities.html#foundation">Civil &amp; Structural</a></li>
           <li><a href="capabilities.html#power">Electrical Engineering</a></li>
           <li><a href="capabilities.html#application">EV Infrastructure</a></li>
-          <li><a href="capabilities.html#networks">Charging Networks</a></li>
-          <li><a href="capabilities.html#safety">O&amp;M and AMC</a></li>
+          <li><a href="process.html">How We Work</a></li>
+          <li><a href="sectors.html">Sectors We Serve</a></li>
         </ul>
       </div>
       <div>
         <h4>Company</h4>
         <ul>
           <li><a href="about.html">About NAKJM</a></li>
-          <li><a href="about.html#mission">Mission &amp; Vision</a></li>
-          <li><a href="about.html#footprint">Operating Footprint</a></li>
+          <li><a href="about.html#journey">Our Journey</a></li>
+          <li><a href="partners.html">Partners &amp; Clients</a></li>
           <li><a href="projects.html">Projects</a></li>
           <li><a href="contact.html">Contact</a></li>
         </ul>
@@ -215,7 +218,7 @@ FLOW_RAIL = "\n".join(
     for s in FLOW_STEPS)
 
 SAFETY_CARDS = """
-      <div class="grid grid--2 reveal">
+      <div class="grid grid--2" data-stagger="110">
         <article class="card">
           <h3>Electrical diagnostic testing</h3>
           <p>
@@ -288,7 +291,7 @@ def hero(img, alt, eyebrow, h1, lede, actions="", extra="", short=False):
     <div class="wrap">
       <div class="hero__inner">
         <span class="eyebrow">{eyebrow}</span>
-        <h1>{h1}</h1>
+        <h1><span class="mask-up"><span>{h1}</span></span></h1>
         <p class="lede">{lede}</p>
         {actions}
         {extra}
@@ -331,10 +334,10 @@ index += """
   <div class="hero__stats">
     <div class="wrap">
       <ul>
-        <li><div class="n" data-count-to="15" data-suffix="+">15+</div><div class="t">Years total EPC experience</div></li>
-        <li><div class="n" data-count-to="7" data-suffix="+">7+</div><div class="t">Years EV charging expertise</div></li>
-        <li><div class="n" data-count-to="300" data-suffix="+">300+</div><div class="t">EV stations delivered</div></li>
-        <li><div class="n" data-count-to="15" data-suffix="+">15+</div><div class="t">Large EV charging hubs</div></li>
+        <li><div class="n">2013</div><div class="t">Building infrastructure since</div></li>
+        <li><div class="n" data-count-to="1000" data-suffix="+">1,000+</div><div class="t">Chargers installed</div></li>
+        <li><div class="n" data-count-to="300" data-suffix="+">300+</div><div class="t">Sites delivered nationwide</div></li>
+        <li><div class="n" data-count-to="50" data-suffix="+">50+</div><div class="t">In-house civil &amp; electrical team</div></li>
       </ul>
     </div>
   </div>
@@ -362,7 +365,7 @@ index += """
         </p>
       </div>
 
-      <div class="grid grid--2 reveal" style="margin-bottom:2.5rem">
+      <div class="grid grid--2" data-stagger="110" style="margin-bottom:2.5rem">
         <article class="card">
           <h3>The bottleneck</h3>
           <p>
@@ -391,7 +394,7 @@ index += """
         </article>
       </div>
 
-      <div class="table-scroll reveal">
+      <div class="table-scroll rise">
         <table class="compare">
           <caption class="sr-only">Traditional fragmented contractors compared with the NAKJM next-generation EPC model</caption>
           <thead>
@@ -421,7 +424,7 @@ index += """
         </table>
       </div>
 
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>One partner. End-to-end.</strong><span>From civil to commissioning.</span></li>
         <li><strong>Faster. Smarter. Reliable.</strong><span>Built for scale and speed.</span></li>
         <li><strong>Lower risk. Higher control.</strong><span>Complete visibility. Zero silos.</span></li>
@@ -441,7 +444,7 @@ index += """
         </p>
       </div>
 
-      <div class="reveal">
+      <div data-stagger="130">
         <article class="numblock">
           <div class="numblock__no">01</div>
           <div>
@@ -479,7 +482,7 @@ index += """
         </article>
       </div>
 
-      <ul class="assure reveal" style="margin-top:3rem">
+      <ul class="assure" data-stagger="70" style="margin-top:3rem">
         <li><strong>One stack.</strong><span>End-to-end integration across civil, electrical and EV.</span></li>
         <li><strong>Seamless execution.</strong><span>Unified teams and processes for speed and consistency.</span></li>
         <li><strong>Scalable impact.</strong><span>Built to scale for today's demand and tomorrow's.</span></li>
@@ -521,7 +524,7 @@ index += """
         <h2>Mega-scale EV hubs &amp; <span class="accent">highway charging.</span></h2>
         <p class="lede">Delivering future-ready charging infrastructure at scale.</p>
       </div>
-      <div class="grid grid--2 reveal">
+      <div class="grid grid--2" data-stagger="110">
         <a class="tile" href="projects.html" style="aspect-ratio:16/10">
           <img src="assets/img/hub-electriva.jpg" alt="Electriva multi-vehicle highway charging hub in Delhi NCR at dusk" loading="lazy">
           <div class="tile__body">
@@ -571,15 +574,16 @@ index += """
         <h2>End-to-end <span class="accent">execution flow.</span></h2>
         <p class="lede">One partner. One process. Complete peace of mind.</p>
       </div>
-      <ol class="rail reveal">
+      <ol class="rail" data-stagger="60">
 """ + FLOW_RAIL + """
       </ol>
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Single point responsibility</strong><span>From concept to commissioning and beyond.</span></li>
         <li><strong>Standardised processes</strong><span>Proven workflows ensuring quality, safety &amp; compliance.</span></li>
         <li><strong>Faster execution</strong><span>In-house capabilities for speed and agility.</span></li>
         <li><strong>Long-term reliability</strong><span>Built for performance, supported for life.</span></li>
       </ul>
+      <p style="margin-top:2.5rem"><a class="btn btn--outline" href="process.html">See each stage in detail <span class="btn__arrow">&rarr;</span></a></p>
     </div>
   </section>
 
@@ -594,10 +598,10 @@ index += """
           manufacturers and charge point operators.
         </p>
       </div>
-      <ul class="trust__grid reveal">
+      <ul class="trust__grid" data-stagger="45">
 """ + TRUST + """
       </ul>
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Trusted partnerships</strong><span>Strong collaborations with industry leaders.</span></li>
         <li><strong>Seamless integration</strong><span>Compatible with leading OEM and CPO platforms.</span></li>
         <li><strong>Future ready</strong><span>Building a robust ecosystem for sustainable mobility.</span></li>
@@ -617,7 +621,7 @@ index += """
         </p>
       </div>
 """ + SAFETY_CARDS + """
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Zero compromise.</strong><span>On safety.</span></li>
         <li><strong>Built for reliability.</strong><span>Designed for durability.</span></li>
         <li><strong>Process driven.</strong><span>Performance assured.</span></li>
@@ -728,7 +732,7 @@ cap += """
         <span class="eyebrow">Smart charging solutions</span>
         <h2>Charging networks for <span class="accent">every need.</span></h2>
       </div>
-      <div class="grid grid--2 reveal">
+      <div class="grid grid--2" data-stagger="110">
         <article class="card">
           <h3>Low-voltage &amp; distributed networks</h3>
           <div class="chips">
@@ -757,7 +761,7 @@ cap += """
           </ul>
         </article>
       </div>
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Scalable solutions</strong><span>From home to highway.</span></li>
         <li><strong>Future-ready tech</strong><span>Built for performance.</span></li>
         <li><strong>Seamless integration</strong><span>Compatible with leading OEMs.</span></li>
@@ -796,7 +800,7 @@ cap += """
         <h2>End-to-end <span class="accent">execution flow.</span></h2>
         <p class="lede">One partner. One process. Complete peace of mind.</p>
       </div>
-      <ol class="rail reveal">
+      <ol class="rail" data-stagger="60">
 """ + FLOW_RAIL + """
       </ol>
     </div>
@@ -810,7 +814,7 @@ cap += """
         <h2>Uncompromising safety &amp; <span class="accent">quality assurance.</span></h2>
       </div>
 """ + SAFETY_CARDS + """
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Zero compromise.</strong><span>On safety.</span></li>
         <li><strong>Built for reliability.</strong><span>Designed for durability.</span></li>
         <li><strong>Process driven.</strong><span>Performance assured.</span></li>
@@ -849,7 +853,7 @@ proj += """
         <h2>Mega-scale EV hubs &amp; <span class="accent">highway charging.</span></h2>
         <p class="lede">Delivering future-ready charging infrastructure at scale.</p>
       </div>
-      <div class="grid grid--2 reveal">
+      <div class="grid grid--2" data-stagger="110">
         <a class="tile" href="#economics" style="aspect-ratio:16/10">
           <img src="assets/img/hub-electriva.jpg" alt="Electriva multi-vehicle highway charging hub in Delhi NCR at dusk" loading="lazy">
           <div class="tile__body">
@@ -887,7 +891,7 @@ proj += """
           </div>
         </a>
       </div>
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Large-scale deployment</strong><span>High-capacity hubs enabling multi-vehicle charging.</span></li>
         <li><strong>Fast &amp; reliable charging</strong><span>DC fast chargers ensuring minimal downtime.</span></li>
         <li><strong>Safe &amp; future-ready</strong><span>Built with top safety standards and scalable infrastructure.</span></li>
@@ -904,7 +908,7 @@ proj += """
         <h2>Project <span class="accent">economics.</span></h2>
         <p class="lede">A representative view of programme categories, brands and contract values.</p>
       </div>
-      <div class="table-scroll reveal">
+      <div class="table-scroll rise">
         <table class="dtable">
           <thead>
             <tr>
@@ -923,7 +927,7 @@ proj += """
           </tbody>
         </table>
       </div>
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Diverse portfolio</strong><span>Across sectors and scales.</span></li>
         <li><strong>Proven execution</strong><span>Trusted by leading brands.</span></li>
         <li><strong>Strong economics</strong><span>Delivering value that lasts.</span></li>
@@ -940,7 +944,7 @@ proj += """
         <h2>OEM &amp; CPO <span class="accent">deployments.</span></h2>
         <p class="lede">One platform. Any hardware. Limitless possibilities.</p>
       </div>
-      <div class="grid grid--3 reveal">
+      <div class="grid grid--3" data-stagger="110">
         <article class="mediacard">
           <div class="mediacard__img"><img src="assets/img/tesla-super.jpg" alt="Tesla Supercharger units installed on a landscaped forecourt" loading="lazy"></div>
           <div class="mediacard__body">
@@ -966,7 +970,7 @@ proj += """
           </div>
         </article>
       </div>
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Hardware agnostic</strong><span>Compatible with leading OEMs &amp; CPOs.</span></li>
         <li><strong>Future ready</strong><span>Adaptable to evolving technologies.</span></li>
         <li><strong>Reliable &amp; secure</strong><span>Robust integrations with highest uptime.</span></li>
@@ -983,7 +987,7 @@ proj += """
         <h2>Industrial-grade <span class="accent">infrastructure.</span></h2>
         <p class="lede">Built for reliability. Engineered for performance.</p>
       </div>
-      <div class="grid grid--3 reveal">
+      <div class="grid grid--3" data-stagger="110">
         <article class="mediacard">
           <div class="mediacard__img" style="aspect-ratio:4/3"><img src="assets/img/trenching.jpg" alt="Heavy cable trenching with ducted HT and LT conduits" loading="lazy"></div>
           <div class="mediacard__body">
@@ -1009,7 +1013,7 @@ proj += """
           </div>
         </article>
       </div>
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Built to last</strong><span>Industrial-grade materials for long-term reliability.</span></li>
         <li><strong>Engineered for excellence</strong><span>Precision execution with stringent quality standards.</span></li>
         <li><strong>Safe &amp; compliant</strong><span>Adhering to highest safety and regulatory norms.</span></li>
@@ -1026,7 +1030,7 @@ proj += """
         <h2>Beyond <span class="accent">EV networks.</span></h2>
         <p class="lede">From clean mobility to infrastructure, we build what India needs.</p>
       </div>
-      <div class="grid grid--2 reveal">
+      <div class="grid grid--2" data-stagger="110">
         <article class="mediacard">
           <div class="mediacard__img"><img src="assets/img/solar-canopy.jpg" alt="Solar-canopied charging forecourt with vehicles charging" loading="lazy"></div>
           <div class="mediacard__body">
@@ -1064,7 +1068,7 @@ proj += """
           </div>
         </article>
       </div>
-      <ul class="assure reveal" style="margin-top:2.5rem">
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
         <li><strong>Diverse expertise</strong><span>Across sectors and complexities.</span></li>
         <li><strong>End-to-end delivery</strong><span>Concept to commissioning.</span></li>
         <li><strong>Quality &amp; compliance</strong><span>Built to the highest standards.</span></li>
@@ -1081,30 +1085,168 @@ proj += CTA + FOOTER
 # --------------------------------------------------------------------------
 
 about = head("Our Company — NAKJM Infrastructure",
-             "NAKJM Infrastructure Pvt Ltd — mission, vision, core values, "
-             "workforce structure and the Delhi NCR command centre driving "
-             "multi-state infrastructure rollouts.",
+             "From a first charger in 2013 to 1,000+ installed: NAKJM "
+             "Infrastructure's journey, mission, values, 50+ strong in-house "
+             "team and Delhi NCR command centre.",
              "about.html")
 
 about += hero("tesla-super.jpg", "Tesla Supercharger installation delivered by NAKJM",
               "Our company",
-              'The execution engine behind <span class="accent">India\'s build-out.</span>',
-              "NAKJM Infrastructure Pvt Ltd is a next-generation infrastructure "
-              "company &mdash; fifteen years of EPC discipline applied to the "
-              "fastest-moving category in Indian construction.",
+              'From first charger to <span class="accent">1,000 and counting.</span>',
+              "NAKJM Infrastructure Pvt Ltd has been building since 2013 &mdash; "
+              "civil construction first, then the charging backbone of India's "
+              "EV transition. Same in-house teams, every site.",
               short=True)
 
 about += quicklinks("On this page", [
-    ("#mission", "Mission &amp; Vision"), ("#values", "Core Values"),
-    ("#impact", "Our Impact"), ("#advantage", "Our Advantage"),
-    ("#footprint", "Operating Footprint"), ("#workforce", "Workforce"),
+    ("#journey", "Our Journey"), ("#mission", "Mission &amp; Vision"),
+    ("#values", "Core Values"), ("#team", "Our Team"),
+    ("#impact", "Our Impact"), ("#footprint", "Operating Footprint"),
 ])
 
 about += """
-  <!-- mission / vision -->
-  <section class="section" id="mission">
+  <!-- journey timeline -->
+  <section class="section" id="journey">
     <div class="wrap">
-      <div class="grid grid--2 reveal">
+      <div class="section-head">
+        <span class="eyebrow">Our journey</span>
+        <h2>Twelve years, one site <span class="accent">at a time.</span></h2>
+        <p class="lede">
+          We did not arrive at EV infrastructure &mdash; we built our way to it,
+          from foundations and floorplates to the fastest-growing charging
+          networks in the country.
+        </p>
+      </div>
+
+      <div class="timeline" data-timeline>
+        <span class="timeline__fill" aria-hidden="true"></span>
+
+        <div class="tl-item">
+          <span class="tl-item__dot" aria-hidden="true"></span>
+          <div class="tl-item__year">2013</div>
+          <div class="tl-item__body">
+            <h3>Founded on civil construction</h3>
+            <p>
+              NAKJM begins as a construction firm &mdash; buildings, floorplates
+              and groundwork &mdash; and installs its first EV charger as
+              electric mobility takes its first steps in India.
+            </p>
+            <span class="tl-item__tag">The first charger</span>
+          </div>
+        </div>
+
+        <div class="tl-item">
+          <span class="tl-item__dot" aria-hidden="true"></span>
+          <div class="tl-item__year">2017</div>
+          <div class="tl-item__body">
+            <h3>Electriva onboarded</h3>
+            <p>
+              Our first CPO partnership. Multi-station rollouts across Delhi NCR
+              turn one-off installs into a repeatable delivery system.
+            </p>
+            <span class="tl-item__tag">First CPO partner</span>
+          </div>
+        </div>
+
+        <div class="tl-item">
+          <span class="tl-item__dot" aria-hidden="true"></span>
+          <div class="tl-item__year">2020</div>
+          <div class="tl-item__body">
+            <h3>Norbeorker joins the roster</h3>
+            <p>
+              Through the toughest year for site work, the network keeps
+              growing &mdash; new partner, new programmes, crews fully licensed
+              and night-shift capable.
+            </p>
+          </div>
+        </div>
+
+        <div class="tl-item">
+          <span class="tl-item__dot" aria-hidden="true"></span>
+          <div class="tl-item__year">2021</div>
+          <div class="tl-item__body">
+            <h3>Terra Charge partnership</h3>
+            <p>
+              Japan-backed Terra Charge brings hub-scale programmes &mdash; five
+              charging hubs delivered end to end, civil to commissioning.
+            </p>
+            <span class="tl-item__tag">Hub-scale delivery</span>
+          </div>
+        </div>
+
+        <div class="tl-item">
+          <span class="tl-item__dot" aria-hidden="true"></span>
+          <div class="tl-item__year">2022</div>
+          <div class="tl-item__body">
+            <h3>XPulse comes aboard</h3>
+            <p>
+              Six hubs including the Samalkha heavy-duty fleet corridor &mdash;
+              70+ DC fast chargers serving trucks on continuous duty cycles.
+            </p>
+          </div>
+        </div>
+
+        <div class="tl-item">
+          <span class="tl-item__dot" aria-hidden="true"></span>
+          <div class="tl-item__year">2023</div>
+          <div class="tl-item__body">
+            <h3>300 sites delivered</h3>
+            <p>
+              The milestone that proved the model: three hundred sites executed
+              by the same unified in-house civil and electrical teams.
+            </p>
+            <span class="tl-item__tag">300-site milestone</span>
+          </div>
+        </div>
+
+        <div class="tl-item">
+          <span class="tl-item__dot" aria-hidden="true"></span>
+          <div class="tl-item__year">2024</div>
+          <div class="tl-item__body">
+            <h3>ChargZe and Livanto Green</h3>
+            <p>
+              Two more CPO networks choose NAKJM as their execution partner,
+              alongside a Hyderabad-based charger OEM tie-up covering supply,
+              installation, testing and commissioning.
+            </p>
+          </div>
+        </div>
+
+        <div class="tl-item">
+          <span class="tl-item__dot" aria-hidden="true"></span>
+          <div class="tl-item__year">2025</div>
+          <div class="tl-item__body">
+            <h3>OEM entry &mdash; VinFast</h3>
+            <p>
+              Direct OEM programmes begin: VinFast delivery hubs and dealer
+              infrastructure, alongside Tesla Supercharger site works in
+              Gurgaon.
+            </p>
+            <span class="tl-item__tag">Direct OEM programmes</span>
+          </div>
+        </div>
+
+        <div class="tl-item">
+          <span class="tl-item__dot" aria-hidden="true"></span>
+          <div class="tl-item__year">Today</div>
+          <div class="tl-item__body">
+            <h3>1,000+ chargers installed</h3>
+            <p>
+              More than a thousand chargers across 300+ sites &mdash; residential
+              AC points to 250 kW hubs &mdash; delivered by a 50+ strong in-house
+              team. And the next thousand already in the pipeline.
+            </p>
+            <span class="tl-item__tag">1,000+ chargers</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- mission / vision -->
+  <section class="section section--paper" id="mission">
+    <div class="wrap">
+      <div class="grid grid--2" data-stagger="110">
         <article class="card">
           <span class="eyebrow">Our mission</span>
           <h3>Engineering India's transition to sustainable mobility</h3>
@@ -1115,10 +1257,12 @@ about += """
         </article>
         <article class="card" style="border-top-color:var(--red-600)">
           <span class="eyebrow">Our vision</span>
-          <h3>The singular, trusted execution engine</h3>
+          <h3>From the first thousand to the next ten thousand</h3>
           <p>
             To be the singular, trusted execution engine for the world's leading
-            energy and automotive brands in India.
+            energy and automotive brands in India &mdash; carrying the discipline
+            that built our first thousand chargers into the ten thousand that
+            come next.
           </p>
         </article>
       </div>
@@ -1126,13 +1270,13 @@ about += """
   </section>
 
   <!-- values -->
-  <section class="section section--paper" id="values">
+  <section class="section" id="values">
     <div class="wrap">
       <div class="section-head section-head--center">
         <span class="eyebrow">Our core values</span>
         <h2>Three commitments we <span class="accent">do not trade away.</span></h2>
       </div>
-      <div class="grid grid--3 reveal">
+      <div class="grid grid--3" data-stagger="110">
         <article class="card">
           <div class="card__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1164,6 +1308,31 @@ about += """
     </div>
   </section>
 
+  <!-- team -->
+  <section class="strip strip--navy" id="team">
+    <div class="strip__media">
+      <img src="assets/img/trenching.jpg" alt="NAKJM crew's precision cable trenching work" loading="lazy">
+    </div>
+    <div class="strip__copy">
+      <span class="eyebrow">Our team</span>
+      <h2>50+ people. Two trades. <span class="accent">One command.</span></h2>
+      <p style="margin-bottom:1.75rem">
+        Civil and electrical under one roof &mdash; not subcontracted labour
+        assembled per project. That is what lets a site move from earthworks to
+        energisation without waiting on anyone else's crew.
+      </p>
+      <ol class="anatomy">
+        <li><span class="anatomy__no">1</span><div><h4>Engineering command</h4><p>Experienced commissioning engineers ensuring quality and safety protocols.</p></div></li>
+        <li><span class="anatomy__no">2</span><div><h4>Specialised technical units</h4><p>In-house electrical teams, fabrication specialists and fitters.</p></div></li>
+        <li><span class="anatomy__no">3</span><div><h4>Heavy civil workforce</h4><p>In-house civil teams for rapid turnaround.</p></div></li>
+      </ol>
+      <p class="callout" style="margin-top:1.75rem">
+        <strong>Operational edge:</strong> fully licensed, night-shift capable,
+        ready for on-demand crew expansion.
+      </p>
+    </div>
+  </section>
+
   <!-- impact -->
   <section class="section section--navy" id="impact">
     <div class="wrap">
@@ -1171,15 +1340,16 @@ about += """
         <span class="eyebrow">Our impact</span>
         <h2>Track <span class="accent">record.</span></h2>
       </div>
-      <ul class="assure reveal">
-        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="15" data-suffix="+">15+</strong><span>Years total EPC experience</span></li>
-        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="7" data-suffix="+">7+</strong><span>Years EV charging expertise</span></li>
-        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="300" data-suffix="+">300+</strong><span>EV stations delivered</span></li>
+      <ul class="assure" data-stagger="70">
+        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="1000" data-suffix="+">1,000+</strong><span>Chargers installed</span></li>
+        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="300" data-suffix="+">300+</strong><span>Sites delivered nationwide</span></li>
+        <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="50" data-suffix="+">50+</strong><span>In-house civil &amp; electrical team</span></li>
         <li><strong style="font-size:1.9rem;font-family:var(--font-display)" data-count-to="15" data-suffix="+">15+</strong><span>Large EV charging hubs</span></li>
       </ul>
-      <ul class="assure reveal" style="margin-top:1.5rem">
-        <li><strong style="font-size:1.5rem;font-family:var(--font-display)">In-house</strong><span>Dedicated civil &amp; electrical teams</span></li>
+      <ul class="assure" data-stagger="70" style="margin-top:1.5rem">
+        <li><strong style="font-size:1.5rem;font-family:var(--font-display)">Since 2013</strong><span>Civil construction to EV backbone</span></li>
         <li><strong style="font-size:1.5rem;font-family:var(--font-display)">100%</strong><span>Hardware-agnostic execution</span></li>
+        <li><strong style="font-size:1.5rem;font-family:var(--font-display)">Govt + private</strong><span>MCD, PWD, BSES and tier-1 brands</span></li>
       </ul>
     </div>
   </section>
@@ -1190,12 +1360,8 @@ about += """
       <div class="section-head">
         <span class="eyebrow">Our advantage</span>
         <h2>Why unified beats <span class="accent">fragmented.</span></h2>
-        <p class="lede">
-          The difference is not marginal. It shows up in the schedule, the budget
-          and the quality of the connection.
-        </p>
       </div>
-      <div class="table-scroll reveal">
+      <div class="table-scroll rise">
         <table class="compare">
           <thead>
             <tr>
@@ -1218,7 +1384,7 @@ about += """
             <tr>
               <th scope="row">Technical integration</th>
               <td><span class="mark-no" aria-hidden="true">&#10007;</span>Basic standard wiring</td>
-              <td><span class="mark-yes" aria-hidden="true">&#10003;</span>4+ years deep expertise in hardware-agnostic EV integration</td>
+              <td><span class="mark-yes" aria-hidden="true">&#10003;</span>Deep expertise in hardware-agnostic EV integration since 2013</td>
             </tr>
           </tbody>
         </table>
@@ -1233,35 +1399,22 @@ about += """
         <span class="eyebrow">Nationwide presence. Centralised command.</span>
         <h2>Command centre: <span class="accent">Delhi NCR.</span></h2>
       </div>
-      <div class="grid grid--2 reveal" style="align-items:center">
+      <div class="grid grid--2" data-stagger="110" style="align-items:center">
         <div>
           <img src="assets/img/india-map.jpg" width="900" height="845" alt="Map of India showing NAKJM's Delhi NCR headquarters dispatching crews to states nationwide" loading="lazy" style="border:1px solid var(--line);background:#fff;height:auto">
-          <p style="margin-top:1.5rem">
-            Executing standard 100 km operational radiuses and dedicated
-            outstation multi-state rollouts. Our Gurgaon command centre plans,
-            dispatches and supervises every site on a hub-and-spoke model that
-            keeps supervision close to the work.
-          </p>
         </div>
-        <div id="workforce">
-          <span class="eyebrow">Workforce</span>
-          <h3 style="margin-bottom:1.5rem">Three tiers of in-house capability</h3>
-          <div class="tier">
-            <span class="tier__mark" aria-hidden="true"></span>
-            <div><h4>Engineering command</h4><p>Experienced commissioning engineers ensuring quality and safety protocols.</p></div>
-          </div>
-          <div class="tier">
-            <span class="tier__mark" aria-hidden="true"></span>
-            <div><h4>Specialised technical units</h4><p>In-house electrical teams, fabrication specialists and fitters.</p></div>
-          </div>
-          <div class="tier">
-            <span class="tier__mark" aria-hidden="true"></span>
-            <div><h4>Heavy civil workforce</h4><p>In-house civil teams for rapid turnaround.</p></div>
-          </div>
-          <p class="callout" style="margin-top:1.5rem">
-            <strong>Operational edge:</strong> fully licensed, night-shift
-            capable, ready for on-demand crew expansion.
+        <div>
+          <p class="lede">
+            Executing standard 100 km operational radiuses and dedicated
+            outstation multi-state rollouts from our Gurgaon command centre.
           </p>
+          <p style="margin-top:1rem">
+            Every programme &mdash; government or private &mdash; is planned,
+            dispatched and supervised from one desk, on a hub-and-spoke model
+            that keeps supervision close to the work across several states at
+            once.
+          </p>
+          <p style="margin-top:1.5rem"><a class="link-more" href="sectors.html">The sectors we serve</a></p>
         </div>
       </div>
     </div>
@@ -1409,6 +1562,428 @@ contact += f"""
 contact += FOOTER
 
 # --------------------------------------------------------------------------
+# process — pinned, scroll-driven step sequence
+# --------------------------------------------------------------------------
+
+PROCESS_STEPS = [
+    ("Site Survey", "Feasibility &amp; load assessment",
+     "Every project starts on the ground. We walk the site, assess sanctioned "
+     "load and grid proximity, and model the civil scope before anyone quotes "
+     "a number.",
+     ["Feasibility &amp; load assessment", "Grid proximity and DISCOM mapping",
+      "Civil scope and soil assessment"], "india-map.jpg",
+     "Site survey planning across the operating footprint"),
+    ("Design", "Electrical &amp; civil engineering",
+     "Electrical and civil are engineered together &mdash; one drawing set, one "
+     "tolerance chain, from earthworks to the charger handshake.",
+     ["Single integrated drawing set", "HT/LT single-line diagrams",
+      "Civil GFC drawings to hardware tolerances"], "hub-anatomy.jpg",
+     "Integrated engineering cutaway of a turnkey hub"),
+    ("Civil Foundation", "Earthworks &amp; trenching",
+     "Precision pads, kerbs and trench lines set the geometry every later "
+     "trade depends on. Our own civil crews cut, level and pour.",
+     ["Precision civil pads and levelling", "High-strength concrete",
+      "Kerbing, drainage and markings"], "factory.jpg",
+     "Steel and civil works executed by NAKJM crews"),
+    ("Electrical Installation", "HT/LT works",
+     "HT/LT cabling routed, ducted and dressed by in-house electrical teams "
+     "&mdash; no third-party wiring contractor in the chain.",
+     ["Underground HT/LT routing", "Ducted, dressed and tagged runs",
+      "Earthing grids laid to code"], "trenching.jpg",
+     "Heavy cable trenching with ducted HT and LT conduits"),
+    ("Transformer &amp; RMU", "Grid integration",
+     "Transformers sited, plinthed and energised; RMUs commissioned against "
+     "DISCOM requirements for a compliant, stable connection.",
+     ["Transformer siting and plinths", "RMU installation and protection",
+      "DISCOM liaison to energisation"], "transformer.jpg",
+     "High-capacity transformer commissioned on a concrete plinth"),
+    ("Charger Installation", "Hardware-agnostic deployment",
+     "Any OEM's hardware, AC or DC, mounted and integrated to specification "
+     "&mdash; Tesla to Delta to Exicom on a common electrical backbone.",
+     ["Any tier-1 OEM, AC or DC", "Mounting to manufacturer spec",
+      "Multi-brand estates on one backbone"], "dc-multibrand.jpg",
+     "DC fast chargers from several manufacturers installed side by side"),
+    ("Testing", "Safety &amp; diagnostics",
+     "Thermal, insulation and exact earth-resistance testing before a single "
+     "vehicle plugs in. Zero-fault grid integration is the pass mark.",
+     ["Thermal and insulation testing", "Exact earth-resistance verification",
+      "Full-load diagnostics"], "panel.jpg",
+     "Custom HT/LT panel under diagnostic testing"),
+    ("Commissioning", "Handover",
+     "Sites are handed over live: chargers on the network, documentation "
+     "complete, snag list at zero.",
+     ["Live network handover", "As-built documentation",
+      "Multi-tier inspection sign-off"], "hub-tesla.jpg",
+     "Commissioned Tesla Supercharger station in Gurgaon"),
+    ("AMC", "Preventive maintenance &amp; O&amp;M",
+     "24/7 lifecycle management with rapid-response outstation maintenance "
+     "and routine physical audits to keep uptime at maximum.",
+     ["24/7 lifecycle management", "Rapid-response outstation crews",
+      "Routine physical infrastructure audits"], "hub-electriva.jpg",
+     "Live Electriva hub under NAKJM maintenance"),
+]
+
+process = head("How We Work — NAKJM Infrastructure",
+               "Nine stages from site survey to AMC: how NAKJM delivers a "
+               "charging site end to end with one accountable in-house team.",
+               "process.html")
+
+process += hero("hub-xpulse.jpg", "XPulse heavy-duty charging hub delivered end to end by NAKJM",
+                "How we work",
+                'Precision engineering, <span class="accent">stage by stage.</span>',
+                "One partner. One process. Nine stages from the first site walk "
+                "to lifetime maintenance &mdash; scroll to follow a site through "
+                "the system.",
+                short=True)
+
+_frames = "\n".join(
+    '          <div class="process__frame"><img src="assets/img/%s" alt="%s" loading="lazy"></div>'
+    % (img, alt) for (_, _, _, _, img, alt) in PROCESS_STEPS)
+
+_steps = "\n".join(
+    """        <article class="process__step" data-step="%d">
+          <span class="process__step__no">Stage %02d</span>
+          <h3>%s</h3>
+          <p><strong style="color:#C7D2E4">%s.</strong> %s</p>
+          <ul>
+%s
+          </ul>
+        </article>""" % (
+        i + 1, i + 1, title, sub, body,
+        "\n".join("            <li>%s</li>" % li for li in lis))
+    for i, (title, sub, body, lis, _, _) in enumerate(PROCESS_STEPS))
+
+process += """
+  <section class="process" data-process>
+    <div class="wrap">
+      <div class="process__grid">
+        <div class="process__sticky">
+          <span class="eyebrow">The delivery system</span>
+          <h2>Follow one site <span class="accent">through the system.</span></h2>
+          <p class="lede">Each stage hands to the next inside the same team &mdash; nothing crosses a vendor boundary.</p>
+          <div class="process__stage" aria-hidden="true">
+""" + _frames + """
+          </div>
+          <div class="process__readout" aria-hidden="true">
+            <span class="now" data-process-now>01</span>
+            <span class="of">/ 09 stages</span>
+          </div>
+          <div class="process__track" aria-hidden="true"><span data-process-track></span></div>
+        </div>
+        <div class="process__steps">
+""" + _steps + """
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Why it holds</span>
+        <h2>The discipline behind <span class="accent">the sequence.</span></h2>
+      </div>
+      <ul class="assure" data-stagger="70">
+        <li><strong>Single point responsibility</strong><span>From concept to commissioning and beyond.</span></li>
+        <li><strong>Standardised processes</strong><span>Proven workflows ensuring quality, safety &amp; compliance.</span></li>
+        <li><strong>Faster execution</strong><span>In-house capabilities for speed and agility.</span></li>
+        <li><strong>Long-term reliability</strong><span>Built for performance, supported for life.</span></li>
+      </ul>
+    </div>
+  </section>
+"""
+
+process += CTA + FOOTER
+
+# --------------------------------------------------------------------------
+# sectors
+# --------------------------------------------------------------------------
+
+sectors = head("Sectors — NAKJM Infrastructure",
+               "Government works for MCD, PWD and BSES, EV charging networks, "
+               "warehousing, solar, MS fabrication, industrial, educational and "
+               "corporate delivery.",
+               "sectors.html")
+
+sectors += hero("factory.jpg", "Large-scale steel-frame construction by NAKJM",
+                "Sectors",
+                'One team, <span class="accent">every terrain.</span>',
+                "Government works to private megahubs &mdash; the same in-house "
+                "civil and electrical teams carry their discipline across every "
+                "sector we serve.",
+                short=True)
+
+sectors += """
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Where we build</span>
+        <h2>Eight sectors, one <span class="accent">delivery standard.</span></h2>
+        <p class="lede">Hover any sector for the detail of what we execute there.</p>
+      </div>
+      <div class="grid grid--3" data-stagger="90">
+
+        <article class="sector">
+          <div class="sector__bg"><img src="assets/img/hub-electriva.jpg" alt="" loading="lazy"></div>
+          <div class="sector__body">
+            <span class="sector__kicker">Core</span>
+            <h3>EV charging infrastructure</h3>
+            <div class="sector__detail"><div>
+              <p>1,000+ chargers across 300+ sites &mdash; residential AC to 250 kW hubs.</p>
+              <ul>
+                <li>Highway and fleet charging hubs</li>
+                <li>CPO network rollouts</li>
+                <li>OEM programmes &mdash; Tesla, VinFast</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="sector">
+          <div class="sector__bg"><img src="assets/img/india-map.jpg" alt="" loading="lazy"></div>
+          <div class="sector__body">
+            <span class="sector__kicker">Public works</span>
+            <h3>Government projects</h3>
+            <div class="sector__detail"><div>
+              <p>Civil and electrical works delivered for public bodies in the capital.</p>
+              <ul>
+                <li>MCD &mdash; municipal infrastructure works</li>
+                <li>PWD &mdash; public works execution</li>
+                <li>BSES &mdash; distribution-side electrical works</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="sector">
+          <div class="sector__bg"><img src="assets/img/factory.jpg" alt="" loading="lazy"></div>
+          <div class="sector__body">
+            <span class="sector__kicker">Industrial</span>
+            <h3>Warehousing &amp; industrial</h3>
+            <div class="sector__detail"><div>
+              <p>Massive floorplates for warehousing groups and manufacturers.</p>
+              <ul>
+                <li>10 factories at Bawana, 40,000 sq ft each</li>
+                <li>Warehousing group build-outs</li>
+                <li>Heavy earthworks and services</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="sector">
+          <div class="sector__bg"><img src="assets/img/solar-canopy.jpg" alt="" loading="lazy"></div>
+          <div class="sector__body">
+            <span class="sector__kicker">Renewables</span>
+            <h3>Solar works</h3>
+            <div class="sector__detail"><div>
+              <p>Solar structures and canopies integrated with charging assets.</p>
+              <ul>
+                <li>Solar carport and canopy structures</li>
+                <li>Structural steel and mounting</li>
+                <li>DC-side integration with hubs</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="sector">
+          <div class="sector__bg"><img src="assets/img/panel.jpg" alt="" loading="lazy"></div>
+          <div class="sector__body">
+            <span class="sector__kicker">In-house facility</span>
+            <h3>MS fabrication</h3>
+            <div class="sector__detail"><div>
+              <p>Our own mild-steel fabrication facility feeds every other sector.</p>
+              <ul>
+                <li>Canopies and charger superstructures</li>
+                <li>Custom panels and enclosures</li>
+                <li>No third-party fabrication delays</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="sector">
+          <div class="sector__bg"><img src="assets/img/transformer.jpg" alt="" loading="lazy"></div>
+          <div class="sector__body">
+            <span class="sector__kicker">Power</span>
+            <h3>HT/LT electrical works</h3>
+            <div class="sector__detail"><div>
+              <p>Grid-side works taken to a live, compliant connection.</p>
+              <ul>
+                <li>Transformer and RMU commissioning</li>
+                <li>Custom HT/LT panel engineering</li>
+                <li>DISCOM coordination end to end</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="sector">
+          <div class="sector__bg"><img src="assets/img/school.jpg" alt="" loading="lazy"></div>
+          <div class="sector__body">
+            <span class="sector__kicker">Institutional</span>
+            <h3>Educational campuses</h3>
+            <div class="sector__detail"><div>
+              <p>Ground-up institutional builds delivered to programme.</p>
+              <ul>
+                <li>Dynasty International School &mdash; &#8377;10 Cr, ongoing</li>
+                <li>Academic blocks and sports facilities</li>
+                <li>Residential and support buildings</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="sector">
+          <div class="sector__bg"><img src="assets/img/office.jpg" alt="" loading="lazy"></div>
+          <div class="sector__body">
+            <span class="sector__kicker">Corporate</span>
+            <h3>Corporate fit-outs</h3>
+            <div class="sector__detail"><div>
+              <p>Office interiors delivered fast without disrupting operations.</p>
+              <ul>
+                <li>HPCL Staff Office, Lucknow &mdash; 30,000 sq ft</li>
+                <li>Master vendor to DLF, Ansal, ERA</li>
+                <li>Services, partitions and finishes</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="sector">
+          <div class="sector__bg"><img src="assets/img/hub-vinfast.jpg" alt="" loading="lazy"></div>
+          <div class="sector__body">
+            <span class="sector__kicker">Mobility</span>
+            <h3>Fleet &amp; OEM depots</h3>
+            <div class="sector__detail"><div>
+              <p>Charging depots engineered for continuous commercial duty.</p>
+              <ul>
+                <li>VinFast OEM delivery hub &mdash; 60+ chargers</li>
+                <li>XPulse Samalkha &mdash; 70+ DC chargers</li>
+                <li>Heavy-vehicle bay geometry and power</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+"""
+
+sectors += CTA + FOOTER
+
+# --------------------------------------------------------------------------
+# partners
+# --------------------------------------------------------------------------
+
+partners = head("Partners — NAKJM Infrastructure",
+                "The OEMs, CPOs, government bodies and strategic partners NAKJM "
+                "executes for — from Tesla and VinFast to MCD, PWD, BSES and a "
+                "Hyderabad-based charger OEM SITC partnership.",
+                "partners.html")
+
+partners += hero("cpo-forecourt.jpg", "Tier-1 CPO forecourt integration by NAKJM",
+                 "Partners",
+                 'Trusted by the people <span class="accent">who build fastest.</span>',
+                 "OEMs, CPOs, developers and public bodies &mdash; twelve years of "
+                 "partnerships built one delivered site at a time.",
+                 short=True)
+
+partners += """
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head section-head--center">
+        <span class="eyebrow">The mobility ecosystem</span>
+        <h2>OEMs and CPOs we <span class="accent">execute for.</span></h2>
+      </div>
+      <ul class="trust__grid" data-stagger="45">
+""" + TRUST + """
+      </ul>
+    </div>
+  </section>
+
+  <section class="section section--paper">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Partnership models</span>
+        <h2>Four ways we <span class="accent">plug in.</span></h2>
+      </div>
+      <div class="grid grid--2" data-stagger="110">
+        <article class="card">
+          <h3>CPO execution partner</h3>
+          <p>
+            Network rollouts for Electriva, Terra Charge, XPulse, ChargZe,
+            Norbeorker and Livanto Green &mdash; from single stations to
+            corridor programmes, delivered to each network's standard.
+          </p>
+        </article>
+        <article class="card">
+          <h3>OEM site-works partner</h3>
+          <p>
+            Direct programmes for vehicle makers: Tesla Supercharger site works
+            in Gurgaon, VinFast delivery-hub infrastructure, and dealer
+            charging for MG and VinFast retail.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Charger OEM SITC tie-up</h3>
+          <p>
+            A standing partnership with a Hyderabad-based charger OEM covering
+            supply, installation, testing and commissioning &mdash; one order,
+            hardware and site works together.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Master vendor to developers</h3>
+          <p>
+            Master vendor status with DLF, Ansal Group and ERA Group &mdash;
+            repeat civil, electrical and charging works across their
+            portfolios.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--navy">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Public sector</span>
+        <h2>Government bodies we <span class="accent">have delivered for.</span></h2>
+        <p class="lede">
+          Public works demand documentation, compliance and schedule discipline
+          &mdash; the same habits our private clients hire us for.
+        </p>
+      </div>
+      <div class="grid grid--3" data-stagger="110">
+        <article class="card">
+          <h3>MCD</h3>
+          <p>Municipal Corporation of Delhi &mdash; municipal infrastructure and civil works across the capital.</p>
+        </article>
+        <article class="card">
+          <h3>PWD</h3>
+          <p>Public Works Department &mdash; civil execution on public buildings and works programmes.</p>
+        </article>
+        <article class="card">
+          <h3>BSES</h3>
+          <p>Distribution-side electrical works with Delhi's power distribution companies.</p>
+        </article>
+      </div>
+      <ul class="assure" data-stagger="70" style="margin-top:2.5rem">
+        <li><strong>Trusted partnerships</strong><span>Strong collaborations with industry leaders.</span></li>
+        <li><strong>Seamless integration</strong><span>Compatible with leading OEM and CPO platforms.</span></li>
+        <li><strong>Public-sector ready</strong><span>Licensed, documented, compliance-first delivery.</span></li>
+        <li><strong>Future ready</strong><span>Building a robust ecosystem for sustainable mobility.</span></li>
+      </ul>
+    </div>
+  </section>
+"""
+
+partners += CTA + FOOTER
+
+# --------------------------------------------------------------------------
 # 404
 # --------------------------------------------------------------------------
 
@@ -1444,7 +2019,7 @@ notfound += """
         <span class="eyebrow">Try one of these</span>
         <h2>Where would you <span class="accent">like to go?</span></h2>
       </div>
-      <div class="grid grid--4 reveal">
+      <div class="grid grid--4" data-stagger="90">
         <article class="card"><h3><a href="capabilities.html">Capabilities</a></h3><p>The three-pillar stack: civil, electrical and EV infrastructure.</p></article>
         <article class="card"><h3><a href="projects.html">Projects</a></h3><p>Mega-scale charging hubs and delivered project economics.</p></article>
         <article class="card"><h3><a href="about.html">Our Company</a></h3><p>Mission, values, operating footprint and workforce.</p></article>
@@ -1461,8 +2036,10 @@ notfound += FOOTER
 # --------------------------------------------------------------------------
 
 PAGES = [("index.html", index), ("capabilities.html", cap),
-         ("projects.html", proj), ("about.html", about),
-         ("contact.html", contact), ("404.html", notfound)]
+         ("process.html", process), ("sectors.html", sectors),
+         ("projects.html", proj), ("partners.html", partners),
+         ("about.html", about), ("contact.html", contact),
+         ("404.html", notfound)]
 
 for name, body in PAGES:
     with open(os.path.join(OUT, name), "w") as f:

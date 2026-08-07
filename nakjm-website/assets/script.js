@@ -1,8 +1,14 @@
-/* NAKJM Infrastructure — nav, scroll reveal, animated counters, enquiry form */
+/* NAKJM Infrastructure — navigation, motion and the enquiry form.
+
+   Everything motion-related is progressive enhancement: the CSS renders the
+   page fully legible without JavaScript, and every effect below is skipped
+   when the visitor has asked for reduced motion. */
 (function () {
   "use strict";
 
-  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  var reduceMotion = motionQuery.matches;
+  var canObserve = "IntersectionObserver" in window;
 
   /* ---- current year in footer ---- */
   Array.prototype.forEach.call(document.querySelectorAll("[data-year]"), function (el) {
@@ -20,7 +26,6 @@
       menu.setAttribute("data-open", String(!open));
     });
 
-    // close the menu after tapping a link on small screens
     menu.addEventListener("click", function (e) {
       if (e.target.closest("a")) {
         toggle.setAttribute("aria-expanded", "false");
@@ -37,10 +42,64 @@
     });
   }
 
-  /* ---- scroll reveal ---- */
-  var revealables = document.querySelectorAll(".reveal");
+  /* ---- scroll progress bar + condensed nav -----------------------------
+     Both read the same scroll position, so they share one rAF-throttled
+     handler rather than each attaching their own scroll listener. */
 
-  if (reduceMotion || !("IntersectionObserver" in window)) {
+  var progressBar = document.querySelector(".progress__bar");
+  var nav = document.querySelector(".nav");
+  var ticking = false;
+
+  function onScroll() {
+    var doc = document.documentElement;
+    var scrollable = doc.scrollHeight - window.innerHeight;
+    var y = window.scrollY || doc.scrollTop;
+
+    if (progressBar) {
+      var pct = scrollable > 0 ? (y / scrollable) * 100 : 0;
+      progressBar.style.width = Math.min(100, Math.max(0, pct)) + "%";
+    }
+    if (nav) {
+      nav.classList.toggle("is-stuck", y > 120);
+    }
+    ticking = false;
+  }
+
+  function requestScroll() {
+    if (!ticking) {
+      ticking = true;
+      window.requestAnimationFrame(onScroll);
+    }
+  }
+
+  if (progressBar || nav) {
+    window.addEventListener("scroll", requestScroll, { passive: true });
+    onScroll();
+  }
+
+  /* ---- hero entrance ---- */
+  var hero = document.querySelector(".hero");
+  if (hero && !reduceMotion) {
+    window.requestAnimationFrame(function () { hero.classList.add("is-ready"); });
+  }
+
+  /* ---- reveal on scroll -------------------------------------------------
+     One observer drives .reveal, .rise, .fade-in, .mask-up, [data-stagger]
+     and the timeline items. Each element is unobserved once it has played. */
+
+  var revealSelector = ".reveal, .rise, .fade-in, .mask-up, [data-stagger], .tl-item";
+  var revealables = document.querySelectorAll(revealSelector);
+
+  // give every staggered child an increasing delay
+  Array.prototype.forEach.call(document.querySelectorAll("[data-stagger]"), function (group) {
+    var stepMs = parseInt(group.getAttribute("data-stagger"), 10);
+    if (isNaN(stepMs)) { stepMs = 90; }
+    Array.prototype.forEach.call(group.children, function (child, i) {
+      child.style.transitionDelay = (i * stepMs) + "ms";
+    });
+  });
+
+  if (reduceMotion || !canObserve) {
     Array.prototype.forEach.call(revealables, function (el) {
       el.classList.add("is-visible");
     });
@@ -54,36 +113,36 @@
           }
         });
       },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.08 }
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.06 }
     );
     Array.prototype.forEach.call(revealables, function (el) {
       revealObserver.observe(el);
     });
   }
 
-  /* ---- animated stat counters ---- */
-  var counters = document.querySelectorAll("[data-count-to]");
+  /* ---- animated counters ---- */
 
   function runCounter(el) {
-    var target = parseInt(el.getAttribute("data-count-to"), 10);
+    var target = parseFloat(el.getAttribute("data-count-to"));
     var suffix = el.getAttribute("data-suffix") || "";
-    if (isNaN(target)) return;
+    var prefix = el.getAttribute("data-prefix") || "";
+    if (isNaN(target)) { return; }
 
-    var duration = 1100;
+    var duration = 1300;
     var start = null;
 
     function frame(ts) {
-      if (start === null) start = ts;
+      if (start === null) { start = ts; }
       var progress = Math.min((ts - start) / duration, 1);
-      // ease-out cubic
       var eased = 1 - Math.pow(1 - progress, 3);
-      el.textContent = Math.round(target * eased) + suffix;
-      if (progress < 1) requestAnimationFrame(frame);
+      el.textContent = prefix + Math.round(target * eased) + suffix;
+      if (progress < 1) { window.requestAnimationFrame(frame); }
     }
-    requestAnimationFrame(frame);
+    window.requestAnimationFrame(frame);
   }
 
-  if (!reduceMotion && "IntersectionObserver" in window) {
+  var counters = document.querySelectorAll("[data-count-to]");
+  if (!reduceMotion && canObserve) {
     var counterObserver = new IntersectionObserver(
       function (entries) {
         entries.forEach(function (entry) {
@@ -93,11 +152,102 @@
           }
         });
       },
-      { threshold: 0.5 }
+      { threshold: 0.4 }
     );
     Array.prototype.forEach.call(counters, function (el) {
       counterObserver.observe(el);
     });
+  }
+
+  /* ---- pinned process sequence -----------------------------------------
+     As each step scrolls through the middle of the viewport it becomes the
+     active one: the matching image cross-fades in, and the readout and
+     progress track update. Below 900px the CSS unpins the column and shows
+     every step, so this only needs to run on wider screens. */
+
+  var processRoot = document.querySelector("[data-process]");
+
+  if (processRoot && !reduceMotion && canObserve) {
+    var steps = processRoot.querySelectorAll(".process__step");
+    var frames = processRoot.querySelectorAll(".process__frame");
+    var readoutNow = processRoot.querySelector("[data-process-now]");
+    var track = processRoot.querySelector("[data-process-track]");
+    var total = steps.length;
+    var activeIndex = -1;
+
+    function setActive(i) {
+      if (i === activeIndex || i < 0 || i >= total) { return; }
+      activeIndex = i;
+
+      Array.prototype.forEach.call(steps, function (s, n) {
+        s.classList.toggle("is-active", n === i);
+      });
+      Array.prototype.forEach.call(frames, function (f, n) {
+        f.classList.toggle("is-active", n === i);
+      });
+      if (readoutNow) {
+        readoutNow.textContent = ("0" + (i + 1)).slice(-2);
+      }
+      if (track) {
+        track.style.width = (((i + 1) / total) * 100) + "%";
+      }
+    }
+
+    var stepObserver = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            var idx = parseInt(entry.target.getAttribute("data-step"), 10) - 1;
+            setActive(idx);
+          }
+        });
+      },
+      // a thin band across the middle of the viewport decides what is "current"
+      { rootMargin: "-45% 0px -45% 0px", threshold: 0 }
+    );
+
+    Array.prototype.forEach.call(steps, function (s) { stepObserver.observe(s); });
+    setActive(0);
+  } else if (processRoot) {
+    // reduced motion / no observer: show the first frame and mark all steps read
+    var firstFrame = processRoot.querySelector(".process__frame");
+    if (firstFrame) { firstFrame.classList.add("is-active"); }
+    Array.prototype.forEach.call(
+      processRoot.querySelectorAll(".process__step"),
+      function (s) { s.classList.add("is-active"); }
+    );
+  }
+
+  /* ---- timeline fill ----------------------------------------------------
+     The red line grows to follow the last dot that has entered view. */
+
+  var timeline = document.querySelector("[data-timeline]");
+  if (timeline && !reduceMotion) {
+    var fill = timeline.querySelector(".timeline__fill");
+    var items = timeline.querySelectorAll(".tl-item");
+
+    function updateFill() {
+      if (!fill || !items.length) { return; }
+      var mid = window.innerHeight * 0.62;
+      var tlTop = timeline.getBoundingClientRect().top;
+      var reached = 0;
+
+      Array.prototype.forEach.call(items, function (item) {
+        var r = item.getBoundingClientRect();
+        if (r.top < mid) { reached = r.top - tlTop + 12; }
+      });
+      fill.style.height = Math.max(0, reached) + "px";
+    }
+
+    var tlTicking = false;
+    window.addEventListener("scroll", function () {
+      if (!tlTicking) {
+        tlTicking = true;
+        window.requestAnimationFrame(function () { updateFill(); tlTicking = false; });
+      }
+    }, { passive: true });
+    window.addEventListener("resize", updateFill);
+    updateFill();
   }
 
   /* ---- enquiry form ----------------------------------------------------
@@ -105,8 +255,7 @@
      Function, or the /backend in this repository) and submissions are sent
      there over fetch. Leave it empty and the form falls back to opening the
      visitor's mail client with the enquiry pre-filled, so enquiries still
-     reach the inbox on a purely static host.
-     -------------------------------------------------------------------- */
+     reach the inbox on a purely static host. */
 
   var FORM_ENDPOINT = "";
   var FORM_MAILTO = "connect@nakjiminfra.com";
@@ -115,7 +264,7 @@
   var status = document.getElementById("form-status");
 
   function setStatus(msg, state) {
-    if (!status) return;
+    if (!status) { return; }
     status.textContent = msg;
     status.setAttribute("data-state", state || "ok");
     status.scrollIntoView({
