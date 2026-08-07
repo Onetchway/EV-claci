@@ -1,0 +1,13 @@
+{
+  "name": "nakjm-functions",
+  "description": "Enquiry handler for the NAKJM Infrastructure website",
+  "main": "index.js",
+  "private": true,
+  "engines": { "node": "20" },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.1",
+    "nodemailer": "^6.9.16"
+  }
+}

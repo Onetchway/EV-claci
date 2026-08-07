@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   NAKJM Infrastructure — global layer
+   Everything motion-related degrades to a static, fully legible page when the
+   visitor asks for reduced motion (see the block at the foot of this file).
+   ========================================================================== */
+
+@layer base {
+  :root {
+    --shell-pad: clamp(1.5rem, 5vw, 5rem);
+    --nav-h: 76px;
+    color-scheme: light;
+  }
+
+  * {
+    @apply border-navy-100;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--nav-h) + 2rem);
+  }
+
+  /* Lenis drives scrolling; it needs the native smooth behaviour off. */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  body {
+    @apply bg-white font-sans text-ink antialiased;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    @apply bg-navy text-white;
+  }
+
+  :focus-visible {
+    outline: 2px solid theme("colors.crimson.DEFAULT");
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* Headings carry their weight from the type scale, never from utilities. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  /* ---- shell -------------------------------------------------------- */
+
+  .shell {
+    @apply mx-auto w-full max-w-shell px-[var(--shell-pad)];
+  }
+
+  .shell-wide {
+    @apply mx-auto w-full max-w-wide px-[var(--shell-pad)];
+  }
+
+  /* ---- editorial type ------------------------------------------------ */
+
+  .eyebrow {
+    @apply inline-flex items-center gap-3 text-eyebrow uppercase text-crimson;
+  }
+
+  .eyebrow::before {
+    content: "";
+    @apply h-px w-8 bg-crimson;
+  }
+
+  .eyebrow-light {
+    @apply text-white/50;
+  }
+
+  .eyebrow-light::before {
+    @apply bg-crimson-400;
+  }
+
+  /* ---- rules --------------------------------------------------------- */
+
+  .hairline {
+    @apply h-px w-full bg-navy/10;
+  }
+
+  .hairline-light {
+    @apply h-px w-full bg-white/12;
+  }
+
+  /* ---- link with a sweeping underline --------------------------------- */
+
+  .link-sweep {
+    @apply relative inline-flex items-center gap-2 text-eyebrow uppercase;
+  }
+
+  .link-sweep::after {
+    content: "";
+    @apply absolute -bottom-1.5 left-0 h-px w-full origin-right scale-x-0 bg-current transition-transform duration-500 ease-editorial;
+  }
+
+  .link-sweep:hover::after {
+    @apply origin-left scale-x-100;
+  }
+}
+
+@layer utilities {
+  /* Clip a block so its children can be masked in from below. */
+  .mask-clip {
+    clip-path: inset(0 0 0 0);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Hide scrollbars on horizontal rails without losing scrollability. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .grain {
+    position: relative;
+  }
+
+  /* A very fine noise wash — stops large flat navy fields from banding. */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* ---- reduced motion --------------------------------------------------
+   Kill every transform/opacity entrance so nothing can be left invisible,
+   and stop the looping animations outright. */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-reveal],
+  [data-reveal-child] {
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+  }
+}

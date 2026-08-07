@@ -1,0 +1,13 @@
+{
+  "name": "NAKJM Infrastructure Pvt. Ltd.",
+  "short_name": "NAKJM",
+  "description": "Total EPC solutions for national infrastructure — civil, electrical and EV charging.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#001E4B",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
