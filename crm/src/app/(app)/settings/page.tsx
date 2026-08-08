@@ -6,16 +6,19 @@ import { Building2, Landmark, Plus, Settings as SettingsIcon, Trash2 } from "luc
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Button, Card, EmptyState, Field, Input, PageHeader, Spinner, Textarea,
+  Button, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, Textarea,
   useAsyncAction,
 } from "@/components/ui";
-import { GST_SLABS, INDIAN_STATES } from "@/lib/constants";
+import {
+  FOLLOWUP_TYPE_LABEL, FOLLOWUP_TYPES, GST_SLABS, INDIAN_STATES, type FollowupType,
+} from "@/lib/constants";
 import { defaultSettings, saveSettings, subscribeSettings } from "@/lib/db/settings";
+import { saveSequence, subscribeSequences } from "@/lib/db/tasks";
 import { viewerIsAdmin } from "@/lib/permissions";
-import type { AppSettings } from "@/lib/types";
+import type { AppSettings, FollowupSequence } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
-const TABS = ["Company", "Bank", "Letter of Intent", "Finance", "Dropdown lists"] as const;
+const TABS = ["Company", "Bank", "Letter of Intent", "Finance", "Dropdown lists", "Follow-up sequences"] as const;
 type Tab = (typeof TABS)[number];
 
 /** A simple add/remove editor for the custom dropdown options. */
@@ -484,6 +487,163 @@ export default function SettingsPage() {
           the fact.
         </p>
       )}
+
+      {tab === "Follow-up sequences" && <SequencesEditor actor={actor!} />}
     </>
+  );
+}
+
+/** Admin-configured follow-up sequences — applied on demand from a lead's Tasks tab. */
+function SequencesEditor({ actor }: { actor: NonNullable<ReturnType<typeof useAuth>["actor"]> }) {
+  const [sequences, setSequences] = useState<FollowupSequence[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<FollowupSequence | null>(null);
+  const { busy, run } = useAsyncAction();
+
+  useEffect(() => subscribeSequences((r) => { setSequences(r); setLoading(false); }, () => setLoading(false)), []);
+
+  function newSequence(): FollowupSequence {
+    return {
+      id: "",
+      name: "",
+      active: true,
+      steps: [{ dayOffset: 0, type: "CALL", title: "Welcome call" }],
+      createdAt: null,
+    };
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card
+        title="Follow-up sequences"
+        subtitle="Day 0, Day 1, Day 3… Applied on demand from a lead's Tasks tab, never automatically."
+        actions={<Button size="sm" onClick={() => setEditing(newSequence())}><Plus className="h-4 w-4" /> New sequence</Button>}
+      >
+        {loading ? (
+          <p className="py-6 text-center text-sm text-ink-500">Loading…</p>
+        ) : sequences.length === 0 ? (
+          <EmptyState title="No sequences yet" description="Build a Day 0 / Day 1 / Day 3 follow-up cadence agents can apply to any lead." />
+        ) : (
+          <ul className="divide-y divide-ink-100">
+            {sequences.map((s) => (
+              <li key={s.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-medium text-ink-900">
+                    {s.name}
+                    {!s.active && <span className="chip bg-ink-100 text-ink-500 ring-ink-200">Inactive</span>}
+                  </p>
+                  <p className="text-xs text-ink-500">{s.steps.length} steps</p>
+                </div>
+                <Button size="sm" onClick={() => setEditing(s)}>Edit</Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {editing && (
+        <Card title={editing.id ? "Edit sequence" : "New sequence"}>
+          <div className="space-y-3">
+            <Field label="Name" required>
+              <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="New franchise lead cadence" />
+            </Field>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={editing.active}
+                onChange={(e) => setEditing({ ...editing, active: e.target.checked })}
+              />
+              <span className="text-sm text-ink-700">Active — visible to agents to apply</span>
+            </div>
+
+            <div>
+              <p className="label">Steps</p>
+              <div className="space-y-2">
+                {editing.steps.map((step, i) => (
+                  <div key={i} className="grid gap-2 sm:grid-cols-[80px_140px_1fr_auto] items-start rounded-lg border border-ink-200 p-2">
+                    <Field label="Day">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={step.dayOffset}
+                        onChange={(e) => {
+                          const steps = [...editing.steps];
+                          steps[i] = { ...step, dayOffset: Number(e.target.value) || 0 };
+                          setEditing({ ...editing, steps });
+                        }}
+                      />
+                    </Field>
+                    <Field label="Type">
+                      <Select
+                        value={step.type}
+                        onChange={(e) => {
+                          const steps = [...editing.steps];
+                          steps[i] = { ...step, type: e.target.value as FollowupType };
+                          setEditing({ ...editing, steps });
+                        }}
+                        options={FOLLOWUP_TYPES.map((t) => ({ value: t, label: FOLLOWUP_TYPE_LABEL[t] }))}
+                      />
+                    </Field>
+                    <Field label="Title">
+                      <Input
+                        value={step.title}
+                        onChange={(e) => {
+                          const steps = [...editing.steps];
+                          steps[i] = { ...step, title: e.target.value };
+                          setEditing({ ...editing, steps });
+                        }}
+                      />
+                    </Field>
+                    <div className="flex items-end pb-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditing({ ...editing, steps: editing.steps.filter((_, j) => j !== i) })}
+                        className="rounded p-1.5 text-ink-400 hover:bg-rose-50 hover:text-rose-600"
+                        aria-label={`Remove step ${i + 1}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setEditing({
+                    ...editing,
+                    steps: [...editing.steps, { dayOffset: (editing.steps.at(-1)?.dayOffset ?? 0) + 1, type: "CALL", title: "" }],
+                  })
+                }
+                className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline"
+              >
+                <Plus className="h-3 w-3" /> Add step
+              </button>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-ink-100 pt-3">
+              <Button onClick={() => setEditing(null)}>Cancel</Button>
+              <Button
+                variant="primary"
+                loading={busy}
+                onClick={() =>
+                  void run(async () => {
+                    if (!editing.name.trim()) throw new Error("Give the sequence a name.");
+                    await saveSequence(
+                      { id: editing.id || undefined, name: editing.name.trim(), active: editing.active, steps: editing.steps },
+                      actor,
+                    );
+                    setEditing(null);
+                  }, "Sequence saved.")
+                }
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+    </div>
   );
 }

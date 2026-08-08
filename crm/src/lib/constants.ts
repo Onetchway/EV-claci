@@ -699,6 +699,50 @@ export const SCORE_BANDS = [
 ] as const;
 
 // ---------------------------------------------------------------------------
+// Follow-up task engine — scheduled, owned, due-dated work against a lead,
+// distinct from the append-only activity log (which records what already
+// happened). A task is what's supposed to happen next.
+// ---------------------------------------------------------------------------
+
+export const FOLLOWUP_TYPES = [
+  "CALL", "WHATSAPP", "EMAIL", "MEETING", "SITE_VISIT", "SITE_SURVEY",
+  "PAYMENT_FOLLOWUP", "DOCUMENT_FOLLOWUP", "PROPOSAL_FOLLOWUP",
+] as const;
+export type FollowupType = (typeof FOLLOWUP_TYPES)[number];
+
+export const FOLLOWUP_TYPE_LABEL: Record<FollowupType, string> = {
+  CALL: "Call",
+  WHATSAPP: "WhatsApp",
+  EMAIL: "Email",
+  MEETING: "Meeting",
+  SITE_VISIT: "Site visit",
+  SITE_SURVEY: "Site survey",
+  PAYMENT_FOLLOWUP: "Payment follow-up",
+  DOCUMENT_FOLLOWUP: "Document follow-up",
+  PROPOSAL_FOLLOWUP: "Proposal follow-up",
+};
+
+export const FOLLOWUP_PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
+export type FollowupPriority = (typeof FOLLOWUP_PRIORITIES)[number];
+
+export const FOLLOWUP_PRIORITY_LABEL: Record<FollowupPriority, string> = {
+  LOW: "Low", MEDIUM: "Medium", HIGH: "High",
+};
+
+export const FOLLOWUP_PRIORITY_COLOR: Record<FollowupPriority, string> = {
+  LOW: "bg-slate-100 text-slate-700 ring-slate-200",
+  MEDIUM: "bg-amber-100 text-amber-800 ring-amber-200",
+  HIGH: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
+export const FOLLOWUP_STATUSES = ["OPEN", "DONE", "CANCELLED"] as const;
+export type FollowupStatus = (typeof FOLLOWUP_STATUSES)[number];
+
+export const FOLLOWUP_STATUS_LABEL: Record<FollowupStatus, string> = {
+  OPEN: "Open", DONE: "Done", CANCELLED: "Cancelled",
+};
+
+// ---------------------------------------------------------------------------
 // EOI / Letter of Intent
 // ---------------------------------------------------------------------------
 

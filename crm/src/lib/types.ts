@@ -1,11 +1,11 @@
 import type { Timestamp } from "firebase/firestore";
 import type {
   ActivityType, CommissionStatus, ConnectionType, DiscomStage, DocKind, DocStatus,
-  EoiStatus, FundingMode, LandType, LeadStatus, LeadType, LoanStage, LocationType,
-  Ownership, OwnerType, PartnerCategory, PartnerStatus, PartnerTier,
-  PaymentMilestone, PaymentMode, PaymentStatus, PowerLoad, ProjectOwnership,
-  ProjectStage, ProjectStatus, RejectionReason, Role, Source, Stage, TaskStatus,
-  Workstream,
+  EoiStatus, FollowupPriority, FollowupStatus, FollowupType, FundingMode,
+  LandType, LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
+  PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
+  PaymentStatus, PowerLoad, ProjectOwnership, ProjectStage, ProjectStatus,
+  RejectionReason, Role, Source, Stage, TaskStatus, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -56,6 +56,13 @@ export interface FinancingInfo {
   sanctionedAt?: TS;
   disbursedAt?: TS;
   note?: string;
+  /**
+   * Recorded manually by the team from a bureau pull done elsewhere (bank,
+   * NBFC, or a bureau's own portal) — there is no live CIBIL/bureau API wired
+   * up, so this is a record, not a check.
+   */
+  cibilScore?: number | null;
+  cibilCheckedAt?: TS;
 }
 
 /** A single row of the LOI's Participation Summary — fully editable. */
@@ -330,6 +337,41 @@ export interface AppNotification {
   leadId?: string | null;
   read: boolean;
   createdAt: TS;
+}
+
+export interface FollowupTask {
+  id: string;
+  leadId: string;
+  leadCode: string;
+  leadName?: string;
+  type: FollowupType;
+  title: string;
+  notes?: string;
+  ownerId: string;
+  ownerName: string;
+  priority: FollowupPriority;
+  status: FollowupStatus;
+  dueAt: TS;
+  outcome?: string;
+  completedAt?: TS | null;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+export interface SequenceStep {
+  dayOffset: number;
+  type: FollowupType;
+  title: string;
+  notes?: string;
+}
+
+export interface FollowupSequence {
+  id: string;
+  name: string;
+  active: boolean;
+  steps: SequenceStep[];
+  createdAt: TS;
+  createdBy?: Actor | null;
 }
 
 export interface DashboardStat {

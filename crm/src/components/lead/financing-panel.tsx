@@ -154,6 +154,27 @@ export function FinancingPanel({
                 />
               </Field>
 
+              <Field
+                label="CIBIL score"
+                hint="Recorded manually from a bureau pull done elsewhere — not a live check."
+              >
+                <Input
+                  type="number"
+                  min={300}
+                  max={900}
+                  value={form.cibilScore ?? ""}
+                  disabled={!editable}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      cibilScore: e.target.value === "" ? null : Number(e.target.value),
+                      cibilCheckedAt: e.target.value === "" ? f.cibilCheckedAt : (new Date() as never),
+                    }))
+                  }
+                  placeholder="300–900"
+                />
+              </Field>
+
               <Field label="Amount requested">
                 <Input
                   type="number"

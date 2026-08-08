@@ -248,6 +248,8 @@ export const DEFAULT_FINANCING: FinancingInfo = {
   emi: null,
   applicationNo: "",
   note: "",
+  cibilScore: null,
+  cibilCheckedAt: null,
 };
 
 export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> {

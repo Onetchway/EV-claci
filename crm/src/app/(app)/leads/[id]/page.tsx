@@ -10,6 +10,7 @@ import {
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import { ActivityPanel } from "@/components/lead/activity-panel";
+import { TasksPanel } from "@/components/lead/tasks-panel";
 import { DocumentsPanel } from "@/components/lead/documents-panel";
 import { PaymentsPanel } from "@/components/lead/payments-panel";
 import { EoiPanel } from "@/components/lead/eoi-panel";
@@ -41,7 +42,7 @@ import type { Lead } from "@/lib/types";
 import { cn, formatDate, formatDateTime, formatINR, formatNumber } from "@/lib/utils";
 
 const TABS = [
-  "Overview", "Quotation", "Financing", "Letter of Intent", "Payments", "Documents", "Activity",
+  "Overview", "Quotation", "Financing", "Letter of Intent", "Payments", "Documents", "Tasks", "Activity",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -508,6 +509,10 @@ export default function LeadDetailPage() {
 
       {tab === "Documents" && actor && (
         <DocumentsPanel lead={lead} actor={actor} viewer={viewer} canEdit={editable} onKyc={onKyc} />
+      )}
+
+      {tab === "Tasks" && actor && (
+        <TasksPanel lead={lead} actor={actor} canEdit={editable} />
       )}
 
       {tab === "Activity" && actor && (

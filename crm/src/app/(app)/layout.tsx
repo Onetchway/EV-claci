@@ -5,8 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3, Building2, FileClock, HardHat, Handshake, KanbanSquare, Landmark,
-  LayoutDashboard, LogOut, MapPin, Menu, Package, Settings, ShieldCheck, Users,
-  Users2, X, Zap,
+  LayoutDashboard, LineChart, ListTodo, LogOut, MapPin, Menu, Package, Settings,
+  ShieldCheck, Users, Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -34,6 +34,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Sales",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/tasks", label: "Tasks", icon: ListTodo },
       { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
       { href: "/leads", label: "Leads", icon: Users2 },
       { href: "/sites", label: "Site Enquiries", icon: MapPin },
@@ -52,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Admin",
     items: [
+      { href: "/executive", label: "Executive Dashboard", icon: LineChart, adminOnly: true },
       { href: "/agents", label: "Agent Performance", icon: BarChart3, adminOnly: true },
       { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },

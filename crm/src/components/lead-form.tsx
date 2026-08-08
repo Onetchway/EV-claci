@@ -286,13 +286,28 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
               options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
             />
           </Field>
-          <Field label="PAN" error={errors["client.pan"]} hint="Needed before the agreement stage.">
-            <Input
-              value={values.client.pan ?? ""}
-              onChange={(e) => setClient({ pan: e.target.value.toUpperCase() })}
-              placeholder="ABCDE1234F"
-              maxLength={10}
-            />
+          <Field label="PAN" error={errors["client.pan"]} hint="Format-checked only — not verified against Income Tax records.">
+            <div className="relative">
+              <Input
+                value={values.client.pan ?? ""}
+                onChange={(e) => setClient({ pan: e.target.value.toUpperCase() })}
+                placeholder="ABCDE1234F"
+                maxLength={10}
+                className="pr-24"
+              />
+              {values.client.pan && (
+                <span
+                  className={cn(
+                    "absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                    isValidPan(values.client.pan)
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-amber-100 text-amber-800",
+                  )}
+                >
+                  {isValidPan(values.client.pan) ? "Valid format" : "Check format"}
+                </span>
+              )}
+            </div>
           </Field>
           <Field label="GSTIN">
             <Input value={values.client.gstin ?? ""} onChange={(e) => setClient({ gstin: e.target.value.toUpperCase() })} maxLength={15} />

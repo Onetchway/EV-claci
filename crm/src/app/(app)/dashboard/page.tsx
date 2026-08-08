@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle, BadgeIndianRupee, CheckCircle2, FileSignature, Plus, TrendingUp,
   Users2, XCircle,
@@ -19,10 +19,12 @@ import {
   stageBreakdown,
 } from "@/lib/analytics";
 import {
-  EOI_STATUS_COLOR, EOI_STATUS_LABEL, STAGES, STAGE_META,
+  EOI_STATUS_COLOR, EOI_STATUS_LABEL, FOLLOWUP_TYPE_LABEL, STAGES, STAGE_META,
 } from "@/lib/constants";
+import { subscribeOpenTasks, summariseTasks } from "@/lib/db/tasks";
 import { isAdmin } from "@/lib/permissions";
 import { scoreLead } from "@/lib/scoring";
+import type { FollowupTask } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
 const CHART_COLORS = ["#1cb567", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6", "#ec4899"];
@@ -30,6 +32,14 @@ const CHART_COLORS = ["#1cb567", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#1
 export default function DashboardPage() {
   const { profile, role } = useAuth();
   const { leads, loading, error } = useLeads({ max: 500 });
+
+  const [openTasks, setOpenTasks] = useState<FollowupTask[]>([]);
+  useEffect(() => subscribeOpenTasks(setOpenTasks), []);
+  const myTasks = useMemo(
+    () => (role && isAdmin(role) ? openTasks : openTasks.filter((t) => t.ownerId === profile?.uid)),
+    [openTasks, role, profile],
+  );
+  const taskCounts = useMemo(() => summariseTasks(myTasks), [myTasks]);
 
   const totals = useMemo(() => computeTotals(leads), [leads]);
   const hotCount = useMemo(
@@ -135,6 +145,23 @@ export default function DashboardPage() {
           icon={<Users2 className="h-4 w-4" />}
         />
       </div>
+
+      {(taskCounts.dueToday > 0 || taskCounts.overdue > 0) && (
+        <Card title="Today's tasks" subtitle={role && isAdmin(role) ? "Across the whole team" : "Yours"} className="mt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {Object.entries(taskCounts.byType).map(([type, count]) => (
+              <Link key={type} href="/tasks" className="chip bg-ink-100 text-ink-700 ring-ink-200 hover:bg-ink-200">
+                {FOLLOWUP_TYPE_LABEL[type as keyof typeof FOLLOWUP_TYPE_LABEL]}: {count}
+              </Link>
+            ))}
+            {taskCounts.overdue > 0 && (
+              <Link href="/tasks" className="chip bg-rose-100 text-rose-800 ring-rose-200 hover:bg-rose-200">
+                Overdue: {taskCounts.overdue}
+              </Link>
+            )}
+          </div>
+        </Card>
+      )}
 
       {totals.overdueFollowUps > 0 && (
         <Link

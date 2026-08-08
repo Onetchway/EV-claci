@@ -262,6 +262,24 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---------------------------------------------------------------- tasks
+
+    // Follow-up task engine. Same visibility shape as leads/activities: an
+    // agent sees their own tasks, org-wide roles see everything.
+    match /tasks/{taskId} {
+      allow read: if seesAllLeads() || resource.data.ownerId == uid();
+      allow create: if canWriteLeads() && actorIsSelf('createdBy');
+      allow update: if canWriteLeads() && (seesAllLeads() || resource.data.ownerId == uid());
+      allow delete: if isAdmin();
+    }
+
+    // Admin-configured follow-up sequences (Day 0, Day 1, Day 3 …), applied
+    // on demand to a lead. Readable org-wide so any agent can apply one.
+    match /sequences/{sequenceId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // ------------------------------------------------------------- activities
 
     // The audit trail. Append-only by design: nothing in the application ever
