@@ -9,20 +9,25 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+#
+# These are Python build artefacts produced at the repository root. They are
+# anchored with a leading slash on purpose: an unanchored `lib/` matches a
+# directory named `lib` at ANY depth, which silently excluded the entire
+# `crm/src/lib/` source tree from commits. Keep the slashes.
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
