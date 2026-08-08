@@ -347,9 +347,40 @@ npx firebase-tools login
 
 You should see `✔  Success! Logged in as you@gmail.com`
 
+### If it says "Already logged in as" the wrong address
+
+The Firebase tool remembers a login independently of your browser, so if you
+have used it for another project it will reuse that account.
+
+Do **not** log out if you still need that other account. Add a second one
+instead:
+
+```
+npx firebase-tools login:add
+```
+
+⚠️ When the browser opens, if Google shows the wrong account already signed in,
+click **"Use another account"** rather than the one listed.
+
+Then check the new account can actually see your project:
+
+```
+npx firebase-tools projects:list --account you@yourcompany.com
+```
+
+Note the exact **Project ID** from the second column of the table.
+
+> If your project is not listed, that account is not an Owner on it. Whoever
+> created the project must add it under **⚙️ Project settings → Users and
+> permissions → Add member → Owner**.
+
+From then on, add `--account you@yourcompany.com` to every `firebase-tools`
+command, or it will quietly use the wrong account again.
+
 ## 6.2 Deploy the rules
 
-Replace `livanto` with your real project ID if different:
+Replace `livanto` with your real project ID, and add `--account` if you did the
+step above:
 
 ```
 npx firebase-tools deploy --only firestore:rules,firestore:indexes,storage --project livanto
