@@ -10,7 +10,7 @@
  * Safe to re-run: every write is keyed and idempotent.
  */
 
-import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { applicationDefault, cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { readFileSync } from "node:fs";
@@ -40,7 +40,28 @@ function loadEnv() {
 
 loadEnv();
 
-function credentials() {
+/** `--email you@x.com --name "Your Name" --project livanto --demo` */
+function args(): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {};
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i]!;
+    if (!a.startsWith("--")) continue;
+    const key = a.slice(2);
+    const next = argv[i + 1];
+    if (next && !next.startsWith("--")) {
+      out[key] = next;
+      i++;
+    } else {
+      out[key] = true;
+    }
+  }
+  return out;
+}
+
+const ARGS = args();
+
+function serviceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (raw) {
     const json = raw.trim().startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
@@ -50,18 +71,67 @@ function credentials() {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  if (!projectId || !clientEmail || !privateKey) {
+  if (projectId && clientEmail && privateKey) return { projectId, clientEmail, privateKey };
+  return null;
+}
+
+function projectId(): string | undefined {
+  return (
+    (ARGS.project as string | undefined) ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    process.env.GCLOUD_PROJECT ||
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  );
+}
+
+/**
+ * Two ways in, so nobody has to handle a private key unless they want to:
+ *
+ *  1. Google Cloud Shell (or any machine with `gcloud auth application-default
+ *     login` done) — credentials are already present, nothing to paste.
+ *  2. An explicit service-account key in the environment, for machines that
+ *     have no Google credentials at all.
+ */
+function init() {
+  if (getApps().length) return;
+
+  const sa = serviceAccount();
+  if (sa) {
+    initializeApp({ credential: cert(sa), projectId: sa.projectId });
+    console.log(`Authenticated with a service-account key (project ${sa.projectId}).`);
+    return;
+  }
+
+  const project = projectId();
+  if (!project) {
     console.error(
-      "\nMissing Firebase Admin credentials.\n" +
-        "Set FIREBASE_SERVICE_ACCOUNT_KEY (JSON or base64) in crm/.env.local,\n" +
-        "or FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY.\n",
+      "\nCould not work out which Firebase project to use.\n\n" +
+        "In Google Cloud Shell, run this first:\n" +
+        "    gcloud config set project YOUR-PROJECT-ID\n\n" +
+        "Or pass it directly:\n" +
+        '    npm run seed -- --project YOUR-PROJECT-ID --email you@example.com\n',
     );
     process.exit(1);
   }
-  return { projectId, clientEmail, privateKey };
+
+  try {
+    initializeApp({ credential: applicationDefault(), projectId: project });
+    console.log(`Authenticated as the signed-in Google account (project ${project}).`);
+  } catch (err) {
+    console.error(
+      "\nNo Google credentials found.\n\n" +
+        "If you are in Google Cloud Shell this should not happen — try:\n" +
+        "    gcloud auth application-default login\n\n" +
+        "On your own machine, either run that same command, or set\n" +
+        "FIREBASE_SERVICE_ACCOUNT_KEY in crm/.env.local.\n",
+    );
+    console.error(err);
+    process.exit(1);
+  }
 }
 
-if (!getApps().length) initializeApp({ credential: cert(credentials()) });
+init();
 const auth = getAuth();
 const db = getFirestore();
 
@@ -298,9 +368,17 @@ async function seedDemo(ownerUid: string, ownerName: string) {
 // --- main --------------------------------------------------------------------
 
 async function main() {
-  const email = process.env.SEED_SUPER_ADMIN_EMAIL;
+  const email = (ARGS.email as string | undefined) ?? process.env.SEED_SUPER_ADMIN_EMAIL;
+  const name =
+    (ARGS.name as string | undefined) ?? process.env.SEED_SUPER_ADMIN_NAME ?? "Super Admin";
+  const withDemo = ARGS.demo === true || process.env.SEED_DEMO_DATA === "1";
+
   if (!email) {
-    console.error("Set SEED_SUPER_ADMIN_EMAIL in crm/.env.local first.");
+    console.error(
+      "\nTell me which email address should be the first super admin:\n\n" +
+        '    npm run seed -- --email you@example.com --name "Your Name"\n\n' +
+        "Add --demo at the end if you also want five sample leads to look at.\n",
+    );
     process.exit(1);
   }
 
@@ -308,31 +386,58 @@ async function main() {
 
   const { uid, password } = await upsertUser({
     email,
-    name: process.env.SEED_SUPER_ADMIN_NAME ?? "Super Admin",
+    name,
     role: "SUPER_ADMIN",
-    password: process.env.SEED_SUPER_ADMIN_PASSWORD,
+    password: (ARGS.password as string | undefined) ?? process.env.SEED_SUPER_ADMIN_PASSWORD,
   });
 
-  console.log(`✓ Super admin ready: ${email}`);
+  console.log(`\n✓ Super admin ready: ${email}`);
   if (password) {
-    console.log(`  Temporary password: ${password}`);
-    console.log("  Change it after your first sign-in.");
+    console.log("\n  ┌──────────────────────────────────────────┐");
+    console.log(`  │  Temporary password: ${password.padEnd(19)}│`);
+    console.log("  └──────────────────────────────────────────┘");
+    console.log("\n  Copy it now — it is not shown again and is not stored anywhere.");
   } else {
-    console.log("  (account already existed — password unchanged, role re-applied)");
+    console.log("  (account already existed — password unchanged, super-admin role re-applied)");
   }
 
   await db.collection("counters").doc("leads").set({ franchise: 0, site: 0 }, { merge: true });
-  console.log("✓ Lead code counter ready");
+  console.log("\n✓ Lead code counter ready");
 
-  if (process.env.SEED_DEMO_DATA === "1") {
+  if (withDemo) {
     console.log("\nInserting demo leads:");
-    await seedDemo(uid, process.env.SEED_SUPER_ADMIN_NAME ?? "Super Admin");
+    await seedDemo(uid, name);
   }
 
-  console.log("\nDone. Start the app with `npm run dev` and sign in.\n");
+  console.log("\nDone. Open your CRM and sign in with the email and password above.\n");
 }
 
 main().catch((err) => {
+  const text = String((err as Error)?.message ?? err);
+
+  // `applicationDefault()` succeeds eagerly and only fails on the first real
+  // API call, so credential problems surface here rather than at start-up.
+  if (/credential|authenticat|permission|UNAUTHENTICATED|PERMISSION_DENIED/i.test(text)) {
+    console.error(
+      "\nCould not sign in to Firebase.\n\n" +
+        "Most likely one of these:\n" +
+        "  • You are not signed in. Run:  gcloud auth application-default login\n" +
+        "  • The project ID is wrong. Check it with:  gcloud config get-value project\n" +
+        "  • Your Google account is not an Owner or Editor on that project.\n\n" +
+        `Original error: ${text}\n`,
+    );
+    process.exit(1);
+  }
+
+  if (/NOT_FOUND|does not exist/i.test(text)) {
+    console.error(
+      "\nThat project exists but Firestore has not been created in it yet.\n" +
+        "In the Firebase console: Build → Firestore Database → Create database.\n\n" +
+        `Original error: ${text}\n`,
+    );
+    process.exit(1);
+  }
+
   console.error("\nSeeding failed:", err);
   process.exit(1);
 });

@@ -75,10 +75,14 @@ average cycle time, and CSV export on leads, agents and the audit log.
 
 ## Setup
 
-> Deploying to a real Firebase project? Follow **[DEPLOYMENT.md](./DEPLOYMENT.md)**
-> instead — it covers the same ground plus App Hosting, billing, domains and a
-> post-deploy checklist. The steps below are the short version for local
-> development.
+> **Not a developer?** Start with **[START-HERE.md](./START-HERE.md)** — it
+> assumes no technical knowledge, is mostly clicking through websites, and gets
+> the CRM live for your team in about an hour.
+>
+> **Deploying and comfortable with a terminal?** **[DEPLOYMENT.md](./DEPLOYMENT.md)**
+> is the condensed version, plus custom domains and running costs.
+>
+> The steps below are just for running it on your own machine.
 
 ### 1. Create the Firebase project
 

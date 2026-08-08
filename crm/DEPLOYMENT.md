@@ -3,6 +3,11 @@
 Step by step, start to finish. Budget about 45 minutes the first time, most of
 it waiting for Firestore indexes to build.
 
+> **New to this?** [START-HERE.md](./START-HERE.md) covers the same deployment
+> assuming no technical background — every click spelled out, using a browser
+> terminal so nothing is installed locally. This page assumes you are
+> comfortable with a command line.
+
 ---
 
 ## Before you start: two things to know
@@ -106,22 +111,33 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789012
 NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789012:web:abc123def456
 ```
 
-You also need an Admin SDK credential **for local use only** (in production
-App Hosting supplies this automatically):
+The server routes and the seed script also need admin credentials. In
+production App Hosting provides these automatically. Locally you have two
+options — **prefer the first**:
+
+**Option A — your own Google login (no key to manage):**
+
+```bash
+gcloud auth application-default login
+```
+
+That is all. The Admin SDK picks these up automatically, and there is no
+private key sitting on your disk.
+
+**Option B — a service-account key**, if you have no `gcloud` and do not want
+to install it:
 
 1. **⚙️ Project settings → Service accounts → Generate new private key**
-2. A JSON file downloads. Open it, copy the **entire contents onto one line**,
-   and paste into `.env.local`:
+2. A JSON file downloads. Copy its **entire contents onto one line** into
+   `.env.local`:
 
 ```
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"livanto",...}
-SEED_SUPER_ADMIN_EMAIL=you@livantogreen.com
-SEED_SUPER_ADMIN_NAME=Your Name
 ```
 
-> **This file is a real secret.** It grants full admin access to your project.
-> `.env.local` is already in `.gitignore` — keep it that way, and delete the
-> downloaded JSON from your Downloads folder once pasted.
+> **That file is a real secret** — it grants full admin access to your project.
+> `.env.local` is already in `.gitignore`; keep it that way, and delete the
+> download once pasted. This is exactly why Option A is preferable.
 
 Now install and check it runs:
 
@@ -228,25 +244,32 @@ Miss this and login fails with `auth/unauthorized-domain`.
 
 ## Step 8 — Create the first super admin
 
-Still from `crm/` on your own machine (this uses the key from step 5):
+Still from `crm/`, using the credentials from step 5:
 
 ```bash
-npm run seed
+npm run seed -- --email you@livantogreen.com --name "Your Name"
 ```
 
 Output:
 
 ```
 ✓ Super admin ready: you@livantogreen.com
-  Temporary password: xK9mQ2pL7vNb4T
-✓ Lead code counter ready
+
+  ┌──────────────────────────────────────────┐
+  │  Temporary password: xK9mQ2pL7vNb4T      │
+  └──────────────────────────────────────────┘
 ```
 
 **Copy that password.** It is shown once and never stored.
 
-Want the five sample leads to explore with — including the Shoyeb Khan site
-enquiry? Set `SEED_DEMO_DATA=1` in `.env.local` and re-run. It is safe to run
-`npm run seed` repeatedly; it skips anything that already exists.
+Add `--demo` to also insert five sample leads, including the Shoyeb Khan site
+enquiry. It is safe to run the seed repeatedly — it skips anything that already
+exists and only re-applies the super-admin role.
+
+If you are not on your own machine, this runs unchanged in
+[Google Cloud Shell](https://shell.cloud.google.com) — clone the repo, `cd
+EV-claci/crm`, `npm install`, then the command above with
+`--project YOUR-PROJECT-ID`.
 
 ## Step 9 — Sign in and set up the team
 
@@ -309,10 +332,14 @@ were set to `RUNTIME` only. Fix `apphosting.yaml`, push, and let it rebuild.
 **Build fails on App Hosting but works locally**
 Almost always the root directory. It must be `crm`, not the repo root.
 
-**`npm run seed` says credentials are missing**
-`FIREBASE_SERVICE_ACCOUNT_KEY` in `.env.local` must be the whole JSON on a
-single line. If pasting it is awkward, base64-encode the file instead —
-`base64 -w0 serviceAccount.json` — and paste that; the code accepts either.
+**`npm run seed` says it cannot sign in**
+Run `gcloud auth application-default login` and retry. If you are using a
+service-account key instead, `FIREBASE_SERVICE_ACCOUNT_KEY` must be the whole
+JSON on a single line — or base64-encode the file (`base64 -w0
+serviceAccount.json`) and paste that; the script accepts either.
+
+**`npm run seed` cannot work out the project**
+Pass it explicitly: `npm run seed -- --project livanto --email you@example.com`.
 
 **Users can sign in but see nothing**
 Their profile has `active: false`, or the seed never ran. Check
