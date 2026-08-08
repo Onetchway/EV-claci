@@ -61,7 +61,6 @@ const TRACKED: { path: string; label: string; format?: Formatter }[] = [
   { path: "financing.stage", label: "Loan stage", format: lookup(LOAN_STAGE_LABEL as Record<string, string>) },
   { path: "financing.sanctionedAmount", label: "Sanctioned amount", format: money },
   { path: "financing.disbursedAmount", label: "Disbursed amount", format: money },
-  { path: "linkedLeadCode", label: "Linked lead" },
   { path: "value", label: "Total value (incl. GST)", format: money },
   { path: "site.locationName", label: "Location name" },
   { path: "site.mapsLink", label: "Google Maps link" },

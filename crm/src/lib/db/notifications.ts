@@ -12,11 +12,61 @@
  * app needs to change if the SMTP provider is swapped later.
  */
 
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc, collection, doc, limit as fsLimit, onSnapshot, orderBy, query,
+  serverTimestamp, updateDoc, where, writeBatch,
+} from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
+import type { AppNotification } from "../types";
 
 export const MAIL = "mail";
+export const NOTIFICATIONS = "notifications";
+
+/** In-app notification bell — separate from the email queue above. */
+export interface CreateNotificationInput {
+  toUid: string;
+  title: string;
+  body: string;
+  leadId?: string;
+}
+
+function createNotificationSafe(input: CreateNotificationInput): void {
+  void addDoc(collection(getDb(), NOTIFICATIONS), {
+    uid: input.toUid,
+    title: input.title,
+    body: input.body,
+    leadId: input.leadId ?? null,
+    read: false,
+    createdAt: serverTimestamp(),
+  }).catch((err) => {
+    console.error("[notifications] failed to create in-app notification", err);
+  });
+}
+
+export function subscribeMyNotifications(
+  uid: string,
+  cb: (rows: AppNotification[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), NOTIFICATIONS), where("uid", "==", uid), orderBy("createdAt", "desc"), fsLimit(30)),
+    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<AppNotification, "id">) }))),
+    (err) => onError?.(err as Error),
+  );
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await updateDoc(doc(getDb(), NOTIFICATIONS, id), { read: true });
+}
+
+export async function markAllNotificationsRead(rows: AppNotification[]): Promise<void> {
+  const unread = rows.filter((r) => !r.read);
+  if (unread.length === 0) return;
+  const batch = writeBatch(getDb());
+  for (const r of unread) batch.update(doc(getDb(), NOTIFICATIONS, r.id), { read: true });
+  await batch.commit();
+}
 
 export interface QueueEmailInput {
   to: string[];
@@ -60,6 +110,7 @@ function wrap(bodyHtml: string): string {
 }
 
 export function notifyAssigned(opts: {
+  toUid: string;
   toEmail: string;
   agentName: string;
   leadCode: string;
@@ -77,9 +128,16 @@ export function notifyAssigned(opts: {
       `<p><a href="${leadUrl(opts.leadId)}" style="color:#0ea5e9">Open the lead →</a></p>`,
     ),
   });
+  createNotificationSafe({
+    toUid: opts.toUid,
+    title: `Lead ${opts.leadCode} assigned to you`,
+    body: `${opts.actorName} assigned ${opts.leadName ?? "a lead"} to you.`,
+    leadId: opts.leadId,
+  });
 }
 
 export function notifyMention(opts: {
+  toUid: string;
   toEmail: string;
   mentionedByName: string;
   leadCode: string;
@@ -94,6 +152,12 @@ export function notifyMention(opts: {
       `<p style="padding:10px 14px;background:#f8fafc;border-left:3px solid #0ea5e9;border-radius:4px">${opts.message}</p>` +
       `<p><a href="${leadUrl(opts.leadId)}" style="color:#0ea5e9">Open the lead →</a></p>`,
     ),
+  });
+  createNotificationSafe({
+    toUid: opts.toUid,
+    title: `${opts.mentionedByName} mentioned you on ${opts.leadCode}`,
+    body: opts.message,
+    leadId: opts.leadId,
   });
 }
 

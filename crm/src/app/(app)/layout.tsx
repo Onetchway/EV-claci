@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Building2, FileClock, HardHat, KanbanSquare, Landmark,
+  BarChart3, Building2, FileClock, HardHat, Handshake, KanbanSquare, Landmark,
   LayoutDashboard, LogOut, MapPin, Menu, Package, Settings, ShieldCheck, Users,
   Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
+import { GlobalSearch } from "@/components/global-search";
+import { NotificationBell } from "@/components/notification-bell";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/constants";
 import { isAdmin } from "@/lib/permissions";
@@ -36,6 +38,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/leads", label: "Leads", icon: Users2 },
       { href: "/sites", label: "Site Enquiries", icon: MapPin },
       { href: "/loans", label: "Loan Customers", icon: Landmark },
+      { href: "/partners", label: "Channel Partners", icon: Handshake },
     ],
   },
   {
@@ -175,11 +178,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-ink-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
-          <button onClick={() => setNavOpen(true)} className="rounded-lg p-1.5 text-ink-600 hover:bg-ink-100" aria-label="Open navigation">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-ink-200 bg-white/90 px-4 py-3 backdrop-blur print:hidden">
+          <button onClick={() => setNavOpen(true)} className="rounded-lg p-1.5 text-ink-600 hover:bg-ink-100 lg:hidden" aria-label="Open navigation">
             <Menu className="h-5 w-5" />
           </button>
-          <span className="text-sm font-semibold text-ink-900">Livanto Green CRM</span>
+          <span className="text-sm font-semibold text-ink-900 lg:hidden">Livanto Green CRM</span>
+          <div className="hidden flex-1 lg:block">
+            <GlobalSearch />
+          </div>
+          <div className="ml-auto flex items-center gap-1">
+            {user && <NotificationBell uid={user.uid} />}
+          </div>
         </header>
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>

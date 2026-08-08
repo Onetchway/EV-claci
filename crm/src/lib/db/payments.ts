@@ -14,6 +14,7 @@ import type { Actor, Lead, Payment } from "../types";
 import { formatINR } from "../utils";
 import { logActivitySafe } from "./activity";
 import { LEADS, refreshPaymentRollup } from "./leads";
+import { accruePartnerCommissionSafe } from "./partners";
 
 const sub = (leadId: string) => collection(getDb(), LEADS, leadId, "payments");
 
@@ -65,6 +66,7 @@ export async function addPayment(lead: Lead, draft: PaymentDraft, actor: Actor):
   });
 
   await refreshPaymentRollup(lead.id);
+  accruePartnerCommissionSafe(lead.id);
 
   logActivitySafe({
     leadId: lead.id,
@@ -102,6 +104,7 @@ export async function updatePayment(
 
   await updateDoc(doc(getDb(), LEADS, lead.id, "payments", payment.id), update);
   await refreshPaymentRollup(lead.id);
+  accruePartnerCommissionSafe(lead.id);
 
   const bits: string[] = [];
   if (patch.status && patch.status !== payment.status) bits.push(`status ${payment.status} → ${patch.status}`);

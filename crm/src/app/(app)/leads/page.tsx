@@ -24,6 +24,7 @@ import { buildLeadDraft } from "@/lib/lead-import";
 import { LEAD_COLUMNS, LEAD_IMPORT_COLUMNS } from "@/lib/exports";
 import { canCreateLead, canExport } from "@/lib/permissions";
 import { describeConfig } from "@/lib/pricing";
+import { scoreLead } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ type SortKey = "updatedAt" | "value" | "name" | "stage" | "createdAt";
 
 function LeadRow({ lead }: { lead: Lead }) {
   const stage = STAGE_META[lead.stage];
+  const score = scoreLead(lead);
   const overdue =
     lead.status === "ACTIVE" &&
     (toDate(lead.nextFollowUpAt)?.getTime() ?? Infinity) < Date.now();
@@ -49,6 +51,13 @@ function LeadRow({ lead }: { lead: Lead }) {
         <Badge className={stage.color}>{stage.short}</Badge>
         {lead.status !== "ACTIVE" && (
           <Badge className={`ml-1 ${STATUS_COLOR[lead.status]}`}>{STATUS_LABEL[lead.status]}</Badge>
+        )}
+      </td>
+      <td className="td">
+        {lead.status === "ACTIVE" && (
+          <Badge className={score.band.color} title={score.factors.map((f) => `${f.label} (${f.points > 0 ? "+" : ""}${f.points})`).join(", ")}>
+            {score.band.label} · {score.score}
+          </Badge>
         )}
       </td>
       <td className="td text-ink-600">{lead.type === "SITE" ? "Site" : "Franchise"}</td>
@@ -231,6 +240,7 @@ function LeadsInner() {
               <tr>
                 <th className="th">Client</th>
                 <th className="th">Stage</th>
+                <th className="th">Score</th>
                 <th className="th">Type</th>
                 <th className="th">Configuration</th>
                 <th className="th text-right">Value</th>

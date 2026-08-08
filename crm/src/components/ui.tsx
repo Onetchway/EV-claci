@@ -138,8 +138,10 @@ export function Checkbox({
 // Display
 // ---------------------------------------------------------------------------
 
-export function Badge({ className, children }: { className?: string; children: ReactNode }) {
-  return <span className={cn("chip", className ?? "bg-ink-100 text-ink-700 ring-ink-200")}>{children}</span>;
+export function Badge({
+  className, children, title,
+}: { className?: string; children: ReactNode; title?: string }) {
+  return <span title={title} className={cn("chip", className ?? "bg-ink-100 text-ink-700 ring-ink-200")}>{children}</span>;
 }
 
 export function Card({

@@ -122,3 +122,14 @@ export const canEditFinancing = (viewer: Viewer) =>
 /** Pairing a site enquiry with the investor who will fund it. */
 export const canLinkLeads = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+
+// ---------------------------------------------------------------------------
+// Channel partners
+// ---------------------------------------------------------------------------
+
+export const canManagePartners = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+
+/** Approving/paying commission is a money decision, same bar as verifying a payment. */
+export const canManageCommissions = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");

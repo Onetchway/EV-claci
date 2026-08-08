@@ -1,10 +1,11 @@
 import type { Timestamp } from "firebase/firestore";
 import type {
-  ActivityType, ConnectionType, DiscomStage, DocKind, DocStatus, EoiStatus,
-  FundingMode, LandType, LeadStatus, LeadType, LoanStage, LocationType, Ownership,
-  OwnerType, PaymentMilestone, PaymentMode, PaymentStatus, PowerLoad,
-  ProjectOwnership, ProjectStage, ProjectStatus, RejectionReason, Role, Source,
-  Stage, TaskStatus, Workstream,
+  ActivityType, CommissionStatus, ConnectionType, DiscomStage, DocKind, DocStatus,
+  EoiStatus, FundingMode, LandType, LeadStatus, LeadType, LoanStage, LocationType,
+  Ownership, OwnerType, PartnerCategory, PartnerStatus, PartnerTier,
+  PaymentMilestone, PaymentMode, PaymentStatus, PowerLoad, ProjectOwnership,
+  ProjectStage, ProjectStatus, RejectionReason, Role, Source, Stage, TaskStatus,
+  Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -142,6 +143,8 @@ export interface SiteInfo {
   frontageMeters?: number | null;
   nearbyLandmark?: string;
   remarks?: string;
+  /** A multi-charger hub rather than a single-configuration station. */
+  isHub?: boolean;
 }
 
 export interface RejectionInfo {
@@ -149,6 +152,12 @@ export interface RejectionInfo {
   note?: string;
   at: TS;
   by: Actor;
+}
+
+export interface LinkedLeadRef {
+  id: string;
+  code: string;
+  name: string;
 }
 
 export interface Lead {
@@ -178,16 +187,17 @@ export interface Lead {
   /** The generated Letter of Intent, once one exists. */
   eoi?: EoiDoc | null;
   /**
-   * Site ↔ franchise pairing. A landowner's site enquiry can be matched to the
-   * investor who will fund it, and vice versa, so both sides of a deal are
-   * reachable from either record.
+   * Site ↔ franchise pairing, many-to-many. An investor can back several
+   * franchises over time, and a landowner can offer several sites; every link
+   * is recorded on both sides, so either record reaches all its counterparts.
    */
-  linkedLeadId?: string | null;
-  linkedLeadCode?: string | null;
-  linkedLeadName?: string | null;
+  linkedLeads?: LinkedLeadRef[];
   /** Set once a won lead has been converted into a delivery project. */
   projectId?: string | null;
   projectCode?: string | null;
+  /** Channel partner who originated this lead, if any. */
+  partnerId?: string | null;
+  partnerName?: string | null;
   site?: SiteInfo;
   ownerId: string;
   ownerName: string;
@@ -272,6 +282,54 @@ export interface Activity {
   followUpAt?: TS;
   /** UIDs of teammates @mentioned in `message`. */
   mentions?: string[];
+}
+
+export interface Partner {
+  id: string;
+  /** Human-friendly reference, e.g. LG-CP-0004. */
+  code: string;
+  name: string;
+  company?: string;
+  phone: string;
+  email?: string;
+  category: PartnerCategory;
+  tier: PartnerTier;
+  status: PartnerStatus;
+  /** Stations sold in the trailing 12 months — drives the tier. */
+  stationsTrailing12mo: number;
+  totalCommissionEarned: number;
+  totalCommissionPaid: number;
+  notes?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+export interface PartnerCommission {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  leadId: string;
+  leadCode: string;
+  leadName?: string;
+  stationValue: number;
+  tier: PartnerTier;
+  ratePct: number;
+  amount: number;
+  status: CommissionStatus;
+  accruedAt: TS;
+  paidAt?: TS | null;
+}
+
+export interface AppNotification {
+  id: string;
+  uid: string;
+  title: string;
+  body: string;
+  leadId?: string | null;
+  read: boolean;
+  createdAt: TS;
 }
 
 export interface DashboardStat {

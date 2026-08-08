@@ -29,6 +29,8 @@ export default function NewLeadPage() {
         tags: values.tags,
         nextFollowUpAt: values.nextFollowUpAt,
         expectedCloseAt: values.expectedCloseAt,
+        partnerId: values.partnerId,
+        partnerName: values.partnerName,
         ownerId: values.ownerId,
         ownerName: values.ownerName,
       },

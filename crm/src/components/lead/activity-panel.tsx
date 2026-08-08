@@ -133,6 +133,7 @@ export function ActivityPanel({
     for (const u of mentioned) {
       if (u.uid === actor.uid) continue;
       notifyMention({
+        toUid: u.uid,
         toEmail: u.email,
         mentionedByName: actor.name,
         leadCode: lead.code,

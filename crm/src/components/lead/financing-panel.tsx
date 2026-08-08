@@ -296,44 +296,44 @@ export function FinancingPanel({
       </Card>
 
       <Card
-        title={lead.type === "SITE" ? "Paired franchise investor" : "Paired site"}
+        title={lead.type === "SITE" ? "Franchise investor(s) on this site" : "Site(s) this investor is backing"}
         subtitle={
           lead.type === "SITE"
-            ? "The investor who will fund a station at this location."
-            : "The landowner's site where this franchise will be installed."
+            ? "An investor can back more than one franchise over time — every link is listed here."
+            : "An investor can hold several franchises at once or over time — every linked site is listed here."
         }
         actions={
-          canLinkLeads(viewer) &&
-          (lead.linkedLeadId ? (
-            <Button
-              size="sm"
-              loading={busy}
-              onClick={() => void run(() => unlinkLead(lead, actor), "Unlinked.")}
-            >
-              <Unlink className="h-3.5 w-3.5" /> Unlink
-            </Button>
-          ) : (
+          canLinkLeads(viewer) && (
             <Button size="sm" variant="primary" onClick={() => setLinkOpen(true)}>
-              <Link2 className="h-3.5 w-3.5" /> Link a lead
+              <Link2 className="h-3.5 w-3.5" /> Link another lead
             </Button>
-          ))
+          )
         }
       >
-        {lead.linkedLeadId ? (
-          <Link
-            href={`/leads/${lead.linkedLeadId}`}
-            className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 px-3 py-2.5 hover:border-brand-400 hover:bg-brand-50"
-          >
-            <span>
-              <span className="block text-sm font-medium text-ink-900">{lead.linkedLeadName}</span>
-              <span className="block text-xs text-ink-500">{lead.linkedLeadCode}</span>
-            </span>
-            <span className="text-xs font-medium text-brand-700">Open →</span>
-          </Link>
-        ) : (
+        {(lead.linkedLeads ?? []).length === 0 ? (
           <p className="py-4 text-center text-sm text-ink-500">
             Not linked to {lead.type === "SITE" ? "a franchise investor" : "a site"} yet.
           </p>
+        ) : (
+          <ul className="space-y-2">
+            {(lead.linkedLeads ?? []).map((l) => (
+              <li key={l.id} className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 px-3 py-2.5">
+                <Link href={`/leads/${l.id}`} className="min-w-0 flex-1 hover:text-brand-700">
+                  <span className="block truncate text-sm font-medium text-ink-900">{l.name || "Lead"}</span>
+                  <span className="block text-xs text-ink-500">{l.code}</span>
+                </Link>
+                {canLinkLeads(viewer) && (
+                  <Button
+                    size="sm"
+                    loading={busy}
+                    onClick={() => void run(() => unlinkLead(lead, l.id, actor), "Unlinked.")}
+                  >
+                    <Unlink className="h-3.5 w-3.5" /> Unlink
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
 

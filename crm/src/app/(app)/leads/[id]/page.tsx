@@ -32,6 +32,7 @@ import {
 } from "@/lib/db/leads";
 import { convertLeadToProject } from "@/lib/db/projects";
 import { notifyAssigned } from "@/lib/db/notifications";
+import { scoreLead } from "@/lib/scoring";
 import {
   canCreateLead, canEditLead, canReassign, canReopenLead, canViewLead,
 } from "@/lib/permissions";
@@ -123,6 +124,7 @@ export default function LeadDetailPage() {
 
   const editable = canEditLead(viewer, lead) && Boolean(actor);
   const stage = STAGE_META[lead.stage];
+  const score = scoreLead(lead);
 
   async function saveEdits(values: LeadFormValues) {
     if (!actor || !lead) return;
@@ -142,6 +144,8 @@ export default function LeadDetailPage() {
         tags: values.tags,
         nextFollowUpAt: values.nextFollowUpAt,
         expectedCloseAt: values.expectedCloseAt,
+        partnerId: values.partnerId,
+        partnerName: values.partnerName,
       },
       actor,
     );
@@ -226,6 +230,14 @@ export default function LeadDetailPage() {
       <div className="mb-4 flex flex-wrap items-center gap-2 print:hidden">
         <Badge className={stage.color}>{stage.label}</Badge>
         <Badge className={STATUS_COLOR[lead.status]}>{STATUS_LABEL[lead.status]}</Badge>
+        {lead.status === "ACTIVE" && (
+          <Badge
+            className={score.band.color}
+            title={score.factors.map((f) => `${f.label} (${f.points > 0 ? "+" : ""}${f.points})`).join(", ")}
+          >
+            {score.band.label} · {score.score}
+          </Badge>
+        )}
         <Badge>{SOURCE_LABEL[lead.source] ?? lead.source}</Badge>
         <span className="flex items-center gap-1.5 text-sm text-ink-600">
           <Avatar name={lead.ownerName} size={20} /> {lead.ownerName}
@@ -558,6 +570,7 @@ export default function LeadDetailPage() {
                   await reassignLead(lead, u.uid, u.name, actor!);
                   if (u.uid !== actor!.uid) {
                     notifyAssigned({
+                      toUid: u.uid,
                       toEmail: u.email,
                       agentName: u.name,
                       leadCode: lead.code,

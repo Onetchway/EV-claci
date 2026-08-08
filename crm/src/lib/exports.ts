@@ -35,6 +35,7 @@ export const LEAD_COLUMNS: Column<Lead>[] = [
   { header: "Status", value: (l) => STATUS_LABEL[l.status] ?? l.status },
   { header: "Configuration", value: (l) => describeConfig(l.config), aliases: ["chargers"] },
   { header: "Charger OEM", value: (l) => l.oem ?? "", aliases: ["oem", "make"] },
+  { header: "Channel Partner", value: (l) => l.partnerName ?? "", aliases: ["partner", "referred by"] },
   { header: "Total Value (incl GST)", value: (l) => l.value ?? 0, aliases: ["value", "amount", "total"] },
   { header: "Collected", value: (l) => l.paidAmount ?? 0, aliases: ["paid"] },
   { header: "Balance", value: (l) => Math.max(0, (l.value ?? 0) - (l.paidAmount ?? 0)), aliases: ["due"] },

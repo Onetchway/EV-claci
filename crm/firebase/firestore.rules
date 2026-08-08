@@ -205,6 +205,33 @@ service cloud.firestore {
       }
     }
 
+    // ------------------------------------------------------------- partners
+
+    // Channel partners and their accrued commission. Readable org-wide (the
+    // lead form needs the roster to attribute a referral); writable by the
+    // same roles that manage franchise leads. Commission status changes
+    // (approve/pay) are a money decision, gated the same as verifying a
+    // payment.
+    match /partners/{partnerId} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+      // Updates also come from commission accrual, which runs automatically
+      // for whichever role recorded the triggering payment — so any signed-in
+      // write is allowed here; the edit *form* itself is still gated to
+      // admins/managers client-side.
+      allow update: if signedIn();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /partnerCommissions/{commissionId} {
+      allow read: if signedIn();
+      // Only accrued by the app's own commission logic (still client-side,
+      // so any signed-in write is allowed) or by finance/admin status changes.
+      allow create: if signedIn();
+      allow update: if canVerifyMoney();
+      allow delete: if isSuperAdmin();
+    }
+
     // --------------------------------------------------------------- settings
 
     // One document holding company details, bank account and LOI defaults.
@@ -224,6 +251,15 @@ service cloud.firestore {
     match /mail/{mailId} {
       allow create: if signedIn();
       allow read, update, delete: if false;
+    }
+
+    // In-app notification bell. Created by whoever triggers the event (an
+    // assignment, an @mention) on behalf of the recipient; only the
+    // recipient can read their own notifications or mark them read.
+    match /notifications/{notificationId} {
+      allow create: if signedIn();
+      allow read, update: if signedIn() && resource.data.uid == uid();
+      allow delete: if false;
     }
 
     // ------------------------------------------------------------- activities

@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, limit as fsLimit, onSnapshot,
-  orderBy, query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc,
-  where, writeBatch, type QueryConstraint,
+  arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs,
+  limit as fsLimit, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
+  setDoc, Timestamp, updateDoc, where, writeBatch, type QueryConstraint,
 } from "firebase/firestore";
 
 import {
@@ -193,6 +193,8 @@ export interface LeadDraft {
   tags?: string[];
   nextFollowUpAt?: Date | null;
   expectedCloseAt?: Date | null;
+  partnerId?: string | null;
+  partnerName?: string | null;
   ownerId: string;
   ownerName: string;
 }
@@ -209,6 +211,7 @@ function searchTokensFor(draft: {
     draft.client.altPhone,
     draft.client.email,
     draft.client.company,
+    draft.client.gstin,
     draft.client.city,
     draft.code,
     draft.site?.locationName,
@@ -274,9 +277,9 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
     value,
     financing: draft.financing ?? DEFAULT_FINANCING,
     eoi: null,
-    linkedLeadId: null,
-    linkedLeadCode: null,
-    linkedLeadName: null,
+    linkedLeads: [],
+    partnerId: draft.partnerId ?? null,
+    partnerName: draft.partnerName ?? null,
     site: draft.site ?? {},
     ownerId: draft.ownerId,
     ownerName: draft.ownerName,
@@ -325,6 +328,8 @@ export interface LeadPatch {
   type?: LeadType;
   nextFollowUpAt?: Date | null;
   expectedCloseAt?: Date | null;
+  partnerId?: string | null;
+  partnerName?: string | null;
 }
 
 export async function updateLead(lead: Lead, patch: LeadPatch, actor: Actor): Promise<void> {
@@ -339,6 +344,8 @@ export async function updateLead(lead: Lead, patch: LeadPatch, actor: Actor): Pr
   if (patch.type !== undefined) update.type = patch.type;
   if (patch.oem !== undefined) update.oem = patch.oem;
   if (patch.financing !== undefined) update.financing = patch.financing;
+  if (patch.partnerId !== undefined) update.partnerId = patch.partnerId;
+  if (patch.partnerName !== undefined) update.partnerName = patch.partnerName;
   if (patch.nextFollowUpAt !== undefined) {
     update.nextFollowUpAt = patch.nextFollowUpAt ? Timestamp.fromDate(patch.nextFollowUpAt) : null;
   }
@@ -592,26 +599,25 @@ export async function updateFinancing(
 // ---------------------------------------------------------------------------
 
 /**
- * Links a landowner's site enquiry to the investor funding it. The link is
- * written on both records in one batch so they can never disagree about who
- * they are paired with.
+ * Links a landowner's site enquiry to an investor's franchise, many-to-many —
+ * an investor can back several franchises over time, and a landowner can
+ * offer several sites. The link is appended on both records in one batch so
+ * they can never disagree about who they are paired with.
  */
 export async function linkLeads(lead: Lead, other: Lead, actor: Actor): Promise<void> {
   if (lead.id === other.id) throw new Error("A lead cannot be linked to itself.");
+  if ((lead.linkedLeads ?? []).some((l) => l.id === other.id)) return;
+
   const db = getDb();
   const batch = writeBatch(db);
 
   batch.update(doc(db, LEADS, lead.id), {
-    linkedLeadId: other.id,
-    linkedLeadCode: other.code,
-    linkedLeadName: other.client?.name ?? null,
+    linkedLeads: arrayUnion({ id: other.id, code: other.code, name: other.client?.name ?? "" }),
     updatedAt: serverTimestamp(),
     updatedBy: actor,
   });
   batch.update(doc(db, LEADS, other.id), {
-    linkedLeadId: lead.id,
-    linkedLeadCode: lead.code,
-    linkedLeadName: lead.client?.name ?? null,
+    linkedLeads: arrayUnion({ id: lead.id, code: lead.code, name: lead.client?.name ?? "" }),
     updatedAt: serverTimestamp(),
     updatedBy: actor,
   });
@@ -634,19 +640,33 @@ export async function linkLeads(lead: Lead, other: Lead, actor: Actor): Promise<
   }
 }
 
-export async function unlinkLead(lead: Lead, actor: Actor): Promise<void> {
+/** Removes one link from both sides, leaving any other links each lead has intact. */
+export async function unlinkLead(lead: Lead, otherId: string, actor: Actor): Promise<void> {
+  const target = (lead.linkedLeads ?? []).find((l) => l.id === otherId);
+  if (!target) return;
+
   const db = getDb();
   const batch = writeBatch(db);
-  const clear = {
-    linkedLeadId: null,
-    linkedLeadCode: null,
-    linkedLeadName: null,
+
+  batch.update(doc(db, LEADS, lead.id), {
+    linkedLeads: arrayRemove(target),
     updatedAt: serverTimestamp(),
     updatedBy: actor,
-  };
+  });
 
-  batch.update(doc(db, LEADS, lead.id), clear);
-  if (lead.linkedLeadId) batch.update(doc(db, LEADS, lead.linkedLeadId), clear);
+  const otherSnap = await getDoc(doc(db, LEADS, otherId));
+  if (otherSnap.exists()) {
+    const other = mapLead(otherSnap.id, otherSnap.data());
+    const backRef = (other.linkedLeads ?? []).find((l) => l.id === lead.id);
+    if (backRef) {
+      batch.update(doc(db, LEADS, otherId), {
+        linkedLeads: arrayRemove(backRef),
+        updatedAt: serverTimestamp(),
+        updatedBy: actor,
+      });
+    }
+  }
+
   await batch.commit();
 
   logActivitySafe({
@@ -655,9 +675,41 @@ export async function unlinkLead(lead: Lead, actor: Actor): Promise<void> {
     leadCode: lead.code,
     leadName: lead.client?.name,
     type: "UNLINKED",
-    message: `Unlinked from ${lead.linkedLeadCode ?? "the paired lead"}`,
+    message: `Unlinked from ${target.code}`,
     actor,
   });
+}
+
+/**
+ * Existing leads that share a phone, email or GSTIN with the values being
+ * entered — surfaced before a new lead is saved so the same investor or site
+ * doesn't get double-entered under two different lead records.
+ */
+export async function findDuplicateLeads(candidate: {
+  phone?: string;
+  email?: string;
+  gstin?: string;
+  excludeId?: string;
+}): Promise<Lead[]> {
+  const needles = [
+    candidate.phone ? normalisePhone(candidate.phone) : "",
+    candidate.email?.trim().toLowerCase() ?? "",
+    candidate.gstin?.trim().toLowerCase() ?? "",
+  ].filter((n) => n.length >= 4);
+  if (needles.length === 0) return [];
+
+  const db = getDb();
+  const found = new Map<string, Lead>();
+  for (const needle of needles) {
+    const snap = await getDocs(
+      query(collection(db, LEADS), where("search", "array-contains", needle), fsLimit(10)),
+    );
+    for (const d of snap.docs) {
+      if (d.id === candidate.excludeId) continue;
+      found.set(d.id, mapLead(d.id, d.data()));
+    }
+  }
+  return [...found.values()];
 }
 
 /** Candidates for pairing: the opposite lead type, still in play. */
@@ -668,9 +720,10 @@ export async function findLinkCandidates(lead: Lead, search: string): Promise<Le
   );
   const needle = search.trim().toLowerCase();
 
+  const linkedIds = new Set((lead.linkedLeads ?? []).map((l) => l.id));
   return snap.docs
     .map((d) => mapLead(d.id, d.data()))
-    .filter((l) => l.status !== "REJECTED" && l.id !== lead.id)
+    .filter((l) => l.status !== "REJECTED" && l.id !== lead.id && !linkedIds.has(l.id))
     .filter((l) => {
       if (!needle) return true;
       const hay = [l.code, l.client?.name, l.client?.phone, l.client?.city, l.site?.locationName]

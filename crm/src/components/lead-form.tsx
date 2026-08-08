@@ -18,7 +18,8 @@ import {
   type FundingMode, type LandType, type LeadType, type LocationType,
   type Ownership, type OwnerType, type PowerLoad, type Source,
 } from "@/lib/constants";
-import { DEFAULT_FINANCING, findLeadsByPhone } from "@/lib/db/leads";
+import { DEFAULT_FINANCING, findDuplicateLeads } from "@/lib/db/leads";
+import { subscribePartners } from "@/lib/db/partners";
 import { canApplyDiscount, canOverridePrice, canReassign } from "@/lib/permissions";
 import type { ConfigItem, ExtraItem } from "@/lib/pricing";
 import type { ClientInfo, FinancingInfo, Lead, SiteInfo } from "@/lib/types";
@@ -40,6 +41,8 @@ export interface LeadFormValues {
   tags: string[];
   nextFollowUpAt: Date | null;
   expectedCloseAt: Date | null;
+  partnerId: string | null;
+  partnerName: string | null;
   ownerId: string;
   ownerName: string;
 }
@@ -58,6 +61,8 @@ const emptyValues = (ownerId: string, ownerName: string): LeadFormValues => ({
   tags: [],
   nextFollowUpAt: null,
   expectedCloseAt: null,
+  partnerId: null,
+  partnerName: null,
   ownerId,
   ownerName,
 });
@@ -86,6 +91,8 @@ export function leadToFormValues(lead: Lead): LeadFormValues {
     tags: lead.tags ?? [],
     nextFollowUpAt: toDate(lead.nextFollowUpAt),
     expectedCloseAt: toDate(lead.expectedCloseAt),
+    partnerId: lead.partnerId ?? null,
+    partnerName: lead.partnerName ?? null,
     ownerId: lead.ownerId,
     ownerName: lead.ownerName,
   };
@@ -147,25 +154,30 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
   const setSite = (patch: Partial<SiteInfo>) =>
     setValues((v) => ({ ...v, site: { ...v.site, ...patch } }));
 
-  // Warn about an existing lead on the same number rather than silently
-  // creating a second one that two agents then both chase.
+  // Warn about an existing lead on the same phone, email or GSTIN rather than
+  // silently creating a second one that two agents then both chase.
   useEffect(() => {
     const phone = normalisePhone(values.client.phone);
-    if (phone.length !== 10) {
+    const email = values.client.email?.trim() ?? "";
+    const gstin = values.client.gstin?.trim() ?? "";
+    if (phone.length !== 10 && email.length < 5 && gstin.length < 4) {
       setDuplicates([]);
       return;
     }
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
-        const found = await findLeadsByPhone(phone);
-        if (!cancelled) setDuplicates(found.filter((l) => l.id !== currentLeadId));
+        const found = await findDuplicateLeads({ phone, email, gstin, excludeId: currentLeadId });
+        if (!cancelled) setDuplicates(found);
       } catch {
         /* the duplicate hint is advisory; rule denials must not block the form */
       }
     }, 500);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [values.client.phone, currentLeadId]);
+  }, [values.client.phone, values.client.email, values.client.gstin, currentLeadId]);
+
+  const [partners, setPartners] = useState<{ id: string; code: string; name: string }[]>([]);
+  useEffect(() => subscribePartners((rows) => setPartners(rows.filter((p) => p.status === "ACTIVE"))), []);
 
   const ownerOptions = users.map((u) => ({ value: u.uid, label: `${u.name} (${u.role.replace("_", " ").toLowerCase()})` }));
 
@@ -293,7 +305,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
         {duplicates.length > 0 && (
           <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
             <p className="flex items-center gap-1.5 font-semibold">
-              <AlertTriangle className="h-4 w-4" /> This number already exists in the CRM
+              <AlertTriangle className="h-4 w-4" /> Possible duplicate — matching phone, email or GSTIN already in the CRM
             </p>
             <ul className="mt-1 space-y-0.5">
               {duplicates.map((d) => (
@@ -318,9 +330,22 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
               options={SOURCES.map((s) => ({ value: s, label: SOURCE_LABEL[s] }))}
             />
           </Field>
-          <Field label="Source detail" hint="Campaign name, referrer, partner…">
+          <Field label="Source detail" hint="Campaign name, referrer…">
             <Input value={values.sourceDetail} onChange={(e) => set("sourceDetail", e.target.value)} />
           </Field>
+          {values.source === "CHANNEL_PARTNER" && (
+            <Field label="Referred by partner" hint="Drives their commission on this station.">
+              <Select
+                value={values.partnerId ?? ""}
+                onChange={(e) => {
+                  const p = partners.find((x) => x.id === e.target.value);
+                  setValues((v) => ({ ...v, partnerId: p?.id ?? null, partnerName: p?.name ?? null }));
+                }}
+                placeholder="Select a partner"
+                options={partners.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` }))}
+              />
+            </Field>
+          )}
           <Field label="Assigned agent" required error={errors.ownerId}>
             <Select
               value={values.ownerId}
@@ -441,6 +466,13 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 label="Open to a commercial revenue-share model"
                 checked={Boolean(values.site.commercialModelInterested)}
                 onChange={(v) => setSite({ commercialModelInterested: v })}
+              />
+            </div>
+            <div className="flex items-end pb-2">
+              <Checkbox
+                label="Multi-charger hub (mixed DC + AC capacities on one site)"
+                checked={Boolean(values.site.isHub)}
+                onChange={(v) => setSite({ isHub: v })}
               />
             </div>
 

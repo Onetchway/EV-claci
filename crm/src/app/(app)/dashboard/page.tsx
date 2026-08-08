@@ -22,6 +22,7 @@ import {
   EOI_STATUS_COLOR, EOI_STATUS_LABEL, STAGES, STAGE_META,
 } from "@/lib/constants";
 import { isAdmin } from "@/lib/permissions";
+import { scoreLead } from "@/lib/scoring";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
 const CHART_COLORS = ["#1cb567", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6", "#ec4899"];
@@ -31,6 +32,10 @@ export default function DashboardPage() {
   const { leads, loading, error } = useLeads({ max: 500 });
 
   const totals = useMemo(() => computeTotals(leads), [leads]);
+  const hotCount = useMemo(
+    () => leads.filter((l) => l.status === "ACTIVE" && scoreLead(l).band.key === "HOT").length,
+    [leads],
+  );
   const stages = useMemo(() => stageBreakdown(leads), [leads]);
   const sources = useMemo(() => sourceBreakdown(leads), [leads]);
   const trend = useMemo(() => monthlyTrend(leads), [leads]);
@@ -377,7 +382,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatCard label="Total leads" value={totals.total} />
         <StatCard label="On hold" value={totals.onHold} />
         <StatCard
@@ -388,6 +393,12 @@ export default function DashboardPage() {
           sub={<Link href="/leads?status=REJECTED" className="text-brand-700 hover:underline">Review rejected leads</Link>}
         />
         <StatCard label="Overdue follow-ups" value={totals.overdueFollowUps} tone={totals.overdueFollowUps ? "warn" : "default"} />
+        <StatCard
+          label="Hot leads"
+          value={hotCount}
+          tone={hotCount ? "positive" : "default"}
+          sub={<Link href="/leads" className="text-brand-700 hover:underline">Score ≥ 80</Link>}
+        />
       </div>
     </>
   );

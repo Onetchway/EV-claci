@@ -602,10 +602,100 @@ export const EXTRA_ITEM_PRESETS = [
   { label: "DISCOM demand note & security deposit", gstPct: 0 },
   { label: "Transformer / HT works", gstPct: 18 },
   { label: "Cabling & earthing", gstPct: 18 },
+  { label: "3.3 kW AC charger", gstPct: 18 },
   { label: "7.4 kW AC charger", gstPct: 18 },
+  { label: "10 kW AC charger", gstPct: 18 },
+  { label: "11 kW AC charger", gstPct: 18 },
+  { label: "15 kW AC charger", gstPct: 18 },
+  { label: "22 kW AC charger", gstPct: 18 },
   { label: "Signage & branding", gstPct: 12 },
   { label: "Site development / levelling", gstPct: 5 },
   { label: "Other", gstPct: 18 },
+] as const;
+
+// ---------------------------------------------------------------------------
+// Hub sites — a location that carries more than one charger, of mixed types
+// and capacities, rather than a single-configuration station.
+// ---------------------------------------------------------------------------
+
+/** Quick-add AC capacities offered inside a hub, beyond the DC catalogue. */
+export const HUB_AC_CAPACITIES_KW = [3.3, 7.4, 10, 11, 15, 22] as const;
+
+// ---------------------------------------------------------------------------
+// Channel partners — dealers, EPC contractors and referral partners who
+// originate leads. Tiers and commission rates are the real terms from the
+// Livanto Channel Partner Program.
+// ---------------------------------------------------------------------------
+
+export const PARTNER_CATEGORIES = [
+  "DEALER", "CHANNEL_PARTNER", "EPC_PARTNER", "REFERRAL_PARTNER",
+] as const;
+export type PartnerCategory = (typeof PARTNER_CATEGORIES)[number];
+
+export const PARTNER_CATEGORY_LABEL: Record<PartnerCategory, string> = {
+  DEALER: "Dealer",
+  CHANNEL_PARTNER: "Channel Partner",
+  EPC_PARTNER: "EPC Partner",
+  REFERRAL_PARTNER: "Referral Partner",
+};
+
+export const PARTNER_TIERS = ["ASSOCIATE", "AUTHORIZED", "ELITE"] as const;
+export type PartnerTier = (typeof PARTNER_TIERS)[number];
+
+export const PARTNER_TIER_LABEL: Record<PartnerTier, string> = {
+  ASSOCIATE: "Associate",
+  AUTHORIZED: "Authorized",
+  ELITE: "Elite",
+};
+
+export const PARTNER_TIER_COLOR: Record<PartnerTier, string> = {
+  ASSOCIATE: "bg-slate-100 text-slate-700 ring-slate-200",
+  AUTHORIZED: "bg-sky-100 text-sky-800 ring-sky-200",
+  ELITE: "bg-amber-100 text-amber-800 ring-amber-200",
+};
+
+/** One-time sales commission, % of station value, per the partner program. */
+export const PARTNER_TIER_RATE: Record<PartnerTier, number> = {
+  ASSOCIATE: 3,
+  AUTHORIZED: 4,
+  ELITE: 5,
+};
+
+/** Minimum stations sold in a trailing 12 months to hold each tier. */
+export const PARTNER_TIER_THRESHOLD: Record<PartnerTier, number> = {
+  ASSOCIATE: 1,
+  AUTHORIZED: 4,
+  ELITE: 9,
+};
+
+export const PARTNER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+export type PartnerStatus = (typeof PARTNER_STATUSES)[number];
+
+export const COMMISSION_STATUSES = ["PENDING", "APPROVED", "PAID"] as const;
+export type CommissionStatus = (typeof COMMISSION_STATUSES)[number];
+
+export const COMMISSION_STATUS_LABEL: Record<CommissionStatus, string> = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  PAID: "Paid",
+};
+
+export const COMMISSION_STATUS_COLOR: Record<CommissionStatus, string> = {
+  PENDING: "bg-amber-100 text-amber-800 ring-amber-200",
+  APPROVED: "bg-sky-100 text-sky-800 ring-sky-200",
+  PAID: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+};
+
+// ---------------------------------------------------------------------------
+// Lead scoring — a deterministic 0-100 signal of how likely a lead is to
+// close, shown as Hot/Warm/Cold. Not machine-learned: a transparent sum of
+// factors the sales team already tracks, so it's explainable on request.
+// ---------------------------------------------------------------------------
+
+export const SCORE_BANDS = [
+  { min: 80, key: "HOT", label: "Hot", color: "bg-rose-100 text-rose-800 ring-rose-200" },
+  { min: 50, key: "WARM", label: "Warm", color: "bg-amber-100 text-amber-800 ring-amber-200" },
+  { min: 0, key: "COLD", label: "Cold", color: "bg-sky-100 text-sky-700 ring-sky-200" },
 ] as const;
 
 // ---------------------------------------------------------------------------
