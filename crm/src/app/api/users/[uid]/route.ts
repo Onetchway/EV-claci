@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ROLES, type Role } from "@/lib/constants";
+import { ROLES, ROLE_RANK, type Role } from "@/lib/constants";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
-import { ApiError, errorResponse, requireCaller } from "../../_lib/guard";
+import { ApiError, errorResponse, highestRole, requireCaller } from "../../_lib/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ const PatchUser = z.object({
   phone: z.string().max(20).optional(),
   region: z.string().max(60).nullable().optional(),
   managerId: z.string().max(128).nullable().optional(),
-  role: z.enum(ROLES).optional(),
+  roles: z.array(z.enum(ROLES)).min(1).max(ROLES.length).optional(),
   active: z.boolean().optional(),
   /** Set a new password for the user. */
   password: z.string().min(8).max(72).optional(),
@@ -21,8 +21,8 @@ const PatchUser = z.object({
 
 function assertCanAssign(callerRole: Role, target: Role) {
   if (callerRole === "SUPER_ADMIN") return;
-  if (callerRole === "ADMIN" && target === "AGENT") return;
-  throw new ApiError("Only a super admin can grant or revoke admin access.", 403);
+  if (callerRole === "ADMIN" && ROLE_RANK[target] < ROLE_RANK.ADMIN) return;
+  throw new ApiError(`Only a super admin can grant or revoke the ${target} role.`, 403);
 }
 
 export async function PATCH(req: Request, { params }: { params: { uid: string } }) {
@@ -36,36 +36,53 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     const snap = await ref.get();
     if (!snap.exists) throw new ApiError("User not found.", 404);
 
-    const current = snap.data() as { role: Role };
+    const current = snap.data() as { role: Role; roles?: Role[] };
+    const currentRoles = current.roles?.length ? current.roles : [current.role];
 
     // Changing an admin's record — or promoting anyone into an admin role —
     // is reserved for super admins.
-    if (body.role && body.role !== current.role) {
-      assertCanAssign(caller.role, body.role);
-      assertCanAssign(caller.role, current.role);
+    let nextRoles: Role[] | undefined;
+    let nextPrimary: Role | undefined;
+    if (body.roles) {
+      nextRoles = [...new Set(body.roles)];
+      nextPrimary = highestRole(nextRoles);
+      const touched = new Set<Role>([...nextRoles, ...currentRoles]);
+      for (const r of touched) {
+        if (nextRoles.includes(r) === currentRoles.includes(r)) continue;
+        assertCanAssign(caller.role, r);
+      }
+      if (uid === caller.uid && ROLE_RANK[nextPrimary] < ROLE_RANK[current.role]) {
+        throw new ApiError("You cannot reduce your own access level.", 400);
+      }
     }
     if (body.active === false) {
       if (uid === caller.uid) throw new ApiError("You cannot deactivate your own account.", 400);
       assertCanAssign(caller.role, current.role);
     }
-    if (body.password && caller.role !== "SUPER_ADMIN" && current.role !== "AGENT") {
+    if (body.password && caller.role !== "SUPER_ADMIN" && ROLE_RANK[current.role] >= ROLE_RANK.ADMIN) {
       throw new ApiError("Only a super admin can reset an admin's password.", 403);
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "region", "managerId", "role", "active"] as const) {
+    for (const key of ["name", "phone", "region", "managerId", "active"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
+    }
+    if (nextRoles && nextPrimary) {
+      update.roles = nextRoles;
+      update.role = nextPrimary;
     }
 
     if (Object.keys(update).length) await ref.update(update);
 
     const auth = adminAuth();
-    if (body.role) await auth.setCustomUserClaims(uid, { role: body.role });
+    if (nextRoles && nextPrimary) {
+      await auth.setCustomUserClaims(uid, { role: nextPrimary, roles: nextRoles });
+    }
     if (body.active !== undefined) await auth.updateUser(uid, { disabled: !body.active });
     if (body.name) await auth.updateUser(uid, { displayName: body.name });
     if (body.password) await auth.updateUser(uid, { password: body.password });
     // Force the next request to re-mint a token so a revoked role stops working.
-    if (body.role || body.active === false) await auth.revokeRefreshTokens(uid);
+    if (nextRoles || body.active === false) await auth.revokeRefreshTokens(uid);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

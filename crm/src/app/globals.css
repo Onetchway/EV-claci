@@ -59,3 +59,77 @@ body {
 .dnd-overlay {
   z-index: 60;
 }
+
+/*
+ * Printing a Letter of Intent.
+ *
+ * The browser's own print dialog is the PDF generator — "Save as PDF" is
+ * built in, the output is real selectable text, and it avoids shipping a PDF
+ * library to render one page. Everything that is not the letter is hidden,
+ * and the inline editors are flattened so the page reads as a document.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  /* Hide the app shell: sidebar, headers, toasts, and anything opted out. */
+  aside,
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .loi-sheet {
+    max-width: none;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    font-size: 10.5pt;
+    line-height: 1.5;
+    color: #000;
+  }
+
+  /* Inputs become plain text so the letter does not print as a form. */
+  .loi-sheet input,
+  .loi-sheet textarea,
+  .loi-sheet select {
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    resize: none;
+    overflow: hidden;
+    color: #000;
+    font: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .loi-sheet textarea {
+    height: auto;
+    min-height: 0;
+  }
+
+  .loi-sheet table {
+    page-break-inside: auto;
+  }
+
+  .loi-sheet tr,
+  .loi-sheet li {
+    page-break-inside: avoid;
+  }
+
+  .loi-sheet h2 {
+    page-break-after: avoid;
+  }
+}

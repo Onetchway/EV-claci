@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import {
-  AlertTriangle, BadgeIndianRupee, CheckCircle2, Plus, TrendingUp, Users2, XCircle,
+  AlertTriangle, BadgeIndianRupee, CheckCircle2, FileSignature, Plus, TrendingUp,
+  Users2, XCircle,
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer,
@@ -17,7 +18,9 @@ import {
   agentPerformance, chargerDemand, computeTotals, monthlyTrend, sourceBreakdown,
   stageBreakdown,
 } from "@/lib/analytics";
-import { STAGE_META } from "@/lib/constants";
+import {
+  EOI_STATUS_COLOR, EOI_STATUS_LABEL, STAGES, STAGE_META,
+} from "@/lib/constants";
 import { isAdmin } from "@/lib/permissions";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
@@ -33,6 +36,32 @@ export default function DashboardPage() {
   const trend = useMemo(() => monthlyTrend(leads), [leads]);
   const demand = useMemo(() => chargerDemand(leads), [leads]);
   const agents = useMemo(() => agentPerformance(leads).slice(0, 6), [leads]);
+
+  // Letters awaiting action — drafted but not sent, or sent and unanswered.
+  const eoiQueue = useMemo(
+    () =>
+      leads
+        .filter((l) => l.eoi && (l.eoi.status === "DRAFT" || l.eoi.status === "ISSUED"))
+        .sort((a, b) => (toDate(b.updatedAt)?.getTime() ?? 0) - (toDate(a.updatedAt)?.getTime() ?? 0))
+        .slice(0, 6),
+    [leads],
+  );
+
+  // Leads far enough along to deserve a letter but without one yet.
+  const eoiCandidates = useMemo(
+    () =>
+      leads
+        .filter(
+          (l) =>
+            l.status === "ACTIVE" &&
+            !l.eoi &&
+            (l.config ?? []).length > 0 &&
+            STAGES.indexOf(l.stage) >= STAGES.indexOf("INTRODUCTION"),
+        )
+        .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+        .slice(0, 6),
+    [leads],
+  );
 
   const followUps = useMemo(() => {
     const now = Date.now();
@@ -226,6 +255,72 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Card
+          title="Letters of Intent"
+          subtitle="Draft, issue and print an LOI without leaving the CRM."
+        >
+          {eoiQueue.length === 0 && eoiCandidates.length === 0 ? (
+            <p className="py-6 text-center text-sm text-ink-500">
+              Nothing waiting. Leads reach this list once they have a charger configuration.
+            </p>
+          ) : (
+            <>
+              {eoiQueue.length > 0 && (
+                <>
+                  <p className="label">In progress</p>
+                  <ul className="divide-y divide-ink-100">
+                    {eoiQueue.map((l) => (
+                      <li key={l.id}>
+                        <Link
+                          href={`/leads/${l.id}`}
+                          className="flex items-center justify-between gap-3 py-2.5 hover:opacity-80"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-ink-900">
+                              {l.client?.name}
+                            </span>
+                            <span className="block truncate text-xs text-ink-500">
+                              {l.eoi?.number} · {formatCompactINR(l.eoi?.totalAmount ?? l.value)}
+                            </span>
+                          </span>
+                          <Badge className={EOI_STATUS_COLOR[l.eoi!.status]}>
+                            {EOI_STATUS_LABEL[l.eoi!.status]}
+                          </Badge>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {eoiCandidates.length > 0 && (
+                <>
+                  <p className="label mt-4">Ready for a letter</p>
+                  <ul className="divide-y divide-ink-100">
+                    {eoiCandidates.map((l) => (
+                      <li key={l.id} className="flex items-center justify-between gap-3 py-2.5">
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-ink-900">
+                            {l.client?.name}
+                          </span>
+                          <span className="block truncate text-xs text-ink-500">
+                            {l.code} · {STAGE_META[l.stage].short} · {formatCompactINR(l.value)}
+                          </span>
+                        </span>
+                        <Link href={`/leads/${l.id}`}>
+                          <Button size="sm">
+                            <FileSignature className="h-3.5 w-3.5" /> Draft
+                          </Button>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          )}
+        </Card>
+
         <Card title="Charger demand" subtitle="Units requested across all open and closed leads">
           {demand.length === 0 ? (
             <p className="py-6 text-center text-sm text-ink-500">No configurations captured yet.</p>

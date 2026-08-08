@@ -1,20 +1,63 @@
 /** Shared vocabulary for the CRM. Everything selectable in the UI lives here. */
 
-export const ROLES = ["SUPER_ADMIN", "ADMIN", "AGENT"] as const;
+export const ROLES = [
+  "SUPER_ADMIN",
+  "ADMIN",
+  "SALES_MANAGER",
+  "AGENT",
+  "FINANCE",
+  "OPERATIONS",
+  "VIEWER",
+] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABEL: Record<Role, string> = {
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
+  SALES_MANAGER: "Sales Manager",
   AGENT: "Agent",
+  FINANCE: "Finance",
+  OPERATIONS: "Operations",
+  VIEWER: "Viewer",
 };
 
-/** Higher number = more authority. Used for every permission check. */
-export const ROLE_RANK: Record<Role, number> = {
-  AGENT: 1,
-  ADMIN: 2,
-  SUPER_ADMIN: 3,
+export const ROLE_HINT: Record<Role, string> = {
+  SUPER_ADMIN: "Everything, including creating other admins.",
+  ADMIN: "Every lead, verify payments and documents, all reports.",
+  SALES_MANAGER: "Every lead and report; can reassign, but cannot verify money.",
+  AGENT: "Only their own leads.",
+  FINANCE: "Every lead read-only, plus payment verification and EOI issue.",
+  OPERATIONS: "Every lead read-only, plus document verification and stage moves.",
+  VIEWER: "Read-only across the organisation.",
 };
+
+/**
+ * Higher number = more authority. This ranks the *primary* role, which is what
+ * the Firestore rules read from the auth token. Finer-grained abilities are
+ * decided by capability rather than rank — see permissions.ts.
+ */
+export const ROLE_RANK: Record<Role, number> = {
+  VIEWER: 0,
+  AGENT: 1,
+  OPERATIONS: 2,
+  FINANCE: 2,
+  SALES_MANAGER: 3,
+  ADMIN: 4,
+  SUPER_ADMIN: 5,
+};
+
+/**
+ * Roles that grant org-wide visibility. The Firestore rules mirror this list,
+ * so if you add one here, add it there too.
+ */
+export const ORG_WIDE_ROLES: Role[] = [
+  "SUPER_ADMIN",
+  "ADMIN",
+  "SALES_MANAGER",
+  "FINANCE",
+  "OPERATIONS",
+  "VIEWER",
+];
 
 // ---------------------------------------------------------------------------
 // Pipeline
@@ -336,8 +379,173 @@ export const ACTIVITY_TYPES = [
   "DOCUMENT_DELETED",
   "REJECTED",
   "REOPENED",
+  "FINANCING_UPDATED",
+  "LINKED",
+  "UNLINKED",
+  "EOI_CREATED",
+  "EOI_UPDATED",
+  "EOI_ISSUED",
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
+
+// ---------------------------------------------------------------------------
+// Financing — how the investor is funding their participation
+// ---------------------------------------------------------------------------
+
+export const FUNDING_MODES = ["SELF", "LOAN", "PARTIAL_LOAN"] as const;
+export type FundingMode = (typeof FUNDING_MODES)[number];
+
+export const FUNDING_MODE_LABEL: Record<FundingMode, string> = {
+  SELF: "Self funded (no loan)",
+  LOAN: "Bank loan",
+  PARTIAL_LOAN: "Part self, part loan",
+};
+
+/** Loan progress, tracked alongside — not inside — the sales pipeline. */
+export const LOAN_STAGES = [
+  "NOT_APPLICABLE",
+  "ENQUIRY",
+  "DOCUMENTS_COLLECTED",
+  "APPLIED",
+  "UNDER_REVIEW",
+  "SANCTIONED",
+  "DISBURSED",
+  "REJECTED",
+] as const;
+export type LoanStage = (typeof LOAN_STAGES)[number];
+
+export const LOAN_STAGE_LABEL: Record<LoanStage, string> = {
+  NOT_APPLICABLE: "Not applicable",
+  ENQUIRY: "Enquiry",
+  DOCUMENTS_COLLECTED: "Documents collected",
+  APPLIED: "Application submitted",
+  UNDER_REVIEW: "Under bank review",
+  SANCTIONED: "Sanctioned",
+  DISBURSED: "Disbursed",
+  REJECTED: "Rejected by bank",
+};
+
+export const LOAN_STAGE_COLOR: Record<LoanStage, string> = {
+  NOT_APPLICABLE: "bg-slate-100 text-slate-600 ring-slate-200",
+  ENQUIRY: "bg-slate-100 text-slate-700 ring-slate-200",
+  DOCUMENTS_COLLECTED: "bg-sky-100 text-sky-800 ring-sky-200",
+  APPLIED: "bg-indigo-100 text-indigo-800 ring-indigo-200",
+  UNDER_REVIEW: "bg-amber-100 text-amber-800 ring-amber-200",
+  SANCTIONED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  DISBURSED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  REJECTED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
+/** Common lenders for EV infrastructure loans in India. Free text is allowed. */
+export const BANKS = [
+  "State Bank of India",
+  "HDFC Bank",
+  "ICICI Bank",
+  "Axis Bank",
+  "Kotak Mahindra Bank",
+  "Punjab National Bank",
+  "Bank of Baroda",
+  "Canara Bank",
+  "Union Bank of India",
+  "IndusInd Bank",
+  "Yes Bank",
+  "IDFC First Bank",
+  "Bajaj Finserv",
+  "Tata Capital",
+  "SIDBI",
+  "Other / NBFC",
+] as const;
+
+// ---------------------------------------------------------------------------
+// Equipment
+// ---------------------------------------------------------------------------
+
+/** Charger manufacturers. Free text is allowed for anything not listed. */
+export const CHARGER_OEMS = [
+  "Livanto (in-house)",
+  "Delta Electronics",
+  "ABB",
+  "Exicom",
+  "Servotech",
+  "Okaya",
+  "Mass-Tech",
+  "Tata Power EZ",
+  "Statiq",
+  "Jio-bp",
+  "Other",
+] as const;
+
+/**
+ * GST slabs the business actually bills at. Chargers are 18%; some civil and
+ * electrical materials fall in the lower slabs, which is why this is per-line
+ * rather than a single global rate.
+ */
+export const GST_SLABS = [0, 5, 12, 18, 28] as const;
+export type GstSlab = (typeof GST_SLABS)[number];
+
+/** Non-charger line items that commonly appear on a participation summary. */
+export const EXTRA_ITEM_PRESETS = [
+  { label: "Civil work & foundation", gstPct: 18 },
+  { label: "Canopy / shed structure", gstPct: 18 },
+  { label: "LT panel & electrical work", gstPct: 18 },
+  { label: "DISCOM demand note & security deposit", gstPct: 0 },
+  { label: "Transformer / HT works", gstPct: 18 },
+  { label: "Cabling & earthing", gstPct: 18 },
+  { label: "7.4 kW AC charger", gstPct: 18 },
+  { label: "Signage & branding", gstPct: 12 },
+  { label: "Site development / levelling", gstPct: 5 },
+  { label: "Other", gstPct: 18 },
+] as const;
+
+// ---------------------------------------------------------------------------
+// EOI / Letter of Intent
+// ---------------------------------------------------------------------------
+
+export const EOI_STATUSES = ["DRAFT", "ISSUED", "ACCEPTED", "DECLINED", "SUPERSEDED"] as const;
+export type EoiStatus = (typeof EOI_STATUSES)[number];
+
+export const EOI_STATUS_LABEL: Record<EoiStatus, string> = {
+  DRAFT: "Draft",
+  ISSUED: "Issued to client",
+  ACCEPTED: "Accepted & signed",
+  DECLINED: "Declined",
+  SUPERSEDED: "Superseded",
+};
+
+export const EOI_STATUS_COLOR: Record<EoiStatus, string> = {
+  DRAFT: "bg-slate-100 text-slate-700 ring-slate-200",
+  ISSUED: "bg-sky-100 text-sky-800 ring-sky-200",
+  ACCEPTED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  DECLINED: "bg-rose-100 text-rose-800 ring-rose-200",
+  SUPERSEDED: "bg-amber-100 text-amber-800 ring-amber-200",
+};
+
+/** Issuing entity. Appears on every generated Letter of Intent. */
+export const COMPANY = {
+  legalName: "Livanto Green Infra Private Limited",
+  shortName: "Livanto",
+  model: "Franchise-Owned, Company-Operated (“FOCO”)",
+  signatory: "Team Livanto",
+  bank: {
+    accountName: "Livanto Green Infra Private Limited",
+    bankName: "Kotak Mahindra Bank",
+    accountNumber: "0051558154",
+    ifsc: "KKBK0005328",
+  },
+  arbitrationSeat: "Lucknow, Uttar Pradesh",
+  jurisdiction: "Lucknow",
+};
+
+export const DEFAULT_SCOPE_ITEMS = [
+  "Location scouting, site feasibility assessment and EV demand evaluation",
+  "Canopy structure installation, electrical infrastructure preparation and the DISCOM connection process",
+  "Procurement, installation and commissioning of the DC charging equipment",
+  "Charging software (CMS/OCPP) and payment gateway integration",
+  "Operation and management of the Charging Station for the entire Tenure",
+];
+
+export const DEFAULT_TENURE_YEARS = 10;
+export const DEFAULT_PAYOUT_MONTHS = 24;
 
 export const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh", "Chhattisgarh",

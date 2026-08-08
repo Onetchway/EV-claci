@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { Download, Plus, Users2 } from "lucide-react";
 
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   LeadFilterBar, emptyFilters, type FilterState,
 } from "@/components/lead-filters";
@@ -73,6 +73,7 @@ function LeadRow({ lead }: { lead: Lead }) {
 function LeadsInner() {
   const params = useSearchParams();
   const { role } = useAuth();
+  const viewer = useViewer();
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
   const [expanded, setExpanded] = useState(false);
   const [sort, setSort] = useState<SortKey>("updatedAt");
@@ -161,7 +162,7 @@ function LeadsInner() {
         description={`${rows.length} of ${leads.length} leads shown.`}
         actions={
           <>
-            {role && canExport({ uid: "", role }) && (
+            {canExport(viewer) && (
               <Button onClick={exportCsv} disabled={!rows.length}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>

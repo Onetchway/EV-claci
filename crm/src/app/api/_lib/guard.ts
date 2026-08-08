@@ -8,7 +8,10 @@ import { adminAuth, adminConfigured, adminDb } from "@/lib/firebase/admin";
 export interface Caller {
   uid: string;
   email: string;
+  /** Primary (highest-ranked) role. */
   role: Role;
+  /** Every role held. */
+  roles: Role[];
   name: string;
 }
 
@@ -25,7 +28,15 @@ export class ApiError extends Error {
  */
 export async function requireCaller(req: Request, minRole: Role = "ADMIN"): Promise<Caller> {
   if (!adminConfigured()) {
-    throw new ApiError("Server is missing Firebase Admin credentials.", 500);
+    // This is the single most common local-setup failure, so say exactly what
+    // to do rather than just naming the missing thing.
+    throw new ApiError(
+      "This server has no Firebase Admin credentials, so it cannot create or modify user accounts. " +
+        "In production on App Hosting these are provided automatically. Running locally, either run " +
+        "`gcloud auth application-default login`, or add FIREBASE_SERVICE_ACCOUNT_KEY to crm/.env.local " +
+        "and restart the dev server. You can also manage users from the deployed site instead.",
+      503,
+    );
   }
 
   const header = req.headers.get("authorization") ?? "";
@@ -42,15 +53,27 @@ export async function requireCaller(req: Request, minRole: Role = "ADMIN"): Prom
   const snap = await adminDb().collection("users").doc(decoded.uid).get();
   if (!snap.exists) throw new ApiError("No CRM profile exists for this account.", 403);
 
-  const data = snap.data() as { role?: Role; active?: boolean; name?: string };
+  const data = snap.data() as { role?: Role; roles?: Role[]; active?: boolean; name?: string };
   if (data.active === false) throw new ApiError("This account is deactivated.", 403);
 
-  const role = (data.role ?? "AGENT") as Role;
+  const roles = (data.roles?.length ? data.roles : [data.role ?? "AGENT"]) as Role[];
+  const role = highestRole(roles);
   if (ROLE_RANK[role] < ROLE_RANK[minRole]) {
     throw new ApiError("You do not have permission to perform this action.", 403);
   }
 
-  return { uid: decoded.uid, email: decoded.email ?? "", role, name: data.name ?? decoded.email ?? "User" };
+  return {
+    uid: decoded.uid,
+    email: decoded.email ?? "",
+    role,
+    roles,
+    name: data.name ?? decoded.email ?? "User",
+  };
+}
+
+/** The primary role is the highest-ranked one a user holds. */
+export function highestRole(roles: Role[]): Role {
+  return [...roles].sort((a, b) => (ROLE_RANK[b] ?? 0) - (ROLE_RANK[a] ?? 0))[0] ?? "AGENT";
 }
 
 export function errorResponse(err: unknown) {

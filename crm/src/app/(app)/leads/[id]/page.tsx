@@ -7,10 +7,12 @@ import {
   ArrowLeft, ExternalLink, Mail, MapPin, Pencil, Phone, RotateCcw, UserCog, XCircle,
 } from "lucide-react";
 
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, useViewer } from "@/components/auth-provider";
 import { ActivityPanel } from "@/components/lead/activity-panel";
 import { DocumentsPanel } from "@/components/lead/documents-panel";
 import { PaymentsPanel } from "@/components/lead/payments-panel";
+import { EoiPanel } from "@/components/lead/eoi-panel";
+import { FinancingPanel } from "@/components/lead/financing-panel";
 import { StageStepper } from "@/components/lead/stage-stepper";
 import { LeadForm, leadToFormValues, type LeadFormValues } from "@/components/lead-form";
 import {
@@ -31,7 +33,9 @@ import { buildQuote, describeConfig } from "@/lib/pricing";
 import type { Lead } from "@/lib/types";
 import { cn, formatDate, formatDateTime, formatINR, formatNumber } from "@/lib/utils";
 
-const TABS = ["Overview", "Quotation", "Payments", "Documents", "Activity"] as const;
+const TABS = [
+  "Overview", "Quotation", "Financing", "Letter of Intent", "Payments", "Documents", "Activity",
+] as const;
 type Tab = (typeof TABS)[number];
 
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
@@ -74,13 +78,13 @@ export default function LeadDetailPage() {
     );
   }, [id]);
 
-  const viewer = useMemo(
-    () => ({ uid: profile?.uid ?? "", role: role ?? ("AGENT" as const) }),
-    [profile, role],
-  );
+  const viewer = useViewer();
 
   const quote = useMemo(
-    () => (lead ? buildQuote(lead.config ?? [], { discount: lead.discount ?? 0 }) : null),
+    () =>
+      lead
+        ? buildQuote(lead.config ?? [], { discount: lead.discount ?? 0, extras: lead.extras ?? [] })
+        : null,
     [lead],
   );
 
@@ -124,7 +128,10 @@ export default function LeadDetailPage() {
         source: values.source,
         sourceDetail: values.sourceDetail,
         config: values.config,
+        extras: values.extras,
         discount: values.discount,
+        oem: values.oem,
+        financing: values.financing,
         site: values.site,
         tags: values.tags,
         nextFollowUpAt: values.nextFollowUpAt,
@@ -343,12 +350,23 @@ export default function LeadDetailPage() {
                     </thead>
                     <tbody className="divide-y divide-ink-100">
                       {quote.lines.map((l) => (
-                        <tr key={l.sku}>
-                          <td className="td font-medium">{l.label} DC</td>
+                        <tr key={l.key}>
+                          <td className="td font-medium">
+                            {l.label}
+                            {l.oem && <span className="ml-1 text-xs font-normal text-ink-500">· {l.oem}</span>}
+                            {l.overridden && (
+                              <span className="ml-1 text-xs font-normal text-amber-700">
+                                (list {formatINR(l.catalogueUnitBase ?? 0)})
+                              </span>
+                            )}
+                          </td>
                           <td className="td text-right tabular-nums">{l.qty}</td>
                           <td className="td text-right tabular-nums">{formatINR(l.unitBase)}</td>
                           <td className="td text-right tabular-nums">{formatINR(l.base)}</td>
-                          <td className="td text-right tabular-nums text-ink-500">{formatINR(l.gst)}</td>
+                          <td className="td text-right tabular-nums text-ink-500">
+                            {formatINR(l.gst)}
+                            <span className="ml-1 text-[10px] text-ink-400">{l.gstPct}%</span>
+                          </td>
                           <td className="td text-right font-semibold tabular-nums">{formatINR(l.total)}</td>
                         </tr>
                       ))}
@@ -434,6 +452,14 @@ export default function LeadDetailPage() {
             </Card>
           </div>
         </div>
+      )}
+
+      {tab === "Financing" && actor && (
+        <FinancingPanel lead={lead} actor={actor} viewer={viewer} canEdit={editable} />
+      )}
+
+      {tab === "Letter of Intent" && actor && (
+        <EoiPanel lead={lead} actor={actor} viewer={viewer} canEdit={editable} />
       )}
 
       {tab === "Payments" && actor && (

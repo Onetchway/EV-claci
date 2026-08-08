@@ -7,14 +7,17 @@ import {
 } from "firebase/firestore";
 
 import {
-  STAGE_META, WON_STAGE,
-  type LeadStatus, type LeadType, type RejectionReason, type Source, type Stage,
+  STAGES, STAGE_META, WON_STAGE,
+  type EoiStatus, type LeadStatus, type LeadType, type RejectionReason, type Source,
+  type Stage,
 } from "../constants";
 import { diffLead, summariseChanges } from "../diff";
 import { getDb } from "../firebase/client";
-import { buildQuote, normaliseConfig, type ConfigItem } from "../pricing";
-import type { Actor, ClientInfo, Lead, SiteInfo } from "../types";
-import { buildSearchTokens, normalisePhone, toDate } from "../utils";
+import {
+  buildQuote, normaliseConfig, normaliseExtras, type ConfigItem, type ExtraItem,
+} from "../pricing";
+import type { Actor, ClientInfo, EoiDoc, FinancingInfo, Lead, SiteInfo } from "../types";
+import { buildSearchTokens, formatINR, normalisePhone, toDate } from "../utils";
 import { logActivitySafe } from "./activity";
 
 export const LEADS = "leads";
@@ -181,7 +184,10 @@ export interface LeadDraft {
   source: Source;
   sourceDetail?: string;
   config?: ConfigItem[];
+  extras?: ExtraItem[];
   discount?: number;
+  oem?: string | null;
+  financing?: FinancingInfo;
   site?: SiteInfo;
   stage?: Stage;
   tags?: string[];
@@ -210,8 +216,8 @@ function searchTokensFor(draft: {
   );
 }
 
-function quoteSnapshot(config: ConfigItem[], discount: number) {
-  const q = buildQuote(config, { discount });
+function quoteSnapshot(config: ConfigItem[], extras: ExtraItem[], discount: number) {
+  const q = buildQuote(config, { discount, extras });
   return {
     snapshot: {
       subtotal: q.subtotal,
@@ -220,10 +226,26 @@ function quoteSnapshot(config: ConfigItem[], discount: number) {
       grandTotal: q.grandTotal,
       totalKw: q.totalKw,
       unitCount: q.unitCount,
+      effectiveGstPct: q.effectiveGstPct,
     },
     value: q.grandTotal,
   };
 }
+
+/** A lead with no bank involvement still carries a financing block. */
+export const DEFAULT_FINANCING: FinancingInfo = {
+  mode: "SELF",
+  stage: "NOT_APPLICABLE",
+  bank: "",
+  requestedAmount: null,
+  sanctionedAmount: null,
+  disbursedAmount: null,
+  interestRate: null,
+  tenureYears: null,
+  emi: null,
+  applicationNo: "",
+  note: "",
+};
 
 export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> {
   const db = getDb();
@@ -231,8 +253,9 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
   const ref = doc(collection(db, LEADS));
 
   const config = normaliseConfig(draft.config ?? []);
+  const extras = normaliseExtras(draft.extras ?? []);
   const discount = Math.max(0, Math.round(draft.discount ?? 0));
-  const { snapshot, value } = quoteSnapshot(config, discount);
+  const { snapshot, value } = quoteSnapshot(config, extras, discount);
   const client: ClientInfo = { ...draft.client, phone: normalisePhone(draft.client.phone) };
 
   const payload = {
@@ -244,9 +267,16 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
     source: draft.source,
     sourceDetail: draft.sourceDetail ?? "",
     config,
+    extras,
     discount,
+    oem: draft.oem ?? null,
     quote: snapshot,
     value,
+    financing: draft.financing ?? DEFAULT_FINANCING,
+    eoi: null,
+    linkedLeadId: null,
+    linkedLeadCode: null,
+    linkedLeadName: null,
     site: draft.site ?? {},
     ownerId: draft.ownerId,
     ownerName: draft.ownerName,
@@ -286,7 +316,10 @@ export interface LeadPatch {
   source?: Source;
   sourceDetail?: string;
   config?: ConfigItem[];
+  extras?: ExtraItem[];
   discount?: number;
+  oem?: string | null;
+  financing?: FinancingInfo;
   site?: SiteInfo;
   tags?: string[];
   type?: LeadType;
@@ -304,6 +337,8 @@ export async function updateLead(lead: Lead, patch: LeadPatch, actor: Actor): Pr
   if (patch.site !== undefined) update.site = patch.site;
   if (patch.tags !== undefined) update.tags = patch.tags;
   if (patch.type !== undefined) update.type = patch.type;
+  if (patch.oem !== undefined) update.oem = patch.oem;
+  if (patch.financing !== undefined) update.financing = patch.financing;
   if (patch.nextFollowUpAt !== undefined) {
     update.nextFollowUpAt = patch.nextFollowUpAt ? Timestamp.fromDate(patch.nextFollowUpAt) : null;
   }
@@ -311,12 +346,15 @@ export async function updateLead(lead: Lead, patch: LeadPatch, actor: Actor): Pr
     update.expectedCloseAt = patch.expectedCloseAt ? Timestamp.fromDate(patch.expectedCloseAt) : null;
   }
 
-  const configChanged = patch.config !== undefined || patch.discount !== undefined;
+  const configChanged =
+    patch.config !== undefined || patch.discount !== undefined || patch.extras !== undefined;
   if (configChanged) {
     const config = normaliseConfig(patch.config ?? lead.config);
+    const extras = normaliseExtras(patch.extras ?? lead.extras ?? []);
     const discount = Math.max(0, Math.round(patch.discount ?? lead.discount ?? 0));
-    const { snapshot, value } = quoteSnapshot(config, discount);
+    const { snapshot, value } = quoteSnapshot(config, extras, discount);
     update.config = config;
+    update.extras = extras;
     update.discount = discount;
     update.quote = snapshot;
     update.value = value;
@@ -508,4 +546,242 @@ export async function deleteLead(lead: Lead): Promise<void> {
   }
   await batch.commit();
   await deleteDoc(doc(db, LEADS, lead.id));
+}
+
+// ---------------------------------------------------------------------------
+// Financing
+// ---------------------------------------------------------------------------
+
+export async function updateFinancing(
+  lead: Lead,
+  financing: FinancingInfo,
+  actor: Actor,
+): Promise<void> {
+  const before = lead.financing ?? DEFAULT_FINANCING;
+
+  await updateDoc(doc(getDb(), LEADS, lead.id), {
+    financing,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  });
+
+  const bits: string[] = [];
+  if (before.mode !== financing.mode) bits.push(`funding ${before.mode} → ${financing.mode}`);
+  if (before.stage !== financing.stage) bits.push(`loan stage ${before.stage} → ${financing.stage}`);
+  if (before.bank !== financing.bank && financing.bank) bits.push(`bank ${financing.bank}`);
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "FINANCING_UPDATED",
+    message: `Financing updated${bits.length ? ` — ${bits.join(", ")}` : ""}`,
+    changes: [
+      { field: "financing.mode", label: "Funding mode", from: before.mode, to: financing.mode },
+      { field: "financing.stage", label: "Loan stage", from: before.stage, to: financing.stage },
+    ].filter((c) => c.from !== c.to),
+    actor,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Site ↔ franchise pairing
+// ---------------------------------------------------------------------------
+
+/**
+ * Links a landowner's site enquiry to the investor funding it. The link is
+ * written on both records in one batch so they can never disagree about who
+ * they are paired with.
+ */
+export async function linkLeads(lead: Lead, other: Lead, actor: Actor): Promise<void> {
+  if (lead.id === other.id) throw new Error("A lead cannot be linked to itself.");
+  const db = getDb();
+  const batch = writeBatch(db);
+
+  batch.update(doc(db, LEADS, lead.id), {
+    linkedLeadId: other.id,
+    linkedLeadCode: other.code,
+    linkedLeadName: other.client?.name ?? null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+  batch.update(doc(db, LEADS, other.id), {
+    linkedLeadId: lead.id,
+    linkedLeadCode: lead.code,
+    linkedLeadName: lead.client?.name ?? null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+
+  await batch.commit();
+
+  for (const [self, partner] of [
+    [lead, other],
+    [other, lead],
+  ] as const) {
+    logActivitySafe({
+      leadId: self.id,
+      ownerId: self.ownerId,
+      leadCode: self.code,
+      leadName: self.client?.name,
+      type: "LINKED",
+      message: `Linked to ${partner.code} — ${partner.client?.name ?? "lead"}`,
+      actor,
+    });
+  }
+}
+
+export async function unlinkLead(lead: Lead, actor: Actor): Promise<void> {
+  const db = getDb();
+  const batch = writeBatch(db);
+  const clear = {
+    linkedLeadId: null,
+    linkedLeadCode: null,
+    linkedLeadName: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  };
+
+  batch.update(doc(db, LEADS, lead.id), clear);
+  if (lead.linkedLeadId) batch.update(doc(db, LEADS, lead.linkedLeadId), clear);
+  await batch.commit();
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "UNLINKED",
+    message: `Unlinked from ${lead.linkedLeadCode ?? "the paired lead"}`,
+    actor,
+  });
+}
+
+/** Candidates for pairing: the opposite lead type, still in play. */
+export async function findLinkCandidates(lead: Lead, search: string): Promise<Lead[]> {
+  const wanted: LeadType = lead.type === "SITE" ? "FRANCHISE" : "SITE";
+  const snap = await getDocs(
+    query(collection(getDb(), LEADS), where("type", "==", wanted), fsLimit(200)),
+  );
+  const needle = search.trim().toLowerCase();
+
+  return snap.docs
+    .map((d) => mapLead(d.id, d.data()))
+    .filter((l) => l.status !== "REJECTED" && l.id !== lead.id)
+    .filter((l) => {
+      if (!needle) return true;
+      const hay = [l.code, l.client?.name, l.client?.phone, l.client?.city, l.site?.locationName]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    })
+    .slice(0, 25);
+}
+
+// ---------------------------------------------------------------------------
+// Letter of Intent
+// ---------------------------------------------------------------------------
+
+export async function saveEoi(lead: Lead, eoi: EoiDoc, actor: Actor): Promise<void> {
+  const existing = lead.eoi;
+
+  await updateDoc(doc(getDb(), LEADS, lead.id), {
+    eoi: {
+      ...eoi,
+      createdAt: existing?.createdAt ?? serverTimestamp(),
+      createdBy: existing?.createdBy ?? actor,
+      updatedAt: serverTimestamp(),
+      updatedBy: actor,
+    },
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  });
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: existing ? "EOI_UPDATED" : "EOI_CREATED",
+    message: existing
+      ? `Letter of Intent ${eoi.number} updated`
+      : `Letter of Intent ${eoi.number} drafted for ${formatINR(eoi.totalAmount)}`,
+    actor,
+  });
+}
+
+/** Marks the letter issued and moves the lead to the EOI stage if it is behind. */
+export async function issueEoi(lead: Lead, actor: Actor): Promise<void> {
+  if (!lead.eoi) throw new Error("Draft the Letter of Intent before issuing it.");
+
+  const update: Record<string, unknown> = {
+    "eoi.status": "ISSUED",
+    "eoi.issuedBy": actor,
+    "eoi.issuedDate": serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  };
+  if (STAGES.indexOf(lead.stage) < STAGES.indexOf("EOI")) update.stage = "EOI";
+
+  await updateDoc(doc(getDb(), LEADS, lead.id), update);
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "EOI_ISSUED",
+    message: `Letter of Intent ${lead.eoi.number} issued to the client`,
+    actor,
+  });
+}
+
+export async function setEoiStatus(lead: Lead, status: EoiStatus, actor: Actor): Promise<void> {
+  if (!lead.eoi) return;
+
+  const update: Record<string, unknown> = {
+    "eoi.status": status,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  };
+  if (status === "ACCEPTED") update["eoi.acceptedAt"] = serverTimestamp();
+
+  await updateDoc(doc(getDb(), LEADS, lead.id), update);
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "EOI_UPDATED",
+    message: `Letter of Intent marked ${status.toLowerCase()}`,
+    actor,
+  });
+}
+
+/** Sequence for LOI numbers: LG/LOI/2026/0042. */
+export async function nextEoiNumber(): Promise<string> {
+  const db = getDb();
+  const ref = doc(db, COUNTERS, "eoi");
+  const year = new Date().getFullYear();
+
+  const seq = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists() ? (snap.data() as { year?: number; seq?: number }) : {};
+    const next = data.year === year ? (data.seq ?? 0) + 1 : 1;
+    tx.set(ref, { year, seq: next }, { merge: true });
+    return next;
+  });
+
+  return `LG/LOI/${year}/${String(seq).padStart(4, "0")}`;
 }

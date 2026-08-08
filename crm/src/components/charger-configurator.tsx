@@ -4,26 +4,37 @@ import {
   DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable,
   useSensor, useSensors, type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
-import { GripVertical, Minus, Plus, Trash2, Zap } from "lucide-react";
+import { GripVertical, Minus, Plus, RotateCcw, Trash2, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { CATALOG_LIST, type ChargerSpec } from "@/lib/catalog";
-import { buildQuote, normaliseConfig, type ConfigItem } from "@/lib/pricing";
+import { CHARGER_OEMS, EXTRA_ITEM_PRESETS, GST_SLABS } from "@/lib/constants";
+import {
+  buildQuote, clampGst, normaliseConfig, type ConfigItem, type ExtraItem,
+} from "@/lib/pricing";
 import { cn, formatCompactINR, formatINR } from "@/lib/utils";
 
 /**
  * Drag a charger from the catalogue into the basket to configure a franchise,
  * e.g. 2 × 60 kW + 2 × 120 kW. Dragging is the headline interaction, but every
- * action is also reachable by click/keyboard — a sales agent on a phone in the
- * field should never be blocked by a drag target.
+ * action is also reachable by tap and keyboard — a sales agent on a phone in
+ * the field should never be blocked by a drag target.
+ *
+ * Prices, GST slabs and the OEM are editable per line because the letters
+ * Livanto actually issues are negotiated deal by deal.
  */
 
 interface Props {
   value: ConfigItem[];
   onChange: (next: ConfigItem[]) => void;
+  extras?: ExtraItem[];
+  onExtrasChange?: (next: ExtraItem[]) => void;
   discount?: number;
   onDiscountChange?: (v: number) => void;
   allowDiscount?: boolean;
+  /** Editing unit prices is a commercial decision — gated separately. */
+  allowPriceOverride?: boolean;
+  defaultOem?: string | null;
   disabled?: boolean;
 }
 
@@ -79,87 +90,272 @@ function PaletteCard({ spec, disabled, onAdd }: { spec: ChargerSpec; disabled?: 
 }
 
 function BasketRow({
-  spec, qty, disabled, onQty, onRemove,
+  item, index, spec, disabled, allowPriceOverride, onPatch, onRemove,
 }: {
-  spec: ChargerSpec; qty: number; disabled?: boolean;
-  onQty: (q: number) => void; onRemove: () => void;
+  item: ConfigItem;
+  index: number;
+  spec: ChargerSpec;
+  disabled?: boolean;
+  allowPriceOverride?: boolean;
+  onPatch: (patch: Partial<ConfigItem>) => void;
+  onRemove: () => void;
 }) {
-  const lineBase = spec.basePrice * qty;
+  const unitPrice = item.unitPrice ?? spec.basePrice;
+  const gstPct = item.gstPct ?? 18;
+  const overridden = unitPrice !== spec.basePrice;
+  const lineBase = unitPrice * item.qty;
+
   return (
-    <li className="flex items-center gap-3 rounded-lg border border-ink-200 bg-white px-3 py-2.5">
-      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">
-        {spec.kw}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink-900">{spec.label} DC Fast Charger</p>
-        <p className="truncate text-[11px] text-ink-500">
-          {formatINR(spec.basePrice)} each · {spec.minSpaceSqft}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-1 rounded-lg border border-ink-200">
+    <li className="rounded-lg border border-ink-200 bg-white px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">
+          {spec.kw}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink-900">{spec.label} DC Fast Charger</p>
+          <p className="truncate text-[11px] text-ink-500">{spec.minSpaceSqft} · {spec.vehicleType}</p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1 rounded-lg border border-ink-200">
+          <button
+            type="button"
+            onClick={() => onPatch({ qty: item.qty - 1 })}
+            disabled={disabled}
+            className="p-1.5 text-ink-500 hover:text-ink-900 disabled:opacity-40"
+            aria-label={`Reduce ${spec.label} quantity`}
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+          <span className="w-7 text-center text-sm font-semibold tabular-nums">{item.qty}</span>
+          <button
+            type="button"
+            onClick={() => onPatch({ qty: item.qty + 1 })}
+            disabled={disabled}
+            className="p-1.5 text-ink-500 hover:text-ink-900 disabled:opacity-40"
+            aria-label={`Increase ${spec.label} quantity`}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <span className="hidden w-28 shrink-0 text-right text-sm font-semibold tabular-nums text-ink-900 sm:block">
+          {formatINR(lineBase)}
+        </span>
+
         <button
           type="button"
-          onClick={() => onQty(qty - 1)}
+          onClick={onRemove}
           disabled={disabled}
-          className="p-1.5 text-ink-500 hover:text-ink-900 disabled:opacity-40"
-          aria-label={`Reduce ${spec.label} quantity`}
+          className="shrink-0 rounded p-1.5 text-ink-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+          aria-label={`Remove ${spec.label}`}
         >
-          <Minus className="h-3.5 w-3.5" />
-        </button>
-        <span className="w-7 text-center text-sm font-semibold tabular-nums">{qty}</span>
-        <button
-          type="button"
-          onClick={() => onQty(qty + 1)}
-          disabled={disabled}
-          className="p-1.5 text-ink-500 hover:text-ink-900 disabled:opacity-40"
-          aria-label={`Increase ${spec.label} quantity`}
-        >
-          <Plus className="h-3.5 w-3.5" />
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
-      <span className="hidden w-28 shrink-0 text-right text-sm font-semibold tabular-nums text-ink-900 sm:block">
-        {formatINR(lineBase)}
-      </span>
-      <button
-        type="button"
-        onClick={onRemove}
-        disabled={disabled}
-        className="shrink-0 rounded p-1.5 text-ink-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
-        aria-label={`Remove ${spec.label}`}
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+
+      <div className="mt-2 grid gap-2 border-t border-ink-100 pt-2 sm:grid-cols-3">
+        <label className="block">
+          <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">
+            Unit price (excl. GST)
+          </span>
+          <span className="flex items-center gap-1">
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              value={unitPrice}
+              disabled={disabled || !allowPriceOverride}
+              onChange={(e) => onPatch({ unitPrice: Math.max(0, Number(e.target.value) || 0) })}
+              className={cn(
+                "input py-1 text-sm tabular-nums",
+                overridden && "border-amber-400 bg-amber-50",
+              )}
+              aria-label={`Unit price for ${spec.label}`}
+            />
+            {overridden && allowPriceOverride && (
+              <button
+                type="button"
+                onClick={() => onPatch({ unitPrice: null })}
+                disabled={disabled}
+                title={`Reset to catalogue price ${formatINR(spec.basePrice)}`}
+                className="shrink-0 rounded p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </span>
+          {overridden && (
+            <span className="mt-0.5 block text-[10px] text-amber-700">
+              Catalogue: {formatINR(spec.basePrice)}
+            </span>
+          )}
+        </label>
+
+        <label className="block">
+          <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">GST</span>
+          <select
+            value={gstPct}
+            disabled={disabled}
+            onChange={(e) => onPatch({ gstPct: clampGst(e.target.value) })}
+            className="input py-1 text-sm"
+            aria-label={`GST rate for ${spec.label}`}
+          >
+            {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">OEM</span>
+          <input
+            list={`oem-list-${index}`}
+            value={item.oem ?? ""}
+            disabled={disabled}
+            onChange={(e) => onPatch({ oem: e.target.value || null })}
+            placeholder="Manufacturer"
+            className="input py-1 text-sm"
+            aria-label={`OEM for ${spec.label}`}
+          />
+          <datalist id={`oem-list-${index}`}>
+            {CHARGER_OEMS.map((o) => <option key={o} value={o} />)}
+          </datalist>
+        </label>
+      </div>
     </li>
   );
 }
 
+function ExtrasEditor({
+  extras, disabled, onChange,
+}: {
+  extras: ExtraItem[];
+  disabled?: boolean;
+  onChange: (next: ExtraItem[]) => void;
+}) {
+  const [preset, setPreset] = useState("");
+
+  const add = (label: string, gstPct: number) => {
+    if (disabled) return;
+    onChange([
+      ...extras,
+      { id: `x${Date.now()}${Math.random().toString(36).slice(2, 6)}`, label, amount: 0, gstPct },
+    ]);
+  };
+
+  const patch = (id: string, p: Partial<ExtraItem>) =>
+    onChange(extras.map((e) => (e.id === id ? { ...e, ...p } : e)));
+
+  return (
+    <div className="mt-3 rounded-xl border border-ink-200 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-200 px-4 py-2.5">
+        <div>
+          <p className="text-sm font-semibold text-ink-900">Civil, electrical & other items</p>
+          <p className="text-[11px] text-ink-500">
+            Anything billed alongside the charger. GST is set per line — a DISCOM deposit carries none.
+          </p>
+        </div>
+        <select
+          value={preset}
+          disabled={disabled}
+          onChange={(e) => {
+            const p = EXTRA_ITEM_PRESETS.find((x) => x.label === e.target.value);
+            if (p) add(p.label, p.gstPct);
+            setPreset("");
+          }}
+          className="input w-auto py-1 text-xs"
+          aria-label="Add an item"
+        >
+          <option value="">+ Add item…</option>
+          {EXTRA_ITEM_PRESETS.map((p) => <option key={p.label} value={p.label}>{p.label}</option>)}
+        </select>
+      </div>
+
+      {extras.length === 0 ? (
+        <p className="px-4 py-4 text-center text-xs text-ink-500">
+          No additional items. Add civil work, LT panel, DISCOM deposit and so on here.
+        </p>
+      ) : (
+        <ul className="divide-y divide-ink-100">
+          {extras.map((e) => (
+            <li key={e.id} className="grid gap-2 px-4 py-2.5 sm:grid-cols-[minmax(0,1fr)_130px_90px_auto] sm:items-end">
+              <label className="block">
+                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">Description</span>
+                <input
+                  value={e.label}
+                  disabled={disabled}
+                  onChange={(ev) => patch(e.id, { label: ev.target.value })}
+                  className="input py-1 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">Amount (excl. GST)</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={e.amount || ""}
+                  disabled={disabled}
+                  onChange={(ev) => patch(e.id, { amount: Math.max(0, Number(ev.target.value) || 0) })}
+                  className="input py-1 text-sm tabular-nums"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">GST</span>
+                <select
+                  value={e.gstPct}
+                  disabled={disabled}
+                  onChange={(ev) => patch(e.id, { gstPct: clampGst(ev.target.value) })}
+                  className="input py-1 text-sm"
+                >
+                  {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => onChange(extras.filter((x) => x.id !== e.id))}
+                disabled={disabled}
+                className="mb-1 justify-self-end rounded p-1.5 text-ink-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+                aria-label={`Remove ${e.label}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function ChargerConfigurator({
-  value, onChange, discount = 0, onDiscountChange, allowDiscount, disabled,
+  value, onChange, extras = [], onExtrasChange, discount = 0, onDiscountChange,
+  allowDiscount, allowPriceOverride, defaultOem, disabled,
 }: Props) {
   const [dragging, setDragging] = useState<ChargerSpec | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const { setNodeRef, isOver } = useDroppable({ id: DROP_ID, disabled });
 
   const config = useMemo(() => normaliseConfig(value), [value]);
-  const quote = useMemo(() => buildQuote(config, { discount }), [config, discount]);
+  const quote = useMemo(() => buildQuote(config, { discount, extras }), [config, discount, extras]);
 
-  const add = (sku: string, by = 1) => {
+  const add = (sku: string) => {
     if (disabled) return;
-    const existing = config.find((c) => c.sku === sku);
-    const next = existing
-      ? config.map((c) => (c.sku === sku ? { ...c, qty: c.qty + by } : c))
-      : [...config, { sku, qty: by }];
-    onChange(normaliseConfig(next));
+    const idx = config.findIndex((c) => c.sku === sku && c.unitPrice == null && c.gstPct == null);
+    const next =
+      idx >= 0
+        ? config.map((c, i) => (i === idx ? { ...c, qty: c.qty + 1 } : c))
+        : [...config, { sku, qty: 1, unitPrice: null, gstPct: null, oem: defaultOem ?? null }];
+    onChange(next);
   };
 
-  const setQty = (sku: string, qty: number) => {
+  const patchAt = (index: number, patch: Partial<ConfigItem>) => {
     if (disabled) return;
-    onChange(normaliseConfig(config.map((c) => (c.sku === sku ? { ...c, qty } : c))));
+    const next = config.map((c, i) => (i === index ? { ...c, ...patch } : c));
+    onChange(next.filter((c) => c.qty > 0));
   };
 
-  const remove = (sku: string) => {
+  const removeAt = (index: number) => {
     if (disabled) return;
-    onChange(config.filter((c) => c.sku !== sku));
+    onChange(config.filter((_, i) => i !== index));
   };
 
   function onDragStart(e: DragStartEvent) {
@@ -175,7 +371,7 @@ export function ChargerConfigurator({
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,290px)_minmax(0,1fr)]">
         <div>
           <p className="label">Charger catalogue</p>
           <div className="grid grid-cols-2 gap-2">
@@ -207,17 +403,19 @@ export function ChargerConfigurator({
               </div>
             ) : (
               <ul className="space-y-2">
-                {config.map((item) => {
+                {config.map((item, i) => {
                   const spec = CATALOG_LIST.find((s) => s.sku === item.sku);
                   if (!spec) return null;
                   return (
                     <BasketRow
-                      key={item.sku}
+                      key={`${item.sku}-${i}`}
+                      item={item}
+                      index={i}
                       spec={spec}
-                      qty={item.qty}
                       disabled={disabled}
-                      onQty={(q) => (q <= 0 ? remove(item.sku) : setQty(item.sku, q))}
-                      onRemove={() => remove(item.sku)}
+                      allowPriceOverride={allowPriceOverride}
+                      onPatch={(p) => patchAt(i, p)}
+                      onRemove={() => removeAt(i)}
                     />
                   );
                 })}
@@ -225,7 +423,11 @@ export function ChargerConfigurator({
             )}
           </div>
 
-          {config.length > 0 && (
+          {onExtrasChange && (
+            <ExtrasEditor extras={extras} disabled={disabled} onChange={onExtrasChange} />
+          )}
+
+          {(config.length > 0 || extras.length > 0) && (
             <div className="mt-3 rounded-xl border border-ink-200 bg-white">
               <div className="grid grid-cols-3 divide-x divide-ink-200 border-b border-ink-200 text-center">
                 <div className="px-3 py-2">
@@ -281,7 +483,12 @@ export function ChargerConfigurator({
                   <dd className="font-medium tabular-nums">{formatINR(quote.taxableValue)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-ink-600">GST @ {(quote.gstRate * 100).toFixed(0)}%</dt>
+                  <dt className="text-ink-600">
+                    GST
+                    <span className="ml-1 text-xs text-ink-400">
+                      (blended {quote.effectiveGstPct.toFixed(1)}%)
+                    </span>
+                  </dt>
                   <dd className="font-medium tabular-nums">{formatINR(quote.gst)}</dd>
                 </div>
                 <div className="flex justify-between border-t border-ink-200 pt-2 text-base">
@@ -303,6 +510,9 @@ export function ChargerConfigurator({
                     </li>
                   ))}
                 </ul>
+                <p className="mt-2 text-[11px] text-ink-400">
+                  Every line is editable again when you draft the Letter of Intent.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-ink-200 px-4 py-3 text-xs sm:grid-cols-4">

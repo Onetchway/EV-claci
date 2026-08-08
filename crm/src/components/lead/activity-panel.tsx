@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ArrowRightLeft, CircleDot, FileText, IndianRupee, MessageSquare, Phone,
-  Plus, UserCheck, XCircle,
+  ArrowRightLeft, CircleDot, FileSignature, FileText, IndianRupee, Landmark,
+  Link2, MessageSquare, Phone, Plus, UserCheck, XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -29,6 +29,12 @@ const ICONS: Partial<Record<ActivityType, typeof CircleDot>> = {
   DOCUMENT_VERIFIED: FileText,
   DOCUMENT_DELETED: FileText,
   REJECTED: XCircle,
+  FINANCING_UPDATED: Landmark,
+  LINKED: Link2,
+  UNLINKED: Link2,
+  EOI_CREATED: FileSignature,
+  EOI_UPDATED: FileSignature,
+  EOI_ISSUED: FileSignature,
 };
 
 const TONE: Partial<Record<ActivityType, string>> = {
@@ -39,6 +45,10 @@ const TONE: Partial<Record<ActivityType, string>> = {
   DOCUMENT_UPLOADED: "bg-sky-100 text-sky-700",
   NOTE: "bg-amber-100 text-amber-700",
   CALL: "bg-violet-100 text-violet-700",
+  FINANCING_UPDATED: "bg-teal-100 text-teal-700",
+  EOI_CREATED: "bg-indigo-100 text-indigo-700",
+  EOI_ISSUED: "bg-emerald-100 text-emerald-700",
+  LINKED: "bg-sky-100 text-sky-700",
 };
 
 const MANUAL_TYPES: { value: ActivityType; label: string }[] = [

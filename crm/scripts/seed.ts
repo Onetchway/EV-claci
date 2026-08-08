@@ -160,7 +160,7 @@ async function upsertUser(params: {
         displayName: params.name,
       })).uid;
 
-  await auth.setCustomUserClaims(uid, { role: params.role });
+  await auth.setCustomUserClaims(uid, { role: params.role, roles: [params.role] });
 
   await db.collection("users").doc(uid).set(
     {
@@ -169,6 +169,7 @@ async function upsertUser(params: {
       name: params.name,
       phone: params.phone ?? "",
       role: params.role,
+      roles: [params.role],
       managerId: null,
       region: null,
       active: true,
@@ -316,7 +317,14 @@ async function seedDemo(ownerUid: string, ownerName: string) {
       source: d.source,
       sourceDetail: "",
       config: d.config,
+      extras: [],
       discount: 0,
+      oem: null,
+      financing: { mode: "SELF", stage: "NOT_APPLICABLE", bank: "", note: "" },
+      eoi: null,
+      linkedLeadId: null,
+      linkedLeadCode: null,
+      linkedLeadName: null,
       quote: {
         subtotal: quote.subtotal,
         discount: 0,

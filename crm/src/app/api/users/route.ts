@@ -2,9 +2,9 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ROLES, type Role } from "@/lib/constants";
+import { ROLES, ROLE_RANK, type Role } from "@/lib/constants";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
-import { ApiError, errorResponse, requireCaller } from "../_lib/guard";
+import { ApiError, errorResponse, highestRole, requireCaller } from "../_lib/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,17 +13,18 @@ const CreateUser = z.object({
   email: z.string().email(),
   name: z.string().min(2).max(80),
   phone: z.string().max(20).optional().default(""),
-  role: z.enum(ROLES),
+  /** A user may hold several roles; their abilities are the union. */
+  roles: z.array(z.enum(ROLES)).min(1).max(ROLES.length),
   region: z.string().max(60).optional().nullable(),
   managerId: z.string().max(128).optional().nullable(),
   password: z.string().min(8).max(72).optional(),
 });
 
-/** Only a super admin may mint another admin. */
+/** Only a super admin may grant admin or above. */
 function assertCanAssign(callerRole: Role, target: Role) {
   if (callerRole === "SUPER_ADMIN") return;
-  if (callerRole === "ADMIN" && target === "AGENT") return;
-  throw new ApiError("Only a super admin can create admin accounts.", 403);
+  if (callerRole === "ADMIN" && ROLE_RANK[target] < ROLE_RANK.ADMIN) return;
+  throw new ApiError(`Only a super admin can grant the ${target} role.`, 403);
 }
 
 function randomPassword(): string {
@@ -48,7 +49,9 @@ export async function POST(req: Request) {
   try {
     const caller = await requireCaller(req, "ADMIN");
     const body = CreateUser.parse(await req.json());
-    assertCanAssign(caller.role, body.role);
+    const roles = [...new Set(body.roles)];
+    for (const r of roles) assertCanAssign(caller.role, r);
+    const primary = highestRole(roles);
 
     const auth = adminAuth();
     const db = adminDb();
@@ -66,15 +69,17 @@ export async function POST(req: Request) {
     });
 
     // Custom claims let the Firestore security rules check the role without an
-    // extra document read on every single request.
-    await auth.setCustomUserClaims(created.uid, { role: body.role });
+    // extra document read on every request. The rules key off the single
+    // highest role; the full list travels alongside for the app's own checks.
+    await auth.setCustomUserClaims(created.uid, { role: primary, roles });
 
     await db.collection("users").doc(created.uid).set({
       uid: created.uid,
       email: body.email,
       name: body.name,
       phone: body.phone ?? "",
-      role: body.role,
+      role: primary,
+      roles,
       region: body.region ?? null,
       managerId: body.managerId ?? null,
       active: true,

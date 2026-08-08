@@ -31,6 +31,27 @@ service cloud.firestore {
       return role() == 'SUPER_ADMIN';
     }
 
+    // Roles that see the whole organisation rather than just their own book.
+    // Mirrors ORG_WIDE_ROLES in src/lib/constants.ts — change both together.
+    function seesAllLeads() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'FINANCE', 'OPERATIONS', 'VIEWER'];
+    }
+
+    // Roles allowed to create or modify lead records.
+    function canWriteLeads() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'AGENT', 'OPERATIONS'];
+    }
+
+    // Roles trusted to confirm that money actually arrived.
+    function canVerifyMoney() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
+    // Roles trusted to verify uploaded KYC documents.
+    function canVerifyDocs() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
     function uid() {
       return request.auth.uid;
     }
@@ -55,7 +76,11 @@ service cloud.firestore {
     }
 
     function canTouchLead(leadId) {
-      return isAdmin() || leadOwnerId(leadId) == uid();
+      return seesAllLeads() || leadOwnerId(leadId) == uid();
+    }
+
+    function canEditLead(leadId) {
+      return canWriteLeads() && (isAdmin() || role() == 'SALES_MANAGER' || leadOwnerId(leadId) == uid());
     }
 
     // ------------------------------------------------------------------ users
@@ -94,19 +119,21 @@ service cloud.firestore {
     // ------------------------------------------------------------------ leads
 
     match /leads/{leadId} {
-      allow read: if isAdmin() || ownsExisting();
+      allow read: if seesAllLeads() || ownsExisting();
 
       // A new lead must be attributed to the creator. Admins may assign to
       // anyone; agents may only create leads for themselves.
-      allow create: if signedIn()
+      allow create: if canWriteLeads()
                     && actorIsSelf('createdBy')
-                    && (isAdmin() || ownsIncoming())
+                    && (isAdmin() || role() == 'SALES_MANAGER' || ownsIncoming())
                     && request.resource.data.status == 'ACTIVE';
 
-      allow update: if signedIn()
-                    && (isAdmin() || (ownsExisting() && resource.data.status != 'REJECTED'))
-                    // Only an admin may hand a lead to a different agent.
-                    && (isAdmin() || request.resource.data.ownerId == resource.data.ownerId)
+      allow update: if canWriteLeads()
+                    && (isAdmin() || role() == 'SALES_MANAGER'
+                        || (ownsExisting() && resource.data.status != 'REJECTED'))
+                    // Only a manager or admin may hand a lead to another agent.
+                    && (isAdmin() || role() == 'SALES_MANAGER'
+                        || request.resource.data.ownerId == resource.data.ownerId)
                     // Only an admin may reopen a rejected lead.
                     && (isAdmin() || request.resource.data.status != 'ACTIVE'
                         || resource.data.status != 'REJECTED')
@@ -119,16 +146,16 @@ service cloud.firestore {
       match /payments/{paymentId} {
         allow read: if canTouchLead(leadId);
 
-        allow create: if canTouchLead(leadId)
+        allow create: if canEditLead(leadId)
                       && actorIsSelf('createdBy')
-                      // Only an admin may mark money as verified.
-                      && (isAdmin() || request.resource.data.status != 'VERIFIED');
+                      // Only finance or an admin may mark money as verified.
+                      && (canVerifyMoney() || request.resource.data.status != 'VERIFIED');
 
-        allow update: if canTouchLead(leadId)
+        allow update: if (canEditLead(leadId) || canVerifyMoney())
                       && actorIsSelf('updatedBy')
-                      && (isAdmin() || request.resource.data.status != 'VERIFIED')
-                      // A verified payment is an admin's record; agents cannot edit it.
-                      && (isAdmin() || resource.data.status != 'VERIFIED');
+                      && (canVerifyMoney() || request.resource.data.status != 'VERIFIED')
+                      // A verified payment is finance's record; agents cannot edit it.
+                      && (canVerifyMoney() || resource.data.status != 'VERIFIED');
 
         allow delete: if isAdmin();
       }
@@ -138,17 +165,18 @@ service cloud.firestore {
       match /documents/{documentId} {
         allow read: if canTouchLead(leadId);
 
-        allow create: if canTouchLead(leadId)
+        allow create: if canEditLead(leadId)
                       && actorIsSelf('uploadedBy')
                       && request.resource.data.status == 'PENDING';
 
-        // Verification is an admin decision; the uploader may only annotate.
-        allow update: if isAdmin()
-                      || (canTouchLead(leadId)
+        // Verification is an operations/finance decision; the uploader may
+        // only annotate without changing the verification state.
+        allow update: if canVerifyDocs()
+                      || (canEditLead(leadId)
                           && request.resource.data.status == resource.data.status);
 
         allow delete: if isAdmin()
-                      || (canTouchLead(leadId)
+                      || (canEditLead(leadId)
                           && resource.data.uploadedBy.uid == uid()
                           && resource.data.status == 'PENDING');
       }
@@ -159,12 +187,12 @@ service cloud.firestore {
     // The audit trail. Append-only by design: nothing in the application ever
     // edits or removes a log entry, and the rules make that structural.
     match /activities/{activityId} {
-      allow read: if isAdmin() || ownsExisting();
+      allow read: if seesAllLeads() || ownsExisting();
 
       allow create: if signedIn()
                     && actorIsSelf('actor')
                     && request.resource.data.actor.uid == uid()
-                    && (isAdmin() || canTouchLead(request.resource.data.leadId));
+                    && (seesAllLeads() || canTouchLead(request.resource.data.leadId));
 
       allow update, delete: if false;
     }

@@ -21,7 +21,7 @@ service firebase.storage {
     }
 
     function isAdmin() {
-      return role() == 'ADMIN' || role() == 'SUPER_ADMIN';
+      return role() in ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS'];
     }
 
     function acceptableFile() {

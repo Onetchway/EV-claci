@@ -98,6 +98,43 @@ check(
 );
 console.log("  ✓ discounted quotation");
 
+// --- per-line overrides, mixed GST slabs and material lines -----------------
+
+// A negotiated price must replace the catalogue price, not sit alongside it.
+const negotiated = buildQuote([{ sku: "DC-60", qty: 1, unitPrice: 1_400_000 }]);
+check("negotiated unit price", negotiated.subtotal, 1_400_000);
+check("negotiated total", negotiated.grandTotal, Math.round(1_400_000 * 1.18));
+check("negotiated schedule reconciles",
+  negotiated.milestones.reduce((a, m) => a + m.total, 0), negotiated.grandTotal);
+// The advance stays the catalogue token; the discount lands in the later stages.
+check("negotiated advance unchanged", negotiated.milestones[0]!.base, 50_000);
+console.log("  ✓ negotiated unit price");
+
+// Lines in different GST slabs must each be taxed at their own rate.
+const mixedGst = buildQuote([{ sku: "DC-60", qty: 1 }], {
+  extras: [
+    { id: "a", label: "Site development", amount: 200_000, gstPct: 5 },
+    { id: "b", label: "DISCOM security deposit", amount: 300_000, gstPct: 0 },
+  ],
+});
+check("mixed-slab subtotal", mixedGst.subtotal, 1_550_000 + 200_000 + 300_000);
+check("mixed-slab GST", mixedGst.gst, Math.round(1_550_000 * 0.18 + 200_000 * 0.05 + 300_000 * 0));
+check("mixed-slab total", mixedGst.grandTotal, mixedGst.taxableValue + mixedGst.gst);
+check("mixed-slab schedule reconciles",
+  mixedGst.milestones.reduce((a, m) => a + m.total, 0), mixedGst.grandTotal);
+console.log("  ✓ mixed GST slabs with material lines");
+
+// A discount must reduce each line proportionally so blended GST stays right.
+const discountedMixed = buildQuote([{ sku: "DC-60", qty: 1 }], {
+  discount: 155_000,
+  extras: [{ id: "a", label: "Civil work", amount: 345_000, gstPct: 18 }],
+});
+check("proportional discount taxable", discountedMixed.taxableValue, 1_895_000 - 155_000);
+check("proportional discount GST", discountedMixed.gst, Math.round((1_895_000 - 155_000) * 0.18));
+check("proportional discount reconciles",
+  discountedMixed.milestones.reduce((a, m) => a + m.total, 0), discountedMixed.grandTotal);
+console.log("  ✓ discount across mixed slabs");
+
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed.\n`);
   process.exit(1);

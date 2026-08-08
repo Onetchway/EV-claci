@@ -1,10 +1,10 @@
 import type { Timestamp } from "firebase/firestore";
 import type {
-  ActivityType, DocKind, DocStatus, LeadStatus, LeadType, LocationType,
-  Ownership, PaymentMilestone, PaymentMode, PaymentStatus, PowerLoad,
-  RejectionReason, Role, Source, Stage,
+  ActivityType, DocKind, DocStatus, EoiStatus, FundingMode, LeadStatus, LeadType,
+  LoanStage, LocationType, Ownership, PaymentMilestone, PaymentMode, PaymentStatus,
+  PowerLoad, RejectionReason, Role, Source, Stage,
 } from "./constants";
-import type { ConfigItem, Quote } from "./pricing";
+import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
 /** Firestore returns Timestamp; freshly-written local docs may hold null. */
 export type TS = Timestamp | null;
@@ -15,7 +15,14 @@ export interface AppUser {
   email: string;
   name: string;
   phone?: string;
+  /**
+   * Primary role — the highest-ranked of `roles`. This is what gets written to
+   * the Firebase Auth custom claim and what the Firestore rules read, so it is
+   * kept as a single value even though a user may hold several roles.
+   */
   role: Role;
+  /** Every role this user holds. Capabilities are the union across them. */
+  roles?: Role[];
   /** Admin this agent reports to. */
   managerId?: string | null;
   region?: string | null;
@@ -24,6 +31,75 @@ export interface AppUser {
   createdAt: TS;
   createdBy?: string | null;
   lastLoginAt?: TS;
+}
+
+/** Bank funding, tracked alongside the sales pipeline rather than inside it. */
+export interface FinancingInfo {
+  mode: FundingMode;
+  bank?: string;
+  branch?: string;
+  /** Amount the investor is seeking or has been sanctioned. */
+  requestedAmount?: number | null;
+  sanctionedAmount?: number | null;
+  disbursedAmount?: number | null;
+  interestRate?: number | null;
+  tenureYears?: number | null;
+  emi?: number | null;
+  applicationNo?: string;
+  stage: LoanStage;
+  relationshipManager?: string;
+  rmPhone?: string;
+  appliedAt?: TS;
+  sanctionedAt?: TS;
+  disbursedAt?: TS;
+  note?: string;
+}
+
+/** A single row of the LOI's Participation Summary — fully editable. */
+export interface EoiScheduleRow {
+  id: string;
+  description: string;
+  /** Amount as it should print. GST may be included or shown separately. */
+  amount: number;
+}
+
+/**
+ * The Letter of Intent cum Expression of Interest. Generated from the lead's
+ * quotation, then editable — the real letters vary in tranche count, whether
+ * GST is broken out, and what equipment is bundled.
+ */
+export interface EoiDoc {
+  number: string;
+  status: EoiStatus;
+  issuedDate: TS;
+  /** Salutation title: Mr., Ms., M/s. */
+  salutation: string;
+  investorName: string;
+  investorAddress: string;
+  siteName: string;
+  capacityLabel: string;
+  extraEquipment?: string;
+  subject: string;
+  intro: string;
+  schedule: EoiScheduleRow[];
+  /** Shown under the schedule; normally the GST-inclusive grand total. */
+  totalAmount: number;
+  gstShownSeparately: boolean;
+  scopeItems: string[];
+  tenureYears: number;
+  payoutMonths: number;
+  minMonthlyPayout: number;
+  maxAggregateSupport: number;
+  /** Clause bodies after placeholder substitution, so an issued letter is frozen. */
+  clauses: { key: string; heading: string; body: string }[];
+  closing: string;
+  signatory: string;
+  createdAt: TS;
+  createdBy?: Actor;
+  updatedAt?: TS;
+  updatedBy?: Actor;
+  issuedBy?: Actor | null;
+  acceptedAt?: TS;
 }
 
 export interface Actor {
@@ -81,11 +157,28 @@ export interface Lead {
   sourceDetail?: string;
   /** Charger basket the client is interested in. */
   config: ConfigItem[];
+  /** Civil work, LT panel, DISCOM deposit and other non-charger lines. */
+  extras?: ExtraItem[];
   discount?: number;
+  /** Default charger manufacturer; individual lines may override it. */
+  oem?: string | null;
   /** Denormalised quote snapshot so lists/reports never recompute. */
-  quote?: Pick<Quote, "subtotal" | "discount" | "gst" | "grandTotal" | "totalKw" | "unitCount"> | null;
+  quote?:
+    | Pick<Quote, "subtotal" | "discount" | "gst" | "grandTotal" | "totalKw" | "unitCount" | "effectiveGstPct">
+    | null;
   /** Grand total incl. GST — the single number reports sort and sum on. */
   value: number;
+  financing?: FinancingInfo;
+  /** The generated Letter of Intent, once one exists. */
+  eoi?: EoiDoc | null;
+  /**
+   * Site ↔ franchise pairing. A landowner's site enquiry can be matched to the
+   * investor who will fund it, and vice versa, so both sides of a deal are
+   * reachable from either record.
+   */
+  linkedLeadId?: string | null;
+  linkedLeadCode?: string | null;
+  linkedLeadName?: string | null;
   site?: SiteInfo;
   ownerId: string;
   ownerName: string;

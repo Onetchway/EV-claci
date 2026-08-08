@@ -6,8 +6,8 @@
  */
 
 import {
-  LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, POWER_LOAD_LABEL, SOURCE_LABEL,
-  STAGE_META, STATUS_LABEL,
+  FUNDING_MODE_LABEL, LOAN_STAGE_LABEL, LOCATION_TYPE_LABEL, OWNERSHIP_LABEL,
+  POWER_LOAD_LABEL, SOURCE_LABEL, STAGE_META, STATUS_LABEL,
 } from "./constants";
 import { describeConfig } from "./pricing";
 import type { FieldChange } from "./types";
@@ -50,7 +50,18 @@ const TRACKED: { path: string; label: string; format?: Formatter }[] = [
   { path: "client.pan", label: "PAN" },
   { path: "client.gstin", label: "GSTIN" },
   { path: "config", label: "Charger configuration", format: (v) => describeConfig(v as never) },
+  { path: "extras", label: "Additional items", format: (v) =>
+      Array.isArray(v) && v.length
+        ? (v as { label: string; amount: number }[]).map((x) => `${x.label} ${formatINR(x.amount)}`).join(", ")
+        : "—" },
+  { path: "oem", label: "Charger OEM" },
   { path: "discount", label: "Discount", format: money },
+  { path: "financing.mode", label: "Funding mode", format: lookup(FUNDING_MODE_LABEL as Record<string, string>) },
+  { path: "financing.bank", label: "Bank" },
+  { path: "financing.stage", label: "Loan stage", format: lookup(LOAN_STAGE_LABEL as Record<string, string>) },
+  { path: "financing.sanctionedAmount", label: "Sanctioned amount", format: money },
+  { path: "financing.disbursedAmount", label: "Disbursed amount", format: money },
+  { path: "linkedLeadCode", label: "Linked lead" },
   { path: "value", label: "Total value (incl. GST)", format: money },
   { path: "site.locationName", label: "Location name" },
   { path: "site.mapsLink", label: "Google Maps link" },

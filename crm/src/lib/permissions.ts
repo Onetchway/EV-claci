@@ -1,56 +1,124 @@
-import { ROLE_RANK, type Role } from "./constants";
+import { ORG_WIDE_ROLES, ROLE_RANK, type Role } from "./constants";
 import type { Lead } from "./types";
+
+/**
+ * Capability-based access control.
+ *
+ * A user may hold several roles — a sales manager who also handles finance,
+ * say — and their abilities are the union across all of them. Rank still
+ * exists, but only for the two things that are genuinely hierarchical:
+ * who may grant a role, and who the Firestore rules treat as an admin.
+ */
 
 export interface Viewer {
   uid: string;
+  /** Primary (highest-ranked) role — what the auth token carries. */
   role: Role;
+  /** Every role held. Defaults to `[role]` when absent. */
+  roles?: Role[];
+}
+
+export function rolesOf(viewer: Viewer): Role[] {
+  const list = viewer.roles?.length ? viewer.roles : [viewer.role];
+  return list.filter(Boolean);
+}
+
+export function hasRole(viewer: Viewer, ...roles: Role[]): boolean {
+  const mine = rolesOf(viewer);
+  return roles.some((r) => mine.includes(r));
+}
+
+/** Highest rank across every role held. */
+export function topRank(viewer: Viewer): number {
+  return Math.max(...rolesOf(viewer).map((r) => ROLE_RANK[r] ?? 0));
 }
 
 export const isAdmin = (role: Role) => ROLE_RANK[role] >= ROLE_RANK.ADMIN;
 export const isSuperAdmin = (role: Role) => role === "SUPER_ADMIN";
 
-/** Agents only ever see their own book; admins see everything. */
-export const canSeeAllLeads = (role: Role) => isAdmin(role);
+export const viewerIsAdmin = (viewer: Viewer) => hasRole(viewer, "ADMIN", "SUPER_ADMIN");
+
+/** Agents see only their own book; every other role sees the organisation. */
+export function canSeeAllLeads(roleOrViewer: Role | Viewer): boolean {
+  if (typeof roleOrViewer === "string") return ORG_WIDE_ROLES.includes(roleOrViewer);
+  return rolesOf(roleOrViewer).some((r) => ORG_WIDE_ROLES.includes(r));
+}
+
+/** Roles that may create and edit lead records at all. */
+const WRITE_ROLES: Role[] = ["SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "AGENT", "OPERATIONS"];
+
+export const canCreateLead = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES);
 
 export function canViewLead(viewer: Viewer, lead: Pick<Lead, "ownerId">): boolean {
-  return canSeeAllLeads(viewer.role) || lead.ownerId === viewer.uid;
+  return canSeeAllLeads(viewer) || lead.ownerId === viewer.uid;
 }
 
 export function canEditLead(viewer: Viewer, lead: Pick<Lead, "ownerId" | "status">): boolean {
-  if (isAdmin(viewer.role)) return true;
-  // An agent can work their own lead, but a rejected one is frozen until an
+  if (!hasRole(viewer, ...WRITE_ROLES)) return false;
+  if (hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER")) return true;
+  // An agent works their own leads, but a rejected one is frozen until an
   // admin reopens it — otherwise rejection stats can be quietly rewritten.
   return lead.ownerId === viewer.uid && lead.status !== "REJECTED";
 }
 
-/** Reassigning a lead to a different agent is an admin action. */
-export const canReassign = (viewer: Viewer) => isAdmin(viewer.role);
+export const canReassign = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
 
-/** Only admins confirm money actually landed. */
-export const canVerifyPayment = (viewer: Viewer) => isAdmin(viewer.role);
+/** Only finance and admins confirm money actually landed. */
+export const canVerifyPayment = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");
 
-export const canDeletePayment = (viewer: Viewer) => isAdmin(viewer.role);
+export const canDeletePayment = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN");
 
-export const canVerifyDocument = (viewer: Viewer) => isAdmin(viewer.role);
+export const canVerifyDocument = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "FINANCE");
 
-export function canDeleteDocument(viewer: Viewer, doc: { uploadedBy: { uid: string }; status: string }): boolean {
-  if (isAdmin(viewer.role)) return true;
+export function canDeleteDocument(
+  viewer: Viewer,
+  doc: { uploadedBy: { uid: string }; status: string },
+): boolean {
+  if (viewerIsAdmin(viewer)) return true;
   return doc.uploadedBy.uid === viewer.uid && doc.status === "PENDING";
 }
 
-export const canManageUsers = (viewer: Viewer) => isAdmin(viewer.role);
+export const canManageUsers = (viewer: Viewer) => viewerIsAdmin(viewer);
 
 /** Only a super admin may create or demote another admin. */
 export function canAssignRole(viewer: Viewer, target: Role): boolean {
-  if (isSuperAdmin(viewer.role)) return true;
-  return viewer.role === "ADMIN" && target === "AGENT";
+  if (hasRole(viewer, "SUPER_ADMIN")) return true;
+  if (!hasRole(viewer, "ADMIN")) return false;
+  // An admin may hand out anything below admin, but not admin itself.
+  return ROLE_RANK[target] < ROLE_RANK.ADMIN;
 }
 
-export const canViewAuditLog = (viewer: Viewer) => isAdmin(viewer.role);
+export const canViewAuditLog = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "FINANCE");
 
-export const canExport = (viewer: Viewer) => isAdmin(viewer.role);
+export const canExport = (viewer: Viewer) => canSeeAllLeads(viewer);
 
-export const canApplyDiscount = (viewer: Viewer) => isAdmin(viewer.role);
+/** Changing the money on a quotation is a commercial decision, not a clerical one. */
+export const canApplyDiscount = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
 
-/** Reopening a rejected lead restores it to the pipeline. Admins only. */
-export const canReopenLead = (viewer: Viewer) => isAdmin(viewer.role);
+export const canOverridePrice = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+
+export const canReopenLead = (viewer: Viewer) => viewerIsAdmin(viewer);
+
+// ---------------------------------------------------------------------------
+// EOI / Letter of Intent
+// ---------------------------------------------------------------------------
+
+/** Anyone who can edit the lead can draft the letter. */
+export function canDraftEoi(viewer: Viewer, lead: Pick<Lead, "ownerId" | "status">): boolean {
+  return canEditLead(viewer, lead);
+}
+
+/** Issuing a letter commits the company commercially — a narrower group. */
+export const canIssueEoi = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "FINANCE");
+
+export const canEditFinancing = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "FINANCE", "AGENT");
+
+/** Pairing a site enquiry with the investor who will fund it. */
+export const canLinkLeads = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");

@@ -4,14 +4,16 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Copy, KeyRound, Plus, ShieldCheck, UserPlus } from "lucide-react";
 
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Avatar, Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader,
   Select, Spinner, StatCard, useAsyncAction, useToast,
 } from "@/components/ui";
 import { useLeads } from "@/hooks/use-leads";
 import { agentPerformance } from "@/lib/analytics";
-import { INDIAN_STATES, ROLES, ROLE_LABEL, type Role } from "@/lib/constants";
+import {
+  INDIAN_STATES, ROLES, ROLE_HINT, ROLE_LABEL, ROLE_RANK, type Role,
+} from "@/lib/constants";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { canAssignRole, isAdmin, isSuperAdmin } from "@/lib/permissions";
@@ -21,8 +23,18 @@ import { formatCompactINR, formatDate } from "@/lib/utils";
 const ROLE_STYLE: Record<Role, string> = {
   SUPER_ADMIN: "bg-violet-100 text-violet-800 ring-violet-200",
   ADMIN: "bg-sky-100 text-sky-800 ring-sky-200",
+  SALES_MANAGER: "bg-indigo-100 text-indigo-800 ring-indigo-200",
   AGENT: "bg-ink-100 text-ink-700 ring-ink-200",
+  FINANCE: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  OPERATIONS: "bg-amber-100 text-amber-800 ring-amber-200",
+  VIEWER: "bg-slate-100 text-slate-600 ring-slate-200",
 };
+
+/** Every role a user holds, primary first. */
+function rolesFor(u: AppUser): Role[] {
+  const list = u.roles?.length ? u.roles : [u.role];
+  return [...new Set(list)].sort((a, b) => ROLE_RANK[b] - ROLE_RANK[a]);
+}
 
 async function authedFetch(path: string, init: RequestInit) {
   const current = getFirebaseAuth().currentUser;
@@ -49,7 +61,7 @@ export default function UsersPage() {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    name: "", email: "", phone: "", role: "AGENT" as Role, region: "", password: "",
+    name: "", email: "", phone: "", roles: ["AGENT"] as Role[], region: "", password: "",
   });
 
   const { leads } = useLeads(useMemo(() => ({ max: 500 }), []));
@@ -60,7 +72,7 @@ export default function UsersPage() {
     return subscribeUsers((rows) => { setUsers(rows); setLoading(false); }, () => setLoading(false));
   }, [role]);
 
-  const viewer = { uid: profile?.uid ?? "", role: role ?? ("AGENT" as const) };
+  const viewer = useViewer();
 
   if (role && !isAdmin(role)) {
     return (
@@ -82,13 +94,13 @@ export default function UsersPage() {
         name: form.name.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
-        role: form.role,
+        roles: form.roles,
         region: form.region || null,
         password: form.password || undefined,
       }),
     });
     setCreateOpen(false);
-    setForm({ name: "", email: "", phone: "", role: "AGENT", region: "", password: "" });
+    setForm({ name: "", email: "", phone: "", roles: ["AGENT"], region: "", password: "" });
     if (body.temporaryPassword) setTempPassword(body.temporaryPassword);
   }
 
@@ -99,8 +111,8 @@ export default function UsersPage() {
   const counts = {
     total: users.length,
     active: users.filter((u) => u.active).length,
-    admins: users.filter((u) => u.role !== "AGENT").length,
-    agents: users.filter((u) => u.role === "AGENT").length,
+    admins: users.filter((u) => ROLE_RANK[u.role] >= ROLE_RANK.ADMIN).length,
+    agents: users.filter((u) => rolesFor(u).includes("AGENT")).length,
   };
 
   return (
@@ -157,10 +169,14 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="td">
-                        <Badge className={ROLE_STYLE[u.role]}>
-                          {u.role !== "AGENT" && <ShieldCheck className="h-3 w-3" />}
-                          {ROLE_LABEL[u.role]}
-                        </Badge>
+                        <span className="flex flex-wrap gap-1">
+                          {rolesFor(u).map((r) => (
+                            <Badge key={r} className={ROLE_STYLE[r]}>
+                              {ROLE_RANK[r] >= ROLE_RANK.ADMIN && <ShieldCheck className="h-3 w-3" />}
+                              {ROLE_LABEL[r]}
+                            </Badge>
+                          ))}
+                        </span>
                       </td>
                       <td className="td text-ink-600">{u.phone || "—"}</td>
                       <td className="td text-ink-600">{u.region || "—"}</td>
@@ -215,11 +231,16 @@ export default function UsersPage() {
           <Field label="Phone">
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </Field>
-          <Field label="Role" required>
-            <Select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
-              options={assignableRoles.map((r) => ({ value: r, label: ROLE_LABEL[r] }))}
+          <Field
+            label="Roles"
+            required
+            className="sm:col-span-2"
+            hint="A user may hold several. Their abilities are the union of all of them."
+          >
+            <RolePicker
+              value={form.roles}
+              options={assignableRoles}
+              onChange={(roles) => setForm({ ...form, roles })}
             />
           </Field>
           <Field label="Region">
@@ -244,17 +265,19 @@ export default function UsersPage() {
       >
         {editing && (
           <div className="space-y-4">
-            <Field label="Role">
-              <Select
-                value={editing.role}
+            <Field label="Roles" hint="Abilities are the union of every role selected.">
+              <RolePicker
+                value={rolesFor(editing)}
+                options={ROLES.filter((r) => canAssignRole(viewer, r))}
                 disabled={!canAssignRole(viewer, editing.role)}
-                onChange={(e) =>
+                onChange={(roles) =>
                   void run(async () => {
-                    await patchUser(editing.uid, { role: e.target.value });
-                    setEditing({ ...editing, role: e.target.value as Role });
-                  }, "Role updated.")
+                    if (!roles.length) throw new Error("A user needs at least one role.");
+                    await patchUser(editing.uid, { roles });
+                    const primary = [...roles].sort((a, b) => ROLE_RANK[b] - ROLE_RANK[a])[0]!;
+                    setEditing({ ...editing, roles, role: primary });
+                  }, "Roles updated.")
                 }
-                options={ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))}
               />
             </Field>
 
@@ -340,5 +363,45 @@ export default function UsersPage() {
         </div>
       </Modal>
     </>
+  );
+}
+
+/** Multi-select role chips. Used for both creating and editing a user. */
+function RolePicker({
+  value, options, onChange, disabled,
+}: {
+  value: Role[];
+  options: readonly Role[];
+  onChange: (next: Role[]) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      {options.map((r) => {
+        const on = value.includes(r);
+        return (
+          <label
+            key={r}
+            className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 transition ${
+              on ? "border-brand-500 bg-brand-50" : "border-ink-200 hover:bg-ink-50"
+            } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+          >
+            <input
+              type="checkbox"
+              checked={on}
+              disabled={disabled}
+              onChange={(e) =>
+                onChange(e.target.checked ? [...value, r] : value.filter((x) => x !== r))
+              }
+              className="mt-0.5 h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-ink-900">{ROLE_LABEL[r]}</span>
+              <span className="block text-xs text-ink-500">{ROLE_HINT[r]}</span>
+            </span>
+          </label>
+        );
+      })}
+    </div>
   );
 }

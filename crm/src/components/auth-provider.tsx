@@ -13,13 +13,19 @@ import { doc, onSnapshot } from "firebase/firestore";
 import type { Role } from "@/lib/constants";
 import { firebaseConfigured, getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { ensureProfile, touchLastLogin, USERS } from "@/lib/db/users";
+import type { Viewer } from "@/lib/permissions";
 import type { Actor, AppUser } from "@/lib/types";
 
 interface AuthState {
   loading: boolean;
   user: User | null;
   profile: AppUser | null;
+  /** Primary (highest-ranked) role. */
   role: Role | null;
+  /** Every role held — capabilities are the union across them. */
+  roles: Role[];
+  /** Ready-made subject for permission checks. */
+  viewer: Viewer | null;
   actor: Actor | null;
   configured: boolean;
   error: string | null;
@@ -118,11 +124,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile && profile.active
         ? { uid: profile.uid, name: profile.name, role: profile.role }
         : null;
+    const roles: Role[] = profile
+      ? profile.roles?.length
+        ? profile.roles
+        : [profile.role]
+      : [];
+
     return {
       loading,
       user,
       profile,
       role: profile?.role ?? null,
+      roles,
+      viewer: profile ? { uid: profile.uid, role: profile.role, roles } : null,
       actor,
       configured: firebaseConfigured,
       error,
@@ -140,6 +154,12 @@ export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>.");
   return ctx;
+}
+
+/** Permission subject for the signed-in user. Safe before the profile loads. */
+export function useViewer(): Viewer {
+  const { viewer } = useAuth();
+  return viewer ?? { uid: "", role: "VIEWER", roles: ["VIEWER"] };
 }
 
 /** Convenience for pages that are already behind the authenticated shell. */

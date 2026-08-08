@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AlertTriangle, GripVertical, Plus } from "lucide-react";
 
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   LeadFilterBar, emptyFilters, type FilterState,
 } from "@/components/lead-filters";
@@ -156,7 +156,7 @@ export default function PipelinePage() {
     return map;
   }, [rows]);
 
-  const viewer = { uid: profile?.uid ?? "", role: role ?? ("AGENT" as const) };
+  const viewer = useViewer();
 
   function onDragStart(e: DragStartEvent) {
     setDragging((e.active.data.current?.lead as Lead) ?? null);

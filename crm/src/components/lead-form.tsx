@@ -11,14 +11,16 @@ import {
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
 import {
-  INDIAN_STATES, LEAD_TYPES, LEAD_TYPE_LABEL, LOCATION_TYPES, LOCATION_TYPE_LABEL,
-  OWNERSHIP_LABEL, OWNERSHIP_TYPES, POWER_LOADS, POWER_LOAD_LABEL, SOURCES, SOURCE_LABEL,
-  type LeadType, type LocationType, type Ownership, type PowerLoad, type Source,
+  BANKS, CHARGER_OEMS, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES, LEAD_TYPES,
+  LEAD_TYPE_LABEL, LOCATION_TYPES, LOCATION_TYPE_LABEL, OWNERSHIP_LABEL,
+  OWNERSHIP_TYPES, POWER_LOADS, POWER_LOAD_LABEL, SOURCES, SOURCE_LABEL,
+  type FundingMode, type LeadType, type LocationType, type Ownership,
+  type PowerLoad, type Source,
 } from "@/lib/constants";
-import { findLeadsByPhone } from "@/lib/db/leads";
-import { canApplyDiscount, canReassign } from "@/lib/permissions";
-import type { ConfigItem } from "@/lib/pricing";
-import type { ClientInfo, Lead, SiteInfo } from "@/lib/types";
+import { DEFAULT_FINANCING, findLeadsByPhone } from "@/lib/db/leads";
+import { canApplyDiscount, canOverridePrice, canReassign } from "@/lib/permissions";
+import type { ConfigItem, ExtraItem } from "@/lib/pricing";
+import type { ClientInfo, FinancingInfo, Lead, SiteInfo } from "@/lib/types";
 import {
   cn, isValidEmail, isValidPan, isValidPhone, normalisePhone, parseMapsLink, toDate,
 } from "@/lib/utils";
@@ -29,7 +31,10 @@ export interface LeadFormValues {
   source: Source;
   sourceDetail: string;
   config: ConfigItem[];
+  extras: ExtraItem[];
   discount: number;
+  oem: string | null;
+  financing: FinancingInfo;
   site: SiteInfo;
   tags: string[];
   nextFollowUpAt: Date | null;
@@ -44,7 +49,10 @@ const emptyValues = (ownerId: string, ownerName: string): LeadFormValues => ({
   source: "DIRECT_CALL",
   sourceDetail: "",
   config: [],
+  extras: [],
   discount: 0,
+  oem: null,
+  financing: { ...DEFAULT_FINANCING },
   site: { locationName: "", mapsLink: "", locationTypes: [], ownership: null, commercialModelInterested: false, powerLoad: null, sanctionedLoadKva: null, spaceAvailableSqft: null, nearbyLandmark: "", remarks: "" },
   tags: [],
   nextFollowUpAt: null,
@@ -65,7 +73,10 @@ export function leadToFormValues(lead: Lead): LeadFormValues {
     source: lead.source,
     sourceDetail: lead.sourceDetail ?? "",
     config: lead.config ?? [],
+    extras: lead.extras ?? [],
     discount: lead.discount ?? 0,
+    oem: lead.oem ?? null,
+    financing: lead.financing ?? { ...DEFAULT_FINANCING },
     site: {
       locationName: "", mapsLink: "", locationTypes: [], ownership: null,
       commercialModelInterested: false, powerLoad: null, sanctionedLoadKva: null,
@@ -450,15 +461,88 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
       )}
 
       <Card
+        title="Funding"
+        subtitle="Whether the investor is paying from their own funds or taking a loan."
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="Funding mode" required>
+            <Select
+              value={values.financing.mode}
+              onChange={(e) => {
+                const mode = e.target.value as FundingMode;
+                set("financing", {
+                  ...values.financing,
+                  mode,
+                  stage:
+                    mode === "SELF"
+                      ? "NOT_APPLICABLE"
+                      : values.financing.stage === "NOT_APPLICABLE"
+                        ? "ENQUIRY"
+                        : values.financing.stage,
+                });
+              }}
+              options={FUNDING_MODES.map((m) => ({ value: m, label: FUNDING_MODE_LABEL[m] }))}
+            />
+          </Field>
+
+          {values.financing.mode !== "SELF" && (
+            <>
+              <Field label="Bank / lender" hint="Full loan tracking lives on the lead's Financing tab.">
+                <Input
+                  list="lead-bank-list"
+                  value={values.financing.bank ?? ""}
+                  onChange={(e) => set("financing", { ...values.financing, bank: e.target.value })}
+                  placeholder="State Bank of India"
+                />
+                <datalist id="lead-bank-list">
+                  {BANKS.map((b) => <option key={b} value={b} />)}
+                </datalist>
+              </Field>
+              <Field label="Amount to be financed">
+                <Input
+                  type="number"
+                  min={0}
+                  step={10000}
+                  value={values.financing.requestedAmount ?? ""}
+                  onChange={(e) =>
+                    set("financing", {
+                      ...values.financing,
+                      requestedAmount: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                />
+              </Field>
+            </>
+          )}
+
+          <Field label="Default charger OEM" hint="Individual lines can override this.">
+            <Input
+              list="lead-oem-list"
+              value={values.oem ?? ""}
+              onChange={(e) => set("oem", e.target.value || null)}
+              placeholder="Manufacturer"
+            />
+            <datalist id="lead-oem-list">
+              {CHARGER_OEMS.map((o) => <option key={o} value={o} />)}
+            </datalist>
+          </Field>
+        </div>
+      </Card>
+
+      <Card
         title="Charger configuration & quotation"
-        subtitle="Drag chargers in — cost, GST and the payment schedule update automatically."
+        subtitle="Drag chargers in — cost, GST and the payment schedule update automatically. Prices and GST slabs are editable per line."
       >
         <ChargerConfigurator
           value={values.config}
           onChange={(c) => set("config", c)}
+          extras={values.extras}
+          onExtrasChange={(x) => set("extras", x)}
           discount={values.discount}
           onDiscountChange={(d) => set("discount", d)}
           allowDiscount={canApplyDiscount(viewer)}
+          allowPriceOverride={canOverridePrice(viewer)}
+          defaultOem={values.oem}
         />
       </Card>
 
