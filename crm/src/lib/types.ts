@@ -1,8 +1,10 @@
 import type { Timestamp } from "firebase/firestore";
 import type {
-  ActivityType, DocKind, DocStatus, EoiStatus, FundingMode, LeadStatus, LeadType,
-  LoanStage, LocationType, Ownership, PaymentMilestone, PaymentMode, PaymentStatus,
-  PowerLoad, RejectionReason, Role, Source, Stage,
+  ActivityType, ConnectionType, DiscomStage, DocKind, DocStatus, EoiStatus,
+  FundingMode, LandType, LeadStatus, LeadType, LoanStage, LocationType, Ownership,
+  OwnerType, PaymentMilestone, PaymentMode, PaymentStatus, PowerLoad,
+  ProjectOwnership, ProjectStage, ProjectStatus, RejectionReason, Role, Source,
+  Stage, TaskStatus, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -128,6 +130,10 @@ export interface SiteInfo {
   lat?: number | null;
   lng?: number | null;
   locationTypes?: LocationType[];
+  /** What kind of land it is — private, government, RWA and so on. */
+  landType?: LandType | null;
+  /** The legal character of the counterparty, which decides which KYC applies. */
+  ownerType?: OwnerType | null;
   ownership?: Ownership | null;
   commercialModelInterested?: boolean;
   powerLoad?: PowerLoad | null;
@@ -179,6 +185,9 @@ export interface Lead {
   linkedLeadId?: string | null;
   linkedLeadCode?: string | null;
   linkedLeadName?: string | null;
+  /** Set once a won lead has been converted into a delivery project. */
+  projectId?: string | null;
+  projectCode?: string | null;
   site?: SiteInfo;
   ownerId: string;
   ownerName: string;
@@ -268,4 +277,152 @@ export interface DashboardStat {
   value: string;
   sub?: string;
   tone?: "default" | "positive" | "negative" | "warn";
+}
+
+
+// ---------------------------------------------------------------------------
+// Projects — execution after a deal closes
+// ---------------------------------------------------------------------------
+
+export interface ProjectClient {
+  name: string;
+  phone: string;
+  email?: string;
+  company?: string;
+}
+
+export interface ProjectSite {
+  locationName: string;
+  address?: string;
+  city: string;
+  state?: string;
+  mapsLink?: string;
+  lat?: number | null;
+  lng?: number | null;
+  locationTypes?: LocationType[];
+  landType?: LandType | null;
+  ownerType?: OwnerType | null;
+  spaceAvailableSqft?: number | null;
+}
+
+/**
+ * One parallel strand of delivery. Civil can be finished while DISCOM is still
+ * pending, so each carries its own status, dates, vendor and progress rather
+ * than collapsing into a single project stage.
+ */
+export interface ProjectWorkstream {
+  key: Workstream;
+  label: string;
+  status: TaskStatus;
+  progressPct: number;
+  vendor?: string;
+  vendorPhone?: string;
+  plannedStart?: TS;
+  plannedEnd?: TS;
+  actualStart?: TS;
+  actualEnd?: TS;
+  cost?: number | null;
+  note?: string;
+}
+
+/** The electricity connection — usually the long pole on an EV project. */
+export interface DiscomInfo {
+  stage: DiscomStage;
+  connectionType?: ConnectionType | null;
+  sanctionedLoadKva?: number | null;
+  consumerNumber?: string;
+  applicationNo?: string;
+  demandNoteAmount?: number | null;
+  discomName?: string;
+  note?: string;
+  appliedAt?: TS;
+  energisedAt?: TS;
+}
+
+export interface Project {
+  id: string;
+  code: string;
+  ownership: ProjectOwnership;
+  name: string;
+  stage: ProjectStage;
+  status: ProjectStatus;
+  /** Absent on company-owned projects — there is no franchisee. */
+  client?: ProjectClient | null;
+  site: ProjectSite;
+  config: ConfigItem[];
+  extras?: ExtraItem[];
+  discount?: number;
+  /** Investment for a franchise; capital outlay for a COCO station. */
+  value: number;
+  totalKw: number;
+  unitCount: number;
+  capexBudget?: number | null;
+  capexSpent?: number | null;
+  workstreams: Record<Workstream, ProjectWorkstream>;
+  discom: DiscomInfo;
+  managerId: string;
+  managerName: string;
+  /** The won lead this was converted from, when there is one. */
+  sourceLeadId?: string | null;
+  sourceLeadCode?: string | null;
+  targetLiveAt?: TS;
+  liveAt?: TS;
+  note?: string;
+  createdAt: TS;
+  createdBy: Actor;
+  updatedAt: TS;
+  updatedBy?: Actor;
+  search?: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Application settings
+// ---------------------------------------------------------------------------
+
+/**
+ * Everything an admin can change without a developer. Stored as a single
+ * document so one read gives the whole configuration.
+ */
+export interface AppSettings {
+  company: {
+    legalName: string;
+    shortName: string;
+    address: string;
+    gstin: string;
+    cin: string;
+    email: string;
+    phone: string;
+    website: string;
+  };
+  bank: {
+    accountName: string;
+    bankName: string;
+    accountNumber: string;
+    ifsc: string;
+    branch: string;
+  };
+  loi: {
+    tenureYears: number;
+    payoutMonths: number;
+    signatory: string;
+    arbitrationSeat: string;
+    jurisdiction: string;
+    scopeItems: string[];
+    closing: string;
+  };
+  finance: {
+    defaultGstPct: number;
+    loanToValue: number;
+    defaultInterestRate: number;
+    defaultTenureYears: number;
+  };
+  /** Extra options appended to the built-in dropdowns. */
+  lists: {
+    chargerOems: string[];
+    banks: string[];
+    discoms: string[];
+    vendors: string[];
+  };
+  updatedAt?: TS;
+  updatedBy?: Actor;
 }

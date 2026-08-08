@@ -218,36 +218,139 @@ export const REJECTION_LABEL: Record<RejectionReason, string> = {
 
 export const LOCATION_TYPES = [
   "HIGHWAY",
+  "EXPRESSWAY",
   "RING_ROAD",
+  "TOLL_PLAZA",
+  "FUEL_PUMP",
+  "CNG_STATION",
   "HOTEL",
+  "RESORT",
   "RESTAURANT",
   "MALL",
-  "FUEL_PUMP",
+  "MARKET",
+  "SHOWROOM",
   "PARKING_LOT",
   "OFFICE_COMPLEX",
+  "IT_PARK",
+  "RWA",
   "RESIDENTIAL_SOCIETY",
+  "APARTMENT_COMPLEX",
+  "EMPTY_LAND",
+  "GOVERNMENT_LAND",
   "HOSPITAL",
-  "SHOWROOM",
-  "INDUSTRIAL",
+  "SCHOOL_COLLEGE",
+  "RELIGIOUS_PLACE",
+  "BUS_STAND",
   "BUS_DEPOT",
+  "RAILWAY_STATION",
+  "METRO_STATION",
+  "AIRPORT",
+  "WAREHOUSE",
+  "INDUSTRIAL",
+  "EV_HUB",
+  "FLEET_DEPOT",
   "OTHER",
 ] as const;
 export type LocationType = (typeof LOCATION_TYPES)[number];
 
 export const LOCATION_TYPE_LABEL: Record<LocationType, string> = {
-  HIGHWAY: "Highway",
+  HIGHWAY: "Highway (NH/SH)",
+  EXPRESSWAY: "Expressway",
   RING_ROAD: "Ring Road",
+  TOLL_PLAZA: "Toll Plaza",
+  FUEL_PUMP: "Petrol / Fuel Pump",
+  CNG_STATION: "CNG Station",
   HOTEL: "Hotel",
+  RESORT: "Resort / Wayside Amenity",
   RESTAURANT: "Restaurant / Dhaba",
   MALL: "Mall / Retail",
-  FUEL_PUMP: "Fuel Pump",
+  MARKET: "Market / High Street",
+  SHOWROOM: "Showroom",
   PARKING_LOT: "Parking Lot",
   OFFICE_COMPLEX: "Office Complex",
+  IT_PARK: "IT Park / SEZ",
+  RWA: "RWA / Gated Colony",
   RESIDENTIAL_SOCIETY: "Residential Society",
+  APARTMENT_COMPLEX: "Apartment Complex",
+  EMPTY_LAND: "Empty / Vacant Land",
+  GOVERNMENT_LAND: "Government Land",
   HOSPITAL: "Hospital",
-  SHOWROOM: "Showroom",
-  INDUSTRIAL: "Industrial Area",
+  SCHOOL_COLLEGE: "School / College",
+  RELIGIOUS_PLACE: "Temple / Religious Place",
+  BUS_STAND: "Bus Stand",
   BUS_DEPOT: "Bus / Truck Depot",
+  RAILWAY_STATION: "Railway Station",
+  METRO_STATION: "Metro Station",
+  AIRPORT: "Airport",
+  WAREHOUSE: "Warehouse / Logistics Park",
+  INDUSTRIAL: "Industrial Area",
+  EV_HUB: "Dedicated EV Hub",
+  FLEET_DEPOT: "Fleet / Aggregator Depot",
+  OTHER: "Other",
+};
+
+/**
+ * What kind of land it is. Distinct from who owns it — a private individual
+ * can hold a plot on leased government land, and the approval path differs.
+ */
+export const LAND_TYPES = [
+  "PRIVATE_LAND",
+  "GOVERNMENT_LAND",
+  "RWA_LAND",
+  "MUNICIPAL_LAND",
+  "NHAI_LAND",
+  "PSU_LAND",
+  "INDUSTRIAL_PLOT",
+  "COMMERCIAL_COMPLEX",
+  "AGRICULTURAL_CONVERTED",
+  "LEASED_LAND",
+  "OTHER",
+] as const;
+export type LandType = (typeof LAND_TYPES)[number];
+
+export const LAND_TYPE_LABEL: Record<LandType, string> = {
+  PRIVATE_LAND: "Private land",
+  GOVERNMENT_LAND: "Government land",
+  RWA_LAND: "RWA / society land",
+  MUNICIPAL_LAND: "Municipal corporation land",
+  NHAI_LAND: "NHAI / highway authority land",
+  PSU_LAND: "PSU land (IOCL, BPCL, HPCL…)",
+  INDUSTRIAL_PLOT: "Industrial plot",
+  COMMERCIAL_COMPLEX: "Commercial complex",
+  AGRICULTURAL_CONVERTED: "Agricultural (converted)",
+  LEASED_LAND: "Leased land",
+  OTHER: "Other",
+};
+
+/** The legal character of the counterparty — drives which KYC applies. */
+export const OWNER_TYPES = [
+  "INDIVIDUAL",
+  "PROPRIETORSHIP",
+  "PARTNERSHIP",
+  "LLP",
+  "PRIVATE_LIMITED",
+  "PUBLIC_LIMITED",
+  "RWA_SOCIETY",
+  "TRUST_NGO",
+  "GOVERNMENT_BODY",
+  "PSU",
+  "HUF",
+  "OTHER",
+] as const;
+export type OwnerType = (typeof OWNER_TYPES)[number];
+
+export const OWNER_TYPE_LABEL: Record<OwnerType, string> = {
+  INDIVIDUAL: "Individual",
+  PROPRIETORSHIP: "Sole Proprietorship",
+  PARTNERSHIP: "Partnership Firm",
+  LLP: "LLP",
+  PRIVATE_LIMITED: "Private Limited Company",
+  PUBLIC_LIMITED: "Public Limited Company",
+  RWA_SOCIETY: "RWA / Co-operative Society",
+  TRUST_NGO: "Trust / NGO",
+  GOVERNMENT_BODY: "Government Body",
+  PSU: "Public Sector Undertaking",
+  HUF: "HUF",
   OTHER: "Other",
 };
 
@@ -385,6 +488,14 @@ export const ACTIVITY_TYPES = [
   "EOI_CREATED",
   "EOI_UPDATED",
   "EOI_ISSUED",
+  "PROJECT_CREATED",
+  "PROJECT_UPDATED",
+  "PROJECT_STAGE_CHANGED",
+  "PROJECT_STATUS_CHANGED",
+  "WORKSTREAM_UPDATED",
+  "PROJECT_NOTE",
+  "IMPORTED",
+  "SETTINGS_UPDATED",
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
@@ -554,3 +665,235 @@ export const INDIAN_STATES = [
   "Nagaland", "Odisha", "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
   "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
 ] as const;
+
+// ---------------------------------------------------------------------------
+// Projects — execution after a deal closes
+// ---------------------------------------------------------------------------
+
+/**
+ * Who owns the station. A franchise project is funded by an investor and
+ * converted from a won lead; a COCO project is funded by Livanto itself.
+ * Everything downstream — civil work, DISCOM, commissioning — is identical,
+ * which is why they are one module with two ownership types rather than two
+ * parallel codebases that would drift apart.
+ */
+export const PROJECT_OWNERSHIPS = ["FRANCHISE", "COCO"] as const;
+export type ProjectOwnership = (typeof PROJECT_OWNERSHIPS)[number];
+
+export const PROJECT_OWNERSHIP_LABEL: Record<ProjectOwnership, string> = {
+  FRANCHISE: "Franchise (FOCO)",
+  COCO: "Company Owned, Company Operated",
+};
+
+export const PROJECT_OWNERSHIP_COLOR: Record<ProjectOwnership, string> = {
+  FRANCHISE: "bg-violet-100 text-violet-800 ring-violet-200",
+  COCO: "bg-teal-100 text-teal-800 ring-teal-200",
+};
+
+export const PROJECT_STAGES = [
+  "PLANNING",
+  "SITE_SURVEY",
+  "AGREEMENT_SIGNED",
+  "CIVIL_WORK",
+  "ELECTRICAL_WORK",
+  "DISCOM_SANCTION",
+  "CHARGER_INSTALLATION",
+  "TESTING_COMMISSIONING",
+  "LIVE",
+] as const;
+export type ProjectStage = (typeof PROJECT_STAGES)[number];
+
+export interface ProjectStageMeta {
+  key: ProjectStage;
+  label: string;
+  short: string;
+  hint: string;
+  color: string;
+  dot: string;
+}
+
+export const PROJECT_STAGE_META: Record<ProjectStage, ProjectStageMeta> = {
+  PLANNING: {
+    key: "PLANNING", label: "Planning", short: "Planning",
+    hint: "Project created, scope and budget being finalised.",
+    color: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-400",
+  },
+  SITE_SURVEY: {
+    key: "SITE_SURVEY", label: "Site Survey", short: "Survey",
+    hint: "Feasibility, load assessment and layout drawing.",
+    color: "bg-sky-100 text-sky-800 ring-sky-200", dot: "bg-sky-500",
+  },
+  AGREEMENT_SIGNED: {
+    key: "AGREEMENT_SIGNED", label: "Agreement Signed", short: "Agreement",
+    hint: "Site/tripartite agreement executed; work can begin.",
+    color: "bg-indigo-100 text-indigo-800 ring-indigo-200", dot: "bg-indigo-500",
+  },
+  CIVIL_WORK: {
+    key: "CIVIL_WORK", label: "Civil Work", short: "Civil",
+    hint: "Foundation, canopy, flooring and site development.",
+    color: "bg-amber-100 text-amber-800 ring-amber-200", dot: "bg-amber-500",
+  },
+  ELECTRICAL_WORK: {
+    key: "ELECTRICAL_WORK", label: "Electrical Work", short: "Electrical",
+    hint: "LT panel, cabling, earthing and metering.",
+    color: "bg-orange-100 text-orange-800 ring-orange-200", dot: "bg-orange-500",
+  },
+  DISCOM_SANCTION: {
+    key: "DISCOM_SANCTION", label: "DISCOM & Electrification", short: "DISCOM",
+    hint: "Load application, demand note, meter and energisation.",
+    color: "bg-yellow-100 text-yellow-800 ring-yellow-200", dot: "bg-yellow-500",
+  },
+  CHARGER_INSTALLATION: {
+    key: "CHARGER_INSTALLATION", label: "Charger Installation", short: "Install",
+    hint: "Charger delivered, mounted and wired.",
+    color: "bg-lime-100 text-lime-800 ring-lime-200", dot: "bg-lime-500",
+  },
+  TESTING_COMMISSIONING: {
+    key: "TESTING_COMMISSIONING", label: "Testing & Commissioning", short: "Testing",
+    hint: "CMS/OCPP onboarding, test charge and sign-off.",
+    color: "bg-cyan-100 text-cyan-800 ring-cyan-200", dot: "bg-cyan-500",
+  },
+  LIVE: {
+    key: "LIVE", label: "Live", short: "Live",
+    hint: "Station commissioned and open to the public.",
+    color: "bg-emerald-100 text-emerald-800 ring-emerald-200", dot: "bg-emerald-500",
+  },
+};
+
+export const PROJECT_STATUSES = ["ACTIVE", "ON_HOLD", "LIVE", "CANCELLED"] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
+  ACTIVE: "In progress",
+  ON_HOLD: "On hold",
+  LIVE: "Live",
+  CANCELLED: "Cancelled",
+};
+
+export const PROJECT_STATUS_COLOR: Record<ProjectStatus, string> = {
+  ACTIVE: "bg-sky-100 text-sky-800 ring-sky-200",
+  ON_HOLD: "bg-amber-100 text-amber-800 ring-amber-200",
+  LIVE: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
+/**
+ * Workstreams run in parallel, not in sequence — civil can be finished while
+ * DISCOM is still pending, and that is exactly the situation a single overall
+ * stage would hide. Each carries its own status, dates, vendor and progress.
+ */
+export const WORKSTREAMS = [
+  "SITE_READINESS",
+  "CIVIL",
+  "ELECTRICAL",
+  "DISCOM",
+  "CHARGER",
+  "NETWORK",
+  "BRANDING",
+  "SAFETY",
+] as const;
+export type Workstream = (typeof WORKSTREAMS)[number];
+
+export const WORKSTREAM_LABEL: Record<Workstream, string> = {
+  SITE_READINESS: "Site readiness & survey",
+  CIVIL: "Civil work",
+  ELECTRICAL: "Electrical work",
+  DISCOM: "DISCOM / electrification",
+  CHARGER: "Charger supply & installation",
+  NETWORK: "CMS / OCPP & connectivity",
+  BRANDING: "Signage & branding",
+  SAFETY: "Safety, earthing & compliance",
+};
+
+export const WORKSTREAM_HINT: Record<Workstream, string> = {
+  SITE_READINESS: "Feasibility, layout drawing, land levelling and access.",
+  CIVIL: "Foundation, canopy/shed, flooring, drainage.",
+  ELECTRICAL: "LT panel, cabling, earthing pits, metering panel.",
+  DISCOM: "Load application, demand note payment, meter and energisation.",
+  CHARGER: "Dispatch, delivery, mounting and wiring of the charger.",
+  NETWORK: "SIM/network, CMS onboarding, payment gateway, test transaction.",
+  BRANDING: "Canopy branding, totem, signage and floor marking.",
+  SAFETY: "Earthing values, fire extinguisher, safety signage, inspection.",
+};
+
+export const TASK_STATUSES = [
+  "NOT_STARTED",
+  "IN_PROGRESS",
+  "BLOCKED",
+  "DONE",
+  "NOT_APPLICABLE",
+] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  NOT_STARTED: "Not started",
+  IN_PROGRESS: "In progress",
+  BLOCKED: "Blocked",
+  DONE: "Done",
+  NOT_APPLICABLE: "Not applicable",
+};
+
+export const TASK_STATUS_COLOR: Record<TaskStatus, string> = {
+  NOT_STARTED: "bg-slate-100 text-slate-600 ring-slate-200",
+  IN_PROGRESS: "bg-sky-100 text-sky-800 ring-sky-200",
+  BLOCKED: "bg-rose-100 text-rose-800 ring-rose-200",
+  DONE: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  NOT_APPLICABLE: "bg-ink-100 text-ink-500 ring-ink-200",
+};
+
+/** DISCOM connection progress — the usual long pole on an EV project. */
+export const DISCOM_STAGES = [
+  "NOT_APPLIED",
+  "APPLIED",
+  "SITE_INSPECTION",
+  "DEMAND_NOTE",
+  "DEMAND_NOTE_PAID",
+  "METER_INSTALLED",
+  "ENERGISED",
+  "REJECTED",
+] as const;
+export type DiscomStage = (typeof DISCOM_STAGES)[number];
+
+export const DISCOM_STAGE_LABEL: Record<DiscomStage, string> = {
+  NOT_APPLIED: "Not applied",
+  APPLIED: "Application submitted",
+  SITE_INSPECTION: "Site inspection done",
+  DEMAND_NOTE: "Demand note received",
+  DEMAND_NOTE_PAID: "Demand note paid",
+  METER_INSTALLED: "Meter installed",
+  ENERGISED: "Energised",
+  REJECTED: "Rejected",
+};
+
+export const CONNECTION_TYPES = ["LT_3_PHASE", "LT_COMMERCIAL", "HT", "SOLAR_HYBRID"] as const;
+export type ConnectionType = (typeof CONNECTION_TYPES)[number];
+
+export const CONNECTION_TYPE_LABEL: Record<ConnectionType, string> = {
+  LT_3_PHASE: "LT — 3 Phase",
+  LT_COMMERCIAL: "LT — Commercial",
+  HT: "HT with transformer",
+  SOLAR_HYBRID: "Solar hybrid",
+};
+
+/** Who is doing the work on the ground. */
+export const VENDOR_KINDS = [
+  "CIVIL_CONTRACTOR",
+  "ELECTRICAL_CONTRACTOR",
+  "DISCOM_LIAISON",
+  "CHARGER_OEM",
+  "LOGISTICS",
+  "BRANDING",
+  "OTHER",
+] as const;
+export type VendorKind = (typeof VENDOR_KINDS)[number];
+
+export const VENDOR_KIND_LABEL: Record<VendorKind, string> = {
+  CIVIL_CONTRACTOR: "Civil contractor",
+  ELECTRICAL_CONTRACTOR: "Electrical contractor",
+  DISCOM_LIAISON: "DISCOM liaison",
+  CHARGER_OEM: "Charger OEM",
+  LOGISTICS: "Logistics / transport",
+  BRANDING: "Branding & signage",
+  OTHER: "Other",
+};
+

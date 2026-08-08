@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, FileClock, KanbanSquare, LayoutDashboard, LogOut, MapPin,
-  Menu, Package, ShieldCheck, Users, Users2, X, Zap,
+  BarChart3, Building2, FileClock, HardHat, KanbanSquare, Landmark,
+  LayoutDashboard, LogOut, MapPin, Menu, Package, Settings, ShieldCheck, Users,
+  Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -21,15 +22,39 @@ interface NavItem {
   adminOnly?: boolean;
 }
 
-const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
-  { href: "/leads", label: "Leads", icon: Users2 },
-  { href: "/sites", label: "Site Enquiries", icon: MapPin },
-  { href: "/catalog", label: "Charger Catalogue", icon: Package },
-  { href: "/agents", label: "Agent Performance", icon: BarChart3, adminOnly: true },
-  { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
-  { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Sales",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
+      { href: "/leads", label: "Leads", icon: Users2 },
+      { href: "/sites", label: "Site Enquiries", icon: MapPin },
+      { href: "/loans", label: "Loan Customers", icon: Landmark },
+    ],
+  },
+  {
+    label: "Delivery",
+    items: [
+      { href: "/projects", label: "Projects", icon: HardHat },
+      { href: "/projects?ownership=COCO", label: "Company Stations", icon: Building2 },
+      { href: "/catalog", label: "Charger Catalogue", icon: Package },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { href: "/agents", label: "Agent Performance", icon: BarChart3, adminOnly: true },
+      { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
+      { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+      { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
+    ],
+  },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -83,7 +108,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const items = NAV.filter((n) => !n.adminOnly || (role && isAdmin(role)));
+  const groups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((n) => !n.adminOnly || (role && isAdmin(role))),
+  })).filter((g) => g.items.length > 0);
 
   const sidebar = (
     <nav className="flex h-full flex-col">
@@ -97,27 +125,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      <ul className="flex-1 space-y-0.5 overflow-y-auto px-2 py-2">
-        {items.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
-          return (
-            <li key={href}>
-              <Link
-                href={href}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition",
-                  active
-                    ? "bg-brand-600 font-medium text-white"
-                    : "text-ink-300 hover:bg-ink-800 hover:text-white",
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="flex-1 overflow-y-auto px-2 py-2 scroll-thin">
+        <Suspense fallback={<div className="px-3 py-2 text-xs text-ink-500">Loading…</div>}>
+          <NavList groups={groups} />
+        </Suspense>
+      </div>
 
       <div className="border-t border-ink-800 p-3">
         <div className="flex items-center gap-2.5">
@@ -173,5 +185,54 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
+  );
+}
+
+/**
+ * The sidebar links.
+ *
+ * Split out because it reads the query string — "Company Stations" is
+ * `/projects?ownership=COCO`, so the active state has to compare the query as
+ * well as the path, and `useSearchParams` requires a Suspense boundary for
+ * Next to prerender the surrounding page.
+ */
+function NavList({ groups }: { groups: { label: string; items: NavItem[] }[] }) {
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+
+  return (
+    <>
+      {groups.map((group) => (
+        <div key={group.label} className="mb-3">
+          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-500">
+            {group.label}
+          </p>
+          <ul className="space-y-0.5">
+            {group.items.map(({ href, label, icon: Icon }) => {
+              const [path, queryString] = href.split("?");
+              const active =
+                (pathname === path || pathname.startsWith(`${path}/`)) &&
+                (queryString ?? "") === search;
+              return (
+                <li key={href}>
+                  <Link
+                    href={href}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition",
+                      active
+                        ? "bg-brand-600 font-medium text-white"
+                        : "text-ink-300 hover:bg-ink-800 hover:text-white",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </>
   );
 }

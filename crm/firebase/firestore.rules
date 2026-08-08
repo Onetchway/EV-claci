@@ -182,6 +182,39 @@ service cloud.firestore {
       }
     }
 
+    // --------------------------------------------------------------- projects
+
+    // Delivery records. Everyone in the org can see them — an agent needs to
+    // know how their customer's station is progressing — but only the roles
+    // that run delivery can change one.
+    match /projects/{projectId} {
+      allow read: if signedIn();
+
+      allow create: if canWriteLeads() && actorIsSelf('createdBy');
+
+      allow update: if canWriteLeads() && actorIsSelf('updatedBy');
+
+      allow delete: if isSuperAdmin();
+
+      match /documents/{documentId} {
+        allow read: if signedIn();
+        allow create: if canWriteLeads() && actorIsSelf('uploadedBy');
+        allow update: if canVerifyDocs()
+                      || (canWriteLeads() && request.resource.data.status == resource.data.status);
+        allow delete: if isAdmin();
+      }
+    }
+
+    // --------------------------------------------------------------- settings
+
+    // One document holding company details, bank account and LOI defaults.
+    // Readable by everyone signed in because the LOI generator needs it;
+    // writable only by admins.
+    match /settings/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // ------------------------------------------------------------- activities
 
     // The audit trail. Append-only by design: nothing in the application ever

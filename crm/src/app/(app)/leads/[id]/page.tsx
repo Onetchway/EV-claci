@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, ExternalLink, Mail, MapPin, Pencil, Phone, RotateCcw, UserCog, XCircle,
+  ArrowLeft, ExternalLink, HardHat, Mail, MapPin, Pencil, Phone, RotateCcw,
+  UserCog, XCircle,
 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
@@ -21,14 +22,18 @@ import {
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
 import {
-  LEAD_TYPE_LABEL, LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, POWER_LOAD_LABEL,
+  LAND_TYPE_LABEL, LEAD_TYPE_LABEL, LOCATION_TYPE_LABEL, OWNERSHIP_LABEL,
+  OWNER_TYPE_LABEL, POWER_LOAD_LABEL,
   REJECTION_LABEL, REJECTION_REASONS, SOURCE_LABEL, STAGE_META, STATUS_COLOR,
   STATUS_LABEL, type RejectionReason,
 } from "@/lib/constants";
 import {
   reassignLead, reopenLead, subscribeLead, rejectLead, updateLead,
 } from "@/lib/db/leads";
-import { canEditLead, canReassign, canReopenLead, canViewLead } from "@/lib/permissions";
+import { convertLeadToProject } from "@/lib/db/projects";
+import {
+  canCreateLead, canEditLead, canReassign, canReopenLead, canViewLead,
+} from "@/lib/permissions";
 import { buildQuote, describeConfig } from "@/lib/pricing";
 import type { Lead } from "@/lib/types";
 import { cn, formatDate, formatDateTime, formatINR, formatNumber } from "@/lib/utils";
@@ -180,6 +185,25 @@ export default function LeadDetailPage() {
                 <UserCog className="h-4 w-4" /> Reassign
               </Button>
             )}
+            {lead.status === "WON" && !lead.projectId && canCreateLead(viewer) && (
+              <Button
+                variant="primary"
+                loading={busy}
+                onClick={() =>
+                  void run(async () => {
+                    const project = await convertLeadToProject(lead, actor!);
+                    router.push(`/projects/${project.id}`);
+                  }, "Project created.")
+                }
+              >
+                <HardHat className="h-4 w-4" /> Convert to project
+              </Button>
+            )}
+            {lead.projectId && (
+              <Link href={`/projects/${lead.projectId}`}>
+                <Button><HardHat className="h-4 w-4" /> Open project {lead.projectCode}</Button>
+              </Link>
+            )}
             {lead.status === "REJECTED" ? (
               canReopenLead(viewer) && (
                 <Button variant="primary" onClick={() => void run(() => reopenLead(lead, actor!), "Lead reopened.")} loading={busy}>
@@ -312,6 +336,8 @@ export default function LeadDetailPage() {
                   label="Location type"
                   value={(lead.site?.locationTypes ?? []).map((t) => LOCATION_TYPE_LABEL[t]).join(", ") || "—"}
                 />
+                <Detail label="Land type" value={lead.site?.landType ? LAND_TYPE_LABEL[lead.site.landType] : "—"} />
+                <Detail label="Owner type" value={lead.site?.ownerType ? OWNER_TYPE_LABEL[lead.site.ownerType] : "—"} />
                 <Detail label="Property owner" value={lead.site?.ownership ? OWNERSHIP_LABEL[lead.site.ownership] : "—"} />
                 <Detail label="Commercial model" value={lead.site?.commercialModelInterested ? "Yes" : "No"} />
                 <Detail label="Power load" value={lead.site?.powerLoad ? POWER_LOAD_LABEL[lead.site.powerLoad] : "—"} />

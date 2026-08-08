@@ -11,11 +11,12 @@ import {
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
 import {
-  BANKS, CHARGER_OEMS, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES, LEAD_TYPES,
-  LEAD_TYPE_LABEL, LOCATION_TYPES, LOCATION_TYPE_LABEL, OWNERSHIP_LABEL,
-  OWNERSHIP_TYPES, POWER_LOADS, POWER_LOAD_LABEL, SOURCES, SOURCE_LABEL,
-  type FundingMode, type LeadType, type LocationType, type Ownership,
-  type PowerLoad, type Source,
+  BANKS, CHARGER_OEMS, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES,
+  LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL, LOCATION_TYPES,
+  LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNERSHIP_TYPES, OWNER_TYPES,
+  OWNER_TYPE_LABEL, POWER_LOADS, POWER_LOAD_LABEL, SOURCES, SOURCE_LABEL,
+  type FundingMode, type LandType, type LeadType, type LocationType,
+  type Ownership, type OwnerType, type PowerLoad, type Source,
 } from "@/lib/constants";
 import { DEFAULT_FINANCING, findLeadsByPhone } from "@/lib/db/leads";
 import { canApplyDiscount, canOverridePrice, canReassign } from "@/lib/permissions";
@@ -388,6 +389,24 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 value={values.site.ownership ?? ""}
                 onChange={(e) => setSite({ ownership: (e.target.value || null) as Ownership | null })}
                 options={OWNERSHIP_TYPES.map((o) => ({ value: o, label: OWNERSHIP_LABEL[o] }))}
+              />
+            </Field>
+
+            <Field label="Land type" hint="Private, government and RWA land follow different approval paths.">
+              <Select
+                placeholder="Select"
+                value={values.site.landType ?? ""}
+                onChange={(e) => setSite({ landType: (e.target.value || null) as LandType | null })}
+                options={LAND_TYPES.map((l) => ({ value: l, label: LAND_TYPE_LABEL[l] }))}
+              />
+            </Field>
+
+            <Field label="Owner type" hint="Decides which KYC documents apply.">
+              <Select
+                placeholder="Select"
+                value={values.site.ownerType ?? ""}
+                onChange={(e) => setSite({ ownerType: (e.target.value || null) as OwnerType | null })}
+                options={OWNER_TYPES.map((o) => ({ value: o, label: OWNER_TYPE_LABEL[o] }))}
               />
             </Field>
             <Field label="Power load available">

@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Download } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 
 import { useAuth } from "@/components/auth-provider";
+import { ExportButton } from "@/components/data-transfer";
 import {
   Avatar, Button, Card, EmptyState, Input, PageHeader, ProgressBar, Select,
   Spinner, StatCard,
@@ -15,8 +15,9 @@ import {
 import { useLeads } from "@/hooks/use-leads";
 import { agentPerformance, computeTotals, sourceBreakdown } from "@/lib/analytics";
 import { STAGES, STAGE_META } from "@/lib/constants";
+import { AGENT_COLUMNS } from "@/lib/exports";
 import { isAdmin } from "@/lib/permissions";
-import { downloadCsv, formatCompactINR, formatINR, toDate } from "@/lib/utils";
+import { formatCompactINR, formatINR, toDate } from "@/lib/utils";
 
 type Range = "30" | "90" | "365" | "ALL";
 
@@ -63,16 +64,6 @@ export default function AgentsPage() {
     );
   }
 
-  function exportCsv() {
-    downloadCsv(`livanto-agent-performance-${new Date().toISOString().slice(0, 10)}.csv`, [
-      ["Agent", "Total leads", "Active", "Won", "Rejected", "Conversion %",
-        "Pipeline value", "Closed value", "Collected", "Overdue follow-ups", "Avg cycle (days)"],
-      ...perf.map((a) => [
-        a.ownerName, a.total, a.active, a.won, a.rejected, a.conversionPct,
-        a.pipelineValue, a.wonValue, a.collected, a.overdue, a.avgCycleDays ?? "",
-      ]),
-    ]);
-  }
 
   const best = perf[0];
 
@@ -94,9 +85,12 @@ export default function AgentsPage() {
                 { value: "ALL", label: "All time" },
               ]}
             />
-            <Button onClick={exportCsv} disabled={!perf.length}>
-              <Download className="h-4 w-4" /> Export
-            </Button>
+            <ExportButton
+              filename="livanto-agent-performance"
+              sheetName="Agents"
+              columns={AGENT_COLUMNS}
+              rows={perf}
+            />
           </>
         }
       />

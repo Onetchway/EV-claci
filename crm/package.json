@@ -19,6 +19,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "exceljs": "^4.4.0",
     "firebase": "^10.13.0",
     "firebase-admin": "^12.4.0",
     "lucide-react": "^0.441.0",

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { Download, Plus, Users2 } from "lucide-react";
+import { Plus, Users2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -15,14 +15,17 @@ import {
 import { useLeads } from "@/hooks/use-leads";
 import { computeTotals } from "@/lib/analytics";
 import {
-  REJECTION_LABEL, SOURCE_LABEL, STAGE_META, STATUS_COLOR, STATUS_LABEL,
+  SOURCE_LABEL, STAGE_META, STATUS_COLOR, STATUS_LABEL,
   type LeadStatus, type LeadType, type Stage,
 } from "@/lib/constants";
-import { applyClientFilters } from "@/lib/db/leads";
-import { canExport } from "@/lib/permissions";
+import { ExportButton, ImportButton } from "@/components/data-transfer";
+import { applyClientFilters, createLead, type LeadDraft } from "@/lib/db/leads";
+import { buildLeadDraft } from "@/lib/lead-import";
+import { LEAD_COLUMNS, LEAD_IMPORT_COLUMNS } from "@/lib/exports";
+import { canCreateLead, canExport } from "@/lib/permissions";
 import { describeConfig } from "@/lib/pricing";
 import type { Lead } from "@/lib/types";
-import { downloadCsv, formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
+import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
 type SortKey = "updatedAt" | "value" | "name" | "stage" | "createdAt";
 
@@ -72,7 +75,7 @@ function LeadRow({ lead }: { lead: Lead }) {
 
 function LeadsInner() {
   const params = useSearchParams();
-  const { role } = useAuth();
+  const { role, actor } = useAuth();
   const viewer = useViewer();
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
   const [expanded, setExpanded] = useState(false);
@@ -138,22 +141,6 @@ function LeadsInner() {
 
   const totals = useMemo(() => computeTotals(rows), [rows]);
 
-  function exportCsv() {
-    downloadCsv(`livanto-leads-${new Date().toISOString().slice(0, 10)}.csv`, [
-      ["Code", "Name", "Phone", "Email", "City", "State", "Type", "Stage", "Status",
-        "Source", "Configuration", "Total (incl GST)", "Collected", "Balance",
-        "Agent", "Next follow-up", "Created", "Rejection reason"],
-      ...rows.map((l) => [
-        l.code, l.client?.name ?? "", l.client?.phone ?? "", l.client?.email ?? "",
-        l.client?.city ?? "", l.client?.state ?? "",
-        l.type, STAGE_META[l.stage].label, STATUS_LABEL[l.status],
-        SOURCE_LABEL[l.source] ?? l.source, describeConfig(l.config),
-        l.value ?? 0, l.paidAmount ?? 0, Math.max(0, (l.value ?? 0) - (l.paidAmount ?? 0)),
-        l.ownerName, formatDate(l.nextFollowUpAt), formatDate(l.createdAt),
-        l.rejection ? REJECTION_LABEL[l.rejection.reason] : "",
-      ]),
-    ]);
-  }
 
   return (
     <>
@@ -163,9 +150,29 @@ function LeadsInner() {
         actions={
           <>
             {canExport(viewer) && (
-              <Button onClick={exportCsv} disabled={!rows.length}>
-                <Download className="h-4 w-4" /> Export CSV
-              </Button>
+              <ExportButton
+                filename="livanto-leads"
+                sheetName="Leads"
+                columns={LEAD_COLUMNS}
+                rows={rows}
+              />
+            )}
+            {canCreateLead(viewer) && actor && (
+              <ImportButton
+                title="Import leads"
+                templateName="livanto-leads"
+                columns={LEAD_IMPORT_COLUMNS}
+                buildRow={(get) => buildLeadDraft(get, actor)}
+                onCommit={async (drafts, onProgress) => {
+                  // Sequential on purpose: each lead takes a code from a
+                  // transactional counter, and hammering it in parallel just
+                  // makes them retry against each other.
+                  for (let i = 0; i < drafts.length; i++) {
+                    await createLead(drafts[i]!, actor);
+                    onProgress(i + 1);
+                  }
+                }}
+              />
             )}
             <Link href="/leads/new">
               <Button variant="primary"><Plus className="h-4 w-4" /> New lead</Button>
