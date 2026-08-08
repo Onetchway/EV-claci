@@ -17,7 +17,7 @@ import {
   renderTemplate,
 } from "./loi-template";
 import { buildQuote, describeCapacity } from "./pricing";
-import type { EoiDoc, EoiScheduleRow, Lead } from "./types";
+import type { AppSettings, EoiDoc, EoiScheduleRow, Lead } from "./types";
 import { formatINR } from "./utils";
 
 /** "Mr." / "Ms." drive the pronoun used in the Investor Confirmations clause. */
@@ -57,6 +57,8 @@ export interface BuildEoiOptions {
   tenureYears?: number;
   payoutMonths?: number;
   extraEquipment?: string;
+  /** Org settings from Settings → Company/Letter of Intent, when available. */
+  settings?: AppSettings;
 }
 
 export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
@@ -67,8 +69,12 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
 
   const capacityLabel = describeCapacity(lead.config) || "DC";
   const gstSeparate = opts.gstShownSeparately ?? true;
-  const tenureYears = opts.tenureYears ?? DEFAULT_TENURE_YEARS;
-  const payoutMonths = opts.payoutMonths ?? DEFAULT_PAYOUT_MONTHS;
+  const tenureYears = opts.tenureYears ?? opts.settings?.loi.tenureYears ?? DEFAULT_TENURE_YEARS;
+  const payoutMonths = opts.payoutMonths ?? opts.settings?.loi.payoutMonths ?? DEFAULT_PAYOUT_MONTHS;
+  const shortName = opts.settings?.company.shortName?.trim() || COMPANY.shortName;
+  const scopeItems = opts.settings?.loi.scopeItems?.length ? opts.settings.loi.scopeItems : DEFAULT_SCOPE_ITEMS;
+  const signatory = opts.settings?.loi.signatory?.trim() || COMPANY.signatory;
+  const closing = opts.settings?.loi.closing?.trim() || DEFAULT_CLOSING;
 
   const siteName =
     lead.site?.locationName?.trim() ||
@@ -100,7 +106,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
   const pronoun = pronounFor(salutationFor(lead));
 
   const values: Record<string, string> = {
-    company: COMPANY.shortName,
+    company: shortName,
     investorName: lead.client?.name ?? "",
     participationAmount: formatINR(quote.grandTotal),
     participationWords: amountInWords(quote.grandTotal),
@@ -129,7 +135,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     schedule,
     totalAmount: quote.grandTotal,
     gstShownSeparately: gstSeparate,
-    scopeItems: [...DEFAULT_SCOPE_ITEMS],
+    scopeItems: [...scopeItems],
     tenureYears,
     payoutMonths,
     minMonthlyPayout,
@@ -139,8 +145,8 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
       heading: c.heading,
       body: renderTemplate(c.body, values),
     })),
-    closing: DEFAULT_CLOSING,
-    signatory: COMPANY.signatory,
+    closing,
+    signatory,
     createdAt: null,
     updatedAt: null,
   };

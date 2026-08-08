@@ -31,6 +31,8 @@ export interface LogInput {
   changes?: FieldChange[];
   actor: Actor;
   followUpAt?: Date | null;
+  /** UIDs of teammates @mentioned in `message`. */
+  mentions?: string[];
 }
 
 export async function logActivity(input: LogInput): Promise<void> {
@@ -46,6 +48,7 @@ export async function logActivity(input: LogInput): Promise<void> {
     actor: input.actor,
     at: serverTimestamp(),
     followUpAt: input.followUpAt ?? null,
+    mentions: input.mentions ?? [],
   });
 }
 

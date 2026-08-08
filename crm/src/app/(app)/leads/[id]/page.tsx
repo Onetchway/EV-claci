@@ -31,6 +31,7 @@ import {
   reassignLead, reopenLead, subscribeLead, rejectLead, updateLead,
 } from "@/lib/db/leads";
 import { convertLeadToProject } from "@/lib/db/projects";
+import { notifyAssigned } from "@/lib/db/notifications";
 import {
   canCreateLead, canEditLead, canReassign, canReopenLead, canViewLead,
 } from "@/lib/permissions";
@@ -554,6 +555,16 @@ export default function LeadDetailPage() {
                   const u = users.find((x) => x.uid === newOwner);
                   if (!u) throw new Error("Choose an agent.");
                   await reassignLead(lead, u.uid, u.name, actor!);
+                  if (u.uid !== actor!.uid) {
+                    notifyAssigned({
+                      toEmail: u.email,
+                      agentName: u.name,
+                      leadCode: lead.code,
+                      leadName: lead.client?.name,
+                      actorName: actor!.name,
+                      leadId: lead.id,
+                    });
+                  }
                   setReassignOpen(false);
                 }, "Lead reassigned.")
               }

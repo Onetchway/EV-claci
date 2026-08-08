@@ -215,6 +215,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ------------------------------------------------------------------- mail
+
+    // Outbound email queue for the Firebase "Trigger Email" extension. Any
+    // signed-in user may queue a notification (assignment, @mention); nobody
+    // may read or edit one back — that's the extension's job, and it uses
+    // the Admin SDK, which bypasses these rules.
+    match /mail/{mailId} {
+      allow create: if signedIn();
+      allow read, update, delete: if false;
+    }
+
     // ------------------------------------------------------------- activities
 
     // The audit trail. Append-only by design: nothing in the application ever

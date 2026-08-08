@@ -631,12 +631,23 @@ export const EOI_STATUS_COLOR: Record<EoiStatus, string> = {
   SUPERSEDED: "bg-amber-100 text-amber-800 ring-amber-200",
 };
 
-/** Issuing entity. Appears on every generated Letter of Intent. */
+/**
+ * Issuing entity. Appears on every generated Letter of Intent. These are the
+ * compiled defaults a fresh project starts with — Settings → Company can
+ * override every field without a redeploy.
+ */
 export const COMPANY = {
   legalName: "Livanto Green Infra Private Limited",
   shortName: "Livanto",
   model: "Franchise-Owned, Company-Operated (“FOCO”)",
   signatory: "Team Livanto",
+  address: "413 Millennium Palace, Sushant Golf City, Lucknow, Uttar Pradesh, 226030",
+  gstin: "09AAGCL4761J1Z4",
+  cin: "U35100UP2025PTC232160",
+  email: "info@livantogreen.com",
+  phone: "",
+  website: "www.livantogreen.com",
+  logoUrl: "/logo.png",
   bank: {
     accountName: "Livanto Green Infra Private Limited",
     bankName: "Kotak Mahindra Bank",

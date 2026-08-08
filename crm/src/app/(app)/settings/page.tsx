@@ -207,7 +207,62 @@ export default function SettingsPage() {
                 onChange={(e) => set("company", { ...form.company, address: e.target.value })}
               />
             </Field>
+            <Field
+              label="Logo URL"
+              hint="A file under /public (e.g. /logo.png) or a full https:// link. Shown on the LOI letterhead."
+              className="sm:col-span-2 lg:col-span-3"
+            >
+              <div className="flex items-center gap-3">
+                <Input
+                  value={form.company.logoUrl}
+                  onChange={(e) => set("company", { ...form.company, logoUrl: e.target.value })}
+                  placeholder="/logo.png"
+                  className="flex-1"
+                />
+                {form.company.logoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={form.company.logoUrl}
+                    alt="Logo preview"
+                    className="h-10 w-auto rounded border border-ink-200 bg-white object-contain p-1"
+                    onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+                  />
+                )}
+              </div>
+            </Field>
           </div>
+        </Card>
+      )}
+
+      {tab === "Company" && (
+        <Card
+          title="Email notifications"
+          subtitle="Agent assignment and @mentions queue an email automatically — this is how they actually get sent."
+        >
+          <p className="text-sm leading-relaxed text-ink-700">
+            The CRM writes every notification to a <code className="rounded bg-ink-100 px-1 py-0.5 text-xs">mail</code>{" "}
+            collection in Firestore. To have those actually deliver, install the free{" "}
+            <strong>&ldquo;Trigger Email&rdquo;</strong> extension once from the Firebase Console:
+          </p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-ink-700">
+            <li>Firebase Console → your project → Extensions → Explore extensions → search &ldquo;Trigger Email&rdquo;.</li>
+            <li>Install it, and when asked for the Firestore collection, use <code className="rounded bg-ink-100 px-1 py-0.5 text-xs">mail</code>.</li>
+            <li>
+              Give it an SMTP connection — a Gmail account with an{" "}
+              <a
+                href="https://support.google.com/accounts/answer/185833"
+                target="_blank"
+                rel="noreferrer"
+                className="text-brand-700 underline"
+              >
+                app password
+              </a>{" "}
+              works, or a transactional sender like SendGrid/Resend for higher volume.
+            </li>
+          </ol>
+          <p className="mt-2 text-sm text-ink-500">
+            Until it&apos;s installed, notifications are queued silently — nothing breaks, emails just don&apos;t go out yet.
+          </p>
         </Card>
       )}
 

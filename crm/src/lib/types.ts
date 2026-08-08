@@ -270,6 +270,8 @@ export interface Activity {
   at: TS;
   /** Set on manual follow-up entries. */
   followUpAt?: TS;
+  /** UIDs of teammates @mentioned in `message`. */
+  mentions?: string[];
 }
 
 export interface DashboardStat {
@@ -393,6 +395,7 @@ export interface AppSettings {
     email: string;
     phone: string;
     website: string;
+    logoUrl: string;
   };
   bank: {
     accountName: string;

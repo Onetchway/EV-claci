@@ -1,16 +1,19 @@
 "use client";
 
 import {
-  ArrowRightLeft, CircleDot, FileSignature, FileText, IndianRupee, Landmark,
+  ArrowRightLeft, AtSign, CircleDot, FileSignature, FileText, IndianRupee, Landmark,
   Link2, MessageSquare, Phone, Plus, UserCheck, XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  Avatar, Button, Card, EmptyState, Field, Input, Select, Textarea, useAsyncAction,
+  Avatar, Button, Card, EmptyState, Field, Input, Select, useAsyncAction,
 } from "@/components/ui";
 import type { ActivityType } from "@/lib/constants";
 import { logActivity, subscribeLeadActivity } from "@/lib/db/activity";
+import { notifyMention } from "@/lib/db/notifications";
+import { subscribeUsers } from "@/lib/db/users";
+import { findMentions, splitMentions, type Mentionable } from "@/lib/mentions";
 import type { Activity, Actor, Lead } from "@/lib/types";
 import { formatDateTime, formatRelative } from "@/lib/utils";
 
@@ -67,6 +70,9 @@ export function ActivityPanel({
   const [type, setType] = useState<ActivityType>("NOTE");
   const [message, setMessage] = useState("");
   const [followUp, setFollowUp] = useState("");
+  const [users, setUsers] = useState<Mentionable[]>([]);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { busy, run } = useAsyncAction();
 
   useEffect(
@@ -80,9 +86,39 @@ export function ActivityPanel({
     [lead.id, lead.ownerId],
   );
 
+  useEffect(
+    () => subscribeUsers((rows) => setUsers(rows.map((u) => ({ uid: u.uid, name: u.name, email: u.email })))),
+    [],
+  );
+
+  // The word currently being typed, when it starts with "@" — drives the
+  // mention dropdown. Only looks at the fragment right before the cursor.
+  const mentionQuery = useMemo(() => {
+    const caret = textareaRef.current?.selectionStart ?? message.length;
+    const before = message.slice(0, caret);
+    const m = before.match(/@([\w'-]*)$/);
+    return m ? m[1] ?? "" : null;
+  }, [message]);
+
+  const mentionMatches = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return users.filter((u) => u.name.toLowerCase().replace(/\s+/g, "").includes(q)).slice(0, 6);
+  }, [mentionQuery, users]);
+
+  function insertMention(u: Mentionable) {
+    const caret = textareaRef.current?.selectionStart ?? message.length;
+    const before = message.slice(0, caret).replace(/@([\w'-]*)$/, `@${u.name.replace(/\s+/g, "")} `);
+    const after = message.slice(caret);
+    setMessage(before + after);
+    setMentionOpen(false);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
   async function addNote() {
     const text = message.trim();
     if (!text) throw new Error("Write something first.");
+    const mentioned = findMentions(text, users);
     await logActivity({
       leadId: lead.id,
       ownerId: lead.ownerId,
@@ -92,7 +128,18 @@ export function ActivityPanel({
       message: text,
       actor,
       followUpAt: followUp ? new Date(`${followUp}T00:00:00`) : null,
+      mentions: mentioned.map((u) => u.uid),
     });
+    for (const u of mentioned) {
+      if (u.uid === actor.uid) continue;
+      notifyMention({
+        toEmail: u.email,
+        mentionedByName: actor.name,
+        leadCode: lead.code,
+        leadId: lead.id,
+        message: text,
+      });
+    }
     setMessage("");
     setFollowUp("");
   }
@@ -105,13 +152,37 @@ export function ActivityPanel({
             <Field label="Type">
               <Select value={type} onChange={(e) => setType(e.target.value as ActivityType)} options={MANUAL_TYPES} />
             </Field>
-            <Field label="What happened?">
-              <Textarea
-                rows={2}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Spoke to the client; he wants a 90 kW unit outside his hotel and will share the electricity bill by Friday."
-              />
+            <Field
+              label="What happened?"
+              hint="Type @ to tag a teammate — they'll get an email."
+            >
+              <div className="relative">
+                <textarea
+                  ref={textareaRef}
+                  rows={2}
+                  value={message}
+                  onChange={(e) => { setMessage(e.target.value); setMentionOpen(true); }}
+                  onBlur={() => setTimeout(() => setMentionOpen(false), 120)}
+                  placeholder="Spoke to the client; he wants a 90 kW unit outside his hotel and will share the electricity bill by Friday. Type @ to tag someone."
+                  className="input min-h-[76px] w-full resize-y"
+                />
+                {mentionOpen && mentionQuery !== null && mentionMatches.length > 0 && (
+                  <div className="absolute left-0 top-full z-10 mt-1 w-64 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-lg">
+                    {mentionMatches.map((u) => (
+                      <button
+                        key={u.uid}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => insertMention(u)}
+                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-ink-50"
+                      >
+                        <Avatar name={u.name} size={20} />
+                        <span className="truncate">{u.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Field>
             <Field label="Set a reminder">
               <Input type="date" value={followUp} onChange={(e) => setFollowUp(e.target.value)} />
@@ -145,7 +216,21 @@ export function ActivityPanel({
                   </span>
 
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm text-ink-900">{a.message}</p>
+                    <p className="text-sm text-ink-900">
+                      {splitMentions(a.message, users).map((part, i) =>
+                        part.mention ? (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-0.5 rounded bg-brand-50 px-1 font-medium text-brand-700"
+                          >
+                            <AtSign className="h-3 w-3" />
+                            {part.mention.name}
+                          </span>
+                        ) : (
+                          <span key={i}>{part.text}</span>
+                        ),
+                      )}
+                    </p>
                     <time className="shrink-0 text-xs text-ink-400" title={formatDateTime(a.at)}>
                       {formatRelative(a.at)}
                     </time>

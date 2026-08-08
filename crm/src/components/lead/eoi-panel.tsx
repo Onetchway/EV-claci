@@ -8,10 +8,11 @@ import {
   useAsyncAction,
 } from "@/components/ui";
 import {
-  COMPANY, EOI_STATUSES, EOI_STATUS_COLOR, EOI_STATUS_LABEL, type EoiStatus,
+  EOI_STATUSES, EOI_STATUS_COLOR, EOI_STATUS_LABEL, type EoiStatus,
 } from "@/lib/constants";
 import { issueEoi, nextEoiNumber, saveEoi, setEoiStatus } from "@/lib/db/leads";
 import { buildEoiFromLead, scheduleTotal } from "@/lib/eoi";
+import { useSettings } from "@/hooks/use-settings";
 import { canIssueEoi, type Viewer } from "@/lib/permissions";
 import type { Actor, EoiDoc, EoiScheduleRow, Lead } from "@/lib/types";
 import { cn, formatDate, formatINR } from "@/lib/utils";
@@ -39,6 +40,8 @@ export function EoiPanel({
   const [gstSeparate, setGstSeparate] = useState(true);
   const [extraEquipment, setExtraEquipment] = useState("");
   const { busy, run } = useAsyncAction();
+  const { settings } = useSettings();
+  const company = settings.company;
 
   const eoi = draft ?? lead.eoi ?? null;
   const dirty = draft !== null;
@@ -60,6 +63,7 @@ export function EoiPanel({
       number,
       gstShownSeparately: gstSeparate,
       extraEquipment: extraEquipment.trim() || undefined,
+      settings,
     });
     await saveEoi(lead, built, actor);
     setDraft(null);
@@ -215,9 +219,22 @@ export function EoiPanel({
 
       {/* The letter itself — this is what prints */}
       <article className="loi-sheet rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
-        <header className="mb-6 border-b border-ink-200 pb-4">
-          <p className="text-lg font-bold tracking-tight text-ink-900">{COMPANY.legalName}</p>
-          <p className="mt-0.5 text-xs text-ink-500">Letter of Intent cum Expression of Interest · {eoi.number}</p>
+        <header className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
+          <div>
+            <p className="text-lg font-bold tracking-tight text-ink-900">{company.legalName}</p>
+            <p className="mt-0.5 text-xs text-ink-500">Letter of Intent cum Expression of Interest · {eoi.number}</p>
+            {(company.gstin || company.cin) && (
+              <p className="mt-1 text-[11px] text-ink-400">
+                {company.gstin && <>GSTIN: {company.gstin}</>}
+                {company.gstin && company.cin && <> &nbsp;|&nbsp; </>}
+                {company.cin && <>CIN: {company.cin}</>}
+              </p>
+            )}
+          </div>
+          {company.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={company.logoUrl} alt={company.shortName} className="h-10 w-auto shrink-0 object-contain" />
+          )}
         </header>
 
         <EditableLine
@@ -278,10 +295,10 @@ export function EoiPanel({
         />
 
         {/* Participation summary */}
-        <h2 className="mt-6 text-sm font-bold text-ink-900">Participation Summary</h2>
+        <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Participation Summary</h2>
         <table className="mt-2 w-full border-collapse text-sm">
           <thead>
-            <tr className="border-y border-ink-300 bg-ink-50">
+            <tr className="border-y border-ink-300 bg-ink-50 break-inside-avoid">
               <th className="w-12 px-2 py-1.5 text-left font-semibold">S.No.</th>
               <th className="px-2 py-1.5 text-left font-semibold">Description</th>
               <th className="w-40 px-2 py-1.5 text-right font-semibold">Amount (Rs.)</th>
@@ -290,7 +307,7 @@ export function EoiPanel({
           </thead>
           <tbody>
             {eoi.schedule.map((row, i) => (
-              <tr key={row.id} className="border-b border-ink-200 align-top">
+              <tr key={row.id} className="border-b border-ink-200 align-top break-inside-avoid">
                 <td className="px-2 py-1.5 tabular-nums">{i + 1}</td>
                 <td className="px-2 py-1.5">
                   <EditableBlock
@@ -328,7 +345,7 @@ export function EoiPanel({
                 )}
               </tr>
             ))}
-            <tr className="border-b-2 border-ink-400 font-bold">
+            <tr className="border-b-2 border-ink-400 font-bold break-inside-avoid">
               <td />
               <td className="px-2 py-2">Total Participation Amount</td>
               <td className="px-2 py-2 text-right tabular-nums">{formatINR(eoi.totalAmount)}</td>
@@ -355,10 +372,10 @@ export function EoiPanel({
         )}
 
         {/* Scope */}
-        <h2 className="mt-6 text-sm font-bold text-ink-900">Scope of {COMPANY.shortName}&apos;s Obligations</h2>
+        <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Scope of {company.shortName}&apos;s Obligations</h2>
         <ul className="mt-2 space-y-1">
           {eoi.scopeItems.map((item, i) => (
-            <li key={i} className="flex gap-2 text-sm">
+            <li key={i} className="flex gap-2 text-sm break-inside-avoid">
               <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-700" />
               <EditableInline
                 readOnly={readOnly}
@@ -391,7 +408,7 @@ export function EoiPanel({
         )}
 
         {/* Tenure & payout */}
-        <h2 className="mt-6 text-sm font-bold text-ink-900">Project Tenure</h2>
+        <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Project Tenure</h2>
         <p className="mt-1 text-sm leading-relaxed">
           The Charging Station shall operate for a minimum of{" "}
           <EditableNumber
@@ -402,13 +419,13 @@ export function EoiPanel({
             aria-label="Tenure years"
           />{" "}
           years from the date of commercial commissioning, extendable by mutual written agreement
-          between the parties, and shall be operated exclusively by {COMPANY.shortName} throughout the Tenure.
+          between the parties, and shall be operated exclusively by {company.shortName} throughout the Tenure.
         </p>
 
-        <h2 className="mt-6 text-sm font-bold text-ink-900">Minimum Monthly Payout</h2>
+        <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Minimum Monthly Payout</h2>
         <table className="mt-2 w-full border-collapse text-sm">
           <tbody>
-            <tr className="border-y border-ink-200">
+            <tr className="border-y border-ink-200 break-inside-avoid">
               <td className="w-1/2 bg-ink-50 px-2 py-1.5 font-medium">Payout Period</td>
               <td className="px-2 py-1.5">
                 <EditableNumber
@@ -421,7 +438,7 @@ export function EoiPanel({
                 months from the Commercial Commissioning Date
               </td>
             </tr>
-            <tr className="border-b border-ink-200">
+            <tr className="border-b border-ink-200 break-inside-avoid">
               <td className="bg-ink-50 px-2 py-1.5 font-medium">Minimum Monthly Payout</td>
               <td className="px-2 py-1.5">
                 Rs.{" "}
@@ -435,7 +452,7 @@ export function EoiPanel({
                 per month
               </td>
             </tr>
-            <tr className="border-b border-ink-200">
+            <tr className="border-b border-ink-200 break-inside-avoid">
               <td className="bg-ink-50 px-2 py-1.5 font-medium">Maximum Aggregate Support</td>
               <td className="px-2 py-1.5 tabular-nums">
                 {formatINR(eoi.maxAggregateSupport)} in aggregate across the Payout Period
@@ -445,14 +462,14 @@ export function EoiPanel({
         </table>
 
         {/* Bank details */}
-        <h2 className="mt-6 text-sm font-bold text-ink-900">Bank Details for Remittance</h2>
+        <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Bank Details for Remittance</h2>
         <table className="mt-2 w-full border-collapse text-sm">
           <tbody>
             {[
-              ["Account Name", COMPANY.bank.accountName],
-              ["Bank Name", COMPANY.bank.bankName],
-              ["Account Number", COMPANY.bank.accountNumber],
-              ["IFSC Code", COMPANY.bank.ifsc],
+              ["Account Name", settings.bank.accountName],
+              ["Bank Name", settings.bank.bankName],
+              ["Account Number", settings.bank.accountNumber],
+              ["IFSC Code", settings.bank.ifsc],
             ].map(([k, v]) => (
               <tr key={k} className="border-b border-ink-200">
                 <td className="w-1/2 bg-ink-50 px-2 py-1.5 font-medium">{k}</td>
@@ -463,10 +480,10 @@ export function EoiPanel({
         </table>
 
         {/* Terms */}
-        <h2 className="mt-6 text-sm font-bold text-ink-900">Terms and Conditions</h2>
+        <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Terms and Conditions</h2>
         <ol className="mt-2 space-y-2.5">
           {eoi.clauses.map((c, i) => (
-            <li key={c.key} className="text-sm leading-relaxed">
+            <li key={c.key} className="text-sm leading-relaxed break-inside-avoid">
               <span className="font-semibold">{i + 1}. {c.heading} — </span>
               <EditableInline
                 readOnly={readOnly}
@@ -490,7 +507,7 @@ export function EoiPanel({
         />
 
         <div className="mt-8">
-          <p className="text-sm">For {COMPANY.legalName}</p>
+          <p className="text-sm">For {company.legalName}</p>
           <p className="mt-8 text-sm font-semibold">{eoi.signatory}</p>
         </div>
 
@@ -506,6 +523,17 @@ export function EoiPanel({
             <div className="mt-10 border-t border-ink-400 pt-1 text-xs">&nbsp;</div>
           </div>
         </div>
+
+        <footer className="mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
+          <p>{company.legalName}</p>
+          <p>
+            {[
+              company.gstin && `GSTN. ${company.gstin}`,
+              company.cin && `CIN. ${company.cin}`,
+              company.address,
+            ].filter(Boolean).join(" | ")}
+          </p>
+        </footer>
       </article>
     </div>
   );
