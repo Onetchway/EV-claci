@@ -75,6 +75,11 @@ average cycle time, and CSV export on leads, agents and the audit log.
 
 ## Setup
 
+> Deploying to a real Firebase project? Follow **[DEPLOYMENT.md](./DEPLOYMENT.md)**
+> instead — it covers the same ground plus App Hosting, billing, domains and a
+> post-deploy checklist. The steps below are the short version for local
+> development.
+
 ### 1. Create the Firebase project
 
 1. [console.firebase.google.com](https://console.firebase.google.com) → **Add project**.

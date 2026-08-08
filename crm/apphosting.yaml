@@ -1,0 +1,68 @@
+# Firebase App Hosting — runtime and build configuration.
+#
+# App Hosting runs this Next.js app on Cloud Run, so the API routes and the
+# server-rendered lead pages work as they do locally. Plain Firebase Hosting
+# would only serve static files and is not sufficient for this app.
+#
+# The NEXT_PUBLIC_* values are compiled into the client bundle, so they must be
+# available at BUILD time as well as at runtime. They are not secrets — access
+# is controlled by the Firestore and Storage rules.
+#
+# Note there is no service-account key here. On App Hosting the Admin SDK
+# authenticates with the instance's own service account via Application Default
+# Credentials, so there is no private key to store or rotate.
+
+runConfig:
+  # A sales team of this size does not need a warm fleet; scale to zero between
+  # working hours and let the first request pay the cold start.
+  minInstances: 0
+  maxInstances: 5
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: REPLACE_ME
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: livanto.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: livanto
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: livanto.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: REPLACE_ME
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: REPLACE_ME
+    availability:
+      - BUILD
+      - RUNTIME
+
+# If you ever need to run this somewhere without Application Default
+# Credentials, store the service-account JSON in Cloud Secret Manager and
+# reference it here instead of pasting the key inline:
+#
+#   - variable: FIREBASE_SERVICE_ACCOUNT_KEY
+#     secret: crm-service-account
+#     availability:
+#       - RUNTIME
