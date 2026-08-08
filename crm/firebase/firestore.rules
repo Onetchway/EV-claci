@@ -1,0 +1,177 @@
+rules_version = '2';
+
+// Livanto Green CRM — Firestore security rules.
+//
+// Model: an AGENT sees and works only their own leads. An ADMIN sees
+// everything. A SUPER_ADMIN additionally manages roles and can delete.
+// Roles are read from the auth token's custom claim, which the /api/users
+// route sets whenever a role changes (and it revokes refresh tokens, so a
+// demotion takes effect on the user's next request).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() && request.auth.token.role != null
+        ? request.auth.token.role
+        : 'AGENT';
+    }
+
+    function isAdmin() {
+      return role() == 'ADMIN' || role() == 'SUPER_ADMIN';
+    }
+
+    function isSuperAdmin() {
+      return role() == 'SUPER_ADMIN';
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // The signed-in user is the owner named on the document.
+    function ownsExisting() {
+      return signedIn() && resource.data.ownerId == uid();
+    }
+
+    function ownsIncoming() {
+      return signedIn() && request.resource.data.ownerId == uid();
+    }
+
+    // The actor block stamped on writes must be the caller — an agent cannot
+    // attribute their own edit to somebody else.
+    function actorIsSelf(field) {
+      return request.resource.data[field].uid == uid();
+    }
+
+    function leadOwnerId(leadId) {
+      return get(/databases/$(database)/documents/leads/$(leadId)).data.ownerId;
+    }
+
+    function canTouchLead(leadId) {
+      return isAdmin() || leadOwnerId(leadId) == uid();
+    }
+
+    // ------------------------------------------------------------------ users
+
+    match /users/{userId} {
+      // Everyone signed in can read the directory: lead lists show owner names
+      // and the reassign picker needs the roster.
+      allow read: if signedIn();
+
+      // Profiles are created by the /api/users route with the Admin SDK, which
+      // bypasses these rules. The one exception is first-run bootstrap: the
+      // very first account may create its own profile.
+      allow create: if signedIn()
+                    && userId == uid()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.role == 'AGENT'
+                    && request.resource.data.active == true;
+
+      // A user may edit their own contact details, never their own role or
+      // active flag — that would be a self-promotion.
+      allow update: if signedIn()
+                    && userId == uid()
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.active == resource.data.active
+                    && request.resource.data.uid == resource.data.uid;
+
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------- lead codes
+
+    match /counters/{counterId} {
+      allow read, write: if signedIn();
+    }
+
+    // ------------------------------------------------------------------ leads
+
+    match /leads/{leadId} {
+      allow read: if isAdmin() || ownsExisting();
+
+      // A new lead must be attributed to the creator. Admins may assign to
+      // anyone; agents may only create leads for themselves.
+      allow create: if signedIn()
+                    && actorIsSelf('createdBy')
+                    && (isAdmin() || ownsIncoming())
+                    && request.resource.data.status == 'ACTIVE';
+
+      allow update: if signedIn()
+                    && (isAdmin() || (ownsExisting() && resource.data.status != 'REJECTED'))
+                    // Only an admin may hand a lead to a different agent.
+                    && (isAdmin() || request.resource.data.ownerId == resource.data.ownerId)
+                    // Only an admin may reopen a rejected lead.
+                    && (isAdmin() || request.resource.data.status != 'ACTIVE'
+                        || resource.data.status != 'REJECTED')
+                    && actorIsSelf('updatedBy');
+
+      allow delete: if isSuperAdmin();
+
+      // ------------------------------------------------------------- payments
+
+      match /payments/{paymentId} {
+        allow read: if canTouchLead(leadId);
+
+        allow create: if canTouchLead(leadId)
+                      && actorIsSelf('createdBy')
+                      // Only an admin may mark money as verified.
+                      && (isAdmin() || request.resource.data.status != 'VERIFIED');
+
+        allow update: if canTouchLead(leadId)
+                      && actorIsSelf('updatedBy')
+                      && (isAdmin() || request.resource.data.status != 'VERIFIED')
+                      // A verified payment is an admin's record; agents cannot edit it.
+                      && (isAdmin() || resource.data.status != 'VERIFIED');
+
+        allow delete: if isAdmin();
+      }
+
+      // ------------------------------------------------------------ documents
+
+      match /documents/{documentId} {
+        allow read: if canTouchLead(leadId);
+
+        allow create: if canTouchLead(leadId)
+                      && actorIsSelf('uploadedBy')
+                      && request.resource.data.status == 'PENDING';
+
+        // Verification is an admin decision; the uploader may only annotate.
+        allow update: if isAdmin()
+                      || (canTouchLead(leadId)
+                          && request.resource.data.status == resource.data.status);
+
+        allow delete: if isAdmin()
+                      || (canTouchLead(leadId)
+                          && resource.data.uploadedBy.uid == uid()
+                          && resource.data.status == 'PENDING');
+      }
+    }
+
+    // ------------------------------------------------------------- activities
+
+    // The audit trail. Append-only by design: nothing in the application ever
+    // edits or removes a log entry, and the rules make that structural.
+    match /activities/{activityId} {
+      allow read: if isAdmin() || ownsExisting();
+
+      allow create: if signedIn()
+                    && actorIsSelf('actor')
+                    && request.resource.data.actor.uid == uid()
+                    && (isAdmin() || canTouchLead(request.resource.data.leadId));
+
+      allow update, delete: if false;
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

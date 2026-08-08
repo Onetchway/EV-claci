@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// Lead documents (Aadhaar, PAN, load sanction letters, site photos).
+//
+// Storage rules cannot read Firestore, so ownership cannot be checked here.
+// Access is therefore gated on being a signed-in CRM user, and the Firestore
+// `documents` sub-collection — which is properly owner-scoped — is the only
+// place download URLs are ever surfaced.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() && request.auth.token.role != null
+        ? request.auth.token.role
+        : 'AGENT';
+    }
+
+    function isAdmin() {
+      return role() == 'ADMIN' || role() == 'SUPER_ADMIN';
+    }
+
+    function acceptableFile() {
+      return request.resource.size < 15 * 1024 * 1024
+             && (request.resource.contentType.matches('image/.*')
+                 || request.resource.contentType == 'application/pdf');
+    }
+
+    match /leads/{leadId}/{kind}/{fileName} {
+      allow read: if signedIn();
+      allow create: if signedIn() && acceptableFile();
+      // Files are immutable once uploaded; a correction is a new upload.
+      allow update: if false;
+      allow delete: if isAdmin()
+                    || (signedIn() && resource.metadata.uploadedBy == request.auth.uid);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
