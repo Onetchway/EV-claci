@@ -169,11 +169,12 @@ export default function LeadDetailPage() {
 
   return (
     <>
-      <button onClick={() => router.push("/leads")} className="mb-3 inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-800">
+      <button onClick={() => router.push("/leads")} className="mb-3 inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-800 print:hidden">
         <ArrowLeft className="h-4 w-4" /> All leads
       </button>
 
       <PageHeader
+        className="print:hidden"
         title={lead.client?.name ?? "Lead"}
         description={`${lead.code} · ${LEAD_TYPE_LABEL[lead.type]} · created ${formatDate(lead.createdAt)} by ${lead.createdBy?.name ?? "—"}`}
         actions={
@@ -222,7 +223,7 @@ export default function LeadDetailPage() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2 print:hidden">
         <Badge className={stage.color}>{stage.label}</Badge>
         <Badge className={STATUS_COLOR[lead.status]}>{STATUS_LABEL[lead.status]}</Badge>
         <Badge>{SOURCE_LABEL[lead.source] ?? lead.source}</Badge>
@@ -233,7 +234,7 @@ export default function LeadDetailPage() {
       </div>
 
       {lead.status === "REJECTED" && lead.rejection && (
-        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-900 ring-1 ring-inset ring-rose-200">
+        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-900 ring-1 ring-inset ring-rose-200 print:hidden">
           <p className="font-semibold">Rejected — {REJECTION_LABEL[lead.rejection.reason]}</p>
           {lead.rejection.note && <p className="mt-0.5">{lead.rejection.note}</p>}
           <p className="mt-1 text-xs text-rose-700">
@@ -242,7 +243,7 @@ export default function LeadDetailPage() {
         </div>
       )}
 
-      <div className="mb-4">
+      <div className="mb-4 print:hidden">
         <StageStepper
           lead={lead}
           actor={actor!}
@@ -251,7 +252,7 @@ export default function LeadDetailPage() {
         />
       </div>
 
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-ink-200 scroll-thin">
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-ink-200 scroll-thin print:hidden">
         {TABS.map((t) => (
           <button
             key={t}

@@ -219,12 +219,12 @@ export function EmptyState({
 }
 
 export function PageHeader({
-  title, description, actions,
+  title, description, actions, className,
 }: {
-  title: string; description?: string; actions?: ReactNode;
+  title: string; description?: string; actions?: ReactNode; className?: string;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className={cn("mb-5 flex flex-wrap items-end justify-between gap-3", className)}>
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-ink-900">{title}</h1>
         {description && <p className="mt-1 text-sm text-ink-500">{description}</p>}
