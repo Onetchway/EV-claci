@@ -219,7 +219,7 @@ export function EoiPanel({
 
       {/* The letter itself — this is what prints */}
       <article className="loi-sheet rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
-        <header className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
+        <div className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
           <div>
             <p className="text-lg font-bold tracking-tight text-ink-900">{company.legalName}</p>
             <p className="mt-0.5 text-xs text-ink-500">Letter of Intent cum Expression of Interest · {eoi.number}</p>
@@ -235,7 +235,7 @@ export function EoiPanel({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={company.logoUrl} alt={company.shortName} className="h-10 w-auto shrink-0 object-contain" />
           )}
-        </header>
+        </div>
 
         <EditableLine
           readOnly={readOnly}
