@@ -132,13 +132,15 @@ An earlier version of the zip was missing files. Check yours:
 ls src/lib
 ```
 
-You should see **15 items**:
+You should see **10 entries** — 8 files plus two folders, `db` and `firebase`:
 
 ```
-analytics.ts   catalog.ts    constants.ts   db
-diff.ts        firebase      permissions.ts pricing.ts
-types.ts       utils.ts
+analytics.ts   constants.ts   diff.ts     permissions.ts   types.ts
+catalog.ts     db             firebase    pricing.ts       utils.ts
 ```
+
+That is the correct and complete list. (There are 15 files in total once you
+count inside the two folders, which is what the next command checks.)
 
 Then check inside the two sub-folders:
 
