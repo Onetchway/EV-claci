@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  ENGINEER
+}
+
+enum FieldType {
+  text
+  number
+  date
+  select
+  checkbox
+  table
+  photo
+  file
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
+enum StageStatus {
+  LOCKED
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         Role     @default(ENGINEER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedProjects Project[]    @relation("AssignedEngineer")
+  submissions      Submission[] @relation("SubmittedBy")
+  approvedStages   ProjectStage[] @relation("ApprovedBy")
+
+  @@map("users")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stageTemplates StageTemplate[]
+  projects       Project[]
+
+  @@map("clients")
+}
+
+/// One row per work stage in a client's execution playbook (e.g. SURVEY, CIVIL, HOTO).
+/// Order + fields are fully data-driven so a new client can be onboarded without code changes.
+model StageTemplate {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  key   String // stable machine key, e.g. "CIVIL"
+  name  String // display name, e.g. "Civil Work Execution"
+  order Int // sequence within the client's playbook
+
+  fieldDefs   FormFieldDef[]
+  photoSlots  PhotoSlot[]
+  projectStages ProjectStage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, key])
+  @@map("stage_templates")
+}
+
+/// A single form field within a stage's report form. `optionsJson` holds select options or,
+/// for `table` fields, the row/column definition. `tableGroup` links related fields (e.g. an
+/// item within a checklist group) for rendering.
+model FormFieldDef {
+  id              String    @id @default(cuid())
+  stageTemplateId String
+  stageTemplate   StageTemplate @relation(fields: [stageTemplateId], references: [id], onDelete: Cascade)
+
+  key         String
+  label       String
+  type        FieldType
+  required    Boolean @default(false)
+  order       Int
+  groupLabel  String? // section heading in the form/PDF, e.g. "Company Documents"
+  optionsJson Json? // e.g. { "options": ["LT","HT"] } or table row/column defs
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([stageTemplateId, key])
+  @@map("form_field_defs")
+}
+
+/// A required geotagged-photo slot for a stage (e.g. "evcsFoundationFinished").
+model PhotoSlot {
+  id              String    @id @default(cuid())
+  stageTemplateId String
+  stageTemplate   StageTemplate @relation(fields: [stageTemplateId], references: [id], onDelete: Cascade)
+
+  key      String
+  label    String
+  required Boolean @default(true)
+  order    Int
+
+  photos Photo[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([stageTemplateId, key])
+  @@map("photo_slots")
+}
+
+model Project {
+  id        String        @id @default(cuid())
+  clientId  String
+  client    Client        @relation(fields: [clientId], references: [id])
+
+  siteName  String
+  address   String
+  lat       Float?
+  lng       Float?
+  status    ProjectStatus @default(ACTIVE)
+
+  assignedEngineerId String?
+  assignedEngineer   User?   @relation("AssignedEngineer", fields: [assignedEngineerId], references: [id])
+
+  stages ProjectStage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("projects")
+}
+
+/// One instance of a StageTemplate for a specific Project — tracks progress/status.
+model ProjectStage {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stageTemplateId String
+  stageTemplate   StageTemplate @relation(fields: [stageTemplateId], references: [id])
+
+  status       StageStatus @default(NOT_STARTED)
+  submittedAt  DateTime?
+  approvedAt   DateTime?
+  approvedById String?
+  approvedBy   User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
+  rejectionReason String?
+
+  submissions Submission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, stageTemplateId])
+  @@map("project_stages")
+}
+
+/// The actual filled-in report for a ProjectStage. New submits after a rejection create a new
+/// version rather than mutating history.
+model Submission {
+  id             String   @id @default(cuid())
+  projectStageId String
+  projectStage   ProjectStage @relation(fields: [projectStageId], references: [id], onDelete: Cascade)
+
+  version      Int    @default(1)
+  dataJson     Json // answers keyed by FormFieldDef.key
+  submittedById String
+  submittedBy   User   @relation("SubmittedBy", fields: [submittedById], references: [id])
+
+  pdfUrl String?
+
+  photos Photo[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("submissions")
+}
+
+model Photo {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  photoSlotId  String
+  photoSlot    PhotoSlot  @relation(fields: [photoSlotId], references: [id])
+
+  originalUrl String
+  stampedUrl  String?
+
+  lat        Float
+  lng        Float
+  accuracyM  Float?
+  address    String?
+  capturedAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@map("photos")
+}

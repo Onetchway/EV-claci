@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "NaKJM EPC Field App",
+    "slug": "nakjm-epc-field-app",
+    "scheme": "nakjmepc",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nakjm.epcfieldapp"
+    },
+    "android": {
+      "package": "com.nakjm.epcfieldapp",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#0b6e4f",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-status-bar",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "NaKJM EPC Field App uses the camera to capture required geotagged site photos for your work reports."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "NaKJM EPC Field App uses your location to geotag site photos, as required by client report formats."
+        }
+      ]
+    ]
+  }
+}

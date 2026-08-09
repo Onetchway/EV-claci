@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: epc-field-app-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: epc
+      POSTGRES_PASSWORD: epc_dev_password
+      POSTGRES_DB: epc_field_app
+    ports:
+      - "5433:5432"
+    volumes:
+      - epc_field_app_pgdata:/var/lib/postgresql/data
+
+volumes:
+  epc_field_app_pgdata:
