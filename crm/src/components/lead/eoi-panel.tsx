@@ -220,21 +220,22 @@ export function EoiPanel({
       {/* The letter itself — this is what prints */}
       <article className="loi-sheet rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
         <div className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
-          <div>
+          {company.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={company.logoUrl} alt={company.shortName} className="h-10 w-auto shrink-0 object-contain" />
+          ) : (
             <p className="text-lg font-bold tracking-tight text-ink-900">{company.legalName}</p>
-            <p className="mt-0.5 text-xs text-ink-500">Letter of Intent cum Expression of Interest · {eoi.number}</p>
-            {(company.gstin || company.cin) && (
+          )}
+          <div className="text-right">
+            <p className="text-xs text-ink-500">Letter of Intent cum Expression of Interest · {eoi.number}</p>
+            {(company.email || company.website) && (
               <p className="mt-1 text-[11px] text-ink-400">
-                {company.gstin && <>GSTIN: {company.gstin}</>}
-                {company.gstin && company.cin && <> &nbsp;|&nbsp; </>}
-                {company.cin && <>CIN: {company.cin}</>}
+                {company.email}
+                {company.email && company.website && <> &nbsp;|&nbsp; </>}
+                {company.website}
               </p>
             )}
           </div>
-          {company.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={company.logoUrl} alt={company.shortName} className="h-10 w-auto shrink-0 object-contain" />
-          )}
         </div>
 
         <EditableLine
