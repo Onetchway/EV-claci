@@ -23,8 +23,8 @@ import {
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
 import {
-  LAND_TYPE_LABEL, LEAD_TYPE_LABEL, LOCATION_TYPE_LABEL, OWNERSHIP_LABEL,
-  OWNER_TYPE_LABEL, POWER_LOAD_LABEL,
+  COMMERCIAL_MODEL_LABEL, FRANCHISE_LOI_TYPES, LAND_TYPE_LABEL, LEAD_TYPE_LABEL,
+  LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNER_TYPE_LABEL, POWER_LOAD_LABEL,
   REJECTION_LABEL, REJECTION_REASONS, SOURCE_LABEL, STAGE_META, STATUS_COLOR,
   STATUS_LABEL, type RejectionReason,
 } from "@/lib/constants";
@@ -147,6 +147,7 @@ export default function LeadDetailPage() {
         expectedCloseAt: values.expectedCloseAt,
         partnerId: values.partnerId,
         partnerName: values.partnerName,
+        commercialModel: values.commercialModel,
       },
       actor,
     );
@@ -266,7 +267,7 @@ export default function LeadDetailPage() {
       </div>
 
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-ink-200 scroll-thin print:hidden">
-        {TABS.map((t) => (
+        {TABS.filter((t) => t !== "Letter of Intent" || FRANCHISE_LOI_TYPES.includes(lead.type)).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -287,6 +288,9 @@ export default function LeadDetailPage() {
           <Card title="Client" className="lg:col-span-2">
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Detail label="Name" value={lead.client?.name} />
+              {lead.commercialModel && (
+                <Detail label="Commercial model" value={COMMERCIAL_MODEL_LABEL[lead.commercialModel]} />
+              )}
               <Detail
                 label="Phone"
                 value={
@@ -354,7 +358,7 @@ export default function LeadDetailPage() {
                 <Detail label="Land type" value={lead.site?.landType ? LAND_TYPE_LABEL[lead.site.landType] : "—"} />
                 <Detail label="Owner type" value={lead.site?.ownerType ? OWNER_TYPE_LABEL[lead.site.ownerType] : "—"} />
                 <Detail label="Property owner" value={lead.site?.ownership ? OWNERSHIP_LABEL[lead.site.ownership] : "—"} />
-                <Detail label="Commercial model" value={lead.site?.commercialModelInterested ? "Yes" : "No"} />
+                <Detail label="Revenue-share interest" value={lead.site?.commercialModelInterested ? "Yes" : "No"} />
                 <Detail label="Power load" value={lead.site?.powerLoad ? POWER_LOAD_LABEL[lead.site.powerLoad] : "—"} />
                 <Detail label="Sanctioned load" value={lead.site?.sanctionedLoadKva ? `${lead.site.sanctionedLoadKva} kVA` : "—"} />
                 <Detail label="Space available" value={lead.site?.spaceAvailableSqft ? `${formatNumber(lead.site.spaceAvailableSqft)} sq.ft` : "—"} />

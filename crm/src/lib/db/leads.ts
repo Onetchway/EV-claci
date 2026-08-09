@@ -7,9 +7,9 @@ import {
 } from "firebase/firestore";
 
 import {
-  STAGES, STAGE_META, WON_STAGE,
-  type EoiStatus, type LeadStatus, type LeadType, type RejectionReason, type Source,
-  type Stage,
+  LEAD_TYPE_CODE, STAGES, STAGE_META, WON_STAGE,
+  type CommercialModel, type EoiStatus, type LeadStatus, type LeadType,
+  type RejectionReason, type Source, type Stage,
 } from "../constants";
 import { diffLead, summariseChanges } from "../diff";
 import { getDb } from "../firebase/client";
@@ -38,15 +38,14 @@ function mapLead(id: string, data: Record<string, unknown>): Lead {
 export async function nextLeadCode(type: LeadType): Promise<string> {
   const db = getDb();
   const ref = doc(db, COUNTERS, "leads");
-  const prefix = type === "SITE" ? "ST" : "FR";
-  const field = type === "SITE" ? "site" : "franchise";
+  const prefix = LEAD_TYPE_CODE[type];
+  const field = type.toLowerCase();
 
   const seq = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     const current = (snap.exists() ? (snap.data()[field] as number | undefined) : undefined) ?? 0;
     const next = current + 1;
-    if (snap.exists()) tx.update(ref, { [field]: next });
-    else tx.set(ref, { franchise: 0, site: 0, [field]: next });
+    tx.set(ref, { [field]: next }, { merge: true });
     return next;
   });
 
@@ -61,6 +60,8 @@ export interface LeadFilters {
   /** Agents are pinned to their own uid by the caller. */
   ownerId?: string | null;
   type?: LeadType | "ALL";
+  /** Client-side OR filter across several types, e.g. the B2B nav view. */
+  types?: LeadType[];
   status?: LeadStatus | "ALL";
   stages?: Stage[];
   sources?: Source[];
@@ -89,6 +90,7 @@ export function applyClientFilters(rows: Lead[], f: LeadFilters): Lead[] {
   const now = Date.now();
 
   return rows.filter((l) => {
+    if (f.types?.length && !f.types.includes(l.type)) return false;
     if (f.stages?.length && !f.stages.includes(l.stage)) return false;
     if (f.sources?.length && !f.sources.includes(l.source)) return false;
     if (f.city && (l.client?.city ?? "").toLowerCase() !== f.city.toLowerCase()) return false;
@@ -195,6 +197,7 @@ export interface LeadDraft {
   expectedCloseAt?: Date | null;
   partnerId?: string | null;
   partnerName?: string | null;
+  commercialModel?: CommercialModel | null;
   ownerId: string;
   ownerName: string;
 }
@@ -275,6 +278,7 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
     extras,
     discount,
     oem: draft.oem ?? null,
+    commercialModel: draft.commercialModel ?? null,
     quote: snapshot,
     value,
     financing: draft.financing ?? DEFAULT_FINANCING,
@@ -332,6 +336,7 @@ export interface LeadPatch {
   expectedCloseAt?: Date | null;
   partnerId?: string | null;
   partnerName?: string | null;
+  commercialModel?: CommercialModel | null;
 }
 
 export async function updateLead(lead: Lead, patch: LeadPatch, actor: Actor): Promise<void> {
@@ -345,6 +350,7 @@ export async function updateLead(lead: Lead, patch: LeadPatch, actor: Actor): Pr
   if (patch.tags !== undefined) update.tags = patch.tags;
   if (patch.type !== undefined) update.type = patch.type;
   if (patch.oem !== undefined) update.oem = patch.oem;
+  if (patch.commercialModel !== undefined) update.commercialModel = patch.commercialModel;
   if (patch.financing !== undefined) update.financing = patch.financing;
   if (patch.partnerId !== undefined) update.partnerId = patch.partnerId;
   if (patch.partnerName !== undefined) update.partnerName = patch.partnerName;

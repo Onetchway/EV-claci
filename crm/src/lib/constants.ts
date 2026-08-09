@@ -146,12 +146,52 @@ export const STATUS_COLOR: Record<LeadStatus, string> = {
 // Lead type & sources
 // ---------------------------------------------------------------------------
 
-export const LEAD_TYPES = ["FRANCHISE", "SITE"] as const;
+export const LEAD_TYPES = [
+  "FRANCHISE", "SITE", "RWA", "EPC", "CHARGER_SALE", "CORPORATE", "GOVERNMENT",
+  "SOFTWARE", "OTHERS",
+] as const;
 export type LeadType = (typeof LEAD_TYPES)[number];
 
 export const LEAD_TYPE_LABEL: Record<LeadType, string> = {
   FRANCHISE: "Franchise Investor",
   SITE: "Site / Location Partner",
+  RWA: "RWA",
+  EPC: "EPC (Limited Scope)",
+  CHARGER_SALE: "Charger Sale Only",
+  CORPORATE: "Corporate / B2B",
+  GOVERNMENT: "Government",
+  SOFTWARE: "Software Only",
+  OTHERS: "Others",
+};
+
+/** Short prefix used in the human-readable lead code, e.g. LG-RW-000012. */
+export const LEAD_TYPE_CODE: Record<LeadType, string> = {
+  FRANCHISE: "FR",
+  SITE: "ST",
+  RWA: "RW",
+  EPC: "EP",
+  CHARGER_SALE: "CS",
+  CORPORATE: "CO",
+  GOVERNMENT: "GV",
+  SOFTWARE: "SW",
+  OTHERS: "OT",
+};
+
+/** Only a Franchise lead gets the franchise-investment Letter of Intent. */
+export const FRANCHISE_LOI_TYPES: LeadType[] = ["FRANCHISE"];
+
+/** Types where Livanto installs/invests and the client picks how they pay for it. */
+export const COMMERCIAL_MODEL_TYPES: LeadType[] = ["RWA", "CORPORATE", "GOVERNMENT", "SOFTWARE", "OTHERS"];
+
+/** Types grouped under the B2B nav view. */
+export const B2B_LEAD_TYPES: LeadType[] = ["CORPORATE", "GOVERNMENT", "RWA", "SOFTWARE"];
+
+export const COMMERCIAL_MODELS = ["OPEX", "CAPEX"] as const;
+export type CommercialModel = (typeof COMMERCIAL_MODELS)[number];
+
+export const COMMERCIAL_MODEL_LABEL: Record<CommercialModel, string> = {
+  OPEX: "OPEX — Livanto owns & operates, client pays usage-based",
+  CAPEX: "CAPEX — client buys the installation outright",
 };
 
 export const SOURCES = [

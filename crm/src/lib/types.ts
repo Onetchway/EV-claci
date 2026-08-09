@@ -1,11 +1,12 @@
 import type { Timestamp } from "firebase/firestore";
 import type {
-  ActivityType, CommissionStatus, ConnectionType, DiscomStage, DocKind, DocStatus,
-  EoiStatus, FollowupPriority, FollowupStatus, FollowupType, FundingMode,
-  LandType, LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
-  PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
-  PaymentStatus, PowerLoad, ProjectOwnership, ProjectStage, ProjectStatus,
-  RejectionReason, Role, Source, Stage, TaskStatus, Workstream,
+  ActivityType, CommercialModel, CommissionStatus, ConnectionType, DiscomStage,
+  DocKind, DocStatus, EoiStatus, FollowupPriority, FollowupStatus, FollowupType,
+  FundingMode, LandType, LeadStatus, LeadType, LoanStage, LocationType,
+  Ownership, OwnerType, PartnerCategory, PartnerStatus, PartnerTier,
+  PaymentMilestone, PaymentMode, PaymentStatus, PowerLoad, ProjectOwnership,
+  ProjectStage, ProjectStatus, RejectionReason, Role, Source, Stage, TaskStatus,
+  Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -205,6 +206,8 @@ export interface Lead {
   /** Channel partner who originated this lead, if any. */
   partnerId?: string | null;
   partnerName?: string | null;
+  /** How the client pays, for lead types where Livanto installs/invests (RWA, Corporate, Government, Software, Others). */
+  commercialModel?: CommercialModel | null;
   site?: SiteInfo;
   ownerId: string;
   ownerName: string;

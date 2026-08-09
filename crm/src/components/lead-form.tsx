@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ExternalLink, MapPin, Zap } from "lucide-react";
+import { AlertTriangle, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -11,12 +11,13 @@ import {
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
 import {
-  BANKS, CHARGER_OEMS, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES,
+  BANKS, CHARGER_OEMS, COMMERCIAL_MODEL_LABEL, COMMERCIAL_MODELS,
+  COMMERCIAL_MODEL_TYPES, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES,
   LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL, LOCATION_TYPES,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNERSHIP_TYPES, OWNER_TYPES,
   OWNER_TYPE_LABEL, POWER_LOADS, POWER_LOAD_LABEL, SOURCES, SOURCE_LABEL,
-  type FundingMode, type LandType, type LeadType, type LocationType,
-  type Ownership, type OwnerType, type PowerLoad, type Source,
+  type CommercialModel, type FundingMode, type LandType, type LeadType,
+  type LocationType, type Ownership, type OwnerType, type PowerLoad, type Source,
 } from "@/lib/constants";
 import { DEFAULT_FINANCING, findDuplicateLeads } from "@/lib/db/leads";
 import { subscribePartners } from "@/lib/db/partners";
@@ -43,6 +44,7 @@ export interface LeadFormValues {
   expectedCloseAt: Date | null;
   partnerId: string | null;
   partnerName: string | null;
+  commercialModel: CommercialModel | null;
   ownerId: string;
   ownerName: string;
 }
@@ -63,6 +65,7 @@ const emptyValues = (ownerId: string, ownerName: string): LeadFormValues => ({
   expectedCloseAt: null,
   partnerId: null,
   partnerName: null,
+  commercialModel: null,
   ownerId,
   ownerName,
 });
@@ -93,6 +96,7 @@ export function leadToFormValues(lead: Lead): LeadFormValues {
     expectedCloseAt: toDate(lead.expectedCloseAt),
     partnerId: lead.partnerId ?? null,
     partnerName: lead.partnerName ?? null,
+    commercialModel: lead.commercialModel ?? null,
     ownerId: lead.ownerId,
     ownerName: lead.ownerName,
   };
@@ -221,35 +225,25 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Card title="Lead type" subtitle="A franchise investor buys chargers; a site partner offers a location.">
-        <div className="grid gap-2 sm:grid-cols-2">
-          {LEAD_TYPES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => set("type", t)}
-              className={cn(
-                "flex items-start gap-3 rounded-lg border p-3 text-left transition",
-                values.type === t
-                  ? "border-brand-500 bg-brand-50 ring-1 ring-brand-500"
-                  : "border-ink-200 bg-white hover:border-ink-300",
-              )}
-            >
-              {t === "FRANCHISE" ? (
-                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
-              ) : (
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
-              )}
-              <span>
-                <span className="block text-sm font-semibold text-ink-900">{LEAD_TYPE_LABEL[t]}</span>
-                <span className="mt-0.5 block text-xs text-ink-500">
-                  {t === "FRANCHISE"
-                    ? "Wants to invest in a charging franchise."
-                    : "Has land or a property and wants a charger installed there."}
-                </span>
-              </span>
-            </button>
-          ))}
+      <Card title="Lead type" subtitle="What this contact actually wants from Livanto.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Type" required>
+            <Select
+              value={values.type}
+              onChange={(e) => set("type", e.target.value as LeadType)}
+              options={LEAD_TYPES.map((t) => ({ value: t, label: LEAD_TYPE_LABEL[t] }))}
+            />
+          </Field>
+          {COMMERCIAL_MODEL_TYPES.includes(values.type) && (
+            <Field label="Commercial model" hint="How they pay for the installation.">
+              <Select
+                value={values.commercialModel ?? ""}
+                onChange={(e) => set("commercialModel", (e.target.value || null) as CommercialModel | null)}
+                placeholder="Select a model"
+                options={COMMERCIAL_MODELS.map((m) => ({ value: m, label: COMMERCIAL_MODEL_LABEL[m] }))}
+              />
+            </Field>
+          )}
         </div>
       </Card>
 

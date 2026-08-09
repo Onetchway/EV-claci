@@ -11,6 +11,7 @@
 
 import {
   FUNDING_MODES, FUNDING_MODE_LABEL, LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES,
+  LEAD_TYPE_LABEL,
   LOCATION_TYPES, LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNERSHIP_TYPES,
   OWNER_TYPES, OWNER_TYPE_LABEL, POWER_LOADS, POWER_LOAD_LABEL, SOURCES,
   SOURCE_LABEL, type FundingMode, type LandType, type LeadType, type LocationType,
@@ -71,7 +72,7 @@ export function buildLeadDraft(
 
   const typeRaw = get("Type").trim();
   const type: LeadType =
-    matchEnum(typeRaw, LEAD_TYPES, { FRANCHISE: "Franchise Investor", SITE: "Site / Location Partner" }) ??
+    matchEnum(typeRaw, LEAD_TYPES, LEAD_TYPE_LABEL) ??
     (typeRaw.toLowerCase().includes("site") ? "SITE" : "FRANCHISE");
 
   const source: Source = matchEnum(get("Source"), SOURCES, SOURCE_LABEL) ?? "OTHER";

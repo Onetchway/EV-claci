@@ -31,6 +31,7 @@ export default function NewLeadPage() {
         expectedCloseAt: values.expectedCloseAt,
         partnerId: values.partnerId,
         partnerName: values.partnerName,
+        commercialModel: values.commercialModel,
         ownerId: values.ownerId,
         ownerName: values.ownerName,
       },

@@ -40,6 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/sites", label: "Site Enquiries", icon: MapPin },
       { href: "/loans", label: "Loan Customers", icon: Landmark },
       { href: "/partners", label: "Channel Partners", icon: Handshake },
+      { href: "/b2b", label: "B2B", icon: Building2 },
     ],
   },
   {
