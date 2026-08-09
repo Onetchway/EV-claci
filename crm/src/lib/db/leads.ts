@@ -743,6 +743,30 @@ export async function findLinkCandidates(lead: Lead, search: string): Promise<Le
     .slice(0, 25);
 }
 
+/**
+ * Won leads not yet converted to a project — across every lead type, not just
+ * Franchise. Backs the "start from an existing lead" picker on New Project.
+ */
+export async function findConvertibleLeads(search: string): Promise<Lead[]> {
+  const snap = await getDocs(
+    query(collection(getDb(), LEADS), where("status", "==", "WON"), fsLimit(300)),
+  );
+  const needle = search.trim().toLowerCase();
+
+  return snap.docs
+    .map((d) => mapLead(d.id, d.data()))
+    .filter((l) => !l.projectId)
+    .filter((l) => {
+      if (!needle) return true;
+      const hay = [l.code, l.client?.name, l.client?.phone, l.client?.city, l.site?.locationName]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    })
+    .slice(0, 25);
+}
+
 // ---------------------------------------------------------------------------
 // Letter of Intent
 // ---------------------------------------------------------------------------

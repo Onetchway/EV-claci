@@ -288,7 +288,10 @@ export async function convertLeadToProject(lead: Lead, actor: Actor): Promise<Pr
 
   const project = await createProject(
     {
-      ownership: "FRANCHISE",
+      // Only a Franchise lead is investor-funded; every other lead type
+      // (RWA, Corporate, Government, Charger Sale, EPC, Software, Others,
+      // Site) is Livanto building/operating directly.
+      ownership: lead.type === "FRANCHISE" ? "FRANCHISE" : "COCO",
       name: lead.site?.locationName?.trim() || `${lead.client?.name} — ${lead.client?.city}`,
       client: {
         name: lead.client?.name ?? "",

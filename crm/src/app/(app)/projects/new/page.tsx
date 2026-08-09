@@ -1,23 +1,27 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
-import { Building2, Zap } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { Building2, Search, Zap } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
 import { ChargerConfigurator } from "@/components/charger-configurator";
 import {
-  Button, Card, Field, Input, PageHeader, Select, Spinner, Textarea, useToast,
+  Badge, Button, Card, Field, Input, PageHeader, Select, Spinner, Textarea,
+  useAsyncAction, useToast,
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
 import {
-  INDIAN_STATES, LAND_TYPES, LAND_TYPE_LABEL, LOCATION_TYPES, LOCATION_TYPE_LABEL,
-  OWNER_TYPES, OWNER_TYPE_LABEL, PROJECT_OWNERSHIPS, PROJECT_OWNERSHIP_LABEL,
+  INDIAN_STATES, LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPE_LABEL, LOCATION_TYPES,
+  LOCATION_TYPE_LABEL, OWNER_TYPES, OWNER_TYPE_LABEL, PROJECT_OWNERSHIPS,
+  PROJECT_OWNERSHIP_LABEL,
   type LandType, type LocationType, type OwnerType, type ProjectOwnership,
 } from "@/lib/constants";
-import { createProject } from "@/lib/db/projects";
+import { convertLeadToProject, createProject } from "@/lib/db/projects";
+import { findConvertibleLeads } from "@/lib/db/leads";
 import type { ConfigItem, ExtraItem } from "@/lib/pricing";
-import { cn, parseMapsLink } from "@/lib/utils";
+import type { Lead } from "@/lib/types";
+import { cn, formatCompactINR, parseMapsLink } from "@/lib/utils";
 
 function NewProjectInner() {
   const router = useRouter();
@@ -50,6 +54,32 @@ function NewProjectInner() {
   const [targetLiveAt, setTargetLiveAt] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [leadSearch, setLeadSearch] = useState("");
+  const [leadResults, setLeadResults] = useState<Lead[]>([]);
+  const [searching, setSearching] = useState(false);
+  const { busy: converting, run: runConvert } = useAsyncAction();
+
+  useEffect(() => {
+    let cancelled = false;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const rows = await findConvertibleLeads(leadSearch);
+        if (!cancelled) setLeadResults(rows);
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [leadSearch]);
+
+  async function startFromLead(lead: Lead) {
+    if (!actor) return;
+    await runConvert(async () => {
+      const project = await convertLeadToProject(lead, actor);
+      router.replace(`/projects/${project.id}`);
+    }, "Project created from lead.");
+  }
 
   const isCoco = ownership === "COCO";
 
@@ -109,8 +139,47 @@ function NewProjectInner() {
         description="Track delivery of a station from site survey through to commissioning."
       />
 
+      <Card
+        title="Start from an existing lead"
+        subtitle="Search any won lead — Franchise, RWA, EPC, Charger Sale, Corporate, Government, Software, Others, Site — to pre-fill everything below from it."
+        className="mb-4"
+      >
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+          <Input
+            value={leadSearch}
+            onChange={(e) => setLeadSearch(e.target.value)}
+            placeholder="Search by name, code, phone or city…"
+            className="pl-9"
+          />
+        </div>
+        {searching ? (
+          <p className="py-4 text-center text-sm text-ink-500">Searching…</p>
+        ) : leadResults.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-500">
+            {leadSearch ? "No won, unconverted leads match." : "Type to search, or skip this and create a blank project below."}
+          </p>
+        ) : (
+          <ul className="mt-2 divide-y divide-ink-100">
+            {leadResults.map((l) => (
+              <li key={l.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink-900">{l.client?.name}</p>
+                  <p className="truncate text-xs text-ink-500">
+                    {l.code} · <Badge>{LEAD_TYPE_LABEL[l.type]}</Badge> · {l.client?.city} · {formatCompactINR(l.value ?? 0)}
+                  </p>
+                </div>
+                <Button size="sm" variant="primary" loading={converting} onClick={() => void startFromLead(l)}>
+                  Use this lead
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
       <form onSubmit={submit} className="space-y-4">
-        <Card title="Ownership" subtitle="Who funds and owns this station.">
+        <Card title="Ownership" subtitle="Who funds and owns this station — or fill the rest of this form manually without picking a lead above.">
           <div className="grid gap-2 sm:grid-cols-2">
             {PROJECT_OWNERSHIPS.map((o) => (
               <button
