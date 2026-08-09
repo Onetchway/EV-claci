@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, ExternalLink, Lightbulb, MapPin, Phone, Zap,
+  ArrowLeft, ExternalLink, Lightbulb, MapPin, Phone, Trash2, Zap,
 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
@@ -24,9 +24,9 @@ import {
 } from "@/lib/constants";
 import {
   changeProjectStage, projectProgress, projectRisks, setProjectStatus,
-  subscribeProject, suggestedStage, updateProject, updateWorkstream,
+  subscribeProject, suggestedStage, trashProject, updateProject, updateWorkstream,
 } from "@/lib/db/projects";
-import { canEditLead, canReassign } from "@/lib/permissions";
+import { canEditLead, canReassign, canTrash } from "@/lib/permissions";
 import { buildQuote, describeConfig } from "@/lib/pricing";
 import type { Project, ProjectWorkstream } from "@/lib/types";
 import { cn, formatDate, formatINR, formatNumber, toDate } from "@/lib/utils";
@@ -205,6 +205,7 @@ export default function ProjectDetailPage() {
   const [stageNote, setStageNote] = useState("");
   const [discomOpen, setDiscomOpen] = useState(false);
   const [discom, setDiscom] = useState<Project["discom"] | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -259,21 +260,57 @@ export default function ProjectDetailPage() {
         title={project.name}
         description={`${project.code} · ${PROJECT_OWNERSHIP_LABEL[project.ownership]} · manager ${project.managerName}`}
         actions={
-          canEdit && (
-            <>
-              <Button onClick={() => { setTargetStage(project.stage); setStageOpen(true); }}>
-                Change stage
+          <>
+            {canEdit && (
+              <>
+                <Button onClick={() => { setTargetStage(project.stage); setStageOpen(true); }}>
+                  Change stage
+                </Button>
+                <Select
+                  value={project.status}
+                  onChange={(e) => void run(() => setProjectStatus(project, e.target.value as ProjectStatus, actor!), "Status updated.")}
+                  className="w-auto"
+                  options={PROJECT_STATUSES.map((s) => ({ value: s, label: PROJECT_STATUS_LABEL[s] }))}
+                />
+              </>
+            )}
+            {canTrash(viewer) && (
+              <Button variant="danger" onClick={() => setTrashOpen(true)}>
+                <Trash2 className="h-4 w-4" /> Delete
               </Button>
-              <Select
-                value={project.status}
-                onChange={(e) => void run(() => setProjectStatus(project, e.target.value as ProjectStatus, actor!), "Status updated.")}
-                className="w-auto"
-                options={PROJECT_STATUSES.map((s) => ({ value: s, label: PROJECT_STATUS_LABEL[s] }))}
-              />
-            </>
-          )
+            )}
+          </>
         }
       />
+
+      <Modal
+        open={trashOpen}
+        onClose={() => setTrashOpen(false)}
+        title="Delete this project"
+        description="Moves it to Trash — it disappears from every list, but an admin can restore it from Trash at any time. Nothing is permanently deleted."
+        footer={
+          <>
+            <Button onClick={() => setTrashOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  await trashProject(project, actor!);
+                  setTrashOpen(false);
+                  router.push("/projects");
+                }, "Project moved to Trash.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Move to Trash
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">
+          <strong>{project.code}</strong> — {project.name}
+        </p>
+      </Modal>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge className={meta.color}>{meta.label}</Badge>

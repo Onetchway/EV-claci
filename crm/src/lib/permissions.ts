@@ -133,3 +133,12 @@ export const canManagePartners = (viewer: Viewer) =>
 /** Approving/paying commission is a money decision, same bar as verifying a payment. */
 export const canManageCommissions = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");
+
+// ---------------------------------------------------------------------------
+// Trash — soft delete is reversible, so it's open to admins; permanently
+// deleting is not, so it stays super-admin only (matches the Firestore
+// delete rule on leads/projects).
+// ---------------------------------------------------------------------------
+
+export const canTrash = (viewer: Viewer) => viewerIsAdmin(viewer);
+export const canPermanentlyDelete = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN");

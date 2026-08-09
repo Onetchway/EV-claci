@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3, Building2, FileClock, HardHat, Handshake, KanbanSquare, Landmark,
   LayoutDashboard, LineChart, ListTodo, LogOut, MapPin, Menu, Package, Settings,
-  ShieldCheck, Users, Users2, X, Zap,
+  ShieldCheck, Trash2, Users, Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -59,6 +59,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
       { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
+      { href: "/trash", label: "Trash", icon: Trash2, adminOnly: true },
     ],
   },
 ];

@@ -536,6 +536,10 @@ export const ACTIVITY_TYPES = [
   "PROJECT_NOTE",
   "IMPORTED",
   "SETTINGS_UPDATED",
+  "TRASHED",
+  "RESTORED",
+  "PROJECT_TRASHED",
+  "PROJECT_RESTORED",
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 

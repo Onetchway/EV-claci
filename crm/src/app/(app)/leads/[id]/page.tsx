@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, ExternalLink, HardHat, Mail, MapPin, Pencil, Phone, RotateCcw,
-  UserCog, XCircle,
+  Trash2, UserCog, XCircle,
 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
@@ -29,13 +29,13 @@ import {
   STATUS_LABEL, type RejectionReason,
 } from "@/lib/constants";
 import {
-  reassignLead, reopenLead, subscribeLead, rejectLead, updateLead,
+  reassignLead, reopenLead, subscribeLead, rejectLead, trashLead, updateLead,
 } from "@/lib/db/leads";
 import { convertLeadToProject } from "@/lib/db/projects";
 import { notifyAssigned } from "@/lib/db/notifications";
 import { scoreLead } from "@/lib/scoring";
 import {
-  canCreateLead, canEditLead, canReassign, canReopenLead, canViewLead,
+  canCreateLead, canEditLead, canReassign, canReopenLead, canTrash, canViewLead,
 } from "@/lib/permissions";
 import { buildQuote, describeConfig } from "@/lib/pricing";
 import type { Lead } from "@/lib/types";
@@ -69,6 +69,7 @@ export default function LeadDetailPage() {
 
   const [editing, setEditing] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [reason, setReason] = useState<RejectionReason>("NOT_INTERESTED");
   const [reasonNote, setReasonNote] = useState("");
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -224,6 +225,11 @@ export default function LeadDetailPage() {
                   <XCircle className="h-4 w-4" /> Reject
                 </Button>
               )
+            )}
+            {canTrash(viewer) && (
+              <Button variant="danger" onClick={() => setTrashOpen(true)}>
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
             )}
           </>
         }
@@ -559,6 +565,35 @@ export default function LeadDetailPage() {
             <Textarea rows={3} value={reasonNote} onChange={(e) => setReasonNote(e.target.value)} />
           </Field>
         </div>
+      </Modal>
+
+      <Modal
+        open={trashOpen}
+        onClose={() => setTrashOpen(false)}
+        title="Delete this lead"
+        description="Moves it to Trash — it disappears from every list, but an admin can restore it from Trash at any time. Nothing is permanently deleted."
+        footer={
+          <>
+            <Button onClick={() => setTrashOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  await trashLead(lead, actor!);
+                  setTrashOpen(false);
+                  router.push("/leads");
+                }, "Lead moved to Trash.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Move to Trash
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">
+          <strong>{lead.code}</strong> — {lead.client?.name}
+        </p>
       </Modal>
 
       <Modal

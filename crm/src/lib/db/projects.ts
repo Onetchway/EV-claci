@@ -101,12 +101,16 @@ export interface ProjectFilters {
   stages?: ProjectStage[];
   managerId?: string | null;
   search?: string;
+  /** Show trashed projects instead of hiding them — used only by the Trash page. */
+  includeTrashed?: boolean;
   max?: number;
 }
 
 export function applyProjectFilters(rows: Project[], f: ProjectFilters): Project[] {
   const needle = f.search?.trim().toLowerCase();
   return rows.filter((p) => {
+    if (f.includeTrashed) { if (!p.deletedAt) return false; }
+    else if (p.deletedAt) return false;
     if (f.stages?.length && !f.stages.includes(p.stage)) return false;
     if (f.managerId && p.managerId !== f.managerId) return false;
     if (needle) {
@@ -550,6 +554,43 @@ export function suggestedStage(project: Project): ProjectStage {
 }
 
 export const ALL_PROJECT_STAGES = PROJECT_STAGES;
+
+/** Moves a project to Trash — hidden from normal views, recoverable until permanently deleted. */
+export async function trashProject(project: Project, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), PROJECTS, project.id), {
+    deletedAt: serverTimestamp(),
+    deletedBy: actor,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+  logActivitySafe({
+    leadId: project.id,
+    ownerId: project.managerId,
+    leadCode: project.code,
+    leadName: project.name,
+    type: "PROJECT_TRASHED",
+    message: "Moved to Trash",
+    actor,
+  });
+}
+
+export async function restoreProject(project: Project, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), PROJECTS, project.id), {
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+  logActivitySafe({
+    leadId: project.id,
+    ownerId: project.managerId,
+    leadCode: project.code,
+    leadName: project.name,
+    type: "PROJECT_RESTORED",
+    message: "Restored from Trash",
+    actor,
+  });
+}
 
 /** Super-admin only; takes the sub-collections with it. */
 export async function deleteProject(project: Project): Promise<void> {

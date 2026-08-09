@@ -208,6 +208,9 @@ export interface Lead {
   partnerName?: string | null;
   /** How the client pays, for lead types where Livanto installs/invests (RWA, Corporate, Government, Software, Others). */
   commercialModel?: CommercialModel | null;
+  /** Soft-deleted leads are hidden from normal views but recoverable from Trash. */
+  deletedAt?: TS | null;
+  deletedBy?: Actor | null;
   site?: SiteInfo;
   ownerId: string;
   ownerName: string;
@@ -478,6 +481,9 @@ export interface Project {
   updatedAt: TS;
   updatedBy?: Actor;
   search?: string[];
+  /** Soft-deleted projects are hidden from normal views but recoverable from Trash. */
+  deletedAt?: TS | null;
+  deletedBy?: Actor | null;
 }
 
 // ---------------------------------------------------------------------------

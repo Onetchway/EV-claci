@@ -74,6 +74,8 @@ export interface LeadFilters {
   maxValue?: number | null;
   /** Only leads whose next follow-up is already past. */
   overdueOnly?: boolean;
+  /** Show trashed leads instead of hiding them — used only by the Trash page. */
+  includeTrashed?: boolean;
   max?: number;
 }
 
@@ -90,6 +92,8 @@ export function applyClientFilters(rows: Lead[], f: LeadFilters): Lead[] {
   const now = Date.now();
 
   return rows.filter((l) => {
+    if (f.includeTrashed) { if (!l.deletedAt) return false; }
+    else if (l.deletedAt) return false;
     if (f.types?.length && !f.types.includes(l.type)) return false;
     if (f.stages?.length && !f.stages.includes(l.stage)) return false;
     if (f.sources?.length && !f.sources.includes(l.source)) return false;
@@ -549,6 +553,43 @@ export async function refreshPaymentRollup(leadId: string): Promise<void> {
   const value = (leadSnap.data()?.value as number | undefined) ?? 0;
 
   await updateDoc(leadRef, { paidAmount: paid, dueAmount: Math.max(0, value - paid) });
+}
+
+/** Moves a lead to Trash — hidden from normal views, recoverable until permanently deleted. */
+export async function trashLead(lead: Lead, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), LEADS, lead.id), {
+    deletedAt: serverTimestamp(),
+    deletedBy: actor,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "TRASHED",
+    message: "Moved to Trash",
+    actor,
+  });
+}
+
+export async function restoreLead(lead: Lead, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), LEADS, lead.id), {
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "RESTORED",
+    message: "Restored from Trash",
+    actor,
+  });
 }
 
 /** Hard delete — super admin only, and it takes the sub-collections with it. */
