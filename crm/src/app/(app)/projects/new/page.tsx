@@ -12,10 +12,10 @@ import {
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
 import {
-  INDIAN_STATES, LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPE_LABEL, LOCATION_TYPES,
-  LOCATION_TYPE_LABEL, OWNER_TYPES, OWNER_TYPE_LABEL, PROJECT_OWNERSHIPS,
-  PROJECT_OWNERSHIP_LABEL,
-  type LandType, type LocationType, type OwnerType, type ProjectOwnership,
+  INDIAN_STATES, LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL,
+  LOCATION_TYPES, LOCATION_TYPE_LABEL, OWNER_TYPES, OWNER_TYPE_LABEL,
+  type LandType, type LeadType, type LocationType, type OwnerType,
+  type ProjectOwnership,
 } from "@/lib/constants";
 import { convertLeadToProject, createProject } from "@/lib/db/projects";
 import { findConvertibleLeads } from "@/lib/db/leads";
@@ -30,9 +30,10 @@ function NewProjectInner() {
   const { users } = useAgents();
   const { push } = useToast();
 
-  const initialOwnership = (params.get("ownership") as ProjectOwnership | null) ?? "COCO";
+  const initialOwnership = params.get("ownership") as ProjectOwnership | null;
+  const initialType: LeadType = initialOwnership === "COCO" ? "CORPORATE" : "FRANCHISE";
 
-  const [ownership, setOwnership] = useState<ProjectOwnership>(initialOwnership);
+  const [projectType, setProjectType] = useState<LeadType>(initialType);
   const [name, setName] = useState("");
   const [client, setClient] = useState({ name: "", phone: "", email: "", company: "" });
   const [site, setSite] = useState({
@@ -81,6 +82,10 @@ function NewProjectInner() {
     }, "Project created from lead.");
   }
 
+  // Only an actual Franchise investor deal is investor-funded; every other
+  // project type (RWA, Corporate, Government, Charger Sale, EPC, Software,
+  // Others, Site) is Livanto building/operating directly.
+  const ownership: ProjectOwnership = projectType === "FRANCHISE" ? "FRANCHISE" : "COCO";
   const isCoco = ownership === "COCO";
 
   function toggleLocationType(t: LocationType) {
@@ -97,8 +102,8 @@ function NewProjectInner() {
     if (!actor) return;
     if (!name.trim()) { push("Give the project a name.", "error"); return; }
     if (!site.city.trim()) { push("City is required.", "error"); return; }
-    if (!isCoco && !client.name.trim()) {
-      push("A franchise project needs the franchisee's name.", "error");
+    if (projectType === "FRANCHISE" && !client.name.trim()) {
+      push("A franchise project needs the investor's name.", "error");
       return;
     }
 
@@ -110,7 +115,7 @@ function NewProjectInner() {
         {
           ownership,
           name: name.trim(),
-          client: isCoco ? null : client,
+          client: client.name.trim() ? client : null,
           site: { ...site, lat: coords?.lat ?? null, lng: coords?.lng ?? null },
           config,
           extras,
@@ -179,37 +184,28 @@ function NewProjectInner() {
       </Card>
 
       <form onSubmit={submit} className="space-y-4">
-        <Card title="Ownership" subtitle="Who funds and owns this station — or fill the rest of this form manually without picking a lead above.">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {PROJECT_OWNERSHIPS.map((o) => (
-              <button
-                key={o}
-                type="button"
-                onClick={() => setOwnership(o)}
-                className={cn(
-                  "flex items-start gap-3 rounded-lg border p-3 text-left transition",
-                  ownership === o
-                    ? "border-brand-500 bg-brand-50 ring-1 ring-brand-500"
-                    : "border-ink-200 bg-white hover:border-ink-300",
-                )}
-              >
-                {o === "COCO" ? (
-                  <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
-                ) : (
-                  <Zap className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
-                )}
-                <span>
-                  <span className="block text-sm font-semibold text-ink-900">
-                    {PROJECT_OWNERSHIP_LABEL[o]}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-ink-500">
-                    {o === "COCO"
-                      ? "Livanto funds, owns and operates the station."
-                      : "An investor funds it; Livanto builds and operates it."}
-                  </span>
-                </span>
-              </button>
-            ))}
+        <Card
+          title="Project type"
+          subtitle="Same categories as Sales. A Franchise project is investor-funded; every other type is Livanto building/operating directly."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Type" required>
+              <Select
+                value={projectType}
+                onChange={(e) => setProjectType(e.target.value as LeadType)}
+                options={LEAD_TYPES.map((t) => ({ value: t, label: LEAD_TYPE_LABEL[t] }))}
+              />
+            </Field>
+            <div className="flex items-center gap-2 rounded-lg bg-ink-50 px-3 py-2 text-sm text-ink-600">
+              {ownership === "FRANCHISE" ? (
+                <Zap className="h-4 w-4 shrink-0 text-brand-600" />
+              ) : (
+                <Building2 className="h-4 w-4 shrink-0 text-brand-600" />
+              )}
+              {ownership === "FRANCHISE"
+                ? "Investor-funded — will show under Projects."
+                : "Livanto-funded — will also show under Company Stations."}
+            </div>
           </div>
         </Card>
 
@@ -249,24 +245,25 @@ function NewProjectInner() {
           </div>
         </Card>
 
-        {!isCoco && (
-          <Card title="Franchisee">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Name" required>
-                <Input value={client.name} onChange={(e) => setClient({ ...client, name: e.target.value })} />
-              </Field>
-              <Field label="Phone">
-                <Input value={client.phone} onChange={(e) => setClient({ ...client, phone: e.target.value })} />
-              </Field>
-              <Field label="Email">
-                <Input type="email" value={client.email} onChange={(e) => setClient({ ...client, email: e.target.value })} />
-              </Field>
-              <Field label="Company">
-                <Input value={client.company} onChange={(e) => setClient({ ...client, company: e.target.value })} />
-              </Field>
-            </div>
-          </Card>
-        )}
+        <Card
+          title={projectType === "FRANCHISE" ? "Franchisee" : "Client / contact"}
+          subtitle={projectType === "FRANCHISE" ? undefined : "Optional — whoever you're dealing with, even on a Livanto-owned station."}
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Name" required={projectType === "FRANCHISE"}>
+              <Input value={client.name} onChange={(e) => setClient({ ...client, name: e.target.value })} />
+            </Field>
+            <Field label="Phone">
+              <Input value={client.phone} onChange={(e) => setClient({ ...client, phone: e.target.value })} />
+            </Field>
+            <Field label="Email">
+              <Input type="email" value={client.email} onChange={(e) => setClient({ ...client, email: e.target.value })} />
+            </Field>
+            <Field label="Company">
+              <Input value={client.company} onChange={(e) => setClient({ ...client, company: e.target.value })} />
+            </Field>
+          </div>
+        </Card>
 
         <Card title="Site">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
