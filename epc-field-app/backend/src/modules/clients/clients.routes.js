@@ -52,6 +52,284 @@ router.get('/:id/stage-templates', async (req, res) => {
   });
 });
 
+const FIELD_TYPES = ['text', 'number', 'date', 'select', 'checkbox', 'table', 'photo', 'file'];
+
+/**
+ * Lets a new client (e.g. one with no seeded stages yet) get its execution playbook — stages,
+ * form fields, required photos — defined entirely from the dashboard, exactly like V-Green's are
+ * today. Without this, onboarding a client required editing prisma/seed.js and redeploying.
+ */
+router.post('/:id/stage-templates', requirePermission(PERMISSIONS.CLIENTS_MANAGE.key), async (req, res) => {
+  const client = await prisma.client.findUnique({ where: { id: req.params.id } });
+  if (!client) return res.status(404).json({ error: 'Client not found' });
+  const { key, name, order } = req.body || {};
+  if (!key || !name) return res.status(400).json({ error: 'key and name are required' });
+
+  const maxOrder = await prisma.stageTemplate.aggregate({ where: { clientId: client.id }, _max: { order: true } });
+  const nextOrder = order !== undefined ? Number(order) : (maxOrder._max.order || 0) + 1;
+
+  let stageTemplate;
+  try {
+    stageTemplate = await prisma.stageTemplate.create({
+      data: { clientId: client.id, key, name, order: nextOrder },
+      include: { fieldDefs: true, photoSlots: true },
+    });
+  } catch (err) {
+    if (err.code === 'P2002') return res.status(400).json({ error: `A stage with key "${key}" already exists for this client` });
+    throw err;
+  }
+
+  // Backfill this stage onto the client's existing projects too, not just future ones — otherwise
+  // a project created before this stage existed would never show it. A freshly created stage has
+  // no dependencies yet (those are configured afterward), so NOT_STARTED is always correct here.
+  const existingProjects = await prisma.project.findMany({ where: { clientId: client.id }, select: { id: true } });
+  if (existingProjects.length > 0) {
+    await prisma.projectStage.createMany({
+      data: existingProjects.map((p) => ({ projectId: p.id, stageTemplateId: stageTemplate.id, status: 'NOT_STARTED' })),
+      skipDuplicates: true,
+    });
+  }
+
+  await logAudit({
+    actorId: req.user.id,
+    action: 'stageTemplate.create',
+    entityType: 'StageTemplate',
+    entityId: stageTemplate.id,
+    after: stageTemplate,
+  });
+  res.status(201).json({
+    stageTemplate: { ...stageTemplate, dependsOnTemplateIds: [], approvalRule: { requiredApprovals: 1, eligibleRoleKeys: [] } },
+  });
+});
+
+router.patch('/:id/stage-templates/:stageTemplateId', requirePermission(PERMISSIONS.CLIENTS_MANAGE.key), async (req, res) => {
+  const before = await prisma.stageTemplate.findUnique({ where: { id: req.params.stageTemplateId } });
+  if (!before || before.clientId !== req.params.id) {
+    return res.status(404).json({ error: 'Stage template not found for this client' });
+  }
+  const { name, order } = req.body || {};
+  const stageTemplate = await prisma.stageTemplate.update({
+    where: { id: before.id },
+    data: {
+      ...(name !== undefined && { name }),
+      ...(order !== undefined && { order: Number(order) }),
+    },
+  });
+  await logAudit({
+    actorId: req.user.id,
+    action: 'stageTemplate.update',
+    entityType: 'StageTemplate',
+    entityId: stageTemplate.id,
+    before,
+    after: stageTemplate,
+  });
+  res.json({ stageTemplate });
+});
+
+router.delete('/:id/stage-templates/:stageTemplateId', requirePermission(PERMISSIONS.CLIENTS_MANAGE.key), async (req, res) => {
+  const before = await prisma.stageTemplate.findUnique({ where: { id: req.params.stageTemplateId } });
+  if (!before || before.clientId !== req.params.id) {
+    return res.status(404).json({ error: 'Stage template not found for this client' });
+  }
+  const inUseCount = await prisma.projectStage.count({ where: { stageTemplateId: before.id } });
+  if (inUseCount > 0) {
+    return res.status(400).json({
+      error: `Cannot delete — ${inUseCount} project(s) already have this stage. Existing project data is never deleted automatically.`,
+    });
+  }
+  await prisma.stageTemplate.delete({ where: { id: before.id } });
+  await logAudit({
+    actorId: req.user.id,
+    action: 'stageTemplate.delete',
+    entityType: 'StageTemplate',
+    entityId: before.id,
+    before,
+  });
+  res.json({ ok: true });
+});
+
+router.post(
+  '/:id/stage-templates/:stageTemplateId/fields',
+  requirePermission(PERMISSIONS.CLIENTS_MANAGE.key),
+  async (req, res) => {
+    const template = await prisma.stageTemplate.findUnique({ where: { id: req.params.stageTemplateId } });
+    if (!template || template.clientId !== req.params.id) {
+      return res.status(404).json({ error: 'Stage template not found for this client' });
+    }
+    const { key, label, type, required, order, groupLabel, optionsJson } = req.body || {};
+    if (!key || !label || !type) return res.status(400).json({ error: 'key, label and type are required' });
+    if (!FIELD_TYPES.includes(type)) {
+      return res.status(400).json({ error: `type must be one of: ${FIELD_TYPES.join(', ')}` });
+    }
+    const maxOrder = await prisma.formFieldDef.aggregate({ where: { stageTemplateId: template.id }, _max: { order: true } });
+    const nextOrder = order !== undefined ? Number(order) : (maxOrder._max.order || 0) + 1;
+
+    let field;
+    try {
+      field = await prisma.formFieldDef.create({
+        data: {
+          stageTemplateId: template.id,
+          key,
+          label,
+          type,
+          required: !!required,
+          order: nextOrder,
+          groupLabel: groupLabel || null,
+          optionsJson: optionsJson || null,
+        },
+      });
+    } catch (err) {
+      if (err.code === 'P2002') return res.status(400).json({ error: `A field with key "${key}" already exists on this stage` });
+      throw err;
+    }
+    await logAudit({
+      actorId: req.user.id,
+      action: 'formFieldDef.create',
+      entityType: 'FormFieldDef',
+      entityId: field.id,
+      after: field,
+    });
+    res.status(201).json({ field });
+  },
+);
+
+router.patch(
+  '/:id/stage-templates/:stageTemplateId/fields/:fieldId',
+  requirePermission(PERMISSIONS.CLIENTS_MANAGE.key),
+  async (req, res) => {
+    const before = await prisma.formFieldDef.findUnique({ where: { id: req.params.fieldId } });
+    if (!before || before.stageTemplateId !== req.params.stageTemplateId) {
+      return res.status(404).json({ error: 'Field not found on this stage' });
+    }
+    const { label, required, order, groupLabel, optionsJson } = req.body || {};
+    const field = await prisma.formFieldDef.update({
+      where: { id: before.id },
+      data: {
+        ...(label !== undefined && { label }),
+        ...(required !== undefined && { required: !!required }),
+        ...(order !== undefined && { order: Number(order) }),
+        ...(groupLabel !== undefined && { groupLabel: groupLabel || null }),
+        ...(optionsJson !== undefined && { optionsJson: optionsJson || null }),
+      },
+    });
+    await logAudit({
+      actorId: req.user.id,
+      action: 'formFieldDef.update',
+      entityType: 'FormFieldDef',
+      entityId: field.id,
+      before,
+      after: field,
+    });
+    res.json({ field });
+  },
+);
+
+router.delete(
+  '/:id/stage-templates/:stageTemplateId/fields/:fieldId',
+  requirePermission(PERMISSIONS.CLIENTS_MANAGE.key),
+  async (req, res) => {
+    const before = await prisma.formFieldDef.findUnique({ where: { id: req.params.fieldId } });
+    if (!before || before.stageTemplateId !== req.params.stageTemplateId) {
+      return res.status(404).json({ error: 'Field not found on this stage' });
+    }
+    await prisma.formFieldDef.delete({ where: { id: before.id } });
+    await logAudit({
+      actorId: req.user.id,
+      action: 'formFieldDef.delete',
+      entityType: 'FormFieldDef',
+      entityId: before.id,
+      before,
+    });
+    res.json({ ok: true });
+  },
+);
+
+router.post(
+  '/:id/stage-templates/:stageTemplateId/photo-slots',
+  requirePermission(PERMISSIONS.CLIENTS_MANAGE.key),
+  async (req, res) => {
+    const template = await prisma.stageTemplate.findUnique({ where: { id: req.params.stageTemplateId } });
+    if (!template || template.clientId !== req.params.id) {
+      return res.status(404).json({ error: 'Stage template not found for this client' });
+    }
+    const { key, label, required, order } = req.body || {};
+    if (!key || !label) return res.status(400).json({ error: 'key and label are required' });
+    const maxOrder = await prisma.photoSlot.aggregate({ where: { stageTemplateId: template.id }, _max: { order: true } });
+    const nextOrder = order !== undefined ? Number(order) : (maxOrder._max.order || 0) + 1;
+
+    let slot;
+    try {
+      slot = await prisma.photoSlot.create({
+        data: { stageTemplateId: template.id, key, label, required: required !== undefined ? !!required : true, order: nextOrder },
+      });
+    } catch (err) {
+      if (err.code === 'P2002') return res.status(400).json({ error: `A photo slot with key "${key}" already exists on this stage` });
+      throw err;
+    }
+    await logAudit({
+      actorId: req.user.id,
+      action: 'photoSlot.create',
+      entityType: 'PhotoSlot',
+      entityId: slot.id,
+      after: slot,
+    });
+    res.status(201).json({ slot });
+  },
+);
+
+router.patch(
+  '/:id/stage-templates/:stageTemplateId/photo-slots/:slotId',
+  requirePermission(PERMISSIONS.CLIENTS_MANAGE.key),
+  async (req, res) => {
+    const before = await prisma.photoSlot.findUnique({ where: { id: req.params.slotId } });
+    if (!before || before.stageTemplateId !== req.params.stageTemplateId) {
+      return res.status(404).json({ error: 'Photo slot not found on this stage' });
+    }
+    const { label, required, order } = req.body || {};
+    const slot = await prisma.photoSlot.update({
+      where: { id: before.id },
+      data: {
+        ...(label !== undefined && { label }),
+        ...(required !== undefined && { required: !!required }),
+        ...(order !== undefined && { order: Number(order) }),
+      },
+    });
+    await logAudit({
+      actorId: req.user.id,
+      action: 'photoSlot.update',
+      entityType: 'PhotoSlot',
+      entityId: slot.id,
+      before,
+      after: slot,
+    });
+    res.json({ slot });
+  },
+);
+
+router.delete(
+  '/:id/stage-templates/:stageTemplateId/photo-slots/:slotId',
+  requirePermission(PERMISSIONS.CLIENTS_MANAGE.key),
+  async (req, res) => {
+    const before = await prisma.photoSlot.findUnique({ where: { id: req.params.slotId } });
+    if (!before || before.stageTemplateId !== req.params.stageTemplateId) {
+      return res.status(404).json({ error: 'Photo slot not found on this stage' });
+    }
+    const inUseCount = await prisma.photo.count({ where: { photoSlotId: before.id } });
+    if (inUseCount > 0) {
+      return res.status(400).json({ error: `Cannot delete — ${inUseCount} photo(s) already uploaded to this slot.` });
+    }
+    await prisma.photoSlot.delete({ where: { id: before.id } });
+    await logAudit({
+      actorId: req.user.id,
+      action: 'photoSlot.delete',
+      entityType: 'PhotoSlot',
+      entityId: before.id,
+      before,
+    });
+    res.json({ ok: true });
+  },
+);
+
 router.put(
   '/:id/stage-templates/:stageTemplateId/approval-rule',
   requirePermission(PERMISSIONS.CLIENTS_MANAGE.key),

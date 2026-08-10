@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Nav from '../../../components/Nav';
 import ConfigEditor from '../../../components/ConfigEditor';
 import MilestoneForm from '../../../components/MilestoneForm';
+import StageTemplateEditor from '../../../components/StageTemplateEditor';
 import { apiFetch, getUser } from '../../../lib/api';
 import { useAuthGuard } from '../../../lib/useAuthGuard';
 
@@ -20,6 +21,9 @@ export default function ClientDetailPage() {
   const [editingId, setEditingId] = useState(null);
   const [editingDeps, setEditingDeps] = useState(new Set());
   const [saving, setSaving] = useState(false);
+  const [expandedStageId, setExpandedStageId] = useState(null);
+  const [addingStage, setAddingStage] = useState(false);
+  const [newStageDraft, setNewStageDraft] = useState({ key: '', name: '' });
 
   const [editingRuleId, setEditingRuleId] = useState(null);
   const [ruleDraft, setRuleDraft] = useState({ requiredApprovals: 1, eligibleRoleKeys: new Set() });
@@ -61,6 +65,34 @@ export default function ClientDetailPage() {
   useEffect(() => {
     if (ready) load();
   }, [ready, id]);
+
+  async function createStage() {
+    setSaving(true);
+    setError('');
+    try {
+      await apiFetch(`/clients/${id}/stage-templates`, { method: 'POST', body: JSON.stringify(newStageDraft) });
+      setAddingStage(false);
+      setNewStageDraft({ key: '', name: '' });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteStage(stageId) {
+    setSaving(true);
+    setError('');
+    try {
+      await apiFetch(`/clients/${id}/stage-templates/${stageId}`, { method: 'DELETE' });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function startEdit(stage) {
     setEditingId(stage.id);
@@ -235,47 +267,64 @@ export default function ClientDetailPage() {
         <div className="card">
           <table>
             <thead>
-              <tr><th>#</th><th>Stage</th><th>Depends on (must be approved first)</th><th></th></tr>
+              <tr><th>#</th><th>Stage</th><th>Depends on (must be approved first)</th><th>Form</th><th></th></tr>
             </thead>
             <tbody>
               {stageTemplates.map((st) => (
-                <tr key={st.id}>
-                  <td>{st.order}</td>
-                  <td>{st.name}</td>
-                  <td>
-                    {editingId === st.id ? (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }}>
-                        {stageTemplates.filter((other) => other.id !== st.id).map((other) => (
-                          <label key={other.id} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'normal' }}>
-                            <input
-                              type="checkbox"
-                              checked={editingDeps.has(other.id)}
-                              onChange={() => toggleDep(other.id)}
-                            />
-                            {other.name}
-                          </label>
-                        ))}
-                      </div>
-                    ) : st.dependsOnTemplateIds.length === 0 ? (
-                      <span className="muted">None — unlocked immediately</span>
-                    ) : (
-                      st.dependsOnTemplateIds.map((depId) => nameById.get(depId)).filter(Boolean).join(', ')
-                    )}
-                  </td>
-                  <td>
-                    {!canManage ? null : editingId === st.id ? (
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="btn" disabled={saving} onClick={() => saveDeps(st.id)}>Save</button>
-                        <button className="btn secondary" disabled={saving} onClick={() => setEditingId(null)}>Cancel</button>
-                      </div>
-                    ) : (
-                      <button className="btn secondary" onClick={() => startEdit(st)}>Edit</button>
-                    )}
-                  </td>
-                </tr>
+                <Fragment key={st.id}>
+                  <tr>
+                    <td>{st.order}</td>
+                    <td>{st.name}</td>
+                    <td>
+                      {editingId === st.id ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }}>
+                          {stageTemplates.filter((other) => other.id !== st.id).map((other) => (
+                            <label key={other.id} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'normal' }}>
+                              <input
+                                type="checkbox"
+                                checked={editingDeps.has(other.id)}
+                                onChange={() => toggleDep(other.id)}
+                              />
+                              {other.name}
+                            </label>
+                          ))}
+                        </div>
+                      ) : st.dependsOnTemplateIds.length === 0 ? (
+                        <span className="muted">None — unlocked immediately</span>
+                      ) : (
+                        st.dependsOnTemplateIds.map((depId) => nameById.get(depId)).filter(Boolean).join(', ')
+                      )}
+                    </td>
+                    <td>
+                      <button className="btn secondary" onClick={() => setExpandedStageId(expandedStageId === st.id ? null : st.id)}>
+                        {expandedStageId === st.id ? 'Hide' : `Manage (${st.fieldDefs.length} field${st.fieldDefs.length === 1 ? '' : 's'}, ${st.photoSlots.length} photo${st.photoSlots.length === 1 ? '' : 's'})`}
+                      </button>
+                    </td>
+                    <td>
+                      {!canManage ? null : editingId === st.id ? (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="btn" disabled={saving} onClick={() => saveDeps(st.id)}>Save</button>
+                          <button className="btn secondary" disabled={saving} onClick={() => setEditingId(null)}>Cancel</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="btn secondary" onClick={() => startEdit(st)}>Depends on</button>
+                          <button className="btn secondary" disabled={saving} onClick={() => deleteStage(st.id)}>Delete</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                  {expandedStageId === st.id && (
+                    <tr>
+                      <td colSpan={5}>
+                        <StageTemplateEditor clientId={id} stage={st} onChanged={load} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
               {stageTemplates.length === 0 && (
-                <tr><td colSpan={4} className="muted">No stage templates seeded for this client yet.</td></tr>
+                <tr><td colSpan={5} className="muted">No stage templates yet — add one below.</td></tr>
               )}
             </tbody>
           </table>
@@ -284,6 +333,27 @@ export default function ClientDetailPage() {
             are workable as soon as a project is created — list more than one dependency to require
             parallel workstreams to finish before a downstream stage starts.
           </p>
+
+          {canManage && (
+            addingStage ? (
+              <div className="grid cols-2" style={{ marginTop: 12, gap: 10 }}>
+                <div className="field">
+                  <label>Key (machine name, e.g. SITE_SURVEY)</label>
+                  <input value={newStageDraft.key} onChange={(e) => setNewStageDraft((p) => ({ ...p, key: e.target.value }))} />
+                </div>
+                <div className="field">
+                  <label>Name</label>
+                  <input value={newStageDraft.name} onChange={(e) => setNewStageDraft((p) => ({ ...p, name: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, gridColumn: '1 / -1' }}>
+                  <button className="btn" disabled={saving || !newStageDraft.key || !newStageDraft.name} onClick={createStage}>Add stage</button>
+                  <button className="btn secondary" disabled={saving} onClick={() => { setAddingStage(false); setNewStageDraft({ key: '', name: '' }); }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button className="btn" style={{ marginTop: 12 }} onClick={() => setAddingStage(true)}>+ Add stage</button>
+            )
+          )}
         </div>
 
         <div className="card">
