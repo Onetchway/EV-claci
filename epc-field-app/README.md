@@ -1,4 +1,4 @@
-# NaKJM EPC Field Survey & Reporting App
+# NaKJM Infra — EPC Field Survey & Reporting App
 
 A field survey / EPC execution reporting system for NaKJM's EV charging station (EVCS)
 installation projects. Engineers pick a client → project → work stage on an Android app, fill
@@ -76,6 +76,13 @@ cp .env.example .env               # set EXPO_PUBLIC_API_BASE_URL to your machin
 npm install
 npx expo start                     # scan the QR code with Expo Go, or press "a" for an Android emulator
 ```
+
+## Deploying
+
+Production hosting is [`dashboard.nakjminfra.com`](https://dashboard.nakjminfra.com) (admin) +
+`api.nakjminfra.com` (backend), via a Render Blueprint at [`../render.yaml`](../render.yaml) that
+auto-deploys on every push once connected. See [`DEPLOYMENT.md`](DEPLOYMENT.md) for the full
+one-time setup (Render, custom domains, and the mobile app's EAS build/OTA-update setup).
 
 ## Known limitations / not yet built
 

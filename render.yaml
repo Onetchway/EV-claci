@@ -1,0 +1,77 @@
+# Render Blueprint for the NaKJM Infra EPC Field App (backend API + admin dashboard).
+# This app is one of several products in this repo — only the epc-field-app/ subtree is
+# covered here (backend/ and frontend/ at the repo root belong to an unrelated product).
+#
+# One-time setup (see epc-field-app/DEPLOYMENT.md for the full walkthrough):
+#   1. In the Render dashboard: New + -> Blueprint -> connect this GitHub repo -> branch
+#      claude/epc-field-survey-app-we534z. Render finds this file automatically (repo root,
+#      default filename).
+#   2. Render creates the database + both services below and deploys them.
+#   3. Add the custom domains (dashboard.nakjminfra.com / api.nakjminfra.com) as CNAME records
+#      at your DNS registrar, pointing at the hostnames Render shows you.
+#
+# After that, every push to this branch auto-deploys both services — no need to touch Render again
+# unless you want to change a secret/plan/region, which is also just editing this file.
+
+databases:
+  - name: nakjm-infra-postgres
+    plan: starter
+    region: singapore
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: nakjm-infra-field-api
+    runtime: docker
+    plan: starter
+    region: singapore
+    rootDir: epc-field-app/backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    preDeployCommand: npx prisma migrate deploy
+    autoDeployTrigger: commit
+    disk:
+      name: epc-field-app-storage
+      mountPath: /app/storage
+      sizeGB: 5
+    domains:
+      - api.nakjminfra.com
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nakjm-infra-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: "12h"
+      - key: STORAGE_ROOT
+        value: /app/storage
+      - key: PUBLIC_BASE_URL
+        value: https://api.nakjminfra.com
+      - key: CORS_ORIGIN
+        value: https://dashboard.nakjminfra.com
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/chromium
+      - key: NOMINATIM_USER_AGENT
+        value: "nakjm-infra-field-app/1.0 (contact: ops@nakjminfra.com)"
+
+  - type: web
+    name: nakjm-infra-dashboard
+    runtime: node
+    plan: starter
+    region: singapore
+    rootDir: epc-field-app/admin-web
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeployTrigger: commit
+    domains:
+      - dashboard.nakjminfra.com
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://api.nakjminfra.com/api

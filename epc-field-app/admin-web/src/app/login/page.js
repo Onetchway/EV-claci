@@ -32,7 +32,7 @@ export default function LoginPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
       <form onSubmit={onSubmit} className="card" style={{ width: 360 }}>
-        <h1 style={{ marginTop: 0 }}>NaKJM EPC Field App</h1>
+        <h1 style={{ marginTop: 0 }}>NaKJM Infra</h1>
         <p className="muted">Admin sign in</p>
         {error && <div className="error-box">{error}</div>}
         <div className="field">

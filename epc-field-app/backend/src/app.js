@@ -13,7 +13,13 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const app = express();
 
 app.use(helmet({ crossOriginResourcePolicy: false }));
-app.use(cors());
+app.use(
+  cors(
+    env.corsOrigins.length
+      ? { origin: env.corsOrigins }
+      : undefined // no CORS_ORIGIN configured — allow any origin (local dev default)
+  )
+);
 app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '2mb' }));
 app.use(

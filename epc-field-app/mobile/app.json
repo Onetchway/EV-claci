@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "NaKJM EPC Field App",
-    "slug": "nakjm-epc-field-app",
-    "scheme": "nakjmepc",
+    "name": "NaKJM Infra Field App",
+    "slug": "nakjm-infra-field-app",
+    "scheme": "nakjminfra",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nakjm.epcfieldapp"
+      "bundleIdentifier": "com.nakjminfra.fieldapp"
     },
     "android": {
-      "package": "com.nakjm.epcfieldapp",
+      "package": "com.nakjminfra.fieldapp",
       "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",
@@ -36,13 +36,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "NaKJM EPC Field App uses the camera to capture required geotagged site photos for your work reports."
+          "cameraPermission": "NaKJM Infra Field App uses the camera to capture required geotagged site photos for your work reports."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "NaKJM EPC Field App uses your location to geotag site photos, as required by client report formats."
+          "locationAlwaysAndWhenInUsePermission": "NaKJM Infra Field App uses your location to geotag site photos, as required by client report formats."
         }
       ]
     ]

@@ -16,6 +16,13 @@ module.exports = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '12h',
   storageRoot: process.env.STORAGE_ROOT || './storage',
   publicBaseUrl: process.env.PUBLIC_BASE_URL || 'http://localhost:4100',
+  // Comma-separated list of allowed browser origins, e.g. "https://dashboard.nakjminfra.com".
+  // Unset/empty means allow any origin (fine for local dev; the mobile app doesn't send an
+  // Origin header at all, so this only affects browser-based clients like admin-web).
+  corsOrigins: (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
   puppeteerExecutablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   nominatimUserAgent: process.env.NOMINATIM_USER_AGENT || 'epc-field-app/1.0',
 };

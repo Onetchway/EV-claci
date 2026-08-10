@@ -19,7 +19,7 @@ export default function Nav() {
 
   return (
     <div className="topbar">
-      <div className="brand">NaKJM EPC Field App</div>
+      <div className="brand">NaKJM Infra — Field Ops</div>
       <nav>
         <a href="/projects">Projects</a>
         <a href="/clients">Clients</a>

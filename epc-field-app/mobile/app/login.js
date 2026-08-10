@@ -32,7 +32,7 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <View style={styles.card}>
-        <Text style={styles.title}>NaKJM EPC Field App</Text>
+        <Text style={styles.title}>NaKJM Infra</Text>
         <Text style={styles.subtitle}>Field engineer sign in</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -1,0 +1,10 @@
+node_modules
+.env
+.env.*
+storage/originals/*
+storage/stamped/*
+storage/pdf/*
+!storage/originals/.gitkeep
+!storage/stamped/.gitkeep
+!storage/pdf/.gitkeep
+npm-debug.log*
