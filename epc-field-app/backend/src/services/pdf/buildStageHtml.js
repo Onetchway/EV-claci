@@ -16,12 +16,21 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-function renderSimpleField(field, value) {
+function renderSimpleField(field, value, document) {
+  if (field.type === 'file') {
+    const valueHtml = document
+      ? `<a href="${document.fileUrl}">${escapeHtml(document.fileName)}</a>`
+      : escapeHtml('Not uploaded');
+    return `
+      <div class="field-row">
+        <div class="field-label">${escapeHtml(field.label)}${field.required ? ' *' : ''}</div>
+        <div class="field-value">${valueHtml}</div>
+      </div>`;
+  }
+
   let displayValue;
   if (field.type === 'checkbox') {
     displayValue = value ? '✔ Yes' : '✘ No';
-  } else if (field.type === 'file') {
-    displayValue = value ? 'Attached' : 'Not attached';
   } else if (value === undefined || value === null || value === '') {
     displayValue = '—';
   } else {
@@ -94,10 +103,11 @@ function renderPhotoGrid(photoSlots, photos) {
   return `<div class="photo-grid">${cells}</div>`;
 }
 
-function buildStageHtml({ client, project, stageTemplate, submission, photos, photoFileUrls, footerText }) {
+function buildStageHtml({ client, project, stageTemplate, submission, photos, photoFileUrls, documents, footerText }) {
   const fieldDefs = [...stageTemplate.fieldDefs].sort((a, b) => a.order - b.order);
   const photoSlots = [...stageTemplate.photoSlots].sort((a, b) => a.order - b.order);
   const data = submission.dataJson || {};
+  const documentsByFieldKey = new Map((documents || []).map((d) => [d.fieldKey, d]));
 
   const photosWithUrls = photos.map((p) => ({
     ...p,
@@ -109,7 +119,11 @@ function buildStageHtml({ client, project, stageTemplate, submission, photos, ph
     .map((group) => {
       const rows = group.fields
         .filter((f) => f.type !== 'photo')
-        .map((f) => (f.type === 'table' ? renderTableField(f, data[f.key]) : renderSimpleField(f, data[f.key])))
+        .map((f) =>
+          f.type === 'table'
+            ? renderTableField(f, data[f.key])
+            : renderSimpleField(f, data[f.key], documentsByFieldKey.get(f.key)),
+        )
         .join('');
       const heading = group.label ? `<h3 class="group-heading">${escapeHtml(group.label)}</h3>` : '';
       return `<section class="field-group">${heading}${rows}</section>`;

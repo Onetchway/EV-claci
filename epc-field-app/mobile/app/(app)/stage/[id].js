@@ -14,6 +14,7 @@ import {
 import { apiFetch } from '../../../src/lib/api';
 import StatusBadge from '../../../src/components/StatusBadge';
 import FieldInput from '../../../src/components/FieldInput';
+import DocumentField from '../../../src/components/DocumentField';
 
 function groupFields(fieldDefs) {
   const groups = [];
@@ -134,6 +135,7 @@ export default function StageDetailScreen() {
   const editable = stage.status === 'IN_PROGRESS';
   const photoSlots = [...stage.stageTemplate.photoSlots].sort((a, b) => a.order - b.order);
   const photosBySlotId = new Map((submission?.photos || []).map((p) => [p.photoSlotId, p]));
+  const documentsByFieldKey = new Map((submission?.documents || []).map((d) => [d.fieldKey, d]));
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 14, paddingBottom: 60 }}>
@@ -172,18 +174,29 @@ export default function StageDetailScreen() {
           {groupFields(stage.stageTemplate.fieldDefs).map((group, gi) => (
             <View key={gi} style={styles.group}>
               {group.label && <Text style={styles.groupLabel}>{group.label}</Text>}
-              {group.fields.map((field) => (
-                <FieldInput
-                  key={field.key}
-                  field={field}
-                  value={formData[field.key]}
-                  onChange={
-                    editable
-                      ? (val) => setFormData((prev) => ({ ...prev, [field.key]: val }))
-                      : () => {}
-                  }
-                />
-              ))}
+              {group.fields.map((field) =>
+                field.type === 'file' ? (
+                  <DocumentField
+                    key={field.key}
+                    field={field}
+                    document={documentsByFieldKey.get(field.key)}
+                    submissionId={submission.id}
+                    editable={editable}
+                    onChanged={load}
+                  />
+                ) : (
+                  <FieldInput
+                    key={field.key}
+                    field={field}
+                    value={formData[field.key]}
+                    onChange={
+                      editable
+                        ? (val) => setFormData((prev) => ({ ...prev, [field.key]: val }))
+                        : () => {}
+                    }
+                  />
+                )
+              )}
             </View>
           ))}
 

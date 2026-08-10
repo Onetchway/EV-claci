@@ -24,7 +24,11 @@ async function loadStageOr404(req, res) {
       },
       submissions: {
         orderBy: { version: 'desc' },
-        include: { photos: { include: { photoSlot: true } }, submittedBy: { select: { id: true, name: true } } },
+        include: {
+          photos: { include: { photoSlot: true } },
+          documents: { include: { uploadedBy: { select: { id: true, name: true } } } },
+          submittedBy: { select: { id: true, name: true } },
+        },
       },
     },
   });

@@ -1,6 +1,5 @@
 function displayValue(field, value) {
   if (field.type === 'checkbox') return value ? '✔ Yes' : '✘ No';
-  if (field.type === 'file') return value ? 'Attached' : 'Not attached';
   if (value === undefined || value === null || value === '') return '—';
   return String(value);
 }
@@ -29,8 +28,9 @@ function TableField({ field, value }) {
 }
 
 /** Renders a stage's fieldDefs + a submission's dataJson generically, grouped by groupLabel. */
-export default function SubmissionData({ fieldDefs, dataJson }) {
+export default function SubmissionData({ fieldDefs, dataJson, documents }) {
   const sorted = [...fieldDefs].sort((a, b) => a.order - b.order);
+  const documentByFieldKey = new Map((documents || []).map((d) => [d.fieldKey, d]));
   const groups = [];
   const byLabel = new Map();
   for (const field of sorted) {
@@ -52,16 +52,24 @@ export default function SubmissionData({ fieldDefs, dataJson }) {
               {group.label}
             </div>
           )}
-          {group.fields.map((field) =>
-            field.type === 'table' ? (
-              <TableField key={field.key} field={field} value={dataJson?.[field.key]} />
-            ) : (
+          {group.fields.map((field) => {
+            if (field.type === 'table') {
+              return <TableField key={field.key} field={field} value={dataJson?.[field.key]} />;
+            }
+            const document = field.type === 'file' ? documentByFieldKey.get(field.key) : null;
+            return (
               <div key={field.key} style={{ display: 'flex', borderBottom: '1px solid #eee', padding: '5px 2px', fontSize: 13 }}>
                 <div style={{ width: '48%', fontWeight: 600, color: '#333' }}>{field.label}{field.required ? ' *' : ''}</div>
-                <div style={{ width: '52%' }}>{displayValue(field, dataJson?.[field.key])}</div>
+                <div style={{ width: '52%' }}>
+                  {field.type === 'file' ? (
+                    document ? <a href={document.fileUrl} target="_blank" rel="noreferrer">{document.fileName}</a> : <span className="muted">Not uploaded</span>
+                  ) : (
+                    displayValue(field, dataJson?.[field.key])
+                  )}
+                </div>
               </div>
-            )
-          )}
+            );
+          })}
         </div>
       ))}
     </div>

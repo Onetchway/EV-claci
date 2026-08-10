@@ -50,13 +50,10 @@ export default function FieldInput({ field, value, onChange }) {
     return <TableInput field={field} value={value} onChange={onChange} />;
   }
 
-  if (field.type === 'checkbox' || field.type === 'file') {
+  if (field.type === 'checkbox') {
     return (
       <View style={[styles.field, styles.checkboxRow]}>
-        <Text style={styles.checkboxLabel}>
-          {field.label}{field.required ? ' *' : ''}
-          {field.type === 'file' ? '\n(confirm document collected/attached)' : ''}
-        </Text>
+        <Text style={styles.checkboxLabel}>{field.label}{field.required ? ' *' : ''}</Text>
         <Switch value={!!value} onValueChange={onChange} />
       </View>
     );

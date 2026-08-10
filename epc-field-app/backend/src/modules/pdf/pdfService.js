@@ -10,6 +10,7 @@ async function generateSubmissionPdf(submissionId) {
     where: { id: submissionId },
     include: {
       photos: { include: { photoSlot: true } },
+      documents: true,
       projectStage: {
         include: {
           project: { include: { client: true } },
@@ -37,6 +38,7 @@ async function generateSubmissionPdf(submissionId) {
     submission,
     photos: submission.photos,
     photoFileUrls,
+    documents: submission.documents,
     footerText,
   });
 

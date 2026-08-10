@@ -3,7 +3,9 @@ node_modules/
 storage/originals/*
 storage/stamped/*
 storage/pdf/*
+storage/documents/*
 !storage/originals/.gitkeep
 !storage/stamped/.gitkeep
 !storage/pdf/.gitkeep
+!storage/documents/.gitkeep
 npm-debug.log*

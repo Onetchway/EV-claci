@@ -32,6 +32,7 @@ async function loadSubmissionOr404(req, res) {
     where: { id: req.params.id },
     include: {
       photos: { include: { photoSlot: true } },
+      documents: { include: { uploadedBy: { select: { id: true, name: true } } } },
       projectStage: {
         include: {
           project: true,
@@ -165,6 +166,73 @@ router.delete('/submissions/:id/photos/:photoId', async (req, res) => {
     return res.status(400).json({ error: 'Submission is not editable in its current state' });
   }
   await prisma.photo.delete({ where: { id: req.params.photoId } });
+  res.json({ ok: true });
+});
+
+// Upload a real document for one type:'file' field — replaces the old boolean "attached?" stub.
+router.post('/submissions/:id/documents', upload.single('file'), async (req, res) => {
+  const submission = await loadSubmissionOr404(req, res);
+  if (!submission) return;
+  if (submission.projectStage.status !== 'IN_PROGRESS') {
+    return res.status(400).json({ error: 'Submission is not editable in its current state' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'file is required (multipart field "file")' });
+
+  const { fieldKey } = req.body || {};
+  if (!fieldKey) return res.status(400).json({ error: 'fieldKey is required' });
+  const field = submission.projectStage.stageTemplate.fieldDefs.find((f) => f.key === fieldKey);
+  if (!field || field.type !== 'file') {
+    return res.status(400).json({ error: `"${fieldKey}" is not a file field on this stage` });
+  }
+
+  const ext = path.extname(req.file.originalname) || '';
+  const { url } = await saveBuffer('documents', req.file.buffer, ext);
+
+  const [document] = await prisma.$transaction([
+    prisma.document.upsert({
+      where: { submissionId_fieldKey: { submissionId: submission.id, fieldKey } },
+      update: {
+        fileName: req.file.originalname,
+        fileUrl: url,
+        mimeType: req.file.mimetype || null,
+        sizeBytes: req.file.size || null,
+        uploadedById: req.user.id,
+      },
+      create: {
+        submissionId: submission.id,
+        fieldKey,
+        fileName: req.file.originalname,
+        fileUrl: url,
+        mimeType: req.file.mimetype || null,
+        sizeBytes: req.file.size || null,
+        uploadedById: req.user.id,
+      },
+      include: { uploadedBy: { select: { id: true, name: true } } },
+    }),
+    prisma.submission.update({
+      where: { id: submission.id },
+      data: { dataJson: { ...submission.dataJson, [fieldKey]: true } },
+    }),
+  ]);
+
+  res.status(201).json({ document });
+});
+
+router.delete('/submissions/:id/documents/:fieldKey', async (req, res) => {
+  const submission = await loadSubmissionOr404(req, res);
+  if (!submission) return;
+  if (submission.projectStage.status !== 'IN_PROGRESS') {
+    return res.status(400).json({ error: 'Submission is not editable in its current state' });
+  }
+  const { dataJson } = submission;
+  const nextDataJson = { ...dataJson };
+  delete nextDataJson[req.params.fieldKey];
+
+  await prisma.$transaction([
+    prisma.document.deleteMany({ where: { submissionId: submission.id, fieldKey: req.params.fieldKey } }),
+    prisma.submission.update({ where: { id: submission.id }, data: { dataJson: nextDataJson } }),
+  ]);
+
   res.json({ ok: true });
 });
 

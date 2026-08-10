@@ -166,7 +166,7 @@ export default function StageDetailPage() {
 
             <div className="card">
               <h2 style={{ marginTop: 0 }}>Report Data</h2>
-              <SubmissionData fieldDefs={stage.stageTemplate.fieldDefs} dataJson={submission.dataJson} />
+              <SubmissionData fieldDefs={stage.stageTemplate.fieldDefs} dataJson={submission.dataJson} documents={submission.documents} />
             </div>
 
             {photoSlots.length > 0 && (
