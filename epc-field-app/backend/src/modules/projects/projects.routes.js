@@ -99,7 +99,7 @@ router.get('/:id', async (req, res) => {
 
   const sortedStages = [...project.stages].sort((a, b) => a.stageTemplate.order - b.stageTemplate.order);
   const stagesByKey = new Map(sortedStages.map((s) => [s.stageTemplate.key, s]));
-  const paymentMilestones = computePaymentMilestones(stagesByKey);
+  const paymentMilestones = await computePaymentMilestones(project.clientId, stagesByKey);
   const canAssignMembers = await hasProjectPermission(req.user, project.id, PERMISSIONS.PROJECTS_ASSIGN_MEMBERS.key);
   const canManageProject = await hasProjectPermission(req.user, project.id, PERMISSIONS.PROJECTS_MANAGE.key);
 

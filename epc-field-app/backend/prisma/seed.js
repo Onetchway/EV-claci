@@ -634,6 +634,61 @@ async function seedVGreen() {
   return client;
 }
 
+/**
+ * Seeds V-Green's 30/10/30/25/5% payment milestone structure (Playbook §12) as
+ * PaymentMilestoneDef rows, reproducing exactly what computePaymentMilestones used to hardcode.
+ * Only V-Green's own business terms — not a sensible default for other clients — so this is
+ * scoped to V-Green specifically rather than a generic backfill for every client.
+ */
+async function seedVGreenPaymentMilestones(client) {
+  const existing = await prisma.paymentMilestoneDef.count({ where: { clientId: client.id } });
+  if (existing > 0) {
+    console.log('V-Green payment milestones already seeded, skipping.');
+    return;
+  }
+  const milestones = [
+    {
+      key: 'APPENDIX_SIGNING',
+      label: 'Appendix Signing',
+      percent: 30,
+      order: 1,
+      ruleJson: { type: 'statusIn', stageKeys: ['DISCOM'], statuses: ['SUBMITTED', 'APPROVED'] },
+    },
+    {
+      key: 'CIVIL_COMPLETION',
+      label: 'Civil Work Completion',
+      percent: 10,
+      order: 2,
+      ruleJson: { type: 'statusIn', stageKeys: ['CIVIL'], statuses: ['APPROVED'] },
+    },
+    {
+      key: 'CONSTRUCTION_HANDOVER',
+      label: 'Construction Handover',
+      percent: 30,
+      order: 3,
+      ruleJson: { type: 'statusIn', stageKeys: ['CHARGER_INSTALL', 'TESTING'], statuses: ['APPROVED'] },
+    },
+    {
+      key: 'GO_LIVE',
+      label: 'Go-Live',
+      percent: 25,
+      order: 4,
+      ruleJson: { type: 'statusIn', stageKeys: ['COMMISSIONING', 'HOTO'], statuses: ['APPROVED'] },
+    },
+    {
+      key: 'WARRANTY_END',
+      label: '1-Year Warranty Ends',
+      percent: 5,
+      order: 5,
+      ruleJson: { type: 'daysAfterStageApproval', stageKey: 'HOTO', days: 365, requiresMilestoneKey: 'GO_LIVE' },
+    },
+  ];
+  await prisma.paymentMilestoneDef.createMany({
+    data: milestones.map((m) => ({ ...m, clientId: client.id })),
+  });
+  console.log(`Seeded ${milestones.length} V-Green payment milestone(s).`);
+}
+
 async function seedSampleProject(client, engineer) {
   const existing = await prisma.project.findFirst({ where: { clientId: client.id } });
   if (existing) {
@@ -664,6 +719,7 @@ async function main() {
   await backfillUserRoles(roleByKey);
   const client = await seedVGreen();
   await backfillStageDependencies();
+  await seedVGreenPaymentMilestones(client);
   await seedSampleProject(client, engineer);
   await backfillProjectMembers(roleByKey);
 }

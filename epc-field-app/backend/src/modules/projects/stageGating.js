@@ -61,33 +61,42 @@ async function unlockNextStage(tx, approvedProjectStage) {
 }
 
 /**
- * Computes V-Green's payment milestone tracker (Playbook §12) from stage statuses.
+ * Evaluates one PaymentMilestoneDef.ruleJson against this project's stage statuses.
+ * `achievedByKey` holds already-evaluated milestones in `order` so a rule can require another
+ * milestone (e.g. warranty end requires go-live) without re-deriving it.
+ */
+function evaluateMilestoneRule(rule, stagesByKey, achievedByKey) {
+  if (rule.type === 'statusIn') {
+    return rule.stageKeys.every((key) => rule.statuses.includes(stagesByKey.get(key)?.status));
+  }
+  if (rule.type === 'daysAfterStageApproval') {
+    if (rule.requiresMilestoneKey && !achievedByKey.get(rule.requiresMilestoneKey)) return false;
+    const stage = stagesByKey.get(rule.stageKey);
+    if (stage?.status !== 'APPROVED' || !stage.approvedAt) return false;
+    return new Date(stage.approvedAt).getTime() + rule.days * 24 * 60 * 60 * 1000 <= Date.now();
+  }
+  return false;
+}
+
+/**
+ * Computes a client's payment milestone tracker from its PaymentMilestoneDef rows and this
+ * project's stage statuses — fully data-driven so each client's milestone structure (V-Green's
+ * 30/10/30/25/5% Playbook §12 split, or any other client's) lives in config, not code.
  * stagesByKey: Map<stageTemplateKey, ProjectStage>
  */
-function computePaymentMilestones(stagesByKey) {
-  const isApproved = (key) => stagesByKey.get(key)?.status === 'APPROVED';
-  const isSubmittedOrApproved = (key) =>
-    ['SUBMITTED', 'APPROVED'].includes(stagesByKey.get(key)?.status);
-
-  const goLiveApproved = isApproved('COMMISSIONING') && isApproved('HOTO');
-  const hotoApprovedAt = stagesByKey.get('HOTO')?.approvedAt;
-  const warrantyDue =
-    goLiveApproved && hotoApprovedAt
-      ? new Date(hotoApprovedAt).getTime() + 365 * 24 * 60 * 60 * 1000 <= Date.now()
-      : false;
-
-  return [
-    { key: 'APPENDIX_SIGNING', label: 'Appendix Signing', percent: 30, achieved: isSubmittedOrApproved('DISCOM') },
-    { key: 'CIVIL_COMPLETION', label: 'Civil Work Completion', percent: 10, achieved: isApproved('CIVIL') },
-    {
-      key: 'CONSTRUCTION_HANDOVER',
-      label: 'Construction Handover',
-      percent: 30,
-      achieved: isApproved('CHARGER_INSTALL') && isApproved('TESTING'),
-    },
-    { key: 'GO_LIVE', label: 'Go-Live', percent: 25, achieved: goLiveApproved },
-    { key: 'WARRANTY_END', label: '1-Year Warranty Ends', percent: 5, achieved: warrantyDue },
-  ];
+async function computePaymentMilestones(clientId, stagesByKey) {
+  const defs = await prisma.paymentMilestoneDef.findMany({
+    where: { clientId },
+    orderBy: { order: 'asc' },
+  });
+  const achievedByKey = new Map();
+  const results = [];
+  for (const def of defs) {
+    const achieved = evaluateMilestoneRule(def.ruleJson, stagesByKey, achievedByKey);
+    achievedByKey.set(def.key, achieved);
+    results.push({ key: def.key, label: def.label, percent: def.percent, achieved });
+  }
+  return results;
 }
 
 module.exports = { createProjectStages, unlockNextStage, computePaymentMilestones };

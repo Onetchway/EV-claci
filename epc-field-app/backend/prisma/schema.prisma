@@ -54,6 +54,11 @@ enum ConfigScope {
   BOTH
 }
 
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────
 
 model User {
@@ -74,6 +79,7 @@ model User {
   assignedProjects   Project[]       @relation("AssignedEngineer")
   submissions        Submission[]    @relation("SubmittedBy")
   approvedStages     ProjectStage[]  @relation("ApprovedBy")
+  stageApprovals     StageApproval[] @relation("StageApprover")
   projectMemberships ProjectMember[]
   auditLogs          AuditLog[]      @relation("AuditActor")
 
@@ -169,8 +175,34 @@ model Client {
   stageTemplates StageTemplate[]
   projects       Project[]
   configs        ClientConfig[]
+  paymentMilestoneDefs PaymentMilestoneDef[]
 
   @@map("clients")
+}
+
+/// A configurable payment milestone for a client (e.g. "Civil Work Completion — 10%"),
+/// replacing hardcoded per-client milestone logic. `ruleJson` describes when it's achieved:
+///   { type: "statusIn", stageKeys: [...], statuses: [...] }        — every listed stage's
+///     ProjectStage.status is one of `statuses`.
+///   { type: "daysAfterStageApproval", stageKey, days, requiresMilestoneKey? } — `days` have
+///     elapsed since `stageKey` was approved, optionally gated on another milestone (by key)
+///     already being achieved.
+model PaymentMilestoneDef {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  key     String
+  label   String
+  percent Float
+  order   Int
+  ruleJson Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, key])
+  @@map("payment_milestone_defs")
 }
 
 /// The registry of configurable settings — a config key's label/type/scope/default is defined
@@ -249,11 +281,30 @@ model StageTemplate {
   /// Stages that list this one as a prerequisite.
   dependents StageDependency[] @relation("PrerequisiteStage")
 
+  approvalRule ApprovalRule?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([clientId, key])
   @@map("stage_templates")
+}
+
+/// Overrides the default single-approval-from-anyone-with-stages.approve behavior for one
+/// StageTemplate. No row for a stage = requiredApprovals 1, eligibleRoleKeys [] (anyone
+/// eligible) — today's exact behavior, so this is purely opt-in per stage.
+model ApprovalRule {
+  id                String        @id @default(cuid())
+  stageTemplateId   String        @unique
+  stageTemplate     StageTemplate @relation(fields: [stageTemplateId], references: [id], onDelete: Cascade)
+  requiredApprovals Int           @default(1)
+  /// RoleDef.key list; [] means anyone with the stages.approve permission on the project.
+  eligibleRoleKeys  Json          @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("approval_rules")
 }
 
 /// Self-referential prerequisite graph for StageTemplate: a stage can depend on zero, one, or
@@ -379,12 +430,31 @@ model Submission {
 
   pdfUrl String?
 
-  photos Photo[]
+  photos    Photo[]
+  approvals StageApproval[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("submissions")
+}
+
+/// One approver's decision on one submission — a stage can require more than one before it's
+/// fully APPROVED (see ApprovalRule). Scoped to the submission (not the stage) so a rejection
+/// and resubmission starts a fresh approval round instead of carrying over stale decisions.
+model StageApproval {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  approverId   String
+  approver     User     @relation("StageApprover", fields: [approverId], references: [id])
+  decision     ApprovalDecision
+  comment      String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([submissionId, approverId])
+  @@map("stage_approvals")
 }
 
 model Photo {

@@ -37,14 +37,128 @@ router.get('/:id/stage-templates', async (req, res) => {
       fieldDefs: { orderBy: { order: 'asc' } },
       photoSlots: { orderBy: { order: 'asc' } },
       dependsOn: { select: { dependsOnTemplateId: true } },
+      approvalRule: true,
     },
   });
   res.json({
-    stageTemplates: stageTemplates.map(({ dependsOn, ...st }) => ({
+    stageTemplates: stageTemplates.map(({ dependsOn, approvalRule, ...st }) => ({
       ...st,
       dependsOnTemplateIds: dependsOn.map((d) => d.dependsOnTemplateId),
+      approvalRule: {
+        requiredApprovals: approvalRule?.requiredApprovals ?? 1,
+        eligibleRoleKeys: approvalRule?.eligibleRoleKeys ?? [],
+      },
     })),
   });
+});
+
+router.put(
+  '/:id/stage-templates/:stageTemplateId/approval-rule',
+  requirePermission(PERMISSIONS.CLIENTS_MANAGE.key),
+  async (req, res) => {
+    const { id: clientId, stageTemplateId } = req.params;
+    const template = await prisma.stageTemplate.findUnique({ where: { id: stageTemplateId } });
+    if (!template || template.clientId !== clientId) {
+      return res.status(404).json({ error: 'Stage template not found for this client' });
+    }
+
+    const { requiredApprovals, eligibleRoleKeys } = req.body || {};
+    const requiredNum = Number(requiredApprovals);
+    if (!Number.isInteger(requiredNum) || requiredNum < 1) {
+      return res.status(400).json({ error: 'requiredApprovals must be a positive integer' });
+    }
+    if (!Array.isArray(eligibleRoleKeys) || !eligibleRoleKeys.every((k) => typeof k === 'string')) {
+      return res.status(400).json({ error: 'eligibleRoleKeys must be an array of role keys' });
+    }
+
+    const before = await prisma.approvalRule.findUnique({ where: { stageTemplateId } });
+    await prisma.approvalRule.upsert({
+      where: { stageTemplateId },
+      update: { requiredApprovals: requiredNum, eligibleRoleKeys },
+      create: { stageTemplateId, requiredApprovals: requiredNum, eligibleRoleKeys },
+    });
+
+    await logAudit({
+      actorId: req.user.id,
+      action: 'stageTemplate.approvalRule.update',
+      entityType: 'StageTemplate',
+      entityId: stageTemplateId,
+      before: before ? { requiredApprovals: before.requiredApprovals, eligibleRoleKeys: before.eligibleRoleKeys } : null,
+      after: { requiredApprovals: requiredNum, eligibleRoleKeys },
+    });
+
+    res.json({ ok: true });
+  },
+);
+
+router.get('/:id/payment-milestones', async (req, res) => {
+  const milestones = await prisma.paymentMilestoneDef.findMany({
+    where: { clientId: req.params.id },
+    orderBy: { order: 'asc' },
+  });
+  res.json({ milestones });
+});
+
+router.post('/:id/payment-milestones', requirePermission(PERMISSIONS.CLIENTS_MANAGE.key), async (req, res) => {
+  const client = await prisma.client.findUnique({ where: { id: req.params.id } });
+  if (!client) return res.status(404).json({ error: 'Client not found' });
+  const { key, label, percent, order, ruleJson } = req.body || {};
+  if (!key || !label || percent === undefined || order === undefined || !ruleJson) {
+    return res.status(400).json({ error: 'key, label, percent, order and ruleJson are required' });
+  }
+  const milestone = await prisma.paymentMilestoneDef.create({
+    data: { clientId: client.id, key, label, percent: Number(percent), order: Number(order), ruleJson },
+  });
+  await logAudit({
+    actorId: req.user.id,
+    action: 'paymentMilestone.create',
+    entityType: 'PaymentMilestoneDef',
+    entityId: milestone.id,
+    after: milestone,
+  });
+  res.status(201).json({ milestone });
+});
+
+router.patch('/:id/payment-milestones/:milestoneId', requirePermission(PERMISSIONS.CLIENTS_MANAGE.key), async (req, res) => {
+  const before = await prisma.paymentMilestoneDef.findUnique({ where: { id: req.params.milestoneId } });
+  if (!before || before.clientId !== req.params.id) {
+    return res.status(404).json({ error: 'Payment milestone not found for this client' });
+  }
+  const { label, percent, order, ruleJson } = req.body || {};
+  const milestone = await prisma.paymentMilestoneDef.update({
+    where: { id: before.id },
+    data: {
+      ...(label !== undefined && { label }),
+      ...(percent !== undefined && { percent: Number(percent) }),
+      ...(order !== undefined && { order: Number(order) }),
+      ...(ruleJson !== undefined && { ruleJson }),
+    },
+  });
+  await logAudit({
+    actorId: req.user.id,
+    action: 'paymentMilestone.update',
+    entityType: 'PaymentMilestoneDef',
+    entityId: milestone.id,
+    before,
+    after: milestone,
+  });
+  res.json({ milestone });
+});
+
+router.delete('/:id/payment-milestones/:milestoneId', requirePermission(PERMISSIONS.CLIENTS_MANAGE.key), async (req, res) => {
+  const before = await prisma.paymentMilestoneDef.findUnique({ where: { id: req.params.milestoneId } });
+  if (!before || before.clientId !== req.params.id) {
+    return res.status(404).json({ error: 'Payment milestone not found for this client' });
+  }
+  await prisma.paymentMilestoneDef.delete({ where: { id: before.id } });
+  await logAudit({
+    actorId: req.user.id,
+    action: 'paymentMilestone.delete',
+    entityType: 'PaymentMilestoneDef',
+    entityId: before.id,
+    before,
+  });
+  res.json({ ok: true });
 });
 
 /**

@@ -15,6 +15,9 @@ export default function StageDetailPage() {
   const [stage, setStage] = useState(null);
   const [submission, setSubmission] = useState(null);
   const [canApprove, setCanApprove] = useState(false);
+  const [alreadyDecided, setAlreadyDecided] = useState(false);
+  const [requiredApprovals, setRequiredApprovals] = useState(1);
+  const [approvals, setApprovals] = useState([]);
   const [canManageSubmission, setCanManageSubmission] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -27,6 +30,9 @@ export default function StageDetailPage() {
       setStage(data.stage);
       setSubmission(data.latestSubmission);
       setCanApprove(!!data.canApprove);
+      setAlreadyDecided(!!data.alreadyDecided);
+      setRequiredApprovals(data.requiredApprovals || 1);
+      setApprovals(data.approvals || []);
       setCanManageSubmission(!!data.canManageSubmission);
     } catch (err) {
       setError(err.message);
@@ -118,12 +124,34 @@ export default function StageDetailPage() {
               </div>
             </div>
 
-            {canApprove && stage.status === 'SUBMITTED' && (
+            {stage.status === 'SUBMITTED' && (
               <div className="card">
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn" onClick={approve} disabled={busy}>Approve Stage</button>
-                  <button className="btn danger" onClick={() => setShowReject((s) => !s)} disabled={busy}>Reject Stage</button>
-                </div>
+                <h2 style={{ marginTop: 0 }}>Approval</h2>
+                {requiredApprovals > 1 && (
+                  <p className="muted" style={{ marginTop: 0 }}>
+                    {approvals.filter((a) => a.decision === 'APPROVED').length} of {requiredApprovals} required approvals so far.
+                  </p>
+                )}
+                {approvals.length > 0 && (
+                  <ul style={{ margin: '0 0 12px 0', paddingLeft: 18 }}>
+                    {approvals.map((a) => (
+                      <li key={a.id}>
+                        {a.approver.name} — <strong>{a.decision}</strong>
+                        {a.comment && <> ({a.comment})</>}
+                        <span className="muted"> · {new Date(a.createdAt).toLocaleString()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {canApprove && !alreadyDecided && (
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button className="btn" onClick={approve} disabled={busy}>Approve Stage</button>
+                    <button className="btn danger" onClick={() => setShowReject((s) => !s)} disabled={busy}>Reject Stage</button>
+                  </div>
+                )}
+                {canApprove && alreadyDecided && (
+                  <p className="muted">You've already recorded a decision for this submission.</p>
+                )}
                 {showReject && (
                   <div style={{ marginTop: 12 }}>
                     <div className="field">
