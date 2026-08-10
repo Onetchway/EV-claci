@@ -173,11 +173,33 @@ model StageTemplate {
   photoSlots  PhotoSlot[]
   projectStages ProjectStage[]
 
+  /// Stages that must be APPROVED before this one unlocks (its prerequisites).
+  dependsOn  StageDependency[] @relation("DependentStage")
+  /// Stages that list this one as a prerequisite.
+  dependents StageDependency[] @relation("PrerequisiteStage")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([clientId, key])
   @@map("stage_templates")
+}
+
+/// Self-referential prerequisite graph for StageTemplate: a stage can depend on zero, one, or
+/// several prior stages, so parallel workstreams (e.g. two stages that both unlock a downstream
+/// one only once both are approved) are expressible without hardcoding client-specific logic.
+/// A stage with zero dependency rows is immediately workable when a project is created.
+model StageDependency {
+  id                  String        @id @default(cuid())
+  stageTemplateId     String
+  stageTemplate       StageTemplate @relation("DependentStage", fields: [stageTemplateId], references: [id], onDelete: Cascade)
+  dependsOnTemplateId String
+  dependsOnTemplate   StageTemplate @relation("PrerequisiteStage", fields: [dependsOnTemplateId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([stageTemplateId, dependsOnTemplateId])
+  @@map("stage_dependencies")
 }
 
 /// A single form field within a stage's report form. `optionsJson` holds select options or,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import Nav from '../../components/Nav';
 import { apiFetch } from '../../lib/api';
 import { useAuthGuard } from '../../lib/useAuthGuard';
@@ -69,7 +70,7 @@ export default function ClientsPage() {
             <tbody>
               {clients.map((c) => (
                 <tr key={c.id}>
-                  <td>{c.name}</td>
+                  <td><Link href={`/clients/${c.id}`}>{c.name}</Link></td>
                   <td className="muted">{new Date(c.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}

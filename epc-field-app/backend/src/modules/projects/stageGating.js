@@ -1,48 +1,62 @@
 const prisma = require('../../config/prisma');
 
 /**
- * Creates one ProjectStage per StageTemplate for a new project, in playbook order.
- * The first stage is immediately workable (NOT_STARTED); the rest are LOCKED until the
- * preceding stage is APPROVED — this encodes the Playbook's hard gates (e.g. "No site work
- * should be started without layout approval").
+ * Creates one ProjectStage per StageTemplate for a new project. A stage with no prerequisites
+ * (StageDependency rows) is immediately workable (NOT_STARTED); any stage with prerequisites
+ * starts LOCKED until they're all APPROVED. This is a general dependency graph rather than a
+ * fixed order+1 chain, so a client can define parallel workstreams (e.g. two stages that both
+ * gate a downstream one) purely through StageDependency config — no code changes per client.
  */
 async function createProjectStages(tx, { projectId, clientId }) {
   const stageTemplates = await tx.stageTemplate.findMany({
     where: { clientId },
     orderBy: { order: 'asc' },
+    include: { dependsOn: true },
   });
   await tx.projectStage.createMany({
-    data: stageTemplates.map((st, index) => ({
+    data: stageTemplates.map((st) => ({
       projectId,
       stageTemplateId: st.id,
-      status: index === 0 ? 'NOT_STARTED' : 'LOCKED',
+      status: st.dependsOn.length === 0 ? 'NOT_STARTED' : 'LOCKED',
     })),
   });
 }
 
-/** Unlocks the next stage (by StageTemplate.order) once the given stage is approved. */
+/**
+ * Unlocks any stage that lists the just-approved stage as a prerequisite, but only once ALL of
+ * that stage's prerequisites are APPROVED — this is what makes parallel workstreams correct
+ * (a stage gated by two branches waits for the slower one).
+ */
 async function unlockNextStage(tx, approvedProjectStage) {
-  const currentTemplate = await tx.stageTemplate.findUnique({
-    where: { id: approvedProjectStage.stageTemplateId },
+  const dependents = await tx.stageDependency.findMany({
+    where: { dependsOnTemplateId: approvedProjectStage.stageTemplateId },
+    select: { stageTemplateId: true },
   });
-  const nextTemplate = await tx.stageTemplate.findFirst({
-    where: { clientId: currentTemplate.clientId, order: { gt: currentTemplate.order } },
-    orderBy: { order: 'asc' },
-  });
-  if (!nextTemplate) return;
-  const nextProjectStage = await tx.projectStage.findUnique({
-    where: {
-      projectId_stageTemplateId: {
-        projectId: approvedProjectStage.projectId,
-        stageTemplateId: nextTemplate.id,
+
+  for (const { stageTemplateId } of dependents) {
+    const targetStage = await tx.projectStage.findUnique({
+      where: {
+        projectId_stageTemplateId: { projectId: approvedProjectStage.projectId, stageTemplateId },
       },
-    },
-  });
-  if (nextProjectStage && nextProjectStage.status === 'LOCKED') {
-    await tx.projectStage.update({
-      where: { id: nextProjectStage.id },
-      data: { status: 'NOT_STARTED' },
     });
+    if (!targetStage || targetStage.status !== 'LOCKED') continue;
+
+    const prerequisites = await tx.stageDependency.findMany({
+      where: { stageTemplateId },
+      select: { dependsOnTemplateId: true },
+    });
+    const prerequisiteStages = await tx.projectStage.findMany({
+      where: {
+        projectId: approvedProjectStage.projectId,
+        stageTemplateId: { in: prerequisites.map((p) => p.dependsOnTemplateId) },
+      },
+    });
+    const allApproved =
+      prerequisiteStages.length === prerequisites.length &&
+      prerequisiteStages.every((s) => s.status === 'APPROVED');
+    if (!allApproved) continue;
+
+    await tx.projectStage.update({ where: { id: targetStage.id }, data: { status: 'NOT_STARTED' } });
   }
 }
 

@@ -85,6 +85,39 @@ async function backfillProjectMembers(roleByKey) {
   }
 }
 
+/**
+ * Gives every client that has no StageDependency rows yet a straight chain (stage N depends on
+ * stage N-1, by StageTemplate.order) — this reproduces the old hardcoded "order+1" locking
+ * behavior exactly, so existing clients (V-Green included) see no change in stage-unlock order.
+ * Clients that already have a dependency graph (freshly seeded with one, or configured via the
+ * admin UI) are left untouched.
+ */
+async function backfillStageDependencies() {
+  const clients = await prisma.client.findMany();
+  let clientsBackfilled = 0;
+  for (const client of clients) {
+    const templates = await prisma.stageTemplate.findMany({
+      where: { clientId: client.id },
+      orderBy: { order: 'asc' },
+    });
+    if (templates.length < 2) continue;
+    const existingDepCount = await prisma.stageDependency.count({
+      where: { stageTemplateId: { in: templates.map((t) => t.id) } },
+    });
+    if (existingDepCount > 0) continue;
+    await prisma.stageDependency.createMany({
+      data: templates.slice(1).map((t, idx) => ({
+        stageTemplateId: t.id,
+        dependsOnTemplateId: templates[idx].id,
+      })),
+    });
+    clientsBackfilled++;
+  }
+  if (clientsBackfilled) {
+    console.log(`Backfilled a linear stage dependency chain for ${clientsBackfilled} client(s).`);
+  }
+}
+
 function f(key, label, type, opts = {}) {
   return {
     key,
@@ -599,6 +632,7 @@ async function main() {
   const { engineer } = await seedUsers(roleByKey);
   await backfillUserRoles(roleByKey);
   const client = await seedVGreen();
+  await backfillStageDependencies();
   await seedSampleProject(client, engineer);
   await backfillProjectMembers(roleByKey);
 }
