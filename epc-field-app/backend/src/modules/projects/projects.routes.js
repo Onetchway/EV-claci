@@ -5,6 +5,7 @@ const { hasPermission, hasProjectPermission, requirePermission } = require('../.
 const { PERMISSIONS } = require('../../config/permissions');
 const { logAudit } = require('../../services/audit');
 const { createProjectStages, computePaymentMilestones } = require('./stageGating');
+const { getResolvedProjectConfigs, setProjectConfig, clearProjectConfig } = require('../../services/config');
 
 const router = express.Router();
 
@@ -100,8 +101,9 @@ router.get('/:id', async (req, res) => {
   const stagesByKey = new Map(sortedStages.map((s) => [s.stageTemplate.key, s]));
   const paymentMilestones = computePaymentMilestones(stagesByKey);
   const canAssignMembers = await hasProjectPermission(req.user, project.id, PERMISSIONS.PROJECTS_ASSIGN_MEMBERS.key);
+  const canManageProject = await hasProjectPermission(req.user, project.id, PERMISSIONS.PROJECTS_MANAGE.key);
 
-  res.json({ project: { ...project, stages: sortedStages }, paymentMilestones, canAssignMembers });
+  res.json({ project: { ...project, stages: sortedStages }, paymentMilestones, canAssignMembers, canManageProject });
 });
 
 router.patch('/:id', async (req, res) => {
@@ -202,6 +204,64 @@ router.delete('/:id/members/:memberId', async (req, res) => {
     before: member,
   });
 
+  res.json({ ok: true });
+});
+
+// ─── Project configuration (client/project override hierarchy) ───────────────────────────────
+
+router.get('/:id/config', async (req, res) => {
+  const project = await prisma.project.findUnique({ where: { id: req.params.id } });
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  const isMember = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId: project.id, userId: req.user.id } },
+  });
+  if (!hasPermission(req.user, PERMISSIONS.PROJECTS_VIEW_ALL.key) && !isMember && project.assignedEngineerId !== req.user.id) {
+    return res.status(403).json({ error: 'Not assigned to this project' });
+  }
+  const configs = await getResolvedProjectConfigs(project);
+  res.json({ configs });
+});
+
+router.put('/:id/config/:key', async (req, res) => {
+  const project = await prisma.project.findUnique({ where: { id: req.params.id } });
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!(await hasProjectPermission(req.user, project.id, PERMISSIONS.PROJECTS_MANAGE.key))) {
+    return res.status(403).json({ error: 'Forbidden — missing permission: projects.manage' });
+  }
+  const { value } = req.body || {};
+  try {
+    await setProjectConfig(project.id, req.params.key, value);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+  await logAudit({
+    actorId: req.user.id,
+    action: 'project.config.set',
+    entityType: 'Project',
+    entityId: project.id,
+    after: { key: req.params.key, value },
+  });
+  res.json({ ok: true });
+});
+
+router.delete('/:id/config/:key', async (req, res) => {
+  const project = await prisma.project.findUnique({ where: { id: req.params.id } });
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!(await hasProjectPermission(req.user, project.id, PERMISSIONS.PROJECTS_MANAGE.key))) {
+    return res.status(403).json({ error: 'Forbidden — missing permission: projects.manage' });
+  }
+  try {
+    await clearProjectConfig(project.id, req.params.key);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+  await logAudit({
+    actorId: req.user.id,
+    action: 'project.config.clear',
+    entityType: 'Project',
+    entityId: project.id,
+    after: { key: req.params.key },
+  });
   res.json({ ok: true });
 });
 

@@ -10,6 +10,7 @@ const adminRoutes = require('../modules/admin/admin.routes');
 const rolesRoutes = require('../modules/roles/roles.routes');
 const permissionsRoutes = require('../modules/roles/permissions.routes');
 const auditRoutes = require('../modules/audit/audit.routes');
+const configRoutes = require('../modules/config/config.routes');
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ router.use('/admin', adminRoutes);
 router.use('/roles', rolesRoutes);
 router.use('/permissions', permissionsRoutes);
 router.use('/audit-logs', auditRoutes);
+router.use('/config-defs', configRoutes);
 router.use('/users', usersRoutes);
 router.use('/clients', clientsRoutes);
 router.use('/projects', projectsRoutes);

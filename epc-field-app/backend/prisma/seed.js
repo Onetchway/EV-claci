@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const { createProjectStages } = require('../src/modules/projects/stageGating');
 const { ROLES, PERMISSION_LIST } = require('../src/config/permissions');
+const { CONFIG_DEFS } = require('../src/config/configDefs');
 
 const prisma = new PrismaClient();
 
@@ -52,6 +53,35 @@ async function seedRolesAndPermissions() {
 
   console.log(`Seeded ${permissionByKey.size} permissions and ${roleByKey.size} roles.`);
   return roleByKey;
+}
+
+/**
+ * Seeds/syncs ConfigDef from src/config/configDefs.js — the source of truth for the
+ * Client/Project configuration hierarchy. Safe to re-run: upserts each def's metadata without
+ * touching any ClientConfig/ProjectConfig override rows already set by admins.
+ */
+async function seedConfigDefs() {
+  for (const def of CONFIG_DEFS) {
+    await prisma.configDef.upsert({
+      where: { key: def.key },
+      update: {
+        label: def.label,
+        description: def.description,
+        valueType: def.valueType,
+        scope: def.scope,
+        defaultValueJson: def.defaultValue,
+      },
+      create: {
+        key: def.key,
+        label: def.label,
+        description: def.description,
+        valueType: def.valueType,
+        scope: def.scope,
+        defaultValueJson: def.defaultValue,
+      },
+    });
+  }
+  console.log(`Seeded ${CONFIG_DEFS.length} config def(s).`);
 }
 
 /** Existing users (e.g. accounts created before RBAC landed) get roleId backfilled from their legacy `role` enum. */
@@ -629,6 +659,7 @@ async function seedSampleProject(client, engineer) {
 
 async function main() {
   const roleByKey = await seedRolesAndPermissions();
+  await seedConfigDefs();
   const { engineer } = await seedUsers(roleByKey);
   await backfillUserRoles(roleByKey);
   const client = await seedVGreen();

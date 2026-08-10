@@ -10,6 +10,7 @@ const { stampGeotag } = require('../../services/storage/geotagStamp');
 const { reverseGeocode } = require('../../services/geocode');
 const { logAudit } = require('../../services/audit');
 const { generateSubmissionPdf } = require('../pdf/pdfService');
+const { resolveProjectConfig } = require('../../services/config');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
@@ -116,6 +117,14 @@ router.post('/submissions/:id/photos', upload.single('file'), async (req, res) =
   const slot = submission.projectStage.stageTemplate.photoSlots.find((s) => s.key === photoSlotKey);
   if (!slot) return res.status(400).json({ error: `Unknown photoSlotKey "${photoSlotKey}" for this stage` });
 
+  const accuracyNum = accuracyM !== undefined ? Number(accuracyM) : null;
+  const minAccuracy = await resolveProjectConfig(submission.projectStage.project, 'photo.minGpsAccuracyMeters');
+  if (minAccuracy > 0 && accuracyNum !== null && accuracyNum > minAccuracy) {
+    return res.status(400).json({
+      error: `GPS accuracy too low (±${accuracyNum}m, need ≤${minAccuracy}m). Move to open sky and retake the photo.`,
+    });
+  }
+
   const latNum = Number(lat);
   const lngNum = Number(lng);
   const capturedAtDate = capturedAt ? new Date(capturedAt) : new Date();
@@ -140,7 +149,7 @@ router.post('/submissions/:id/photos', upload.single('file'), async (req, res) =
       stampedUrl: stamped.url,
       lat: latNum,
       lng: lngNum,
-      accuracyM: accuracyM !== undefined ? Number(accuracyM) : null,
+      accuracyM: accuracyNum,
       address,
       capturedAt: capturedAtDate,
     },

@@ -4,6 +4,7 @@ const { requireAuth } = require('../../middleware/auth');
 const { requirePermission } = require('../../middleware/permissions');
 const { PERMISSIONS } = require('../../config/permissions');
 const { logAudit } = require('../../services/audit');
+const { getResolvedClientConfigs, setClientConfig, clearClientConfig } = require('../../services/config');
 
 const router = express.Router();
 
@@ -137,5 +138,49 @@ router.put(
     res.json({ ok: true });
   },
 );
+
+router.get('/:id/config', async (req, res) => {
+  const client = await prisma.client.findUnique({ where: { id: req.params.id } });
+  if (!client) return res.status(404).json({ error: 'Client not found' });
+  const configs = await getResolvedClientConfigs(client.id);
+  res.json({ configs });
+});
+
+router.put('/:id/config/:key', requirePermission(PERMISSIONS.CLIENTS_MANAGE.key), async (req, res) => {
+  const client = await prisma.client.findUnique({ where: { id: req.params.id } });
+  if (!client) return res.status(404).json({ error: 'Client not found' });
+  const { value } = req.body || {};
+  try {
+    await setClientConfig(client.id, req.params.key, value);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+  await logAudit({
+    actorId: req.user.id,
+    action: 'client.config.set',
+    entityType: 'Client',
+    entityId: client.id,
+    after: { key: req.params.key, value },
+  });
+  res.json({ ok: true });
+});
+
+router.delete('/:id/config/:key', requirePermission(PERMISSIONS.CLIENTS_MANAGE.key), async (req, res) => {
+  const client = await prisma.client.findUnique({ where: { id: req.params.id } });
+  if (!client) return res.status(404).json({ error: 'Client not found' });
+  try {
+    await clearClientConfig(client.id, req.params.key);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+  await logAudit({
+    actorId: req.user.id,
+    action: 'client.config.clear',
+    entityType: 'Client',
+    entityId: client.id,
+    after: { key: req.params.key },
+  });
+  res.json({ ok: true });
+});
 
 module.exports = router;

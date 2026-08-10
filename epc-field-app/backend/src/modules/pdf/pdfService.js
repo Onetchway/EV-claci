@@ -2,6 +2,7 @@ const prisma = require('../../config/prisma');
 const { buildStageHtml } = require('../../services/pdf/buildStageHtml');
 const { renderHtmlToPdf } = require('../../services/pdf/renderPdf');
 const { saveBuffer } = require('../../services/storage');
+const { resolveProjectConfig } = require('../../services/config');
 
 /** Renders and stores the PDF for a submission, returns its public URL. Used on submit and on manual regenerate. */
 async function generateSubmissionPdf(submissionId) {
@@ -27,6 +28,7 @@ async function generateSubmissionPdf(submissionId) {
   const photoFileUrls = new Map(
     submission.photos.map((p) => [p.id, p.stampedUrl || p.originalUrl])
   );
+  const footerText = await resolveProjectConfig(submission.projectStage.project, 'pdf.footerText');
 
   const html = buildStageHtml({
     client: submission.projectStage.project.client,
@@ -35,6 +37,7 @@ async function generateSubmissionPdf(submissionId) {
     submission,
     photos: submission.photos,
     photoFileUrls,
+    footerText,
   });
 
   const pdfBuffer = await renderHtmlToPdf(html);

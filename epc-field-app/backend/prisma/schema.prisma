@@ -40,6 +40,20 @@ enum StageStatus {
   REJECTED
 }
 
+enum ConfigValueType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+/// Which level(s) may set an override for a ConfigDef.
+enum ConfigScope {
+  CLIENT
+  PROJECT
+  BOTH
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────
 
 model User {
@@ -154,8 +168,65 @@ model Client {
 
   stageTemplates StageTemplate[]
   projects       Project[]
+  configs        ClientConfig[]
 
   @@map("clients")
+}
+
+/// The registry of configurable settings — a config key's label/type/scope/default is defined
+/// once here (seeded from src/config/configDefs.js), and ClientConfig/ProjectConfig rows are
+/// just overrides on top of it. This is what lets admin-web render a config editor generically
+/// and lets new phases add settings (SLAs, thresholds, branding, ...) without new tables.
+model ConfigDef {
+  id               String          @id @default(cuid())
+  key              String          @unique // e.g. "pdf.footerText"
+  label            String
+  description      String
+  valueType        ConfigValueType
+  scope            ConfigScope
+  defaultValueJson Json
+
+  clientConfigs  ClientConfig[]
+  projectConfigs ProjectConfig[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("config_defs")
+}
+
+/// A client-level override of a ConfigDef's default — applies to every project of that client
+/// unless a ProjectConfig overrides it further.
+model ClientConfig {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  configDefId String
+  configDef   ConfigDef @relation(fields: [configDefId], references: [id], onDelete: Cascade)
+  valueJson   Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, configDefId])
+  @@map("client_configs")
+}
+
+/// A project-level override of a ConfigDef's value — takes precedence over both ClientConfig and
+/// the ConfigDef default. Only meaningful for ConfigDefs with scope PROJECT or BOTH.
+model ProjectConfig {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  configDefId String
+  configDef   ConfigDef @relation(fields: [configDefId], references: [id], onDelete: Cascade)
+  valueJson   Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, configDefId])
+  @@map("project_configs")
 }
 
 /// One row per work stage in a client's execution playbook (e.g. SURVEY, CIVIL, HOTO).
@@ -262,6 +333,7 @@ model Project {
 
   stages  ProjectStage[]
   members ProjectMember[]
+  configs ProjectConfig[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

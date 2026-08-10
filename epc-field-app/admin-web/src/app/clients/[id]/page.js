@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Nav from '../../../components/Nav';
+import ConfigEditor from '../../../components/ConfigEditor';
 import { apiFetch, getUser } from '../../../lib/api';
 import { useAuthGuard } from '../../../lib/useAuthGuard';
 
@@ -11,6 +12,7 @@ export default function ClientDetailPage() {
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [stageTemplates, setStageTemplates] = useState([]);
+  const [configs, setConfigs] = useState([]);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editingDeps, setEditingDeps] = useState(new Set());
@@ -20,15 +22,27 @@ export default function ClientDetailPage() {
 
   async function load() {
     try {
-      const [clientData, templatesData] = await Promise.all([
+      const [clientData, templatesData, configData] = await Promise.all([
         apiFetch(`/clients/${id}`),
         apiFetch(`/clients/${id}/stage-templates`),
+        apiFetch(`/clients/${id}/config`),
       ]);
       setClient(clientData.client);
       setStageTemplates(templatesData.stageTemplates);
+      setConfigs(configData.configs);
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  async function saveConfig(key, value) {
+    await apiFetch(`/clients/${id}/config/${key}`, { method: 'PUT', body: JSON.stringify({ value }) });
+    await load();
+  }
+
+  async function clearConfig(key) {
+    await apiFetch(`/clients/${id}/config/${key}`, { method: 'DELETE' });
+    await load();
   }
 
   useEffect(() => {
@@ -132,6 +146,14 @@ export default function ClientDetailPage() {
             are workable as soon as a project is created — list more than one dependency to require
             parallel workstreams to finish before a downstream stage starts.
           </p>
+        </div>
+
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>Configuration</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Defaults for every project of this client. A project can override any of these individually.
+          </p>
+          <ConfigEditor configs={configs} canManage={canManage} onSave={saveConfig} onClear={clearConfig} />
         </div>
       </div>
     </>

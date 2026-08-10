@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import Nav from '../../../components/Nav';
 import StatusBadge from '../../../components/StatusBadge';
+import ConfigEditor from '../../../components/ConfigEditor';
 import { apiFetch } from '../../../lib/api';
 import { useAuthGuard } from '../../../lib/useAuthGuard';
 
@@ -14,6 +15,8 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState(null);
   const [milestones, setMilestones] = useState([]);
   const [canAssignMembers, setCanAssignMembers] = useState(false);
+  const [canManageProject, setCanManageProject] = useState(false);
+  const [configs, setConfigs] = useState([]);
   const [roles, setRoles] = useState([]);
   const [users, setUsers] = useState([]);
   const [newMemberUserId, setNewMemberUserId] = useState('');
@@ -22,13 +25,28 @@ export default function ProjectDetailPage() {
 
   async function load() {
     try {
-      const data = await apiFetch(`/projects/${id}`);
+      const [data, configData] = await Promise.all([
+        apiFetch(`/projects/${id}`),
+        apiFetch(`/projects/${id}/config`),
+      ]);
       setProject(data.project);
       setMilestones(data.paymentMilestones);
       setCanAssignMembers(!!data.canAssignMembers);
+      setCanManageProject(!!data.canManageProject);
+      setConfigs(configData.configs);
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  async function saveConfig(key, value) {
+    await apiFetch(`/projects/${id}/config/${key}`, { method: 'PUT', body: JSON.stringify({ value }) });
+    await load();
+  }
+
+  async function clearConfig(key) {
+    await apiFetch(`/projects/${id}/config/${key}`, { method: 'DELETE' });
+    await load();
   }
 
   async function loadTeamOptions() {
@@ -166,6 +184,20 @@ export default function ProjectDetailPage() {
               </div>
             </form>
           )}
+        </div>
+
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>Configuration</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Overrides for this project only. Anything not overridden here uses the client's default.
+          </p>
+          <ConfigEditor
+            configs={configs}
+            canManage={canManageProject}
+            onSave={saveConfig}
+            onClear={clearConfig}
+            inheritedLabel="Client default"
+          />
         </div>
       </div>
     </>
