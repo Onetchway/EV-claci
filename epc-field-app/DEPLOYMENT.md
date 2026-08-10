@@ -11,66 +11,109 @@ else — every deploy after that — is automatic.
 
 ---
 
-## Part 1 — Backend + Admin Dashboard (Render)
+## Part 1 — Backend + Admin Dashboard (Render, free tier)
 
-### Why Render
-Both the backend and admin dashboard are ordinary Node services (not static sites), the
-backend needs a real Postgres database and a persistent disk (uploaded photos + generated
-PDFs), and it needs to run headless Chromium for PDF generation. Render supports all of that
-from one Blueprint file — [`render.yaml`](render.yaml) at the repo root — which fully describes
-the infrastructure. Changing infrastructure later (add a service, resize a disk, add an env
-var) is just editing that file and pushing; you don't need to click through Render's UI again.
+### Cost & architecture
+
+With ~3-4 users, a couple of times a week, this runs **entirely on free tiers**: Render's free
+web service plan for both the backend and admin dashboard, a free [Neon.tech](https://neon.tech)
+Postgres project, and a free [Cloudflare R2](https://developers.cloudflare.com/r2/) bucket for
+photo/PDF storage. **Trade-off**: free Render services spin down after 15 minutes idle and take
+~30-50s to wake up on the next request — fine for occasional use, not for a tool that needs to
+respond instantly at all times.
+
+**Why not Render's own Postgres/disk?** Render's free Postgres auto-deletes after 30 days —
+unacceptable for real project data. Free Render web services also don't support a persistent
+disk at all, which is why photo/PDF storage moved to Cloudflare R2 (an S3-compatible bucket)
+instead of local disk — the backend now supports either via a `STORAGE_DRIVER` env var
+(`local` for disk, `s3` for R2), so this isn't a one-way door.
+
+**Upgrade path, later, when it's worth it**: in `render.yaml`, change `plan: free` to
+`plan: starter` on either service (backend first — that removes its cold start and gives
+Puppeteer more reliable memory for PDF generation) — that's a one-line edit + push, nothing else
+changes. Postgres can stay on Neon's free tier much longer than the app services can stay free,
+since Neon's free tier doesn't expire and this app's data volume is small.
 
 ### One-time setup
 
+**A. Database — Neon.tech (free, persists indefinitely)**
+1. Sign up at [neon.tech](https://neon.tech) (free, no card required).
+2. Create a project (any name/region — pick one close to your users, e.g. Singapore).
+3. On the project dashboard, copy the **connection string** it shows you (starts with
+   `postgresql://...neon.tech/...?sslmode=require`). Keep this handy for step D below.
+
+**B. File storage — Cloudflare R2 (free, 10GB)**
+1. Sign up / log into [Cloudflare](https://dash.cloudflare.com) → **Storage & Databases → R2**.
+   R2 requires adding a payment method even on the free tier, but the included free monthly
+   usage (10GB storage, no egress fees) comfortably covers this app's scale.
+2. Create a bucket, e.g. `nakjm-infra-field-app`.
+3. Open the bucket → **Settings → Public Development URL → Enable** (type `allow` to confirm).
+   Copy the `*.r2.dev` URL it gives you — that's your `S3_PUBLIC_BASE_URL`.
+4. R2 Overview page → **Account Details → API Tokens → Manage → Create API Token** → give it
+   Object Read & Write permission, scoped to the bucket above. Copy the **Access Key ID** and
+   **Secret Access Key** it shows you (the secret is shown once only).
+5. Note your **Account ID** (shown on the R2 Overview page) — your endpoint is
+   `https://<account-id>.r2.cloudflarestorage.com`.
+
+You should now have: `DATABASE_URL` (Neon), and `S3_ACCOUNT_ID` / `S3_ACCESS_KEY_ID` /
+`S3_SECRET_ACCESS_KEY` / `S3_BUCKET` / `S3_ENDPOINT` / `S3_PUBLIC_BASE_URL` (R2).
+
+**C. Render — hosting**
 1. **Create a Render account** at [render.com](https://render.com) (free to sign up).
-2. **Connect GitHub**: in Render, click your profile → **Account Settings → GitHub** (or you'll
-   be prompted the first time you create a Blueprint) → authorize the Render GitHub App → grant
-   it access to the `Onetchway/ev-claci` repository.
-3. **Create the Blueprint**: New + → **Blueprint** → select `Onetchway/ev-claci` → branch
+2. **Connect GitHub**: click your profile → **Account Settings → GitHub** (or you'll be
+   prompted the first time you create a Blueprint) → authorize the Render GitHub App → grant it
+   access to the `Onetchway/ev-claci` repository.
+3. **Create the Blueprint**: **+ New → Blueprint** → select `Onetchway/ev-claci` → branch
    `claude/epc-field-survey-app-we534z` (or `main`, once this is merged — see note at the
-   bottom). Render finds `render.yaml` automatically. Review the plan it shows you (1 Postgres
-   database + 2 web services) and click **Apply**.
-4. **Wait for the first deploy** (~5–10 min — the backend build installs Chromium and the
+   bottom). Render finds `render.yaml` automatically.
+4. Render will show a review screen and **prompt you for the values of every `sync: false`
+   env var** — this is where you paste in the Neon `DATABASE_URL` and the six R2 values from
+   steps A/B above. Confirm the plan shows both services on **Free**, then click **Apply**.
+5. **Wait for the first deploy** (~5–10 min — the backend build installs Chromium and the
    admin dashboard runs a Next.js build). Watch progress in each service's **Logs** tab.
-5. **Seed the production database** (creates the V-Green client, its 12 stage templates, and
+6. **Seed the production database** (creates the V-Green client, its 12 stage templates, and
    the demo admin/engineer logins) — open the `nakjm-infra-field-api` service → **Shell** tab →
    run:
    ```
    node prisma/seed.js
    ```
    This is safe to re-run; it skips anything already seeded.
-6. **Log in and change the seeded demo passwords immediately** (`admin@nakjm.example` /
+7. **Log in and change the seeded demo passwords immediately** (`admin@nakjm.example` /
    `ChangeMe123!` and `engineer@nakjm.example` / `ChangeMe123!`) — create your real admin/engineer
    accounts via the dashboard's **Engineers** page and deactivate or repassword the demo ones.
 
 ### Custom domains
 
-7. Open **nakjm-infra-field-api** → **Settings → Custom Domains** → add `api.nakjminfra.com`.
+8. Open **nakjm-infra-field-api** → **Settings → Custom Domains** → add `api.nakjminfra.com`.
    Render shows you a target hostname (something like `nakjm-infra-field-api.onrender.com`).
-8. Open **nakjm-infra-dashboard** → **Settings → Custom Domains** → add
+9. Open **nakjm-infra-dashboard** → **Settings → Custom Domains** → add
    `dashboard.nakjminfra.com`. Same idea — note the target hostname.
-9. **At your domain registrar** (wherever `nakjminfra.com`'s DNS is managed — GoDaddy,
+10. **At your domain registrar** (wherever `nakjminfra.com`'s DNS is managed — GoDaddy,
    Namecheap, etc.), open DNS management for `nakjminfra.com` and add two CNAME records:
 
-   | Type  | Host        | Value (Target)                              |
-   |-------|-------------|----------------------------------------------|
-   | CNAME | `dashboard` | *(hostname Render showed you in step 8)*      |
-   | CNAME | `api`       | *(hostname Render showed you in step 7)*      |
+    | Type  | Host        | Value (Target)                              |
+    |-------|-------------|----------------------------------------------|
+    | CNAME | `dashboard` | *(hostname Render showed you in step 9)*      |
+    | CNAME | `api`       | *(hostname Render showed you in step 8)*      |
 
-   DNS changes usually take a few minutes to a couple of hours to propagate. Render
-   auto-issues SSL certificates for both domains once it sees the DNS pointed correctly — no
-   action needed from you beyond adding the records.
+    DNS changes usually take a few minutes to a couple of hours to propagate. Render
+    auto-issues SSL certificates for both domains once it sees the DNS pointed correctly — no
+    action needed from you beyond adding the records.
 
 ### What's automatic from here on
 
 Every push to the connected branch rebuilds and redeploys **both** services
 (`autoDeployTrigger: commit` in `render.yaml`) — including the Postgres migration
-(`preDeployCommand: npx prisma migrate deploy` runs before each backend deploy). When you ask
-for a change here, I push a commit, and it's live within a few minutes — you don't need to open
-Render again unless you want to change a secret, resize something, or look at logs.
+(`preDeployCommand: npx prisma migrate deploy` runs before each backend deploy, against Neon).
+When you ask for a change here, I push a commit, and it's live within a few minutes (plus a
+cold-start wait on free tier if it's been idle) — you don't need to open Render again unless
+you want to change a secret, resize something, or look at logs.
 
-**Branch note:** Render deploys whichever branch you pointed it at in step 3. Right now all
+**If PDF generation fails or times out**: that's most likely the free tier's 512MB RAM limit
+struggling to run headless Chromium, especially right after waking from idle. It's the main
+reason to eventually move the backend to `plan: starter` — see the upgrade note above.
+
+**Branch note:** Render deploys whichever branch you pointed it at in step C.3. Right now all
 work happens on `claude/epc-field-survey-app-we534z` per your branch policy. If/when you want
 `main` to be "production," merge the PR and switch the branch Render tracks (Service →
 Settings → Build & Deploy) — one click, no redeploy-from-scratch needed.

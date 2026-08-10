@@ -1,7 +1,7 @@
 const prisma = require('../../config/prisma');
 const { buildStageHtml } = require('../../services/pdf/buildStageHtml');
 const { renderHtmlToPdf } = require('../../services/pdf/renderPdf');
-const { saveBuffer } = require('../../services/storage/localStorage');
+const { saveBuffer } = require('../../services/storage');
 
 /** Renders and stores the PDF for a submission, returns its public URL. Used on submit and on manual regenerate. */
 async function generateSubmissionPdf(submissionId) {
@@ -38,7 +38,7 @@ async function generateSubmissionPdf(submissionId) {
   });
 
   const pdfBuffer = await renderHtmlToPdf(html);
-  const { url } = saveBuffer('pdf', pdfBuffer, '.pdf');
+  const { url } = await saveBuffer('pdf', pdfBuffer, '.pdf');
 
   await prisma.submission.update({ where: { id: submission.id }, data: { pdfUrl: url } });
   return url;

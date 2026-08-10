@@ -2,28 +2,35 @@
 # This app is one of several products in this repo — only the epc-field-app/ subtree is
 # covered here (backend/ and frontend/ at the repo root belong to an unrelated product).
 #
+# Cost note: this is deliberately on Render's FREE web service plan for both services
+# (~3-4 users, a couple of times a week — see epc-field-app/DEPLOYMENT.md for the full
+# reasoning and upgrade path). Postgres and file storage are NOT on Render (Render's free
+# Postgres expires after 30 days, and free web services have no persistent disk) — instead:
+#   - Database: a free Neon.tech Postgres project (persists indefinitely).
+#   - Photo/PDF storage: a free Cloudflare R2 bucket (S3-compatible).
+# Both need a one-time account + credentials, entered as manual env vars below (sync: false) —
+# see DEPLOYMENT.md. Trade-off of the free plan: both services spin down after 15 min idle and
+# take ~30-50s to wake on the next request. If usage grows, switch `plan: free` to
+# `plan: starter` on either service (and consider adding a disk back to the backend) — that's
+# a one-line edit here, no other changes needed.
+#
 # One-time setup (see epc-field-app/DEPLOYMENT.md for the full walkthrough):
 #   1. In the Render dashboard: New + -> Blueprint -> connect this GitHub repo -> branch
 #      claude/epc-field-survey-app-we534z. Render finds this file automatically (repo root,
 #      default filename).
-#   2. Render creates the database + both services below and deploys them.
+#   2. Render creates both services below; during setup it prompts you for the `sync: false`
+#      values (Neon DATABASE_URL, R2 credentials) — have those ready from DEPLOYMENT.md.
 #   3. Add the custom domains (dashboard.nakjminfra.com / api.nakjminfra.com) as CNAME records
 #      at your DNS registrar, pointing at the hostnames Render shows you.
 #
 # After that, every push to this branch auto-deploys both services — no need to touch Render again
 # unless you want to change a secret/plan/region, which is also just editing this file.
 
-databases:
-  - name: nakjm-infra-postgres
-    plan: basic-256mb
-    region: singapore
-    postgresMajorVersion: "16"
-
 services:
   - type: web
     name: nakjm-infra-field-api
     runtime: docker
-    plan: starter
+    plan: free
     region: singapore
     rootDir: epc-field-app/backend
     dockerfilePath: ./Dockerfile
@@ -31,25 +38,17 @@ services:
     healthCheckPath: /api/health
     preDeployCommand: npx prisma migrate deploy
     autoDeployTrigger: commit
-    disk:
-      name: epc-field-app-storage
-      mountPath: /app/storage
-      sizeGB: 5
     domains:
       - api.nakjminfra.com
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: nakjm-infra-postgres
-          property: connectionString
+        sync: false # paste your Neon.tech connection string (see DEPLOYMENT.md)
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: "12h"
-      - key: STORAGE_ROOT
-        value: /app/storage
       - key: PUBLIC_BASE_URL
         value: https://api.nakjminfra.com
       - key: CORS_ORIGIN
@@ -58,11 +57,25 @@ services:
         value: /usr/bin/chromium
       - key: NOMINATIM_USER_AGENT
         value: "nakjm-infra-field-app/1.0 (contact: ops@nakjminfra.com)"
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_ACCOUNT_ID
+        sync: false # Cloudflare account ID (see DEPLOYMENT.md)
+      - key: S3_ACCESS_KEY_ID
+        sync: false # R2 API token access key ID
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false # R2 API token secret access key
+      - key: S3_BUCKET
+        sync: false # R2 bucket name, e.g. nakjm-infra-field-app
+      - key: S3_ENDPOINT
+        sync: false # https://<account-id>.r2.cloudflarestorage.com
+      - key: S3_PUBLIC_BASE_URL
+        sync: false # the bucket's public r2.dev URL, or a custom domain bound to it
 
   - type: web
     name: nakjm-infra-dashboard
     runtime: node
-    plan: starter
+    plan: free
     region: singapore
     rootDir: epc-field-app/admin-web
     buildCommand: npm install && npm run build

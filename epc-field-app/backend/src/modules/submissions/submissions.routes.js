@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const prisma = require('../../config/prisma');
 const { requireAuth, requireRole } = require('../../middleware/auth');
-const { saveBuffer } = require('../../services/storage/localStorage');
+const { saveBuffer } = require('../../services/storage');
 const { stampGeotag } = require('../../services/storage/geotagStamp');
 const { reverseGeocode } = require('../../services/geocode');
 const { generateSubmissionPdf } = require('../pdf/pdfService');
@@ -108,7 +108,7 @@ router.post('/submissions/:id/photos', upload.single('file'), async (req, res) =
   const capturedAtDate = capturedAt ? new Date(capturedAt) : new Date();
   const ext = path.extname(req.file.originalname) || '.jpg';
 
-  const original = saveBuffer('originals', req.file.buffer, ext);
+  const original = await saveBuffer('originals', req.file.buffer, ext);
   const address = await reverseGeocode(latNum, lngNum);
   const stampedBuffer = await stampGeotag(req.file.buffer, {
     label: slot.label,
@@ -117,7 +117,7 @@ router.post('/submissions/:id/photos', upload.single('file'), async (req, res) =
     lng: lngNum,
     capturedAt: capturedAtDate,
   });
-  const stamped = saveBuffer('stamped', stampedBuffer, '.jpg');
+  const stamped = await saveBuffer('stamped', stampedBuffer, '.jpg');
 
   const photo = await prisma.photo.create({
     data: {
