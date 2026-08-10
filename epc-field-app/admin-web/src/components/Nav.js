@@ -1,11 +1,19 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { clearSession, getUser } from '../lib/api';
 
+const LINKS = [
+  { href: '/projects', label: 'Projects', icon: '\u{1F4C1}' },
+  { href: '/clients', label: 'Clients', icon: '\u{1F3E2}' },
+  { href: '/users', label: 'Users', icon: '\u{1F465}', permission: 'users.manage' },
+  { href: '/audit', label: 'Audit Log', icon: '\u{1F4CB}', permission: 'audit.view' },
+];
+
 export default function Nav() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -20,16 +28,26 @@ export default function Nav() {
   const permissions = user?.permissions || [];
 
   return (
-    <div className="topbar">
-      <div className="brand">NaKJM Infra — Field Ops</div>
-      <nav>
-        <a href="/projects">Projects</a>
-        <a href="/clients">Clients</a>
-        {permissions.includes('users.manage') && <a href="/users">Users</a>}
-        {permissions.includes('audit.view') && <a href="/audit">Audit Log</a>}
+    <div className="sidebar">
+      <div className="sidebar-brand">NaKJM Infra<span>Field Ops</span></div>
+      <nav className="sidebar-nav">
+        {LINKS.filter((link) => !link.permission || permissions.includes(link.permission)).map((link) => {
+          const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+          return (
+            <a key={link.href} href={link.href} className={active ? 'active' : ''}>
+              <span className="sidebar-icon">{link.icon}</span>
+              {link.label}
+            </a>
+          );
+        })}
       </nav>
-      <div className="userbox">
-        {user ? <span>{user.name} ({user.roleName || user.role})</span> : null}
+      <div className="sidebar-user">
+        {user && (
+          <>
+            <div className="sidebar-user-name">{user.name}</div>
+            <div className="sidebar-user-role">{user.roleName || user.role}</div>
+          </>
+        )}
         <button onClick={logout}>Log out</button>
       </div>
     </div>

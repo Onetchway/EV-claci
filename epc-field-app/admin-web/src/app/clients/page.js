@@ -56,9 +56,8 @@ export default function ClientsPage() {
             <button className="btn" type="submit" disabled={loading}>Add</button>
           </form>
           <p className="muted" style={{ marginTop: 10 }}>
-            A new client starts with no stage templates — their execution stages and report forms
-            need to be seeded (see backend/prisma/seed.js for the V-Green pattern) before projects
-            can be created for them.
+            A new client starts with no execution stages — open the client's page after creating it
+            to add stages, report fields, and required photos, the same way V-Green's are configured.
           </p>
         </div>
 
