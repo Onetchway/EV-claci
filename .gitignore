@@ -167,3 +167,7 @@ cython_debug/
 # directories used by the epc-field-app JS products — explicitly un-ignore those.
 !epc-field-app/admin-web/src/lib/
 !epc-field-app/mobile/src/lib/
+
+# Same problem with the Python "downloads/" rule above (pip download cache) — it also matches
+# epc-field-app/backend's own storage/downloads/ bucket used for hosting app builds etc.
+!epc-field-app/backend/storage/downloads/

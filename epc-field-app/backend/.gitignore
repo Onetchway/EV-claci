@@ -4,8 +4,10 @@ storage/originals/*
 storage/stamped/*
 storage/pdf/*
 storage/documents/*
+storage/downloads/*
 !storage/originals/.gitkeep
 !storage/stamped/.gitkeep
 !storage/pdf/.gitkeep
 !storage/documents/.gitkeep
+!storage/downloads/.gitkeep
 npm-debug.log*

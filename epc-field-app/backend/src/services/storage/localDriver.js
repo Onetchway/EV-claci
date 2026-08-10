@@ -18,4 +18,13 @@ async function saveBuffer(bucket, buffer, extension) {
   return { url: `${env.publicBaseUrl}/files/${bucket}/${filename}` };
 }
 
-module.exports = { saveBuffer };
+/** Like saveBuffer, but at a caller-chosen filename — overwrites on repeat calls, giving a stable
+ * URL across re-uploads (e.g. a "latest" app download link that survives rebuilds). */
+async function saveBufferAt(bucket, filename, buffer) {
+  const dir = path.join(ROOT, bucket);
+  ensureDir(dir);
+  fs.writeFileSync(path.join(dir, filename), buffer);
+  return { url: `${env.publicBaseUrl}/files/${bucket}/${filename}` };
+}
+
+module.exports = { saveBuffer, saveBufferAt };
