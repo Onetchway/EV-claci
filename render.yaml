@@ -50,6 +50,9 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: "12h"
+      - key: SEED_SECRET
+        generateValue: true # lets me trigger prisma/seed.js via POST /api/admin/seed — free
+        # plan has no Shell access. Find the generated value in this service's Environment tab.
       - key: PUBLIC_BASE_URL
         value: https://api.nakjminfra.com
       - key: CORS_ORIGIN

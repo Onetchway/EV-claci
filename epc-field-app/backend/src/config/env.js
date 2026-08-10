@@ -37,4 +37,7 @@ module.exports = {
     .filter(Boolean),
   puppeteerExecutablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   nominatimUserAgent: process.env.NOMINATIM_USER_AGENT || 'epc-field-app/1.0',
+  // Gates POST /api/admin/seed — a bootstrap endpoint for running prisma/seed.js on hosts with
+  // no shell access (e.g. Render's free plan). Unset disables the endpoint entirely.
+  seedSecret: process.env.SEED_SECRET || undefined,
 };

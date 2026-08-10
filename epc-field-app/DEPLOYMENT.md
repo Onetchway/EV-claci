@@ -72,12 +72,14 @@ You should now have: `DATABASE_URL` (Neon), and `S3_ACCOUNT_ID` / `S3_ACCESS_KEY
 5. **Wait for the first deploy** (~5–10 min — the backend build installs Chromium and the
    admin dashboard runs a Next.js build). Watch progress in each service's **Logs** tab.
 6. **Seed the production database** (creates the V-Green client, its 12 stage templates, and
-   the demo admin/engineer logins) — open the `nakjm-infra-field-api` service → **Shell** tab →
-   run:
+   the demo admin/engineer logins). Render's free plan has no Shell access, so this runs via a
+   secret-gated endpoint instead: open `nakjm-infra-field-api` → **Environment** tab → copy the
+   auto-generated `SEED_SECRET` value, then run (from anywhere with internet access):
    ```
-   node prisma/seed.js
+   curl -X POST https://api.nakjminfra.com/api/admin/seed -H "X-Seed-Secret: <value>"
    ```
-   This is safe to re-run; it skips anything already seeded.
+   This is safe to re-run; it skips anything already seeded. (I can also run this for you in a
+   future session if you paste me the `SEED_SECRET` value.)
 7. **Log in and change the seeded demo passwords immediately** (`admin@nakjm.example` /
    `ChangeMe123!` and `engineer@nakjm.example` / `ChangeMe123!`) — create your real admin/engineer
    accounts via the dashboard's **Engineers** page and deactivate or repassword the demo ones.
