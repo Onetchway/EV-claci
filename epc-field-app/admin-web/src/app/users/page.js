@@ -8,13 +8,15 @@ import { useAuthGuard } from '../../lib/useAuthGuard';
 export default function UsersPage() {
   const ready = useAuthGuard();
   const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', role: 'ENGINEER' });
+  const [roles, setRoles] = useState([]);
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', roleKey: 'FIELD_ENGINEER' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function load() {
-    const data = await apiFetch('/users');
-    setUsers(data.users);
+    const [usersData, rolesData] = await Promise.all([apiFetch('/users'), apiFetch('/roles')]);
+    setUsers(usersData.users);
+    setRoles(rolesData.roles);
   }
 
   useEffect(() => {
@@ -27,7 +29,7 @@ export default function UsersPage() {
     setLoading(true);
     try {
       await apiFetch('/users', { method: 'POST', body: JSON.stringify(form) });
-      setForm({ name: '', email: '', phone: '', password: '', role: 'ENGINEER' });
+      setForm({ name: '', email: '', phone: '', password: '', roleKey: 'FIELD_ENGINEER' });
       await load();
     } catch (err) {
       setError(err.message);
@@ -41,13 +43,18 @@ export default function UsersPage() {
     await load();
   }
 
+  async function changeRole(user, roleKey) {
+    await apiFetch(`/users/${user.id}`, { method: 'PATCH', body: JSON.stringify({ roleKey }) });
+    await load();
+  }
+
   if (!ready) return null;
 
   return (
     <>
       <Nav />
       <div className="page">
-        <h1>Engineers &amp; Admins</h1>
+        <h1>Users &amp; Roles</h1>
 
         <div className="card">
           <h2 style={{ marginTop: 0 }}>Add a user</h2>
@@ -71,9 +78,8 @@ export default function UsersPage() {
             </div>
             <div className="field">
               <label>Role</label>
-              <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                <option value="ENGINEER">Engineer</option>
-                <option value="ADMIN">Admin</option>
+              <select value={form.roleKey} onChange={(e) => setForm({ ...form, roleKey: e.target.value })}>
+                {roles.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
               </select>
             </div>
             <div style={{ alignSelf: 'end', marginBottom: 12 }}>
@@ -92,7 +98,11 @@ export default function UsersPage() {
                 <tr key={u.id}>
                   <td>{u.name}</td>
                   <td>{u.email}</td>
-                  <td>{u.role}</td>
+                  <td>
+                    <select value={u.roleKey || ''} onChange={(e) => changeRole(u, e.target.value)}>
+                      {roles.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
+                    </select>
+                  </td>
                   <td>{u.isActive ? 'Active' : 'Inactive'}</td>
                   <td><button className="btn secondary" onClick={() => toggleActive(u)}>{u.isActive ? 'Deactivate' : 'Activate'}</button></td>
                 </tr>

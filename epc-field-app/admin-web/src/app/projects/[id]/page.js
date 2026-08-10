@@ -13,6 +13,11 @@ export default function ProjectDetailPage() {
   const { id } = useParams();
   const [project, setProject] = useState(null);
   const [milestones, setMilestones] = useState([]);
+  const [canAssignMembers, setCanAssignMembers] = useState(false);
+  const [roles, setRoles] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [newMemberUserId, setNewMemberUserId] = useState('');
+  const [newMemberRoleId, setNewMemberRoleId] = useState('');
   const [error, setError] = useState('');
 
   async function load() {
@@ -20,14 +25,55 @@ export default function ProjectDetailPage() {
       const data = await apiFetch(`/projects/${id}`);
       setProject(data.project);
       setMilestones(data.paymentMilestones);
+      setCanAssignMembers(!!data.canAssignMembers);
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function loadTeamOptions() {
+    try {
+      const [rolesData, usersData] = await Promise.all([apiFetch('/roles'), apiFetch('/users')]);
+      setRoles(rolesData.roles);
+      setUsers(usersData.users);
+    } catch (err) {
+      // Non-fatal — team options are only needed when adding a member.
     }
   }
 
   useEffect(() => {
     if (ready) load();
   }, [ready, id]);
+
+  useEffect(() => {
+    if (ready && canAssignMembers) loadTeamOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, canAssignMembers]);
+
+  async function addMember(e) {
+    e.preventDefault();
+    if (!newMemberUserId || !newMemberRoleId) return;
+    try {
+      await apiFetch(`/projects/${id}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ userId: newMemberUserId, roleId: newMemberRoleId }),
+      });
+      setNewMemberUserId('');
+      setNewMemberRoleId('');
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function removeMember(memberId) {
+    try {
+      await apiFetch(`/projects/${id}/members/${memberId}`, { method: 'DELETE' });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   if (!ready) return null;
   if (error) return (<><Nav /><div className="page"><div className="error-box">{error}</div></div></>);
@@ -73,6 +119,53 @@ export default function ProjectDetailPage() {
               Derived automatically from stage approvals per the V-Green Playbook §12 payment terms.
             </p>
           </div>
+        </div>
+
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>Team</h2>
+          {error && <div className="error-box">{error}</div>}
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Project Role</th><th></th></tr></thead>
+            <tbody>
+              {(project.members || []).map((m) => (
+                <tr key={m.id}>
+                  <td>{m.user.name}</td>
+                  <td>{m.user.email}</td>
+                  <td>{m.role.name}</td>
+                  <td>
+                    {canAssignMembers && (
+                      <button className="btn secondary" onClick={() => removeMember(m.id)}>Remove</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {(project.members || []).length === 0 && (
+                <tr><td colSpan={4} className="muted">No team members added yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+
+          {canAssignMembers && (
+            <form onSubmit={addMember} className="grid cols-2" style={{ marginTop: 16 }}>
+              <div className="field">
+                <label>User</label>
+                <select value={newMemberUserId} onChange={(e) => setNewMemberUserId(e.target.value)} required>
+                  <option value="">Select a user…</option>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label>Project role</label>
+                <select value={newMemberRoleId} onChange={(e) => setNewMemberRoleId(e.target.value)} required>
+                  <option value="">Select a role…</option>
+                  {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+              <div style={{ alignSelf: 'end', marginBottom: 12 }}>
+                <button className="btn" type="submit">Add to team</button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </>

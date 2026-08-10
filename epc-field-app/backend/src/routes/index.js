@@ -7,6 +7,9 @@ const projectsRoutes = require('../modules/projects/projects.routes');
 const stagesRoutes = require('../modules/stages/stages.routes');
 const submissionsRoutes = require('../modules/submissions/submissions.routes');
 const adminRoutes = require('../modules/admin/admin.routes');
+const rolesRoutes = require('../modules/roles/roles.routes');
+const permissionsRoutes = require('../modules/roles/permissions.routes');
+const auditRoutes = require('../modules/audit/audit.routes');
 
 const router = express.Router();
 
@@ -14,6 +17,9 @@ router.get('/health', (req, res) => res.json({ ok: true }));
 
 router.use('/auth', authRoutes);
 router.use('/admin', adminRoutes);
+router.use('/roles', rolesRoutes);
+router.use('/permissions', permissionsRoutes);
+router.use('/audit-logs', auditRoutes);
 router.use('/users', usersRoutes);
 router.use('/clients', clientsRoutes);
 router.use('/projects', projectsRoutes);

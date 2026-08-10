@@ -48,16 +48,101 @@ model User {
   passwordHash String
   name         String
   phone        String?
+  /// Legacy binary role — kept so existing V1 checks (`role === 'ADMIN'`) keep working unchanged.
+  /// New authorization code should prefer `roleRef.rolePermissions`, kept in sync with this field.
   role         Role     @default(ENGINEER)
+  roleId       String?
+  roleRef      RoleDef? @relation(fields: [roleId], references: [id])
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  assignedProjects Project[]    @relation("AssignedEngineer")
-  submissions      Submission[] @relation("SubmittedBy")
-  approvedStages   ProjectStage[] @relation("ApprovedBy")
+  assignedProjects   Project[]       @relation("AssignedEngineer")
+  submissions        Submission[]    @relation("SubmittedBy")
+  approvedStages     ProjectStage[]  @relation("ApprovedBy")
+  projectMemberships ProjectMember[]
+  auditLogs          AuditLog[]      @relation("AuditActor")
 
   @@map("users")
+}
+
+/// A configurable role (SUPER_ADMIN, OPERATIONS_MANAGER, FIELD_ENGINEER, ...) — see
+/// docs/rbac.md. Seeded with a default permission matrix; intended to eventually be editable by
+/// an admin UI without code changes.
+model RoleDef {
+  id       String  @id @default(cuid())
+  key      String  @unique // e.g. "OPERATIONS_MANAGER"
+  name     String // display name, e.g. "Operations Manager"
+  isSystem Boolean @default(true) // seeded role vs a future custom role
+
+  rolePermissions RolePermission[]
+  users           User[]
+  projectMembers  ProjectMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("role_defs")
+}
+
+/// A single grantable capability, e.g. "projects.viewAll", "stages.approve".
+model PermissionDef {
+  id          String @id @default(cuid())
+  key         String @unique
+  description String
+
+  rolePermissions RolePermission[]
+
+  createdAt DateTime @default(now())
+
+  @@map("permission_defs")
+}
+
+model RolePermission {
+  id           String        @id @default(cuid())
+  roleId       String
+  role         RoleDef       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   PermissionDef @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// Project-scoped role assignment — replaces Project.assignedEngineerId as the source of truth
+/// for "who can act on this project," while that column is kept for backward compatibility.
+/// Enables multi-assignee projects (a PM + several engineers) and project-scoped permissions
+/// (e.g. a Project Manager who can only approve stages on their own projects).
+model ProjectMember {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String
+  role      RoleDef @relation(fields: [roleId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+/// Append-only record of who changed what — never silently editable (no update/delete routes).
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id])
+  action     String // e.g. "project.create", "stage.approve"
+  entityType String // e.g. "Project", "ProjectStage"
+  entityId   String?
+  beforeJson Json?
+  afterJson  Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@map("audit_logs")
 }
 
 model Client {
@@ -148,10 +233,13 @@ model Project {
   lng       Float?
   status    ProjectStatus @default(ACTIVE)
 
+  /// Legacy single-assignee field — kept for backward compatibility. New code should prefer
+  /// `members` (ProjectMember), which supports multiple people with different project roles.
   assignedEngineerId String?
   assignedEngineer   User?   @relation("AssignedEngineer", fields: [assignedEngineerId], references: [id])
 
-  stages ProjectStage[]
+  stages  ProjectStage[]
+  members ProjectMember[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

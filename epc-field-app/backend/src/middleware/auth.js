@@ -21,7 +21,10 @@ function requireAuth() {
     } catch (err) {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
-    const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { roleRef: { include: { rolePermissions: { include: { permission: true } } } } },
+    });
     if (!user || !user.isActive) {
       return res.status(401).json({ error: 'User not found or inactive' });
     }
@@ -30,13 +33,4 @@ function requireAuth() {
   };
 }
 
-function requireRole(...roles) {
-  return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Forbidden — insufficient role' });
-    }
-    next();
-  };
-}
-
-module.exports = { signToken, requireAuth, requireRole };
+module.exports = { signToken, requireAuth };

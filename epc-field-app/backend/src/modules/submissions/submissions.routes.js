@@ -2,16 +2,29 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const prisma = require('../../config/prisma');
-const { requireAuth, requireRole } = require('../../middleware/auth');
+const { requireAuth } = require('../../middleware/auth');
+const { hasPermission, hasProjectPermission } = require('../../middleware/permissions');
+const { PERMISSIONS } = require('../../config/permissions');
 const { saveBuffer } = require('../../services/storage');
 const { stampGeotag } = require('../../services/storage/geotagStamp');
 const { reverseGeocode } = require('../../services/geocode');
+const { logAudit } = require('../../services/audit');
 const { generateSubmissionPdf } = require('../pdf/pdfService');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 router.use(requireAuth());
+
+/** Global viewAll, ProjectMember, or the legacy single-assignee field — any grants access. */
+async function canAccessProject(user, project) {
+  if (hasPermission(user, PERMISSIONS.PROJECTS_VIEW_ALL.key)) return true;
+  if (project.assignedEngineerId === user.id) return true;
+  const membership = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId: project.id, userId: user.id } },
+  });
+  return !!membership;
+}
 
 async function loadSubmissionOr404(req, res) {
   const submission = await prisma.submission.findUnique({
@@ -30,7 +43,7 @@ async function loadSubmissionOr404(req, res) {
     res.status(404).json({ error: 'Submission not found' });
     return null;
   }
-  if (req.user.role !== 'ADMIN' && submission.projectStage.project.assignedEngineerId !== req.user.id) {
+  if (!(await canAccessProject(req.user, submission.projectStage.project))) {
     res.status(403).json({ error: 'Not assigned to this project' });
     return null;
   }
@@ -44,7 +57,7 @@ router.post('/project-stages/:stageId/submissions', async (req, res) => {
     include: { project: true, submissions: { orderBy: { version: 'desc' }, take: 1 } },
   });
   if (!stage) return res.status(404).json({ error: 'Project stage not found' });
-  if (req.user.role !== 'ADMIN' && stage.project.assignedEngineerId !== req.user.id) {
+  if (!(await canAccessProject(req.user, stage.project))) {
     return res.status(403).json({ error: 'Not assigned to this project' });
   }
   if (!['NOT_STARTED', 'IN_PROGRESS', 'REJECTED'].includes(stage.status)) {
@@ -180,6 +193,14 @@ router.post('/submissions/:id/submit', async (req, res) => {
     data: { status: 'SUBMITTED', submittedAt: new Date() },
   });
 
+  await logAudit({
+    actorId: req.user.id,
+    action: 'submission.submit',
+    entityType: 'Submission',
+    entityId: submission.id,
+    after: { status: 'SUBMITTED', version: submission.version },
+  });
+
   let pdfUrl = null;
   try {
     pdfUrl = await generateSubmissionPdf(submission.id);
@@ -190,7 +211,12 @@ router.post('/submissions/:id/submit', async (req, res) => {
   res.json({ ok: true, pdfUrl });
 });
 
-router.post('/submissions/:id/generate-pdf', requireRole('ADMIN'), async (req, res) => {
+router.post('/submissions/:id/generate-pdf', async (req, res) => {
+  const submission = await loadSubmissionOr404(req, res);
+  if (!submission) return;
+  if (!(await hasProjectPermission(req.user, submission.projectStage.project.id, PERMISSIONS.SUBMISSIONS_MANAGE.key))) {
+    return res.status(403).json({ error: 'Forbidden — missing permission: submissions.manage' });
+  }
   const url = await generateSubmissionPdf(req.params.id);
   res.json({ pdfUrl: url });
 });

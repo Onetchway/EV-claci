@@ -1,6 +1,9 @@
 const express = require('express');
 const prisma = require('../../config/prisma');
-const { requireAuth, requireRole } = require('../../middleware/auth');
+const { requireAuth } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/permissions');
+const { PERMISSIONS } = require('../../config/permissions');
+const { logAudit } = require('../../services/audit');
 
 const router = express.Router();
 
@@ -11,10 +14,11 @@ router.get('/', async (req, res) => {
   res.json({ clients });
 });
 
-router.post('/', requireRole('ADMIN'), async (req, res) => {
+router.post('/', requirePermission(PERMISSIONS.CLIENTS_MANAGE.key), async (req, res) => {
   const { name, logoUrl } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   const client = await prisma.client.create({ data: { name, logoUrl } });
+  await logAudit({ actorId: req.user.id, action: 'client.create', entityType: 'Client', entityId: client.id, after: client });
   res.status(201).json({ client });
 });
 

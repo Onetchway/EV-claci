@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Nav from '../../../components/Nav';
 import StatusBadge from '../../../components/StatusBadge';
 import SubmissionData from '../../../components/SubmissionData';
-import { apiFetch, getUser } from '../../../lib/api';
+import { apiFetch } from '../../../lib/api';
 import { useAuthGuard } from '../../../lib/useAuthGuard';
 
 export default function StageDetailPage() {
@@ -14,17 +14,20 @@ export default function StageDetailPage() {
   const router = useRouter();
   const [stage, setStage] = useState(null);
   const [submission, setSubmission] = useState(null);
+  const [canApprove, setCanApprove] = useState(false);
+  const [canManageSubmission, setCanManageSubmission] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
-  const user = ready ? getUser() : null;
 
   async function load() {
     try {
       const data = await apiFetch(`/project-stages/${id}`);
       setStage(data.stage);
       setSubmission(data.latestSubmission);
+      setCanApprove(!!data.canApprove);
+      setCanManageSubmission(!!data.canManageSubmission);
     } catch (err) {
       setError(err.message);
     }
@@ -109,13 +112,13 @@ export default function StageDetailPage() {
                 {submission.pdfUrl && (
                   <a className="btn secondary" href={submission.pdfUrl} target="_blank" rel="noreferrer">Download PDF</a>
                 )}
-                {user?.role === 'ADMIN' && (
+                {canManageSubmission && (
                   <button className="btn secondary" onClick={regeneratePdf} disabled={busy}>Regenerate PDF</button>
                 )}
               </div>
             </div>
 
-            {user?.role === 'ADMIN' && stage.status === 'SUBMITTED' && (
+            {canApprove && stage.status === 'SUBMITTED' && (
               <div className="card">
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button className="btn" onClick={approve} disabled={busy}>Approve Stage</button>

@@ -7,8 +7,83 @@
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const { createProjectStages } = require('../src/modules/projects/stageGating');
+const { ROLES, PERMISSION_LIST } = require('../src/config/permissions');
 
 const prisma = new PrismaClient();
+
+/**
+ * Seeds/syncs RoleDef + PermissionDef + RolePermission from src/config/permissions.js — the
+ * single source of truth for the RBAC matrix. Safe to re-run: upserts roles/permissions and
+ * reconciles each role's permission set to exactly match the config (adds new grants, removes
+ * ones no longer listed), so editing permissions.js and re-seeding keeps the DB in sync.
+ */
+async function seedRolesAndPermissions() {
+  const permissionByKey = new Map();
+  for (const p of PERMISSION_LIST) {
+    const rec = await prisma.permissionDef.upsert({
+      where: { key: p.key },
+      update: { description: p.description },
+      create: { key: p.key, description: p.description },
+    });
+    permissionByKey.set(p.key, rec);
+  }
+
+  const roleByKey = new Map();
+  for (const [roleKey, def] of Object.entries(ROLES)) {
+    const rec = await prisma.roleDef.upsert({
+      where: { key: roleKey },
+      update: { name: def.name },
+      create: { key: roleKey, name: def.name },
+    });
+    roleByKey.set(roleKey, rec);
+
+    const desiredPermIds = def.permissions.map((k) => permissionByKey.get(k).id);
+    for (const permissionId of desiredPermIds) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: rec.id, permissionId } },
+        update: {},
+        create: { roleId: rec.id, permissionId },
+      });
+    }
+    await prisma.rolePermission.deleteMany({
+      where: { roleId: rec.id, permissionId: { notIn: desiredPermIds.length ? desiredPermIds : ['__none__'] } },
+    });
+  }
+
+  console.log(`Seeded ${permissionByKey.size} permissions and ${roleByKey.size} roles.`);
+  return roleByKey;
+}
+
+/** Existing users (e.g. accounts created before RBAC landed) get roleId backfilled from their legacy `role` enum. */
+async function backfillUserRoles(roleByKey) {
+  const usersMissingRole = await prisma.user.findMany({ where: { roleId: null } });
+  for (const user of usersMissingRole) {
+    const roleKey = user.role === 'ADMIN' ? 'SUPER_ADMIN' : 'FIELD_ENGINEER';
+    await prisma.user.update({ where: { id: user.id }, data: { roleId: roleByKey.get(roleKey).id } });
+  }
+  if (usersMissingRole.length) {
+    console.log(`Backfilled roleId for ${usersMissingRole.length} existing user(s).`);
+  }
+}
+
+/** Existing projects' legacy assignedEngineerId gets a matching ProjectMember row. */
+async function backfillProjectMembers(roleByKey) {
+  const projects = await prisma.project.findMany({ where: { assignedEngineerId: { not: null } } });
+  let created = 0;
+  for (const project of projects) {
+    const existing = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId: project.id, userId: project.assignedEngineerId } },
+    });
+    if (existing) continue;
+    await prisma.projectMember.create({
+      data: { projectId: project.id, userId: project.assignedEngineerId, roleId: roleByKey.get('FIELD_ENGINEER').id },
+    });
+    created++;
+  }
+  if (created) {
+    console.log(`Backfilled ${created} project member(s) from legacy assignedEngineerId.`);
+  }
+}
 
 function f(key, label, type, opts = {}) {
   return {
@@ -430,20 +505,32 @@ const STAGES = [
   },
 ];
 
-async function seedUsers() {
+async function seedUsers(roleByKey) {
   const demoPassword = 'ChangeMe123!';
   const passwordHash = await bcrypt.hash(demoPassword, 10);
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@nakjm.example' },
     update: {},
-    create: { email: 'admin@nakjm.example', passwordHash, name: 'NaKJM Admin', role: 'ADMIN' },
+    create: {
+      email: 'admin@nakjm.example',
+      passwordHash,
+      name: 'NaKJM Admin',
+      role: 'ADMIN',
+      roleId: roleByKey.get('SUPER_ADMIN').id,
+    },
   });
 
   const engineer = await prisma.user.upsert({
     where: { email: 'engineer@nakjm.example' },
     update: {},
-    create: { email: 'engineer@nakjm.example', passwordHash, name: 'Field Engineer (Demo)', role: 'ENGINEER' },
+    create: {
+      email: 'engineer@nakjm.example',
+      passwordHash,
+      name: 'Field Engineer (Demo)',
+      role: 'ENGINEER',
+      roleId: roleByKey.get('FIELD_ENGINEER').id,
+    },
   });
 
   console.log(`Seeded users — admin@nakjm.example / engineer@nakjm.example (password: ${demoPassword})`);
@@ -508,9 +595,12 @@ async function seedSampleProject(client, engineer) {
 }
 
 async function main() {
-  const { engineer } = await seedUsers();
+  const roleByKey = await seedRolesAndPermissions();
+  const { engineer } = await seedUsers(roleByKey);
+  await backfillUserRoles(roleByKey);
   const client = await seedVGreen();
   await seedSampleProject(client, engineer);
+  await backfillProjectMembers(roleByKey);
 }
 
 main()
