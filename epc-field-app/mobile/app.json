@@ -17,7 +17,8 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#0b6e4f",
@@ -45,6 +46,13 @@
           "locationAlwaysAndWhenInUsePermission": "NaKJM Infra Field App uses your location to geotag site photos, as required by client report formats."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "192dd707-3b4c-4953-8f55-5278bfc03125"
+      }
+    },
+    "owner": "nakjm"
   }
 }
