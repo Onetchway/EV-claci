@@ -36,7 +36,8 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
-    preDeployCommand: npx prisma migrate deploy
+    # Free tier doesn't support preDeployCommand — migrations run from the Dockerfile's CMD
+    # instead (npx prisma migrate deploy, every container start; a no-op once up to date).
     autoDeployTrigger: commit
     domains:
       - api.nakjminfra.com

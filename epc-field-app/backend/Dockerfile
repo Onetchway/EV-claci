@@ -25,4 +25,7 @@ RUN mkdir -p storage/originals storage/stamped storage/pdf
 
 EXPOSE 4100
 
-CMD ["node", "src/server.js"]
+# Runs pending migrations on every container start, then starts the server. This replaces
+# Render's preDeployCommand (not available on the free plan) with something plan-agnostic —
+# migrate deploy is a no-op if the database is already up to date.
+CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]

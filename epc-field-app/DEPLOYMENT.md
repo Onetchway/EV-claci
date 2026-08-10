@@ -103,9 +103,11 @@ You should now have: `DATABASE_URL` (Neon), and `S3_ACCOUNT_ID` / `S3_ACCESS_KEY
 ### What's automatic from here on
 
 Every push to the connected branch rebuilds and redeploys **both** services
-(`autoDeployTrigger: commit` in `render.yaml`) — including the Postgres migration
-(`preDeployCommand: npx prisma migrate deploy` runs before each backend deploy, against Neon).
-When you ask for a change here, I push a commit, and it's live within a few minutes (plus a
+(`autoDeployTrigger: commit` in `render.yaml`) — including the Postgres migration (the
+backend's container runs `npx prisma migrate deploy` against Neon on every start before the
+server boots — Render's free plan doesn't support a separate pre-deploy step, so this is baked
+into the Docker image's startup command instead). When you ask for a change here, I push a
+commit, and it's live within a few minutes (plus a
 cold-start wait on free tier if it's been idle) — you don't need to open Render again unless
 you want to change a secret, resize something, or look at logs.
 
