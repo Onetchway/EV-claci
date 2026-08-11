@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
-import { File } from 'expo-file-system';
 import { API_BASE_URL, getToken } from '../src/lib/api';
 
 export default function CameraScreen() {
@@ -55,7 +54,7 @@ export default function CameraScreen() {
       setStatusText('Uploading…');
       const token = await getToken();
       const formData = new FormData();
-      formData.append('file', new File(photo.uri), `${slotKey}.jpg`);
+      formData.append('file', { uri: photo.uri, name: `${slotKey}.jpg`, type: 'image/jpeg' });
       formData.append('photoSlotKey', String(slotKey));
       formData.append('lat', String(position.coords.latitude));
       formData.append('lng', String(position.coords.longitude));

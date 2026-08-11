@@ -15,7 +15,8 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.nakjminfra.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.nakjminfra.com/api",
+        "EXPO_PUBLIC_USE_RN_FETCH": "1"
       },
       "android": {
         "buildType": "apk"
@@ -25,7 +26,8 @@
       "channel": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.nakjminfra.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.nakjminfra.com/api",
+        "EXPO_PUBLIC_USE_RN_FETCH": "1"
       },
       "android": {
         "buildType": "app-bundle"
