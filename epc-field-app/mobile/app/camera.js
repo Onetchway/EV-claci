@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
-import { API_BASE_URL, getToken } from '../src/lib/api';
+import { uploadFormData } from '../src/lib/api';
 
 export default function CameraScreen() {
   const { submissionId, slotKey, slotLabel } = useLocalSearchParams();
@@ -52,7 +52,6 @@ export default function CameraScreen() {
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
 
       setStatusText('Uploading…');
-      const token = await getToken();
       const formData = new FormData();
       formData.append('file', { uri: photo.uri, name: `${slotKey}.jpg`, type: 'image/jpeg' });
       formData.append('photoSlotKey', String(slotKey));
@@ -61,13 +60,7 @@ export default function CameraScreen() {
       formData.append('accuracyM', String(position.coords.accuracy ?? ''));
       formData.append('capturedAt', new Date().toISOString());
 
-      const res = await fetch(`${API_BASE_URL}/submissions/${submissionId}/photos`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      await uploadFormData(`/submissions/${submissionId}/photos`, formData);
 
       router.back();
     } catch (err) {

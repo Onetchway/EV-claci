@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import { API_BASE_URL, getToken } from '../lib/api';
+import { API_BASE_URL, getToken, uploadFormData } from '../lib/api';
 
 /** Real file upload for a type:'file' FormFieldDef — replaces the old "confirm attached" checkbox. */
 export default function DocumentField({ field, document, submissionId, editable, onChanged }) {
@@ -15,18 +15,11 @@ export default function DocumentField({ field, document, submissionId, editable,
       const asset = result.assets[0];
 
       setBusy(true);
-      const token = await getToken();
       const formData = new FormData();
       formData.append('file', { uri: asset.uri, name: asset.name, type: asset.mimeType || 'application/octet-stream' });
       formData.append('fieldKey', field.key);
 
-      const res = await fetch(`${API_BASE_URL}/submissions/${submissionId}/documents`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      await uploadFormData(`/submissions/${submissionId}/documents`, formData);
       onChanged();
     } catch (err) {
       Alert.alert('Document upload failed', err.message);
