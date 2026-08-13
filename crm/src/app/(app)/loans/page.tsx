@@ -30,7 +30,7 @@ import { cn, formatCompactINR, formatDate, formatINR } from "@/lib/utils";
  */
 export default function LoansPage() {
   const viewer = useViewer();
-  const { leads, loading } = useLeads(useMemo(() => ({ max: 500 }), []));
+  const { leads, loading } = useLeads(useMemo(() => ({ max: 3000 }), []));
 
   const [stage, setStage] = useState<LoanStage | "">("");
   const [bank, setBank] = useState("");

@@ -26,7 +26,7 @@ export default function AgentsPage() {
   const [range, setRange] = useState<Range>("90");
   const [search, setSearch] = useState("");
 
-  const { leads, loading } = useLeads(useMemo(() => ({ max: 500 }), []));
+  const { leads, loading } = useLeads(useMemo(() => ({ max: 3000 }), []));
 
   const scoped = useMemo(() => {
     if (range === "ALL") return leads;

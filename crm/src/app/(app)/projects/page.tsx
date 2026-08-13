@@ -126,7 +126,7 @@ function ProjectsInner() {
     if (!profile) return;
     setLoading(true);
     return subscribeProjects(
-      { ownership, status, max: 300 },
+      { ownership, status, max: 1000 },
       (rows) => { setProjects(rows); setError(null); setLoading(false); },
       (e) => { setError(e.message); setLoading(false); },
     );

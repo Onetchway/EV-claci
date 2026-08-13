@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { Plus, Users2 } from "lucide-react";
+import { Plus, Trash2, Users2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   LeadFilterBar, emptyFilters, type FilterState,
 } from "@/components/lead-filters";
 import {
-  Avatar, Badge, Button, EmptyState, PageHeader, Spinner, StatCard,
+  Avatar, Badge, Button, EmptyState, Modal, PageHeader, Spinner, StatCard,
+  useAsyncAction,
 } from "@/components/ui";
 import { useAgents, useLeads } from "@/hooks/use-leads";
 import { computeTotals } from "@/lib/analytics";
@@ -20,18 +21,26 @@ import {
 } from "@/lib/constants";
 import { BulkReassignButton } from "@/components/bulk-reassign-button";
 import { ExportButton, ImportButton } from "@/components/data-transfer";
-import { applyClientFilters, createLead, type LeadDraft } from "@/lib/db/leads";
+import { applyClientFilters, createLead, trashLead, type LeadDraft } from "@/lib/db/leads";
 import { buildLeadDraft } from "@/lib/lead-import";
 import { LEAD_COLUMNS, LEAD_IMPORT_COLUMNS } from "@/lib/exports";
-import { canCreateLead, canExport, canReassign } from "@/lib/permissions";
+import { canCreateLead, canExport, canReassign, canTrash } from "@/lib/permissions";
 import { describeConfig } from "@/lib/pricing";
 import { scoreLead } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
 type SortKey = "updatedAt" | "value" | "name" | "stage" | "createdAt";
+const PAGE_SIZE = 500;
 
-function LeadRow({ lead }: { lead: Lead }) {
+function LeadRow({
+  lead, selectable, selected, onToggle,
+}: {
+  lead: Lead;
+  selectable: boolean;
+  selected: boolean;
+  onToggle: (id: string) => void;
+}) {
   const stage = STAGE_META[lead.stage];
   const score = scoreLead(lead);
   const overdue =
@@ -40,6 +49,16 @@ function LeadRow({ lead }: { lead: Lead }) {
 
   return (
     <tr className="hover:bg-ink-50">
+      {selectable && (
+        <td className="td w-8">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggle(lead.id)}
+            aria-label={`Select ${lead.client?.name}`}
+          />
+        </td>
+      )}
       <td className="td">
         <Link href={`/leads/${lead.id}`} className="block">
           <span className="font-medium text-ink-900 hover:text-brand-700">{lead.client?.name}</span>
@@ -90,6 +109,10 @@ function LeadsInner() {
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
   const [expanded, setExpanded] = useState(false);
   const [sort, setSort] = useState<SortKey>("updatedAt");
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const { busy: deleting, run: runDelete } = useAsyncAction();
 
   // Deep links from the dashboard (?stage=EOI, ?status=REJECTED, ?overdue=1).
   useEffect(() => {
@@ -119,11 +142,15 @@ function LeadsInner() {
         type: filters.type,
         status: filters.status,
         ownerId: filters.ownerId || undefined,
-        max: 500,
+        max: pageSize,
       }),
-      [filters.type, filters.status, filters.ownerId],
+      [filters.type, filters.status, filters.ownerId, pageSize],
     ),
   );
+
+  // Reset paging and selection whenever the query itself changes.
+  useEffect(() => { setPageSize(PAGE_SIZE); }, [filters.type, filters.status, filters.ownerId]);
+  useEffect(() => { setSelected(new Set()); }, [filters, sort]);
 
   const rows = useMemo(() => {
     const filtered = applyClientFilters(leads, {
@@ -152,7 +179,23 @@ function LeadsInner() {
   }, [leads, filters, sort]);
 
   const totals = useMemo(() => computeTotals(rows), [rows]);
+  const canBulkTrash = canTrash(viewer);
+  const canLoadMore = !loading && leads.length >= pageSize;
 
+  function toggleRow(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelected((s) => {
+      if (rows.every((r) => s.has(r.id))) return new Set();
+      return new Set(rows.map((r) => r.id));
+    });
+  }
 
   return (
     <>
@@ -228,6 +271,20 @@ function LeadsInner() {
         </div>
       )}
 
+      {canBulkTrash && selected.size > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-ink-900 px-4 py-2.5 text-sm text-white">
+          <span>{selected.size} selected</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSelected(new Set())} className="text-ink-300 hover:text-white">
+              Clear
+            </button>
+            <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4" /> Delete selected
+            </Button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>
       ) : rows.length === 0 ? (
@@ -238,30 +295,88 @@ function LeadsInner() {
           action={<Link href="/leads/new"><Button variant="primary"><Plus className="h-4 w-4" /> New lead</Button></Link>}
         />
       ) : (
-        <div className="card overflow-x-auto scroll-thin">
-          <table className="w-full">
-            <thead className="border-b border-ink-200 bg-ink-50">
-              <tr>
-                <th className="th">Client</th>
-                <th className="th">Stage</th>
-                <th className="th">Score</th>
-                <th className="th">Type</th>
-                <th className="th">Configuration</th>
-                <th className="th text-right">Value</th>
-                <th className="th text-right">Collected</th>
-                <th className="th">Source</th>
-                <th className="th">City</th>
-                <th className="th">Agent</th>
-                <th className="th">Follow-up</th>
-                <th className="th">Updated</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-ink-100">
-              {rows.map((l) => <LeadRow key={l.id} lead={l} />)}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="card overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200 bg-ink-50">
+                <tr>
+                  {canBulkTrash && (
+                    <th className="th w-8">
+                      <input
+                        type="checkbox"
+                        checked={rows.length > 0 && rows.every((r) => selected.has(r.id))}
+                        onChange={toggleAllVisible}
+                        aria-label="Select all shown"
+                      />
+                    </th>
+                  )}
+                  <th className="th">Client</th>
+                  <th className="th">Stage</th>
+                  <th className="th">Score</th>
+                  <th className="th">Type</th>
+                  <th className="th">Configuration</th>
+                  <th className="th text-right">Value</th>
+                  <th className="th text-right">Collected</th>
+                  <th className="th">Source</th>
+                  <th className="th">City</th>
+                  <th className="th">Agent</th>
+                  <th className="th">Follow-up</th>
+                  <th className="th">Updated</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {rows.map((l) => (
+                  <LeadRow
+                    key={l.id}
+                    lead={l}
+                    selectable={canBulkTrash}
+                    selected={selected.has(l.id)}
+                    onToggle={toggleRow}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {canLoadMore && (
+            <div className="mt-4 flex justify-center">
+              <Button onClick={() => setPageSize((n) => n + PAGE_SIZE)}>
+                Load 500 more
+              </Button>
+            </div>
+          )}
+        </>
       )}
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title={`Delete ${selected.size} lead${selected.size === 1 ? "" : "s"}`}
+        description="Moves them to Trash — they disappear from every list, but an admin can restore them from Trash at any time. Nothing is permanently deleted."
+        footer={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={deleting}
+              onClick={() =>
+                void runDelete(async () => {
+                  const targets = rows.filter((r) => selected.has(r.id));
+                  for (const lead of targets) await trashLead(lead, actor!);
+                  setSelected(new Set());
+                  setDeleteOpen(false);
+                }, "Leads moved to Trash.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Move to Trash
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">
+          {selected.size} lead{selected.size === 1 ? "" : "s"} selected.
+        </p>
+      </Modal>
     </>
   );
 }
