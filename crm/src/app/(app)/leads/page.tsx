@@ -18,11 +18,12 @@ import {
   SOURCE_LABEL, STAGE_META, STATUS_COLOR, STATUS_LABEL,
   type LeadStatus, type LeadType, type Stage,
 } from "@/lib/constants";
+import { BulkReassignButton } from "@/components/bulk-reassign-button";
 import { ExportButton, ImportButton } from "@/components/data-transfer";
 import { applyClientFilters, createLead, type LeadDraft } from "@/lib/db/leads";
 import { buildLeadDraft } from "@/lib/lead-import";
 import { LEAD_COLUMNS, LEAD_IMPORT_COLUMNS } from "@/lib/exports";
-import { canCreateLead, canExport } from "@/lib/permissions";
+import { canCreateLead, canExport, canReassign } from "@/lib/permissions";
 import { describeConfig } from "@/lib/pricing";
 import { scoreLead } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
@@ -168,6 +169,7 @@ function LeadsInner() {
                 rows={rows}
               />
             )}
+            {canReassign(viewer) && <BulkReassignButton />}
             {canCreateLead(viewer) && actor && (
               <ImportButton
                 title="Import leads"

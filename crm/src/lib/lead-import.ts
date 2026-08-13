@@ -25,7 +25,7 @@ import { isValidEmail, isValidPhone, normalisePhone } from "./utils";
 const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
 
 /** Matches a sheet's free-text agent name against the real team roster. */
-function matchAgent(value: string, agents: AppUser[]): AppUser | null {
+export function matchAgent(value: string, agents: AppUser[]): AppUser | null {
   const v = nameKey(value);
   if (!v) return null;
   return (
