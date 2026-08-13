@@ -19,8 +19,22 @@ import {
 } from "./constants";
 import { DEFAULT_FINANCING, type LeadDraft } from "./db/leads";
 import { parseSheetDate, parseSheetNumber } from "./spreadsheet";
-import type { Actor } from "./types";
+import type { Actor, AppUser } from "./types";
 import { isValidEmail, isValidPhone, normalisePhone } from "./utils";
+
+const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+
+/** Matches a sheet's free-text agent name against the real team roster. */
+function matchAgent(value: string, agents: AppUser[]): AppUser | null {
+  const v = nameKey(value);
+  if (!v) return null;
+  return (
+    agents.find((a) => nameKey(a.name) === v) ??
+    agents.find((a) => nameKey(a.name).startsWith(v) || v.startsWith(nameKey(a.name))) ??
+    agents.find((a) => nameKey(a.name).includes(v) || v.includes(nameKey(a.name))) ??
+    null
+  );
+}
 
 const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -56,6 +70,7 @@ const YES = new Set(["yes", "y", "true", "1", "haan", "ha"]);
 export function buildLeadDraft(
   get: (column: string) => string,
   actor: Actor,
+  agents: AppUser[] = [],
 ): LeadDraft | string {
   const name = get("Client Name").trim();
   if (!name) return "Client name is missing.";
@@ -93,6 +108,13 @@ export function buildLeadDraft(
   const bank = get("Bank").trim();
 
   const followUp = parseSheetDate(get("Next Follow-up"));
+  const expectedClose = parseSheetDate(get("Expected Close"));
+
+  // Preserve who was actually working the lead, when the sheet says so — only
+  // fall back to whoever is running the import if there's no match on the roster.
+  const matchedAgent = matchAgent(get("Agent").trim(), agents);
+  const ownerId = matchedAgent?.uid ?? actor.uid;
+  const ownerName = matchedAgent?.name ?? actor.name;
 
   return {
     type,
@@ -134,11 +156,10 @@ export function buildLeadDraft(
       spaceAvailableSqft: parseSheetNumber(get("Space (sq.ft)")),
       remarks: get("Remarks").trim(),
     },
-    tags: ["imported"],
+    tags: matchedAgent ? ["imported"] : ["imported", "unassigned-in-sheet"],
     nextFollowUpAt: followUp,
-    expectedCloseAt: null,
-    // Imported leads land with the importer, who can reassign in bulk after.
-    ownerId: actor.uid,
-    ownerName: actor.name,
+    expectedCloseAt: expectedClose,
+    ownerId,
+    ownerName,
   };
 }

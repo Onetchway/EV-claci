@@ -12,7 +12,7 @@ import {
 import {
   Avatar, Badge, Button, EmptyState, PageHeader, Spinner, StatCard,
 } from "@/components/ui";
-import { useLeads } from "@/hooks/use-leads";
+import { useAgents, useLeads } from "@/hooks/use-leads";
 import { computeTotals } from "@/lib/analytics";
 import {
   SOURCE_LABEL, STAGE_META, STATUS_COLOR, STATUS_LABEL,
@@ -109,6 +109,8 @@ function LeadsInner() {
     if (stage || status || type || overdue || owner) setExpanded(true);
   }, [params]);
 
+  const { users: agents } = useAgents();
+
   // Type/status narrow the server query; everything else is applied in memory.
   const { leads, loading, error } = useLeads(
     useMemo(
@@ -171,7 +173,7 @@ function LeadsInner() {
                 title="Import leads"
                 templateName="livanto-leads"
                 columns={LEAD_IMPORT_COLUMNS}
-                buildRow={(get) => buildLeadDraft(get, actor)}
+                buildRow={(get) => buildLeadDraft(get, actor, agents)}
                 onCommit={async (drafts, onProgress) => {
                   // Sequential on purpose: each lead takes a code from a
                   // transactional counter, and hammering it in parallel just

@@ -75,8 +75,8 @@ export const LEAD_IMPORT_COLUMNS: Column<Lead>[] = LEAD_COLUMNS.filter((c) =>
     "Type", "Client Name", "Phone", "Alternate Phone", "Email", "Company", "City",
     "State", "Address", "PAN", "GSTIN", "Source", "Source Detail", "Location Name",
     "Google Maps Link", "Location Type", "Land Type", "Owner Type", "Property Owner",
-    "Power Load", "Sanctioned Load (kVA)", "Space (sq.ft)", "Remarks",
-    "Next Follow-up", "Funding Mode", "Bank",
+    "Commercial Model", "Power Load", "Sanctioned Load (kVA)", "Space (sq.ft)",
+    "Remarks", "Next Follow-up", "Expected Close", "Funding Mode", "Bank", "Agent",
   ].includes(c.header),
 );
 
