@@ -31,7 +31,7 @@ import type { Lead } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
 type SortKey = "updatedAt" | "value" | "name" | "stage" | "createdAt";
-const PAGE_SIZE = 500;
+const PAGE_SIZE = 5000;
 
 function LeadRow({
   lead, selectable, selected, onToggle,
@@ -341,7 +341,7 @@ function LeadsInner() {
           {canLoadMore && (
             <div className="mt-4 flex justify-center">
               <Button onClick={() => setPageSize((n) => n + PAGE_SIZE)}>
-                Load 500 more
+                Load {PAGE_SIZE.toLocaleString("en-IN")} more
               </Button>
             </div>
           )}

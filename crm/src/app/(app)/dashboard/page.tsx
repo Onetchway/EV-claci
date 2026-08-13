@@ -31,7 +31,7 @@ const CHART_COLORS = ["#1cb567", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#1
 
 export default function DashboardPage() {
   const { profile, role } = useAuth();
-  const { leads, loading, error } = useLeads({ max: 3000 });
+  const { leads, loading, error } = useLeads({ max: 8000 });
 
   const [openTasks, setOpenTasks] = useState<FollowupTask[]>([]);
   useEffect(() => subscribeOpenTasks(setOpenTasks), []);

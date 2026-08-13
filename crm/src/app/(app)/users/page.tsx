@@ -64,7 +64,7 @@ export default function UsersPage() {
     name: "", email: "", phone: "", roles: ["AGENT"] as Role[], region: "", password: "",
   });
 
-  const { leads } = useLeads(useMemo(() => ({ max: 3000 }), []));
+  const { leads } = useLeads(useMemo(() => ({ max: 8000 }), []));
   const perf = useMemo(() => agentPerformance(leads), [leads]);
 
   useEffect(() => {

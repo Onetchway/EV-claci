@@ -31,10 +31,10 @@ export default function ExecutiveDashboardPage() {
   const viewer = useViewer();
   const { role } = useAuth();
   const [range, setRange] = useState<Range>("90");
-  const { leads, loading } = useLeads({ max: 3000 });
+  const { leads, loading } = useLeads({ max: 8000 });
   const [projects, setProjects] = useState<Project[]>([]);
 
-  useEffect(() => subscribeProjects({ max: 1000 }, setProjects), []);
+  useEffect(() => subscribeProjects({ max: 3000 }, setProjects), []);
 
   const scoped = useMemo(() => {
     if (range === "ALL") return leads;

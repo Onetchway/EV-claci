@@ -17,7 +17,7 @@ import { formatCompactINR, formatDate } from "@/lib/utils";
 
 export default function B2bPage() {
   const [type, setType] = useState<LeadType | "ALL">("ALL");
-  const { leads, loading } = useLeads(useMemo(() => ({ max: 3000 }), []));
+  const { leads, loading } = useLeads(useMemo(() => ({ max: 8000 }), []));
 
   const rows = useMemo(
     () => applyClientFilters(leads, { types: type === "ALL" ? B2B_LEAD_TYPES : [type] }),

@@ -29,7 +29,7 @@ export default function SitesPage() {
 
   const { leads, loading } = useLeads(
     useMemo(
-      () => ({ type: "SITE" as const, status: filters.status, ownerId: filters.ownerId || undefined, max: 2000 }),
+      () => ({ type: "SITE" as const, status: filters.status, ownerId: filters.ownerId || undefined, max: 8000 }),
       [filters.status, filters.ownerId],
     ),
   );

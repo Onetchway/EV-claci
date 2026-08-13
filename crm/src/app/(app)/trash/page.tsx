@@ -30,7 +30,7 @@ export default function TrashPage() {
     const maybeDone = () => { if (leadsLoaded && projectsLoaded) setLoading(false); };
 
     const unsubLeads = subscribeLeads(
-      { max: 1000, includeTrashed: true },
+      { max: 3000, includeTrashed: true },
       (rows) => { setLeads(rows); leadsLoaded = true; maybeDone(); },
       () => { leadsLoaded = true; maybeDone(); },
     );

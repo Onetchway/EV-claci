@@ -130,7 +130,7 @@ export default function PipelinePage() {
 
   const { leads, loading } = useLeads(
     useMemo(
-      () => ({ status: "ACTIVE" as const, type: filters.type, ownerId: filters.ownerId || undefined, max: 2000 }),
+      () => ({ status: "ACTIVE" as const, type: filters.type, ownerId: filters.ownerId || undefined, max: 8000 }),
       [filters.type, filters.ownerId],
     ),
   );
