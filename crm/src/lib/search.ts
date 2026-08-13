@@ -28,27 +28,31 @@ export async function globalSearch(term: string): Promise<SearchResult[]> {
     getDocs(query(collection(db, "partners"), fsLimit(200))),
   ]);
 
-  const leadResults: SearchResult[] = leadsSnap.docs.map((d) => {
-    const l = d.data() as Lead;
-    return {
-      kind: "lead",
-      id: d.id,
-      title: l.client?.name ?? l.code,
-      subtitle: `${l.code} · ${l.client?.phone ?? ""}`,
-      href: `/leads/${d.id}`,
-    };
-  });
+  const leadResults: SearchResult[] = leadsSnap.docs
+    .filter((d) => !(d.data() as Lead).deletedAt)
+    .map((d) => {
+      const l = d.data() as Lead;
+      return {
+        kind: "lead",
+        id: d.id,
+        title: l.client?.name ?? l.code,
+        subtitle: `${l.code} · ${l.client?.phone ?? ""}`,
+        href: `/leads/${d.id}`,
+      };
+    });
 
-  const projectResults: SearchResult[] = projectsSnap.docs.map((d) => {
-    const p = d.data() as Project;
-    return {
-      kind: "project",
-      id: d.id,
-      title: p.name ?? p.code,
-      subtitle: `${p.code} · ${p.site?.city ?? ""}`,
-      href: `/projects/${d.id}`,
-    };
-  });
+  const projectResults: SearchResult[] = projectsSnap.docs
+    .filter((d) => !(d.data() as Project).deletedAt)
+    .map((d) => {
+      const p = d.data() as Project;
+      return {
+        kind: "project",
+        id: d.id,
+        title: p.name ?? p.code,
+        subtitle: `${p.code} · ${p.site?.city ?? ""}`,
+        href: `/projects/${d.id}`,
+      };
+    });
 
   const partnerResults: SearchResult[] = partnersSnap.docs
     .map((d) => ({ id: d.id, ...(d.data() as Omit<Partner, "id">) }))

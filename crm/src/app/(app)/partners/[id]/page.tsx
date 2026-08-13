@@ -53,6 +53,7 @@ export default function PartnerDetailPage() {
         setLeads(
           snap.docs
             .map((d) => ({ id: d.id, ...(d.data() as Omit<Lead, "id">) }))
+            .filter((l) => !l.deletedAt)
             .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0)),
         );
       }
