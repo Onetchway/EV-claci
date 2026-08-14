@@ -32,6 +32,11 @@ import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
 type SortKey = "updatedAt" | "value" | "name" | "stage" | "createdAt";
 const PAGE_SIZE = 5000;
+// Rendering thousands of <tr> rows into the DOM at once is what actually
+// makes the page laggy (not the fetch) — stats stay computed over every
+// fetched row, but only a manageable slice of them hits the DOM until asked
+// for more.
+const ROWS_PER_PAGE = 150;
 
 function LeadRow({
   lead, selectable, selected, onToggle,
@@ -110,6 +115,7 @@ function LeadsInner() {
   const [expanded, setExpanded] = useState(false);
   const [sort, setSort] = useState<SortKey>("updatedAt");
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [visibleRows, setVisibleRows] = useState(ROWS_PER_PAGE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteOpen, setDeleteOpen] = useState(false);
   const { busy: deleting, run: runDelete } = useAsyncAction();
@@ -151,6 +157,7 @@ function LeadsInner() {
   // Reset paging and selection whenever the query itself changes.
   useEffect(() => { setPageSize(PAGE_SIZE); }, [filters.type, filters.status, filters.ownerId]);
   useEffect(() => { setSelected(new Set()); }, [filters, sort]);
+  useEffect(() => { setVisibleRows(ROWS_PER_PAGE); }, [filters, sort]);
 
   const rows = useMemo(() => {
     const filtered = applyClientFilters(leads, {
@@ -181,6 +188,8 @@ function LeadsInner() {
   const totals = useMemo(() => computeTotals(rows), [rows]);
   const canBulkTrash = canTrash(viewer);
   const canLoadMore = !loading && leads.length >= pageSize;
+  const shownRows = useMemo(() => rows.slice(0, visibleRows), [rows, visibleRows]);
+  const canShowMoreRows = rows.length > visibleRows;
 
   function toggleRow(id: string) {
     setSelected((s) => {
@@ -325,7 +334,7 @@ function LeadsInner() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
-                {rows.map((l) => (
+                {shownRows.map((l) => (
                   <LeadRow
                     key={l.id}
                     lead={l}
@@ -338,7 +347,16 @@ function LeadsInner() {
             </table>
           </div>
 
-          {canLoadMore && (
+          {canShowMoreRows && (
+            <div className="mt-4 flex justify-center">
+              <Button onClick={() => setVisibleRows((n) => n + ROWS_PER_PAGE)}>
+                Show {Math.min(ROWS_PER_PAGE, rows.length - visibleRows).toLocaleString("en-IN")} more rows
+                ({(rows.length - visibleRows).toLocaleString("en-IN")} already loaded, not yet shown)
+              </Button>
+            </div>
+          )}
+
+          {!canShowMoreRows && canLoadMore && (
             <div className="mt-4 flex justify-center">
               <Button onClick={() => setPageSize((n) => n + PAGE_SIZE)}>
                 Load {PAGE_SIZE.toLocaleString("en-IN")} more

@@ -82,6 +82,13 @@ function LeadCard({ lead, draggable }: { lead: Lead; draggable: boolean }) {
   );
 }
 
+// dnd-kit attaches a draggable listener per card — a column with thousands
+// of leads (the unfiltered "New" stage, once you've bulk-imported) renders
+// thousands of drag-enabled DOM nodes at once and the whole board grinds to
+// a halt. Cap what actually renders and let people page through the rest;
+// narrowing the filters is the real fix for "I have 2,000 new leads".
+const CARD_PAGE = 60;
+
 function Column({
   stage, leads, draggable,
 }: {
@@ -90,6 +97,8 @@ function Column({
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const meta = STAGE_META[stage];
   const value = leads.reduce((a, l) => a + (l.value ?? 0), 0);
+  const [visible, setVisible] = useState(CARD_PAGE);
+  const shown = leads.slice(0, visible);
 
   return (
     <div className="flex w-72 shrink-0 flex-col">
@@ -114,7 +123,17 @@ function Column({
         {leads.length === 0 ? (
           <p className="py-6 text-center text-xs text-ink-400">Drop leads here</p>
         ) : (
-          leads.map((l) => <LeadCard key={l.id} lead={l} draggable={draggable} />)
+          <>
+            {shown.map((l) => <LeadCard key={l.id} lead={l} draggable={draggable} />)}
+            {leads.length > visible && (
+              <button
+                onClick={() => setVisible((n) => n + CARD_PAGE)}
+                className="w-full rounded-lg border border-dashed border-ink-300 py-2 text-xs text-ink-500 hover:bg-white"
+              >
+                Show {Math.min(CARD_PAGE, leads.length - visible)} more ({leads.length - visible} hidden — narrow the filters above to find a specific lead faster)
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
