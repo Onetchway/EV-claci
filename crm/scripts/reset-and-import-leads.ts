@@ -293,22 +293,33 @@ async function deleteAllLeads(): Promise<number> {
 // --- main ---------------------------------------------------------------------
 
 async function main() {
+  const wipeOnly = ARGS["wipe-only"] === true;
   const csvPath = ARGS.csv as string | undefined;
-  if (!csvPath) {
-    console.error('Usage: npm run reset-leads -- --csv /path/to/file.csv --confirm WIPE-EVERYTHING');
+  if (!csvPath && !wipeOnly) {
+    console.error(
+      "Usage:\n" +
+        "  npm run reset-leads -- --csv /path/to/file.csv --confirm WIPE-EVERYTHING\n" +
+        "  npm run reset-leads -- --wipe-only --confirm WIPE-EVERYTHING   (delete only, import later)\n",
+    );
     process.exit(1);
   }
   const confirmed = ARGS.confirm === "WIPE-EVERYTHING";
 
-  console.log(`\nReading ${csvPath} …`);
-  const rows: Row[] = await new Promise((resolvePromise, reject) => {
-    const acc: Row[] = [];
-    parseFile(resolve(csvPath), { headers: true, trim: true })
-      .on("error", reject)
-      .on("data", (r: Row) => acc.push(r))
-      .on("end", () => resolvePromise(acc));
-  });
-  console.log(`  ${rows.length} rows in the CSV.`);
+  const rows: Row[] = csvPath
+    ? await (async () => {
+        console.log(`\nReading ${csvPath} …`);
+        const acc: Row[] = [];
+        await new Promise<void>((resolvePromise, reject) => {
+          parseFile(resolve(csvPath), { headers: true, trim: true })
+            .on("error", reject)
+            .on("data", (r: Row) => acc.push(r))
+            .on("end", () => resolvePromise());
+        });
+        console.log(`  ${acc.length} rows in the CSV.`);
+        return acc;
+      })()
+    : [];
+  if (wipeOnly) console.log("\n--wipe-only: deleting leads, importing nothing.");
 
   const usersSnap = await db.collection("users").where("active", "==", true).get();
   const agents = usersSnap.docs.map((d) => ({ uid: d.id, name: (d.data().name as string) ?? "" }));
