@@ -5,9 +5,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
-  HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard, LineChart,
-  ListTodo, LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck, Ticket,
-  Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
+  Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
+  LineChart, ListTodo, LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck,
+  Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -79,6 +79,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/emsp-users", label: "User Management", icon: UserCircle },
       { href: "/fleets", label: "Fleet Management", icon: Truck },
       { href: "/invoices", label: "Invoicing", icon: FileText },
+      { href: "/ocpi", label: "OCPI Roaming", icon: Globe, adminOnly: true },
     ],
   },
   {

@@ -1,0 +1,103 @@
+/**
+ * Minimal OCPI 2.2.1 payload shapes — only what this CPO-side, pull-only
+ * implementation needs to emit. Not the full spec (no push/webhooks, no
+ * Commands module yet — see ocpi/README in this directory for what's
+ * deliberately not here).
+ */
+
+export interface OcpiResponse<T> {
+  data: T;
+  status_code: number;
+  status_message: string;
+  timestamp: string;
+}
+
+export interface OcpiCredentialsRole {
+  role: "CPO" | "EMSP" | "HUB" | "NSP" | "OTHER" | "SCSP";
+  business_details: { name: string };
+  party_id: string;
+  country_code: string;
+}
+
+export interface OcpiCredentials {
+  token: string;
+  url: string;
+  roles: OcpiCredentialsRole[];
+}
+
+export interface OcpiVersion {
+  version: string;
+  url: string;
+}
+
+export interface OcpiEndpoint {
+  identifier: string;
+  role: "SENDER" | "RECEIVER";
+  url: string;
+}
+
+export interface OcpiConnector {
+  id: string;
+  standard: string;
+  format: "SOCKET" | "CABLE";
+  power_type: "AC_1_PHASE" | "AC_3_PHASE" | "DC";
+  max_voltage: number;
+  max_amperage: number;
+  max_electric_power: number;
+  last_updated: string;
+}
+
+export interface OcpiEvse {
+  uid: string;
+  evse_id: string;
+  status: "AVAILABLE" | "BLOCKED" | "CHARGING" | "INOPERATIVE" | "OUTOFORDER" | "PLANNED" | "REMOVED" | "RESERVED" | "UNKNOWN";
+  connectors: OcpiConnector[];
+  last_updated: string;
+}
+
+export interface OcpiLocation {
+  country_code: string;
+  party_id: string;
+  id: string;
+  publish: boolean;
+  name: string;
+  address: string;
+  city: string;
+  country: string;
+  coordinates: { latitude: string; longitude: string };
+  evses: OcpiEvse[];
+  last_updated: string;
+}
+
+export interface OcpiTariff {
+  country_code: string;
+  party_id: string;
+  id: string;
+  currency: string;
+  elements: Array<{ price_components: Array<{ type: "ENERGY" | "TIME" | "FLAT"; price: number; vat: number; step_size: number }> }>;
+  last_updated: string;
+}
+
+export interface OcpiSession {
+  country_code: string;
+  party_id: string;
+  id: string;
+  start_date_time: string;
+  end_date_time?: string;
+  kwh: number;
+  currency: string;
+  status: "ACTIVE" | "COMPLETED" | "INVALID" | "PENDING" | "RESERVATION";
+  last_updated: string;
+}
+
+export interface OcpiCdr {
+  country_code: string;
+  party_id: string;
+  id: string;
+  start_date_time: string;
+  end_date_time: string;
+  total_energy: number;
+  total_cost: { excl_vat: number; incl_vat: number };
+  currency: string;
+  last_updated: string;
+}

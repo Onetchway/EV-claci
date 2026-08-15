@@ -395,6 +395,15 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
     }
 
+    // OCPI roaming partners. Contains partner bearer tokens, so this is
+    // deliberately NOT readable by ordinary signed-in users (unlike every
+    // other collection above) — only admins, and only the server-side OCPI
+    // API routes (Admin SDK, bypasses this) actually validate a token
+    // against it.
+    match /ocpiParties/{partyId} {
+      allow read, write: if role() in ['SUPER_ADMIN', 'ADMIN'];
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any

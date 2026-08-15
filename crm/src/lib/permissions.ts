@@ -192,3 +192,7 @@ export const canManageFleets = (viewer: Viewer) =>
 
 export const canManageInvoices = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");
+
+// Roaming-partner credentials are sensitive — admin only, no Operations/Finance carve-out.
+export const canManageOcpi = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN");
