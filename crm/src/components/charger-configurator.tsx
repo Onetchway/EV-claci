@@ -7,7 +7,8 @@ import {
 import { GripVertical, Minus, Plus, RotateCcw, Trash2, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { CATALOG_LIST, type ChargerSpec } from "@/lib/catalog";
+import { type ChargerSpec } from "@/lib/catalog";
+import { useChargerCatalog } from "@/hooks/use-catalog";
 import { CHARGER_OEMS, EXTRA_ITEM_PRESETS, GST_SLABS } from "@/lib/constants";
 import {
   buildQuote, clampGst, normaliseConfig, type ConfigItem, type ExtraItem,
@@ -36,6 +37,8 @@ interface Props {
   allowPriceOverride?: boolean;
   defaultOem?: string | null;
   disabled?: boolean;
+  /** Some lead types (software, corporate...) price purely off extras/line items, not the franchise DC-charger basket. */
+  showChargers?: boolean;
 }
 
 const DROP_ID = "charger-basket";
@@ -328,11 +331,12 @@ function ExtrasEditor({
 
 export function ChargerConfigurator({
   value, onChange, extras = [], onExtrasChange, discount = 0, onDiscountChange,
-  allowDiscount, allowPriceOverride, defaultOem, disabled,
+  allowDiscount, allowPriceOverride, defaultOem, disabled, showChargers = true,
 }: Props) {
   const [dragging, setDragging] = useState<ChargerSpec | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const { setNodeRef, isOver } = useDroppable({ id: DROP_ID, disabled });
+  const { all: CATALOG_LIST } = useChargerCatalog();
 
   const config = useMemo(() => normaliseConfig(value), [value]);
   const quote = useMemo(() => buildQuote(config, { discount, extras }), [config, discount, extras]);
@@ -371,57 +375,63 @@ export function ChargerConfigurator({
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,290px)_minmax(0,1fr)]">
-        <div>
-          <p className="label">Charger catalogue</p>
-          <div className="grid grid-cols-2 gap-2">
-            {CATALOG_LIST.map((spec) => (
-              <PaletteCard key={spec.sku} spec={spec} disabled={disabled} onAdd={() => add(spec.sku)} />
-            ))}
+      <div className={cn("grid gap-4", showChargers && "lg:grid-cols-[minmax(0,290px)_minmax(0,1fr)]")}>
+        {showChargers && (
+          <div>
+            <p className="label">Charger catalogue</p>
+            <div className="grid grid-cols-2 gap-2">
+              {CATALOG_LIST.map((spec) => (
+                <PaletteCard key={spec.sku} spec={spec} disabled={disabled} onAdd={() => add(spec.sku)} />
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-ink-500">
+              Drag a charger into the configuration, or tap <strong>Add</strong>.
+            </p>
           </div>
-          <p className="mt-2 text-[11px] text-ink-500">
-            Drag a charger into the configuration, or tap <strong>Add</strong>.
-          </p>
-        </div>
+        )}
 
         <div>
-          <p className="label">Franchise configuration</p>
-          <div
-            ref={setNodeRef}
-            className={cn(
-              "rounded-xl border-2 border-dashed p-3 transition",
-              isOver ? "border-brand-500 bg-brand-50" : "border-ink-300 bg-ink-50/60",
-            )}
-          >
-            {config.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Zap className="h-7 w-7 text-ink-300" />
-                <p className="mt-2 text-sm font-medium text-ink-700">Drop chargers here</p>
-                <p className="mt-0.5 max-w-xs text-xs text-ink-500">
-                  Build the exact package the client wants — for example 2 × 60 kW plus 2 × 120 kW.
-                </p>
+          {showChargers && (
+            <>
+              <p className="label">Franchise configuration</p>
+              <div
+                ref={setNodeRef}
+                className={cn(
+                  "rounded-xl border-2 border-dashed p-3 transition",
+                  isOver ? "border-brand-500 bg-brand-50" : "border-ink-300 bg-ink-50/60",
+                )}
+              >
+                {config.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <Zap className="h-7 w-7 text-ink-300" />
+                    <p className="mt-2 text-sm font-medium text-ink-700">Drop chargers here</p>
+                    <p className="mt-0.5 max-w-xs text-xs text-ink-500">
+                      Build the exact package the client wants — for example 2 × 60 kW plus 2 × 120 kW.
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {config.map((item, i) => {
+                      const spec = CATALOG_LIST.find((s) => s.sku === item.sku);
+                      if (!spec) return null;
+                      return (
+                        <BasketRow
+                          key={`${item.sku}-${i}`}
+                          item={item}
+                          index={i}
+                          spec={spec}
+                          disabled={disabled}
+                          allowPriceOverride={allowPriceOverride}
+                          onPatch={(p) => patchAt(i, p)}
+                          onRemove={() => removeAt(i)}
+                        />
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
-            ) : (
-              <ul className="space-y-2">
-                {config.map((item, i) => {
-                  const spec = CATALOG_LIST.find((s) => s.sku === item.sku);
-                  if (!spec) return null;
-                  return (
-                    <BasketRow
-                      key={`${item.sku}-${i}`}
-                      item={item}
-                      index={i}
-                      spec={spec}
-                      disabled={disabled}
-                      allowPriceOverride={allowPriceOverride}
-                      onPatch={(p) => patchAt(i, p)}
-                      onRemove={() => removeAt(i)}
-                    />
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+            </>
+          )}
 
           {onExtrasChange && (
             <ExtrasEditor extras={extras} disabled={disabled} onChange={onExtrasChange} />

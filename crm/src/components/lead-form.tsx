@@ -16,6 +16,7 @@ import {
   LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL, LOCATION_TYPES,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNERSHIP_TYPES, OWNER_TYPES,
   OWNER_TYPE_LABEL, POWER_LOADS, POWER_LOAD_LABEL, SOURCES, SOURCE_LABEL,
+  TYPES_WITHOUT_CHARGERS, TYPES_WITHOUT_FINANCING,
   type CommercialModel, type FundingMode, type LandType, type LeadType,
   type LocationType, type Ownership, type OwnerType, type PowerLoad, type Source,
 } from "@/lib/constants";
@@ -148,6 +149,8 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
     () => ({ uid: profile?.uid ?? "", role: role ?? "AGENT" as const }),
     [profile, role],
   );
+
+  const showChargers = !TYPES_WITHOUT_CHARGERS.includes(values.type);
 
   const set = <K extends keyof LeadFormValues>(key: K, val: LeadFormValues[K]) =>
     setValues((v) => ({ ...v, [key]: val }));
@@ -520,6 +523,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
         </Card>
       )}
 
+      {!TYPES_WITHOUT_FINANCING.includes(values.type) && (
       <Card
         title="Funding"
         subtitle="Whether the investor is paying from their own funds or taking a loan."
@@ -574,8 +578,20 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
               </Field>
             </>
           )}
+        </div>
+      </Card>
+      )}
 
-          <Field label="Default charger OEM" hint="Individual lines can override this.">
+      <Card
+        title={showChargers ? "Charger configuration & quotation" : "Pricing & line items"}
+        subtitle={
+          showChargers
+            ? "Drag chargers in — cost, GST and the payment schedule update automatically. Prices and GST slabs are editable per line."
+            : "Add the priced line items for this deal — cost, GST and the payment schedule update automatically."
+        }
+      >
+        {showChargers && (
+          <Field label="Default charger OEM" hint="Individual lines can override this." className="mb-4 max-w-sm">
             <Input
               list="lead-oem-list"
               value={values.oem ?? ""}
@@ -586,13 +602,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
               {CHARGER_OEMS.map((o) => <option key={o} value={o} />)}
             </datalist>
           </Field>
-        </div>
-      </Card>
-
-      <Card
-        title="Charger configuration & quotation"
-        subtitle="Drag chargers in — cost, GST and the payment schedule update automatically. Prices and GST slabs are editable per line."
-      >
+        )}
         <ChargerConfigurator
           value={values.config}
           onChange={(c) => set("config", c)}
@@ -603,6 +613,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
           allowDiscount={canApplyDiscount(viewer)}
           allowPriceOverride={canOverridePrice(viewer)}
           defaultOem={values.oem}
+          showChargers={showChargers}
         />
       </Card>
 

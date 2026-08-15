@@ -186,6 +186,25 @@ export const COMMERCIAL_MODEL_TYPES: LeadType[] = ["RWA", "CORPORATE", "GOVERNME
 /** Types grouped under the B2B nav view. */
 export const B2B_LEAD_TYPES: LeadType[] = ["CORPORATE", "GOVERNMENT", "RWA", "SOFTWARE"];
 
+/**
+ * Which parts of the lead form/detail page actually apply to each type — a
+ * Franchise investor takes a personal bank loan and signs an LOI; an RWA
+ * committee or a government body does neither. Keeping this in one place
+ * means adding a new lead type is a one-line decision, not a hunt through
+ * every tab for a hardcoded "FRANCHISE" check.
+ */
+
+/** Only individual investors (Franchise/Site) take a personal loan against the purchase. */
+export const TYPES_WITHOUT_FINANCING: LeadType[] = [
+  "RWA", "EPC", "CHARGER_SALE", "CORPORATE", "GOVERNMENT", "SOFTWARE", "OTHERS",
+];
+
+/** Software-only deals have nothing to install — no DC charger basket, just priced line items. */
+export const TYPES_WITHOUT_CHARGERS: LeadType[] = ["SOFTWARE"];
+
+/** No KYC/site paperwork to collect — an institutional commercial decision, not an individual's. */
+export const TYPES_WITHOUT_DOCUMENTS: LeadType[] = ["RWA", "CORPORATE", "SOFTWARE", "OTHERS"];
+
 export const COMMERCIAL_MODELS = ["OPEX", "CAPEX"] as const;
 export type CommercialModel = (typeof COMMERCIAL_MODELS)[number];
 
@@ -652,6 +671,7 @@ export const EXTRA_ITEM_PRESETS = [
   { label: "11 kW AC charger", gstPct: 18 },
   { label: "15 kW AC charger", gstPct: 18 },
   { label: "22 kW AC charger", gstPct: 18 },
+  { label: "30 kW AC charger", gstPct: 18 },
   { label: "Signage & branding", gstPct: 12 },
   { label: "Site development / levelling", gstPct: 5 },
   { label: "Other", gstPct: 18 },
@@ -663,7 +683,7 @@ export const EXTRA_ITEM_PRESETS = [
 // ---------------------------------------------------------------------------
 
 /** Quick-add AC capacities offered inside a hub, beyond the DC catalogue. */
-export const HUB_AC_CAPACITIES_KW = [3.3, 7.4, 10, 11, 15, 22] as const;
+export const HUB_AC_CAPACITIES_KW = [3.3, 7.4, 10, 11, 15, 22, 30] as const;
 
 // ---------------------------------------------------------------------------
 // Channel partners — dealers, EPC contractors and referral partners who

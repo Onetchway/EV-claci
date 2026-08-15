@@ -13,6 +13,7 @@ import { useAuth } from "@/components/auth-provider";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
 import { Avatar, Button, Spinner } from "@/components/ui";
+import { useChargerCatalog } from "@/hooks/use-catalog";
 import { ROLE_LABEL } from "@/lib/constants";
 import { isAdmin } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
+
+  // Keeps the pricing engine's custom-charger registry in sync app-wide, not
+  // just while the Catalogue page happens to be mounted.
+  useChargerCatalog();
 
   useEffect(() => {
     if (!loading && configured && !user) router.replace("/login");

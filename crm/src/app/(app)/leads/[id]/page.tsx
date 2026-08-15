@@ -26,7 +26,8 @@ import {
   COMMERCIAL_MODEL_LABEL, FRANCHISE_LOI_TYPES, LAND_TYPE_LABEL, LEAD_TYPE_LABEL,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNER_TYPE_LABEL, POWER_LOAD_LABEL,
   REJECTION_LABEL, REJECTION_REASONS, SOURCE_LABEL, STAGE_META, STATUS_COLOR,
-  STATUS_LABEL, type RejectionReason,
+  STATUS_LABEL, TYPES_WITHOUT_DOCUMENTS, TYPES_WITHOUT_FINANCING,
+  type RejectionReason,
 } from "@/lib/constants";
 import {
   reassignLead, reopenLead, subscribeLead, rejectLead, trashLead, updateLead,
@@ -88,6 +89,17 @@ export default function LeadDetailPage() {
   }, [id]);
 
   const viewer = useViewer();
+
+  // Guards against landing on a tab this lead's type no longer offers —
+  // e.g. it was on "Financing" and the type was edited to Software.
+  useEffect(() => {
+    if (!lead) return;
+    const hidden =
+      (tab === "Letter of Intent" && !FRANCHISE_LOI_TYPES.includes(lead.type)) ||
+      (tab === "Financing" && TYPES_WITHOUT_FINANCING.includes(lead.type)) ||
+      (tab === "Documents" && TYPES_WITHOUT_DOCUMENTS.includes(lead.type));
+    if (hidden) setTab("Overview");
+  }, [lead, tab]);
 
   const quote = useMemo(
     () =>
@@ -273,7 +285,12 @@ export default function LeadDetailPage() {
       </div>
 
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-ink-200 scroll-thin print:hidden">
-        {TABS.filter((t) => t !== "Letter of Intent" || FRANCHISE_LOI_TYPES.includes(lead.type)).map((t) => (
+        {TABS.filter((t) => {
+          if (t === "Letter of Intent") return FRANCHISE_LOI_TYPES.includes(lead.type);
+          if (t === "Financing") return !TYPES_WITHOUT_FINANCING.includes(lead.type);
+          if (t === "Documents") return !TYPES_WITHOUT_DOCUMENTS.includes(lead.type);
+          return true;
+        }).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}

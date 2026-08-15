@@ -142,3 +142,12 @@ export const canManageCommissions = (viewer: Viewer) =>
 
 export const canTrash = (viewer: Viewer) => viewerIsAdmin(viewer);
 export const canPermanentlyDelete = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN");
+
+// ---------------------------------------------------------------------------
+// Charger catalogue — the six DC options are the verified investment model
+// and stay code-only; adding a new charger (AC or DC) to the live catalogue
+// is a pricing decision, same bar as overriding a unit price.
+// ---------------------------------------------------------------------------
+
+export const canManageCatalog = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");

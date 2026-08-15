@@ -18,10 +18,10 @@ export type ChargerSku =
   | "DC-360";
 
 export interface ChargerSpec {
-  sku: ChargerSku;
+  sku: string;
   kw: number;
   label: string;
-  chargerType: "DC";
+  chargerType: string;
   vehicleType: string;
   minSpaceSqft: string;
   dimensions: string;
@@ -149,8 +149,22 @@ export const CATALOG_LIST: ChargerSpec[] = Object.values(CATALOG).sort((a, b) =>
 
 export const SKUS = CATALOG_LIST.map((c) => c.sku);
 
+/**
+ * Chargers added on the Catalogue page live in Firestore, not this file —
+ * the six DC options above are the verified franchise investment model and
+ * stay hardcoded. This registry is populated once, app-wide, by
+ * useChargerCatalog() so that buildQuote() (a plain function, not a React
+ * hook) can still resolve a custom sku from anywhere a lead's quote is read.
+ */
+const customCatalog = new Map<string, ChargerSpec>();
+
+export function setCustomCatalog(specs: ChargerSpec[]): void {
+  customCatalog.clear();
+  for (const s of specs) customCatalog.set(s.sku, s);
+}
+
 export function getSpec(sku: string): ChargerSpec | undefined {
-  return CATALOG[sku as ChargerSku];
+  return CATALOG[sku as ChargerSku] ?? customCatalog.get(sku);
 }
 
 /** Financing assumptions from sheet section 3. */

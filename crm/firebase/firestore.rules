@@ -242,6 +242,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ------------------------------------------------------------- catalog
+
+    // Chargers added beyond the six hardcoded DC investment-model options —
+    // readable by everyone signed in (the quote engine needs to resolve
+    // custom skus for any lead), writable by the same bar as overriding a
+    // price. Never hard-deleted — see archiveCustomCharger()'s comment.
+    match /chargerCatalog/{chargerId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any
