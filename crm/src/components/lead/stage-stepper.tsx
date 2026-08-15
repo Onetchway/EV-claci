@@ -4,7 +4,9 @@ import { Check, ChevronRight, Lock } from "lucide-react";
 import { useState } from "react";
 
 import { Button, Modal, Textarea, useAsyncAction } from "@/components/ui";
-import { STAGES, STAGE_META, type Stage } from "@/lib/constants";
+import {
+  LEAD_TYPE_STAGES, STAGE_META, stageLabelFor, stageShortFor, type Stage,
+} from "@/lib/constants";
 import type { Actor, Lead } from "@/lib/types";
 import { changeStage } from "@/lib/db/leads";
 import { cn } from "@/lib/utils";
@@ -50,6 +52,13 @@ export function StageStepper({
   const [note, setNote] = useState("");
   const { busy, run } = useAsyncAction();
 
+  // Falls back to the full sequence if this lead's current stage doesn't
+  // actually belong to its type's simplified flow (e.g. the type changed
+  // after the stage was already set) — nothing should ever hide where a
+  // lead actually is.
+  const typeStages = LEAD_TYPE_STAGES[lead.type];
+  const STAGES = typeStages.includes(lead.stage) ? typeStages : LEAD_TYPE_STAGES.FRANCHISE;
+
   const currentIndex = STAGES.indexOf(lead.stage);
   const gate = target ? gateFor(target, gateContext) : { blocked: false };
   const movingForward = target ? STAGES.indexOf(target) > currentIndex : false;
@@ -87,7 +96,7 @@ export function StageStepper({
                   >
                     {done && !current ? <Check className="h-3 w-3" /> : blocked ? <Lock className="h-2.5 w-2.5" /> : i + 1}
                   </span>
-                  <span className="whitespace-nowrap text-xs font-medium">{meta.short}</span>
+                  <span className="whitespace-nowrap text-xs font-medium">{stageShortFor(lead.type, s)}</span>
                 </button>
                 {i < STAGES.length - 1 && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-ink-300" />}
               </li>
@@ -99,7 +108,7 @@ export function StageStepper({
       <Modal
         open={target !== null}
         onClose={() => setTarget(null)}
-        title={target ? `Move to ${STAGE_META[target].label}` : ""}
+        title={target ? `Move to ${stageLabelFor(lead.type, target)}` : ""}
         description={target ? STAGE_META[target].hint : undefined}
         footer={
           <>
@@ -129,7 +138,7 @@ export function StageStepper({
           <>
             {!movingForward && target && (
               <div className="mb-3 rounded-lg bg-ink-100 px-3 py-2 text-sm text-ink-700">
-                You are moving this lead <strong>backwards</strong> to {STAGE_META[target].label}. The
+                You are moving this lead <strong>backwards</strong> to {stageLabelFor(lead.type, target)}. The
                 reason below is recorded in the audit log.
               </div>
             )}

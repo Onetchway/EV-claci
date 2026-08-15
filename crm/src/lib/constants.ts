@@ -125,6 +125,45 @@ export const STAGE_META: Record<Stage, StageMeta> = {
 
 export const WON_STAGE: Stage = "HANDOVER";
 
+/**
+ * Which of the seven pipeline stages actually apply to each lead type — a
+ * Franchise investor goes through a full EOI/agreement negotiation; an RWA
+ * or corporate committee just needs a proposal accepted and an agreement
+ * signed; a straight charger sale or EPC scope doesn't negotiate an
+ * agreement at all, just a quotation; software has nothing to commission.
+ * Falls back to the full sequence in the stepper if a lead's current stage
+ * isn't actually in its type's list (e.g. its type changed after the fact).
+ */
+export const LEAD_TYPE_STAGES: Record<LeadType, Stage[]> = {
+  FRANCHISE: ["NEW", "CONTACTED", "INTRODUCTION", "EOI", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  SITE: ["NEW", "CONTACTED", "INTRODUCTION", "EOI", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  RWA: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  CORPORATE: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  GOVERNMENT: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  EPC: ["NEW", "CONTACTED", "INTRODUCTION", "COMMISSIONING", "HANDOVER"],
+  CHARGER_SALE: ["NEW", "CONTACTED", "INTRODUCTION", "COMMISSIONING", "HANDOVER"],
+  SOFTWARE: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "HANDOVER"],
+  OTHERS: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+};
+
+/**
+ * The "Introduction" stage means something different once it's not leading
+ * into a Franchise EOI — it's the quotation for a straight charger sale or
+ * EPC scope, and the proposal for an institutional buyer.
+ */
+export function stageLabelFor(type: LeadType, stage: Stage): string {
+  if (stage === "INTRODUCTION" && type !== "FRANCHISE" && type !== "SITE") {
+    return type === "CHARGER_SALE" || type === "EPC" ? "Quotation" : "Proposal";
+  }
+  return STAGE_META[stage].label;
+}
+export function stageShortFor(type: LeadType, stage: Stage): string {
+  if (stage === "INTRODUCTION" && type !== "FRANCHISE" && type !== "SITE") {
+    return type === "CHARGER_SALE" || type === "EPC" ? "Quotation" : "Proposal";
+  }
+  return STAGE_META[stage].short;
+}
+
 export const LEAD_STATUSES = ["ACTIVE", "WON", "REJECTED", "ON_HOLD"] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
