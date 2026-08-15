@@ -38,7 +38,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard", label: "Lead Dashboard", icon: LayoutDashboard },
       { href: "/executive", label: "Executive Dashboard", icon: LineChart, adminOnly: true },
       { href: "/agents", label: "Agent Performance", icon: BarChart3, adminOnly: true },
-      { href: "/projects?ownership=COCO", label: "Chargers & Stations", icon: Zap },
+      { href: "/chargers", label: "Chargers & Stations", icon: Zap },
     ],
   },
   {

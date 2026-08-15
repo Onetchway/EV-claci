@@ -290,6 +290,23 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
     }
 
+    // --------------------------------------------------------- OCPP / chargers
+
+    // Written only by the standalone OCPP central system (ocpp-server/),
+    // authenticated as its own Cloud Run service identity via the Admin
+    // SDK, which bypasses these rules entirely. The CRM's own users never
+    // write here directly — read-only, so there's exactly one source of
+    // truth for what a charger is actually doing.
+    match /chargePoints/{chargePointId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /chargeSessions/{sessionId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any
