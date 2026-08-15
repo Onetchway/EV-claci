@@ -8,6 +8,8 @@
 import {
   markOnline, recordMeterValues, recordTransactionEvent, touchHeartbeat, updateConnectorStatus,
 } from "../registry.js";
+import { checkIdToken } from "../rfid.js";
+import { openTicketIfNeeded } from "../tickets.js";
 import { OcppErrorCode } from "./rpc.js";
 import {
   energyWhFrom, type AuthorizeRequest, type AuthorizeResponse,
@@ -59,16 +61,19 @@ export async function handleCall(
     case "StatusNotification": {
       const req = payload as StatusNotificationRequest;
       await updateConnectorStatus(chargePointId, req.evseId, req.connectorId, req.connectorStatus, req.timestamp);
+      if (req.connectorStatus === "Faulted") {
+        await openTicketIfNeeded(
+          chargePointId, "FAULT",
+          `EVSE ${req.evseId}/connector ${req.connectorId} reported Faulted.`,
+        );
+      }
       return ok({});
     }
 
     case "Authorize": {
       const req = payload as AuthorizeRequest;
-      // Phase 1: every presented tag is accepted — RFID/tag allow-listing
-      // is an access-control decision that belongs with the fault/SLA and
-      // remote-command work in Phase 2, not the connect/see/log foundation.
-      void req;
-      const res: AuthorizeResponse = { idTokenInfo: { status: "Accepted" } };
+      const status = await checkIdToken(req.idToken.idToken);
+      const res: AuthorizeResponse = { idTokenInfo: { status } };
       return ok(res);
     }
 

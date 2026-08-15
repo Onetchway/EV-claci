@@ -1,5 +1,6 @@
 /**
- * Livanto OCPP 2.0.1 Central System — Phase 1.
+ * Livanto OCPP 2.0.1 Central System — Phase 1 (connect/see/log) + Phase 2
+ * (remote commands, RFID allow-listing, fault/SLA tickets).
  *
  * A charge point connects to  wss://<host>/ocpp/<chargePointId>  with the
  * WebSocket subprotocol "ocpp2.0.1". This server accepts BootNotification,
@@ -7,14 +8,16 @@
  * MeterValues, and mirrors live status + session logs into Firestore for
  * the CRM's /chargers page to read.
  *
- * Deliberately NOT here yet: any Call this server *sends* to a charge point
- * (remote start/stop, reset, config changes) — that's Phase 2, once this
- * foundation is proven against real hardware.
+ * Phase 2 adds the reverse direction: the CRM can ask this server to send a
+ * charge point a Call (start/stop/reset/unlock/availability) via the
+ * POST /command/<chargerId> endpoint below, and a periodic sweep opens a
+ * ticket for chargers that go silent without a clean disconnect.
  */
 
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 
+import { COMMAND_ACTIONS, sendCommand, rejectCommand, resolveCommand, type CommandAction } from "./ocpp/commands.js";
 import { initFirebase } from "./firebase.js";
 import { handleCall } from "./ocpp/handlers.js";
 import {
@@ -23,16 +26,60 @@ import {
 import {
   isRegisteredAndActive, markOffline, registerConnection, unregisterConnection,
 } from "./registry.js";
+import { sweepStaleConnections, OFFLINE_SWEEP_MS } from "./tickets.js";
 
 initFirebase();
 
 const PORT = Number(process.env.PORT) || 8080;
 const SUPPORTED_SUBPROTOCOL = "ocpp2.0.1";
+const COMMAND_API_KEY = process.env.COMMAND_API_KEY;
+
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(chunk as Buffer);
+  const raw = Buffer.concat(chunks).toString("utf8");
+  return raw ? JSON.parse(raw) : {};
+}
+
+async function handleCommandRequest(req: IncomingMessage, res: ServerResponse, chargerId: string): Promise<void> {
+  if (!COMMAND_API_KEY) {
+    res.writeHead(500, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "COMMAND_API_KEY is not configured on this server." }));
+    return;
+  }
+  if (req.headers["x-command-key"] !== COMMAND_API_KEY) {
+    res.writeHead(401, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "Missing or invalid x-command-key." }));
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req)) as { action?: string; payload?: unknown };
+    if (!body.action || !COMMAND_ACTIONS.includes(body.action as CommandAction)) {
+      res.writeHead(400, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: `action must be one of: ${COMMAND_ACTIONS.join(", ")}` }));
+      return;
+    }
+    const result = await sendCommand(chargerId, body.action as CommandAction, body.payload ?? {});
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true, result }));
+  } catch (err) {
+    const message = (err as Error).message || "Command failed.";
+    const notConnected = (err as Error).name === "ChargerNotConnectedError";
+    res.writeHead(notConnected ? 409 : 502, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: false, error: message }));
+  }
+}
 
 const httpServer = createServer((req, res) => {
   if (req.url === "/status") {
     res.writeHead(200, { "content-type": "text/plain" });
     res.end("ok");
+    return;
+  }
+  const commandMatch = req.method === "POST" && req.url?.match(/^\/command\/([^/?]+)/);
+  if (commandMatch) {
+    void handleCommandRequest(req, res, decodeURIComponent(commandMatch[1]!));
     return;
   }
   res.writeHead(404);
@@ -119,11 +166,18 @@ function attachChargePoint(chargePointId: string, ws: WebSocket): void {
         return;
       }
 
-      // This server doesn't send Calls in Phase 1, so a CallResult/CallError
-      // arriving here means the charge point is answering something we
-      // never asked — log it, nothing to act on yet.
-      if (isCallResult(frame) || isCallError(frame)) {
-        console.log(`[ws] ${chargePointId} sent an unsolicited response: ${raw.slice(0, 200)}`);
+      if (isCallResult(frame)) {
+        const [, uniqueId, resultPayload] = frame;
+        if (!resolveCommand(uniqueId, resultPayload)) {
+          console.log(`[ws] ${chargePointId} sent an unsolicited CallResult: ${raw.slice(0, 200)}`);
+        }
+        return;
+      }
+      if (isCallError(frame)) {
+        const [, uniqueId, errorCode, errorDescription] = frame;
+        if (!rejectCommand(uniqueId, errorCode, errorDescription)) {
+          console.log(`[ws] ${chargePointId} sent an unsolicited CallError: ${raw.slice(0, 200)}`);
+        }
       }
     })();
   });
@@ -142,3 +196,7 @@ function attachChargePoint(chargePointId: string, ws: WebSocket): void {
 httpServer.listen(PORT, () => {
   console.log(`OCPP 2.0.1 CSMS listening on :${PORT} (health check at /status, charge points at /ocpp/<id>)`);
 });
+
+setInterval(() => {
+  sweepStaleConnections().catch((err) => console.error("[sweep] stale-connection sweep failed:", err));
+}, OFFLINE_SWEEP_MS);

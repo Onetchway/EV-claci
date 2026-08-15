@@ -86,6 +86,51 @@ export interface MeterValuesRequest {
   meterValue: MeterValue[];
 }
 
+// ------------------------------------------------------- outbound (Phase 2)
+// Calls this server sends TO a charge point — the remote-command surface.
+
+export interface RequestStartTransactionRequest {
+  remoteStartId: number;
+  idToken: IdToken;
+  evseId?: number;
+}
+export interface RequestStartTransactionResponse {
+  status: "Accepted" | "Rejected";
+}
+
+export interface RequestStopTransactionRequest {
+  transactionId: string;
+}
+export interface RequestStopTransactionResponse {
+  status: "Accepted" | "Rejected";
+}
+
+export type ResetType = "Immediate" | "OnIdle";
+export interface ResetRequest {
+  type: ResetType;
+  evseId?: number;
+}
+export interface ResetResponse {
+  status: "Accepted" | "Rejected" | "Scheduled";
+}
+
+export interface UnlockConnectorRequest {
+  evseId: number;
+  connectorId: number;
+}
+export interface UnlockConnectorResponse {
+  status: "Unlocked" | "UnlockFailed" | "OngoingAuthorizedTransaction" | "UnknownConnector";
+}
+
+export type OperationalStatus = "Inoperative" | "Operative";
+export interface ChangeAvailabilityRequest {
+  operationalStatus: OperationalStatus;
+  evse?: { id: number; connectorId?: number };
+}
+export interface ChangeAvailabilityResponse {
+  status: "Accepted" | "Rejected" | "Scheduled";
+}
+
 /** Pulls the Wh energy reading out of a meterValue array, if present. */
 export function energyWhFrom(values: MeterValue[] | undefined): number | null {
   if (!values?.length) return null;

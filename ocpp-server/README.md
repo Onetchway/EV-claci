@@ -1,16 +1,41 @@
-# Livanto OCPP 2.0.1 Central System — Phase 1
+# Livanto OCPP 2.0.1 Central System — Phase 1 + Phase 2
 
 Standalone WebSocket server implementing the OCPP 2.0.1 charge-point
 lifecycle: `BootNotification`, `Heartbeat`, `StatusNotification`,
 `Authorize`, `TransactionEvent`, `MeterValues`. Mirrors live charger status
 and session/transaction logs into the same Firestore project the CRM uses,
 so `/chargers` in the CRM can read them directly — no API layer between the
-two.
+two. (Phase 1.)
 
-**Not in Phase 1, on purpose:** this server never sends a Call to a charge
-point (no remote start/stop/reset). Controlling physical hardware gets its
-own tested pass once this connect/see/log foundation is proven against your
-real chargers — see Phase 2 in the roadmap.
+Phase 2 adds the reverse direction — this server sending a charge point a
+Call — plus RFID allow-listing and automatic fault/offline ticketing:
+
+- **Remote commands**: `POST /command/<chargerId>` with a JSON body
+  `{ "action": "...", "payload": {...} }`, one of `RequestStartTransaction`,
+  `RequestStopTransaction`, `Reset`, `UnlockConnector`, `ChangeAvailability`.
+  Requires an `x-command-key` header matching `COMMAND_API_KEY` — the CRM
+  calls this from a server-side Next.js API route (never directly from the
+  browser) so that key never reaches a client.
+- **RFID allow-listing**: `Authorize` checks Firestore's `rfidTokens`
+  collection. Fails open (accepts every tag) while that collection is
+  empty, so a fresh deployment doesn't lock out every driver on day one —
+  the moment an admin adds the first token in the CRM, enforcement switches
+  on automatically.
+- **Fault/offline tickets**: a `StatusNotification` reporting `Faulted`
+  opens a ticket immediately; a periodic sweep (`OFFLINE_SWEEP_MS`, default
+  6 minutes) catches chargers that go silent without a clean WebSocket
+  close and marks them `OFFLINE` + opens a ticket. Both write to
+  Firestore's `tickets` collection, which the CRM's Tickets page manages
+  from there (assignment, status, SLA).
+
+**Known limitation — command routing across multiple instances:** a Call
+can only be sent from the Cloud Run instance actually holding that
+charger's WebSocket connection. With `--max-instances 1` this is a
+non-issue; with more than one instance, a command can land on an instance
+that isn't holding the target connection and will correctly report
+"not connected here" even though the charger is online elsewhere. Fine at
+small fleet size — a real fix needs a cross-instance dispatch layer (e.g.
+Redis pub/sub) before this handles a large fleet on `--max-instances 3`.
 
 ## Why a separate service
 
@@ -89,8 +114,15 @@ gcloud run deploy livanto-ocpp \
   --max-instances 3 \
   --timeout 3600 \
   --concurrency 250 \
-  --set-env-vars FIREBASE_PROJECT_ID=livanto-278b5
+  --set-env-vars FIREBASE_PROJECT_ID=livanto-278b5,COMMAND_API_KEY=<generate-a-long-random-string>
 ```
+
+Generate `COMMAND_API_KEY` once (e.g. `openssl rand -hex 32`) and set the
+*same* value as `OCPP_COMMAND_KEY` in the CRM's own environment (Firebase
+App Hosting → your backend → Environment variables) — the CRM's
+`/api/ocpp/command` route needs it to call this server. Treat it as a
+secret: it's what stops anyone who finds this server's public URL from
+sending remote-start/reset commands to your live chargers.
 
 `--min-instances 1` matters more here than for a typical web app: scaling
 to zero would drop every connected charger. `--timeout 3600` is Cloud
@@ -119,8 +151,12 @@ service itself is healthy.
 - `chargeSessions/{chargePointId}__{transactionId}` — one doc per
   transaction, status (`ACTIVE`/`ENDED`), start/end time, energy delivered
   (Wh), stop reason.
+- `tickets/{ticketId}` — opened by this server on a fault or offline sweep;
+  from there owned by the CRM's Tickets page (assignment, status, SLA).
+- `rfidTokens/{tokenId}` — read-only from this server's side; managed
+  entirely by the CRM.
 
-Both collections are written only by this server's Admin SDK connection —
-Firestore rules (in the CRM repo) allow the CRM's frontend to read them but
-never write, so there's one source of truth for what a charger is actually
-doing.
+`chargePoints`/`chargeSessions`/tickets it opens are written only by this
+server's Admin SDK connection — Firestore rules (in the CRM repo) allow the
+CRM's frontend to read them but never write those specific fields, so
+there's one source of truth for what a charger is actually doing.
