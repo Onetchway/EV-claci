@@ -79,15 +79,21 @@ export default function StageDetailScreen() {
     }
   }
 
-  async function saveDraft(silent) {
+  async function persistDraft() {
+    if (!submission) return;
+    await apiFetch(`/submissions/${submission.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ dataJson: formData }),
+    });
+  }
+
+  async function saveDraft() {
     if (!submission) return;
     setBusy(true);
+    setError('');
     try {
-      await apiFetch(`/submissions/${submission.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ dataJson: formData }),
-      });
-      if (!silent) Alert.alert('Saved', 'Draft saved.');
+      await persistDraft();
+      Alert.alert('Saved', 'Draft saved.');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -101,7 +107,7 @@ export default function StageDetailScreen() {
     setValidationErrors(null);
     setError('');
     try {
-      await saveDraft(true);
+      await persistDraft();
       const result = await apiFetch(`/submissions/${submission.id}/submit`, { method: 'POST' });
       await load();
       Alert.alert('Submitted', result.pdfUrl ? 'Report submitted and PDF generated.' : 'Report submitted.');
@@ -110,6 +116,9 @@ export default function StageDetailScreen() {
         setValidationErrors(err.details);
       } else {
         setError(err.message);
+        // Stage status may have changed server-side (e.g. an admin action); refresh so the
+        // badge and editable state don't keep showing what the screen loaded with.
+        await load();
       }
     } finally {
       setBusy(false);
@@ -235,7 +244,7 @@ export default function StageDetailScreen() {
 
           {editable && (
             <View style={{ gap: 10, marginTop: 10 }}>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={() => saveDraft(false)} disabled={busy}>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={saveDraft} disabled={busy}>
                 <Text style={styles.secondaryBtnText}>Save Draft</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.primaryBtn} onPress={submitStage} disabled={busy}>
