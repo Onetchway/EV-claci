@@ -7,7 +7,7 @@ import {
   BarChart3, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
   HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard, LineChart,
   ListTodo, LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck, Ticket,
-  Trash2, Truck, Users, Users2, X, Zap,
+  Trash2, TrendingUp, Truck, Users, Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/executive", label: "Executive Dashboard", icon: LineChart, adminOnly: true },
       { href: "/agents", label: "Agent Performance", icon: BarChart3, adminOnly: true },
       { href: "/chargers", label: "Chargers & Stations", icon: Zap },
+      { href: "/earnings", label: "Earnings", icon: TrendingUp },
     ],
   },
   {
@@ -69,6 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/assets", label: "Asset Register", icon: Boxes },
       { href: "/tickets", label: "Tickets", icon: Ticket },
       { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
+      { href: "/zones", label: "Zones & Load Balancing", icon: MapPin },
     ],
   },
   {

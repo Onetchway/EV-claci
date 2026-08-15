@@ -112,6 +112,23 @@ export function subscribeRecentSessions(
   );
 }
 
+/** Every session touched since `since` — used by the Earnings dashboard, uncapped unlike subscribeRecentSessions. */
+export function subscribeSessionsSince(
+  since: Date,
+  cb: (rows: ChargeSession[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(
+      collection(getDb(), CHARGE_SESSIONS),
+      where("lastUpdateAt", ">=", since),
+      orderBy("lastUpdateAt", "desc"),
+    ),
+    (snap) => cb(snap.docs.map((d) => mapSession(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export function subscribeSessionsForChargePoint(
   chargePointId: string,
   cb: (rows: ChargeSession[]) => void,

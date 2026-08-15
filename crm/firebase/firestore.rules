@@ -326,6 +326,12 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
     }
 
+    // Zone groupings + sanctioned load cap (monitoring, not active control).
+    match /zones/{zoneId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
     // Fault/offline tickets — the OCPP server opens OFFLINE/FAULT ones via
     // the Admin SDK (bypasses these rules entirely); the CRM's own users can
     // only ever create a MANUAL one directly, keeping the automated types

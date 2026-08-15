@@ -38,6 +38,10 @@ export interface ChargerRegistration {
   connectorType?: ConnectorTypeName;
   powerKw?: number;
   notes?: string;
+  zoneId?: string | null;
+  /** Manually entered — no geocoding dependency, so no Maps API key is required. */
+  lat?: number | null;
+  lng?: number | null;
   active: boolean;
   createdAt?: TS;
   createdBy?: Actor;
@@ -90,7 +94,7 @@ export async function registerCharger(draft: ChargerRegistrationDraft, actor: Ac
 
 export async function updateChargerRegistration(
   id: string,
-  patch: Partial<Pick<ChargerRegistration, "label" | "location" | "vendor" | "model" | "connectorType" | "powerKw" | "notes">>,
+  patch: Partial<Pick<ChargerRegistration, "label" | "location" | "vendor" | "model" | "connectorType" | "powerKw" | "notes" | "zoneId" | "lat" | "lng">>,
 ): Promise<void> {
   await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), { ...patch });
 }

@@ -507,6 +507,22 @@ export interface Tariff {
   updatedBy?: Actor | null;
 }
 
+/**
+ * A logical grouping of chargers (a site, a building, a feeder) with a
+ * sanctioned load cap. Phase 4 scope is monitoring, not control: the OCPP
+ * server doesn't yet send SetChargingProfile/ChangeConfiguration to
+ * actually throttle a charger, so "load balancing" here means the CRM
+ * flags a zone approaching or over its cap — an operator still has to act
+ * on it manually (or via the existing remote "Set unavailable" command).
+ */
+export interface Zone {
+  id: string;
+  name: string;
+  maxLoadKw: number;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
 export interface Asset {
   id: string;
   /** Human-friendly reference, e.g. LG-AS-000012. */

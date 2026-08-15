@@ -1,12 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Battery, Copy, Lock, Plus, Power, PowerOff, QrCode, RotateCcw, Square, Wifi, WifiOff, Zap,
+  Battery, Copy, Lock, MapPin as MapPinIcon, Plus, Power, PowerOff, QrCode, RotateCcw,
+  Square, Wifi, WifiOff, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
+import type { MapPin } from "@/components/chargers-map";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard,
   useAsyncAction, useToast,
@@ -14,7 +17,7 @@ import {
 import { useSettings } from "@/hooks/use-settings";
 import {
   chargerWsUrl, CHARGER_VENDORS, CONNECTOR_TYPES, registerCharger, setChargerActive,
-  subscribeChargerRegistry, type ChargerRegistration, type ChargerRegistrationDraft,
+  subscribeChargerRegistry, updateChargerRegistration, type ChargerRegistration, type ChargerRegistrationDraft,
 } from "@/lib/db/charger-registry";
 import {
   subscribeChargePoints, subscribeRecentSessions, type ChargePoint,
@@ -22,9 +25,15 @@ import {
 } from "@/lib/db/chargers";
 import { sendChargerCommand } from "@/lib/ocpp-commands";
 import { addRfidToken, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
+import { subscribeZones } from "@/lib/db/zones";
 import { canManageChargers, canManageRfid } from "@/lib/permissions";
-import type { RfidToken } from "@/lib/types";
+import type { RfidToken, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
+
+const ChargersMap = dynamic(() => import("@/components/chargers-map").then((m) => m.ChargersMap), {
+  ssr: false,
+  loading: () => <div className="flex h-[360px] items-center justify-center rounded-xl bg-ink-50 text-ink-400"><Spinner /></div>,
+});
 
 const CONNECTOR_COLOR: Record<ConnectorStatus, string> = {
   Available: "bg-emerald-100 text-emerald-800 ring-emerald-200",
@@ -113,8 +122,14 @@ export default function ChargersPage() {
   const [sessions, setSessions] = useState<ChargeSession[]>([]);
   const [registry, setRegistry] = useState<ChargerRegistration[]>([]);
   const [rfidTokens, setRfidTokens] = useState<RfidToken[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [locatingReg, setLocatingReg] = useState<ChargerRegistration | null>(null);
+  const [locZoneId, setLocZoneId] = useState("");
+  const [locLat, setLocLat] = useState("");
+  const [locLng, setLocLng] = useState("");
 
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState<ChargerRegistrationDraft>(blankDraft);
@@ -140,6 +155,25 @@ export default function ChargersPage() {
   useEffect(() => subscribeRecentSessions(setSessions), []);
   useEffect(() => subscribeChargerRegistry(setRegistry), []);
   useEffect(() => subscribeRfidTokens(setRfidTokens), []);
+  useEffect(() => subscribeZones(setZones), []);
+
+  function openLocate(r: ChargerRegistration) {
+    setLocatingReg(r);
+    setLocZoneId(r.zoneId ?? "");
+    setLocLat(r.lat != null ? String(r.lat) : "");
+    setLocLng(r.lng != null ? String(r.lng) : "");
+  }
+
+  async function saveLocation() {
+    if (!locatingReg) return;
+    await run(() => updateChargerRegistration(locatingReg.id, {
+      zoneId: locZoneId || null,
+      lat: locLat.trim() ? Number(locLat) : null,
+      lng: locLng.trim() ? Number(locLng) : null,
+    }), "Location updated.");
+    setLocatingReg(null);
+  }
+
 
   async function runCommand(chargerId: string, label: string, fn: () => Promise<unknown>) {
     setCommandBusy(chargerId + label);
@@ -174,6 +208,19 @@ export default function ChargersPage() {
   }
 
   const pointByChargerId = useMemo(() => new Map(points.map((p) => [p.chargePointId ?? p.id, p])), [points]);
+
+  const mapPins: MapPin[] = useMemo(
+    () => registry
+      .filter((r) => r.active && r.lat != null && r.lng != null)
+      .map((r) => ({
+        id: r.chargerId,
+        label: r.label,
+        lat: r.lat!,
+        lng: r.lng!,
+        online: pointByChargerId.get(r.chargerId)?.status === "ONLINE",
+      })),
+    [registry, pointByChargerId],
+  );
 
   const stats = useMemo(() => {
     const online = points.filter((p) => p.status === "ONLINE").length;
@@ -230,6 +277,18 @@ export default function ChargersPage() {
         </div>
       )}
 
+      <Card
+        title="Map"
+        subtitle={mapPins.length > 0 ? `${mapPins.length} charger${mapPins.length === 1 ? "" : "s"} with a location set` : "No chargers have a location yet — set one from the Locate action below."}
+        className="mb-4"
+      >
+        {mapPins.length > 0 ? <ChargersMap pins={mapPins} /> : (
+          <div className="flex h-[200px] items-center justify-center rounded-xl bg-ink-50 text-sm text-ink-400">
+            <MapPinIcon className="mr-2 h-4 w-4" /> No charger locations set
+          </div>
+        )}
+      </Card>
+
       <Card title="Registered chargers" subtitle="Only these charger IDs are allowed to connect to the OCPP server." className="mb-4">
         {registry.length === 0 ? (
           <EmptyState
@@ -283,6 +342,16 @@ export default function ChargersPage() {
                           >
                             <QrCode className="h-4 w-4" />
                           </button>
+                          {canManage && (
+                            <button
+                              type="button"
+                              onClick={() => openLocate(r)}
+                              className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
+                              title="Set zone & map location"
+                            >
+                              <MapPinIcon className="h-4 w-4" />
+                            </button>
+                          )}
                           {canManage && (
                             <button
                               type="button"
@@ -626,6 +695,38 @@ export default function ChargersPage() {
         footer={<Button onClick={() => setViewingId(null)}>Close</Button>}
       >
         {viewingReg && <ConnectionDetails serverHost={settings.ocpp.serverHost} chargerId={viewingReg.chargerId} />}
+      </Modal>
+
+      <Modal
+        open={!!locatingReg}
+        onClose={() => setLocatingReg(null)}
+        title={locatingReg ? `Locate ${locatingReg.label}` : ""}
+        description="Coordinates are entered manually — no maps API key required. Find them by right-clicking the spot in Google Maps and copying the numbers shown."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setLocatingReg(null)}>Cancel</Button>
+            <Button variant="primary" loading={actionBusy} onClick={() => void saveLocation()}>Save</Button>
+          </>
+        )}
+      >
+        <div className="grid gap-4">
+          <Field label="Zone">
+            <Select
+              value={locZoneId}
+              onChange={(e) => setLocZoneId(e.target.value)}
+              options={zones.map((z) => ({ value: z.id, label: z.name }))}
+              placeholder="No zone"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Latitude">
+              <Input value={locLat} onChange={(e) => setLocLat(e.target.value)} placeholder="e.g. 28.5355" />
+            </Field>
+            <Field label="Longitude">
+              <Input value={locLng} onChange={(e) => setLocLng(e.target.value)} placeholder="e.g. 77.3910" />
+            </Field>
+          </div>
+        </div>
       </Modal>
     </>
   );
