@@ -381,6 +381,14 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
     }
 
+    // Wallet top-ups/debits — written only by the Razorpay verify API route
+    // (Admin SDK, bypasses this) after checking a real payment signature, so
+    // a client can never credit its own wallet directly.
+    match /walletTransactions/{txnId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any

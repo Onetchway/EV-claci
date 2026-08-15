@@ -533,6 +533,7 @@ export interface CorporateAccount {
   name: string;
   gstin?: string;
   billingEmail?: string;
+  walletBalanceInr?: number;
   createdAt: TS;
   createdBy?: Actor | null;
 }
@@ -547,7 +548,23 @@ export interface EmspUser {
   /** Only set when type === "CORPORATE". */
   corporateAccountId?: string | null;
   rfidTokenId?: string | null;
+  walletBalanceInr?: number;
   active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+export type WalletOwnerType = "EMSP_USER" | "CORPORATE_ACCOUNT";
+
+/** A logged top-up or debit against an EmspUser's or CorporateAccount's wallet balance. */
+export interface WalletTransaction {
+  id: string;
+  ownerType: WalletOwnerType;
+  ownerId: string;
+  amountInr: number;
+  type: "TOPUP" | "DEBIT";
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
   createdAt: TS;
   createdBy?: Actor | null;
 }

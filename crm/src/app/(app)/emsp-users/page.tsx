@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Plus, UserCircle } from "lucide-react";
+import { Building2, IndianRupee, Plus, UserCircle } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
   createCorporateAccount, createEmspUser, setEmspUserActive, subscribeCorporateAccounts, subscribeEmspUsers,
 } from "@/lib/db/emsp-users";
 import { EMSP_USER_TYPE_LABEL, EMSP_USER_TYPES } from "@/lib/constants";
 import { canManageEmspUsers } from "@/lib/permissions";
-import type { CorporateAccount, EmspUser } from "@/lib/types";
+import { topUpWallet } from "@/lib/razorpay-client";
+import type { CorporateAccount, EmspUser, WalletOwnerType } from "@/lib/types";
+import { formatINR } from "@/lib/utils";
 
 export default function EmspUsersPage() {
   const { actor } = useAuth();
@@ -35,10 +37,31 @@ export default function EmspUsersPage() {
   const [aGstin, setAGstin] = useState("");
   const [aEmail, setAEmail] = useState("");
 
+  const [topupFor, setTopupFor] = useState<{ ownerType: WalletOwnerType; ownerId: string; name: string } | null>(null);
+  const [topupAmount, setTopupAmount] = useState("500");
+  const [topupBusy, setTopupBusy] = useState(false);
+  const { push } = useToast();
+
   useEffect(() => subscribeEmspUsers(setUsers), []);
   useEffect(() => subscribeCorporateAccounts(setAccounts), []);
 
   const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
+
+  async function submitTopup() {
+    if (!topupFor) return;
+    const amount = Number(topupAmount);
+    if (!amount || amount <= 0) return;
+    setTopupBusy(true);
+    try {
+      await topUpWallet({ ownerType: topupFor.ownerType, ownerId: topupFor.ownerId, ownerName: topupFor.name, amountInr: amount });
+      push(`₹${amount} added to ${topupFor.name}'s wallet.`, "success");
+      setTopupFor(null);
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setTopupBusy(false);
+    }
+  }
 
   async function submitUser() {
     if (!actor || !uName.trim() || !uPhone.trim()) return;
@@ -79,7 +102,7 @@ export default function EmspUsersPage() {
           <div className="overflow-x-auto scroll-thin">
             <table className="w-full">
               <thead className="border-b border-ink-200">
-                <tr><th className="th">Name</th><th className="th">GSTIN</th><th className="th">Billing email</th></tr>
+                <tr><th className="th">Name</th><th className="th">GSTIN</th><th className="th">Billing email</th><th className="th text-right">Wallet</th><th className="th text-right">Actions</th></tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
                 {accounts.map((a) => (
@@ -87,6 +110,14 @@ export default function EmspUsersPage() {
                     <td className="td font-medium">{a.name}</td>
                     <td className="td text-ink-600">{a.gstin || "—"}</td>
                     <td className="td text-ink-600">{a.billingEmail || "—"}</td>
+                    <td className="td text-right tabular-nums">{formatINR(a.walletBalanceInr ?? 0)}</td>
+                    <td className="td text-right">
+                      {canManage && (
+                        <Button size="sm" onClick={() => setTopupFor({ ownerType: "CORPORATE_ACCOUNT", ownerId: a.id, name: a.name })}>
+                          <IndianRupee className="h-3.5 w-3.5" /> Top up
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -106,7 +137,7 @@ export default function EmspUsersPage() {
               <thead className="border-b border-ink-200">
                 <tr>
                   <th className="th">Name</th><th className="th">Phone</th><th className="th">Type</th>
-                  <th className="th">Corporate account</th><th className="th">Status</th>
+                  <th className="th">Corporate account</th><th className="th text-right">Wallet</th><th className="th">Status</th>
                   {canManage && <th className="th text-right">Actions</th>}
                 </tr>
               </thead>
@@ -117,6 +148,7 @@ export default function EmspUsersPage() {
                     <td className="td text-ink-600">{u.phone}</td>
                     <td className="td text-ink-600">{EMSP_USER_TYPE_LABEL[u.type]}</td>
                     <td className="td text-ink-600">{u.corporateAccountId ? (accountName.get(u.corporateAccountId) ?? "—") : "—"}</td>
+                    <td className="td text-right tabular-nums">{formatINR(u.walletBalanceInr ?? 0)}</td>
                     <td className="td">
                       <Badge className={u.active ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-ink-100 text-ink-500 ring-ink-200"}>
                         {u.active ? "Active" : "Inactive"}
@@ -124,9 +156,14 @@ export default function EmspUsersPage() {
                     </td>
                     {canManage && (
                       <td className="td text-right">
-                        <Button size="sm" onClick={() => void run(() => setEmspUserActive(u.id, !u.active))}>
-                          {u.active ? "Deactivate" : "Reactivate"}
-                        </Button>
+                        <div className="flex justify-end gap-1.5">
+                          <Button size="sm" onClick={() => setTopupFor({ ownerType: "EMSP_USER", ownerId: u.id, name: u.name })}>
+                            <IndianRupee className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" onClick={() => void run(() => setEmspUserActive(u.id, !u.active))}>
+                            {u.active ? "Deactivate" : "Reactivate"}
+                          </Button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -179,6 +216,25 @@ export default function EmspUsersPage() {
           <Field label="GSTIN"><Input value={aGstin} onChange={(e) => setAGstin(e.target.value)} /></Field>
           <Field label="Billing email"><Input value={aEmail} onChange={(e) => setAEmail(e.target.value)} /></Field>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!topupFor}
+        onClose={() => setTopupFor(null)}
+        title={`Top up wallet — ${topupFor?.name ?? ""}`}
+        description="Opens Razorpay Checkout. Requires RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET set in this app's environment."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setTopupFor(null)}>Cancel</Button>
+            <Button variant="primary" loading={topupBusy} disabled={!Number(topupAmount)} onClick={() => void submitTopup()}>
+              Pay ₹{topupAmount || 0}
+            </Button>
+          </>
+        )}
+      >
+        <Field label="Amount (₹)">
+          <Input type="number" min={1} value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} />
+        </Field>
       </Modal>
     </>
   );
