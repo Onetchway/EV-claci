@@ -1,13 +1,13 @@
 import type { Timestamp } from "firebase/firestore";
 import type {
-  ActivityType, CommercialModel, CommissionStatus, ConnectionType, DiscomStage,
-  DocKind, DocStatus, EoiStatus, FollowupPriority, FollowupStatus, FollowupType,
-  FundingMode, LandType, LeadStatus, LeadType, LoanStage, LocationType,
-  Ownership, OwnerType, PartnerCategory, PartnerStatus, PartnerTier,
-  PaymentMilestone, PaymentMode, PaymentStatus, PoStatus, PowerLoad,
-  ProjectOwnership, ProjectStage, ProjectStatus, RejectionReason, Role, Source,
-  Stage, TaskStatus, VendorCategory, VendorPaymentStatus, VendorStatus,
-  Workstream,
+  ActivityType, AssetCategory, AssetStatus, CommercialModel, CommissionStatus,
+  ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EoiStatus,
+  FollowupPriority, FollowupStatus, FollowupType, FundingMode, LandType,
+  LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
+  PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
+  PaymentStatus, PoStatus, PowerLoad, ProjectOwnership, ProjectStage,
+  ProjectStatus, RejectionReason, Role, Source, Stage, TaskStatus,
+  VendorCategory, VendorPaymentStatus, VendorStatus, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -407,6 +407,36 @@ export interface VendorPayment {
   note?: string;
   createdAt: TS;
   createdBy?: Actor | null;
+}
+
+export interface Asset {
+  id: string;
+  /** Human-friendly reference, e.g. LG-AS-000012. */
+  assetTag: string;
+  name: string;
+  category: AssetCategory;
+  serialNumber?: string;
+  status: AssetStatus;
+  /** Purchase cost, excl. GST — the depreciable base. */
+  cost: number;
+  purchaseDate: TS;
+  method: DepreciationMethod;
+  /** Straight-line: years to fully depreciate. WDV: % of remaining book value written off each year. */
+  usefulLifeYears?: number;
+  wdvRatePct?: number;
+  salvageValue: number;
+  vendorId?: string | null;
+  vendorName?: string | null;
+  poId?: string | null;
+  poNumber?: string | null;
+  linkedProjectId?: string | null;
+  linkedProjectCode?: string | null;
+  warrantyUntil?: TS;
+  notes?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
 }
 
 export interface AppNotification {

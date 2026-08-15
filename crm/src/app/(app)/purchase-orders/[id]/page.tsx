@@ -3,22 +3,23 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Boxes, Plus } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select,
-  Spinner, Textarea, useAsyncAction,
+  Spinner, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
   PAYMENT_MODES, PO_STATUS_COLOR, PO_STATUS_LABEL, PO_STATUSES, type PaymentMode,
 } from "@/lib/constants";
+import { createAsset } from "@/lib/db/assets";
 import {
   addVendorPayment, subscribePurchaseOrder, subscribeVendorPayments,
   updatePurchaseOrderStatus,
 } from "@/lib/db/purchase-orders";
-import { canManageVendors } from "@/lib/permissions";
-import type { PurchaseOrder, VendorPayment } from "@/lib/types";
+import { canManageAssets, canManageVendors } from "@/lib/permissions";
+import type { PoItem, PurchaseOrder, VendorPayment } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
 interface PaymentDraft {
@@ -40,11 +41,33 @@ export default function PurchaseOrderDetailPage() {
   const [po, setPo] = useState<PurchaseOrder | null | undefined>(undefined);
   const [payments, setPayments] = useState<VendorPayment[]>([]);
   const [draft, setDraft] = useState<PaymentDraft | null>(null);
+  const [registeredItemIds, setRegisteredItemIds] = useState<Set<string>>(new Set());
   const { busy, run } = useAsyncAction();
+  const { push } = useToast();
   const canEdit = canManageVendors(viewer);
 
   useEffect(() => subscribePurchaseOrder(params.id, setPo), [params.id]);
   useEffect(() => subscribeVendorPayments(params.id, setPayments), [params.id]);
+
+  async function registerAsset(item: PoItem) {
+    if (!actor || !po) return;
+    const { assetTag } = await createAsset({
+      name: item.description,
+      category: "CHARGER",
+      cost: Math.round(item.qty * item.unitPrice),
+      purchaseDate: new Date(),
+      method: "WDV",
+      wdvRatePct: 15,
+      vendorId: po.vendorId,
+      vendorName: po.vendorName,
+      poId: po.id,
+      poNumber: po.poNumber,
+      linkedProjectId: po.linkedProjectId,
+      linkedProjectCode: po.linkedProjectCode,
+    }, actor);
+    setRegisteredItemIds((s) => new Set(s).add(item.id));
+    push(`Registered as ${assetTag}. Edit it on the Asset register to set serial number and confirm the depreciation rate.`, "success");
+  }
 
   if (po === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (!po) {
@@ -102,12 +125,14 @@ export default function PurchaseOrderDetailPage() {
                   <th className="th text-right">Unit price</th>
                   <th className="th text-right">GST</th>
                   <th className="th text-right">Line total</th>
+                  {po.status === "RECEIVED" && canManageAssets(viewer) && <th className="th" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
                 {po.items.map((it) => {
                   const base = it.qty * it.unitPrice;
                   const gst = Math.round(base * (it.gstPct / 100));
+                  const registered = registeredItemIds.has(it.id);
                   return (
                     <tr key={it.id}>
                       <td className="td">{it.description}</td>
@@ -115,6 +140,21 @@ export default function PurchaseOrderDetailPage() {
                       <td className="td text-right tabular-nums">{formatINR(it.unitPrice)}</td>
                       <td className="td text-right tabular-nums text-ink-500">{it.gstPct}%</td>
                       <td className="td text-right font-medium tabular-nums">{formatINR(base + gst)}</td>
+                      {po.status === "RECEIVED" && canManageAssets(viewer) && (
+                        <td className="td text-right">
+                          {registered ? (
+                            <span className="text-xs text-emerald-600">Registered</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => void run(() => registerAsset(it))}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline"
+                            >
+                              <Boxes className="h-3 w-3" /> Register as asset
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

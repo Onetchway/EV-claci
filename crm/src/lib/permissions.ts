@@ -160,3 +160,7 @@ export const canManageCatalog = (viewer: Viewer) =>
 
 export const canManageVendors = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "FINANCE");
+
+/** Same bar as vendors — an asset's depreciation schedule is a finance/ops decision. */
+export const canManageAssets = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "FINANCE");

@@ -838,6 +838,54 @@ export const VENDOR_PAYMENT_STATUSES = ["PENDING", "PAID"] as const;
 export type VendorPaymentStatus = (typeof VENDOR_PAYMENT_STATUSES)[number];
 
 // ---------------------------------------------------------------------------
+// Asset register & depreciation — chargers and equipment become tracked
+// assets once a purchase order is received. This is an internal management
+// tool, not a substitute for the company's statutory depreciation ledger —
+// confirm useful life / method with your CA before relying on it for filing.
+// ---------------------------------------------------------------------------
+
+export const ASSET_CATEGORIES = [
+  "CHARGER", "TRANSFORMER", "PANEL", "CANOPY", "VEHICLE", "IT_EQUIPMENT", "OTHER",
+] as const;
+export type AssetCategory = (typeof ASSET_CATEGORIES)[number];
+
+export const ASSET_CATEGORY_LABEL: Record<AssetCategory, string> = {
+  CHARGER: "EV Charger",
+  TRANSFORMER: "Transformer / HT Equipment",
+  PANEL: "LT Panel / Electrical",
+  CANOPY: "Canopy / Structure",
+  VEHICLE: "Vehicle",
+  IT_EQUIPMENT: "IT Equipment",
+  OTHER: "Other",
+};
+
+export const ASSET_STATUSES = ["IN_SERVICE", "UNDER_MAINTENANCE", "DECOMMISSIONED", "DISPOSED"] as const;
+export type AssetStatus = (typeof ASSET_STATUSES)[number];
+
+export const ASSET_STATUS_LABEL: Record<AssetStatus, string> = {
+  IN_SERVICE: "In service",
+  UNDER_MAINTENANCE: "Under maintenance",
+  DECOMMISSIONED: "Decommissioned",
+  DISPOSED: "Disposed",
+};
+
+export const ASSET_STATUS_COLOR: Record<AssetStatus, string> = {
+  IN_SERVICE: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  UNDER_MAINTENANCE: "bg-amber-100 text-amber-800 ring-amber-200",
+  DECOMMISSIONED: "bg-ink-100 text-ink-600 ring-ink-200",
+  DISPOSED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
+/** Straight-line: equal expense every year. WDV: a fixed % of the *remaining* book value every year (the method Indian tax law generally expects for plant & machinery). */
+export const DEPRECIATION_METHODS = ["STRAIGHT_LINE", "WDV"] as const;
+export type DepreciationMethod = (typeof DEPRECIATION_METHODS)[number];
+
+export const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
+  STRAIGHT_LINE: "Straight-line",
+  WDV: "Written Down Value (WDV)",
+};
+
+// ---------------------------------------------------------------------------
 // Lead scoring — a deterministic 0-100 signal of how likely a lead is to
 // close, shown as Hot/Warm/Cold. Not machine-learned: a transparent sum of
 // factors the sales team already tracks, so it's explainable on request.

@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Building2, FileClock, FileText, HardHat, Handshake, KanbanSquare,
-  Landmark, LayoutDashboard, LineChart, ListTodo, LogOut, MapPin, Menu, Package,
-  Settings, ShieldCheck, Trash2, Truck, Users, Users2, X, Zap,
+  BarChart3, Boxes, Building2, FileClock, FileText, HardHat, Handshake,
+  KanbanSquare, Landmark, LayoutDashboard, LineChart, ListTodo, LogOut, MapPin,
+  Menu, Package, Settings, ShieldCheck, Trash2, Truck, Users, Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -52,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/catalog", label: "Charger Catalogue", icon: Package },
       { href: "/vendors", label: "Vendors", icon: Truck },
       { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
+      { href: "/assets", label: "Asset Register", icon: Boxes },
     ],
   },
   {
