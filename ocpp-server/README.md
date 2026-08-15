@@ -49,7 +49,13 @@ gcloud auth application-default login       # if not using a service-account key
 npm run dev
 ```
 
-Health check: `curl http://localhost:8080/healthz`
+Health check: `curl http://localhost:8080/status`
+
+Note: the health-check path is `/status`, not the more conventional
+`/healthz` — Cloud Run's front end appears to special-case `/healthz`
+internally and never forwards it to the container (confirmed by comparing
+it against an arbitrary unmatched path, which correctly reached the
+container's own 404 handler). `/status` avoids the collision.
 Charge points connect to: `ws://localhost:8080/ocpp/<chargePointId>`
 
 ## Deploy to Cloud Run

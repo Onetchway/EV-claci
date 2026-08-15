@@ -28,7 +28,7 @@ const PORT = Number(process.env.PORT) || 8080;
 const SUPPORTED_SUBPROTOCOL = "ocpp2.0.1";
 
 const httpServer = createServer((req, res) => {
-  if (req.url === "/healthz") {
+  if (req.url === "/status") {
     res.writeHead(200, { "content-type": "text/plain" });
     res.end("ok");
     return;
@@ -119,5 +119,5 @@ wss.on("connection", (ws: WebSocket, req) => {
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`OCPP 2.0.1 CSMS listening on :${PORT} (health check at /healthz, charge points at /ocpp/<id>)`);
+  console.log(`OCPP 2.0.1 CSMS listening on :${PORT} (health check at /status, charge points at /ocpp/<id>)`);
 });
