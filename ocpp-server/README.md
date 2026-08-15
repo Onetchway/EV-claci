@@ -92,6 +92,13 @@ Exicom/Everta/Mindra chargers' own management settings is a step outside
 this repo — check each vendor's config portal or ask their support for how
 to set a custom Central System URL.
 
+Always confirm the live URL with `gcloud run services describe livanto-ocpp
+--region asia-southeast1 --format='value(status.url)'` rather than
+reconstructing it from the project number — Cloud Run's URL format has
+changed over time (e.g. `<service>-<hash>-<region-short>.a.run.app` is the
+current format), and an old-style guessed URL can 404 even though the
+service itself is healthy.
+
 ## What lands in Firestore
 
 - `chargePoints/{chargePointId}` — status (`ONLINE`/`OFFLINE`), vendor/model
