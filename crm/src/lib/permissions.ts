@@ -173,3 +173,9 @@ export const canManageChargers = (viewer: Viewer) =>
 // quotation is exactly that.
 export const canManageQuotations = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+
+// Charger fault tickets and RFID allow-listing — same bar as chargers themselves.
+export const canManageTickets = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
+export const canManageRfid = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");

@@ -326,6 +326,24 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
     }
 
+    // Fault/offline tickets — the OCPP server opens OFFLINE/FAULT ones via
+    // the Admin SDK (bypasses these rules entirely); the CRM's own users can
+    // only ever create a MANUAL one directly, keeping the automated types
+    // trustworthy as "the server actually observed this."
+    match /tickets/{ticketId} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS']
+                    && request.resource.data.type == 'MANUAL';
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+      allow delete: if isSuperAdmin();
+    }
+
+    // RFID/tag allow-list the OCPP server's Authorize handler reads.
+    match /rfidTokens/{tokenId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any

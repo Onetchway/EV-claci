@@ -6,8 +6,8 @@ import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
   HardHat, Handshake, KanbanSquare, Landmark, LayoutDashboard, LineChart, ListTodo,
-  LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck, Trash2, Truck,
-  Users, Users2, X, Zap,
+  LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck, Ticket, Trash2,
+  Truck, Users, Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -67,6 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/vendors", label: "Vendor Management", icon: Truck },
       { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
       { href: "/assets", label: "Asset Register", icon: Boxes },
+      { href: "/tickets", label: "Tickets", icon: Ticket },
     ],
   },
   {

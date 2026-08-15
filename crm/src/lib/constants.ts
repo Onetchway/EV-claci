@@ -862,6 +862,39 @@ export const QUOTATION_STATUS_COLOR: Record<QuotationStatus, string> = {
   CONVERTED: "bg-indigo-100 text-indigo-800 ring-indigo-200",
 };
 
+// -------------------------------------------------------- charger tickets
+
+export const TICKET_TYPES = ["OFFLINE", "FAULT", "MANUAL"] as const;
+export type TicketType = (typeof TICKET_TYPES)[number];
+
+export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
+  OFFLINE: "Offline",
+  FAULT: "Fault",
+  MANUAL: "Manual",
+};
+
+export const TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const;
+export type TicketStatus = (typeof TICKET_STATUSES)[number];
+
+export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
+  OPEN: "Open",
+  IN_PROGRESS: "In progress",
+  RESOLVED: "Resolved",
+  CLOSED: "Closed",
+};
+
+export const TICKET_STATUS_COLOR: Record<TicketStatus, string> = {
+  OPEN: "bg-rose-100 text-rose-800 ring-rose-200",
+  IN_PROGRESS: "bg-amber-100 text-amber-800 ring-amber-200",
+  RESOLVED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CLOSED: "bg-ink-100 text-ink-600 ring-ink-200",
+};
+
+// ------------------------------------------------------------- RFID tokens
+
+export const RFID_TOKEN_STATUSES = ["ACTIVE", "BLOCKED"] as const;
+export type RfidTokenStatus = (typeof RFID_TOKEN_STATUSES)[number];
+
 // ---------------------------------------------------------------------------
 // Asset register & depreciation — chargers and equipment become tracked
 // assets once a purchase order is received. This is an internal management

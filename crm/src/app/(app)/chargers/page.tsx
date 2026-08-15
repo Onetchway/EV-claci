@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Battery, Copy, Plus, Power, PowerOff, QrCode, Wifi, WifiOff, Zap,
+  Battery, Copy, Lock, Plus, Power, PowerOff, QrCode, RotateCcw, Square, Wifi, WifiOff, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -20,7 +20,10 @@ import {
   subscribeChargePoints, subscribeRecentSessions, type ChargePoint,
   type ChargeSession, type ConnectorStatus,
 } from "@/lib/db/chargers";
-import { canManageChargers } from "@/lib/permissions";
+import { sendChargerCommand } from "@/lib/ocpp-commands";
+import { addRfidToken, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
+import { canManageChargers, canManageRfid } from "@/lib/permissions";
+import type { RfidToken } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
 const CONNECTOR_COLOR: Record<ConnectorStatus, string> = {
@@ -109,6 +112,7 @@ export default function ChargersPage() {
   const [points, setPoints] = useState<ChargePoint[]>([]);
   const [sessions, setSessions] = useState<ChargeSession[]>([]);
   const [registry, setRegistry] = useState<ChargerRegistration[]>([]);
+  const [rfidTokens, setRfidTokens] = useState<RfidToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,7 +122,16 @@ export default function ChargersPage() {
   const [justRegisteredId, setJustRegisteredId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
 
-  const { run } = useAsyncAction();
+  const [startingFor, setStartingFor] = useState<string | null>(null);
+  const [startIdToken, setStartIdToken] = useState("");
+  const [startEvseId, setStartEvseId] = useState("1");
+  const [commandBusy, setCommandBusy] = useState<string | null>(null);
+
+  const [newTokenId, setNewTokenId] = useState("");
+  const [newTokenLabel, setNewTokenLabel] = useState("");
+
+  const { run, busy: actionBusy } = useAsyncAction();
+  const { push } = useToast();
 
   useEffect(
     () => subscribeChargePoints((rows) => { setPoints(rows); setLoading(false); }, (e) => { setError(e.message); setLoading(false); }),
@@ -126,6 +139,39 @@ export default function ChargersPage() {
   );
   useEffect(() => subscribeRecentSessions(setSessions), []);
   useEffect(() => subscribeChargerRegistry(setRegistry), []);
+  useEffect(() => subscribeRfidTokens(setRfidTokens), []);
+
+  async function runCommand(chargerId: string, label: string, fn: () => Promise<unknown>) {
+    setCommandBusy(chargerId + label);
+    try {
+      await fn();
+      push(`${label} sent to ${chargerId}.`, "success");
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setCommandBusy(null);
+    }
+  }
+
+  async function submitRemoteStart() {
+    if (!startingFor || !startIdToken.trim()) return;
+    await runCommand(startingFor, "Remote start", () => sendChargerCommand(startingFor, "RequestStartTransaction", {
+      remoteStartId: Date.now(),
+      idToken: { idToken: startIdToken.trim(), type: "Central" },
+      evseId: Number(startEvseId) || 1,
+    }));
+    setStartingFor(null);
+    setStartIdToken("");
+  }
+
+  async function addToken() {
+    if (!actor || !newTokenId.trim() || !newTokenLabel.trim()) return;
+    await run(async () => {
+      await addRfidToken(newTokenId, newTokenLabel, actor);
+      setNewTokenId("");
+      setNewTokenLabel("");
+    }, "RFID token added.");
+  }
 
   const pointByChargerId = useMemo(() => new Map(points.map((p) => [p.chargePointId ?? p.id, p])), [points]);
 
@@ -165,7 +211,7 @@ export default function ChargersPage() {
     <>
       <PageHeader
         title="Chargers & Stations"
-        description="Live status from the OCPP central system — Phase 1: connection, status and session logs. No remote control yet."
+        description="Live status, remote commands and fault tickets from the OCPP central system."
         actions={canManage && (
           <Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add charger</Button>
         )}
@@ -286,9 +332,23 @@ export default function ChargersPage() {
               {p.connectors && Object.keys(p.connectors).length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {Object.values(p.connectors).map((c) => (
-                    <Badge key={`${c.evseId}-${c.connectorId}`} className={cn(CONNECTOR_COLOR[c.status])}>
-                      EVSE {c.evseId}/{c.connectorId} · {c.status}
-                    </Badge>
+                    <span key={`${c.evseId}-${c.connectorId}`} className="inline-flex items-center gap-1">
+                      <Badge className={cn(CONNECTOR_COLOR[c.status])}>
+                        EVSE {c.evseId}/{c.connectorId} · {c.status}
+                      </Badge>
+                      {canManage && p.status === "ONLINE" && (
+                        <button
+                          type="button"
+                          title={`Unlock EVSE ${c.evseId}/${c.connectorId}`}
+                          disabled={commandBusy === p.chargePointId + "Unlock"}
+                          onClick={() => void runCommand(p.chargePointId, "Unlock", () =>
+                            sendChargerCommand(p.chargePointId, "UnlockConnector", { evseId: c.evseId, connectorId: c.connectorId }))}
+                          className="rounded-md p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700 disabled:opacity-50"
+                        >
+                          <Lock className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
                   ))}
                 </div>
               ) : (
@@ -298,6 +358,34 @@ export default function ChargersPage() {
               <p className="mt-3 border-t border-ink-100 pt-2 text-xs text-ink-500">
                 Last seen {formatDateTime(p.lastSeenAt)}
               </p>
+
+              {canManage && (
+                <div className="mt-3 flex flex-wrap gap-1.5 border-t border-ink-100 pt-2">
+                  <Button
+                    size="sm"
+                    disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Remote start"}
+                    onClick={() => setStartingFor(p.chargePointId)}
+                  >
+                    Remote start
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Reset"}
+                    onClick={() => void runCommand(p.chargePointId, "Reset", () =>
+                      sendChargerCommand(p.chargePointId, "Reset", { type: "OnIdle" }))}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Reset
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Set unavailable"}
+                    onClick={() => void runCommand(p.chargePointId, "Set unavailable", () =>
+                      sendChargerCommand(p.chargePointId, "ChangeAvailability", { operationalStatus: "Inoperative" }))}
+                  >
+                    Set unavailable
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -316,6 +404,7 @@ export default function ChargersPage() {
                   <th className="th">Started</th>
                   <th className="th">Duration</th>
                   <th className="th text-right">Energy delivered</th>
+                  {canManage && <th className="th text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
@@ -330,6 +419,20 @@ export default function ChargersPage() {
                     <td className="td text-ink-600">{formatDateTime(s.startedAt)}</td>
                     <td className="td text-ink-600">{durationMinutes(s)}</td>
                     <td className="td text-right font-medium tabular-nums">{wh(s.energyDeliveredWh)}</td>
+                    {canManage && (
+                      <td className="td text-right">
+                        {s.status === "ACTIVE" && (
+                          <Button
+                            size="sm"
+                            disabled={commandBusy === s.chargePointId + "Remote stop"}
+                            onClick={() => void runCommand(s.chargePointId, "Remote stop", () =>
+                              sendChargerCommand(s.chargePointId, "RequestStopTransaction", { transactionId: s.transactionId }))}
+                          >
+                            <Square className="h-3.5 w-3.5" /> Stop
+                          </Button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -337,6 +440,100 @@ export default function ChargersPage() {
           </div>
         )}
       </Card>
+
+      <Card
+        title="RFID tokens"
+        subtitle={rfidTokens.length === 0
+          ? "No tokens registered — every tag is currently accepted (open mode)."
+          : "Allow-list enforced — only ACTIVE tokens below can start a session."}
+        className="mt-4"
+      >
+        {canManageRfid(viewer) && (
+          <div className="mb-4 flex flex-wrap items-end gap-2">
+            <Field label="Tag ID">
+              <Input value={newTokenId} onChange={(e) => setNewTokenId(e.target.value)} placeholder="e.g. 04A1B2C3" />
+            </Field>
+            <Field label="Label">
+              <Input value={newTokenLabel} onChange={(e) => setNewTokenLabel(e.target.value)} placeholder="e.g. Driver name / card #" />
+            </Field>
+            <Button loading={actionBusy} disabled={!newTokenId.trim() || !newTokenLabel.trim()} onClick={() => void addToken()}>
+              <Plus className="h-4 w-4" /> Add token
+            </Button>
+          </div>
+        )}
+        {rfidTokens.length === 0 ? (
+          <p className="text-sm text-ink-500">Nothing registered yet.</p>
+        ) : (
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr><th className="th">Tag ID</th><th className="th">Label</th><th className="th">Status</th>{canManageRfid(viewer) && <th className="th text-right">Actions</th>}</tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {rfidTokens.map((t) => (
+                  <tr key={t.id} className="hover:bg-ink-50">
+                    <td className="td font-mono text-xs">{t.idToken}</td>
+                    <td className="td">{t.label}</td>
+                    <td className="td">
+                      <Badge className={t.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-rose-100 text-rose-800 ring-rose-200"}>
+                        {t.status}
+                      </Badge>
+                    </td>
+                    {canManageRfid(viewer) && (
+                      <td className="td text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => void run(() => setRfidTokenStatus(t.id, t.status === "ACTIVE" ? "BLOCKED" : "ACTIVE"))}
+                        >
+                          {t.status === "ACTIVE" ? "Block" : "Unblock"}
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Modal
+        open={!!startingFor}
+        onClose={() => setStartingFor(null)}
+        title={`Remote start — ${startingFor ?? ""}`}
+        description="Sends RequestStartTransaction as if this tag were tapped at the charger."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setStartingFor(null)}>Cancel</Button>
+            <Button
+              variant="primary"
+              disabled={!startIdToken.trim()}
+              loading={!!startingFor && commandBusy === startingFor + "Remote start"}
+              onClick={() => void submitRemoteStart()}
+            >
+              Start
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="RFID / ID token" required className="sm:col-span-2">
+            {rfidTokens.filter((t) => t.status === "ACTIVE").length > 0 ? (
+              <Select
+                value={startIdToken}
+                onChange={(e) => setStartIdToken(e.target.value)}
+                options={rfidTokens.filter((t) => t.status === "ACTIVE").map((t) => ({ value: t.idToken, label: `${t.label} (${t.idToken})` }))}
+                placeholder="Choose a registered tag"
+              />
+            ) : (
+              <Input value={startIdToken} onChange={(e) => setStartIdToken(e.target.value)} placeholder="Tag ID" />
+            )}
+          </Field>
+          <Field label="EVSE ID">
+            <Input type="number" min={1} value={startEvseId} onChange={(e) => setStartEvseId(e.target.value)} />
+          </Field>
+        </div>
+      </Modal>
 
       <Modal
         open={addOpen}

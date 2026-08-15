@@ -6,8 +6,9 @@ import type {
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
   PaymentStatus, PoStatus, PowerLoad, ProjectOwnership, ProjectStage,
-  ProjectStatus, QuotationStatus, RejectionReason, Role, Source, Stage, TaskStatus,
-  VendorCategory, VendorPaymentStatus, VendorStatus, Workstream,
+  ProjectStatus, QuotationStatus, RejectionReason, RfidTokenStatus, Role, Source,
+  Stage, TaskStatus, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus,
+  VendorStatus, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -436,6 +437,38 @@ export interface Quotation {
   createdBy?: Actor | null;
   updatedAt?: TS;
   updatedBy?: Actor | null;
+}
+
+/**
+ * Opened by the OCPP server itself (offline sweep, Faulted status) or
+ * manually by a team member. The server's writes bypass Firestore rules
+ * via the Admin SDK — everything from here on (assignment, status, SLA
+ * tracking) is normal CRM territory.
+ */
+export interface Ticket {
+  id: string;
+  chargePointId: string;
+  type: TicketType;
+  status: TicketStatus;
+  description: string;
+  assignedTo?: Actor | null;
+  openedAt: TS;
+  slaDueAt?: TS;
+  resolvedAt?: TS | null;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+/** An RFID/tag the OCPP server's Authorize handler will accept. */
+export interface RfidToken {
+  id: string;
+  idToken: string;
+  label: string;
+  status: RfidTokenStatus;
+  createdAt: TS;
+  createdBy?: Actor | null;
 }
 
 export interface Asset {
