@@ -27,6 +27,69 @@ const FEATURES = [
   { icon: Zap, label: "Franchise Handover" },
 ];
 
+/** A charging-station scene, built from plain shapes — no external art asset available. */
+function ChargingStationArt() {
+  return (
+    <svg viewBox="0 0 640 360" className="w-full max-w-xl" aria-hidden>
+      {/* skyline */}
+      <g opacity="0.35" fill="#0f9252">
+        <rect x="20" y="180" width="46" height="140" rx="3" />
+        <rect x="80" y="140" width="40" height="180" rx="3" />
+        <rect x="540" y="160" width="42" height="160" rx="3" />
+        <rect x="590" y="120" width="40" height="200" rx="3" />
+      </g>
+      {/* ground */}
+      <rect x="0" y="320" width="640" height="4" fill="#0d7444" opacity="0.25" />
+      {/* wind turbine */}
+      <g stroke="#0f9252" strokeWidth="3" opacity="0.5" fill="none">
+        <line x1="470" y1="320" x2="470" y2="160" />
+        <g transform="translate(470,160)">
+          <line x1="0" y1="0" x2="34" y2="-14" />
+          <line x1="0" y1="0" x2="-30" y2="-20" />
+          <line x1="0" y1="0" x2="-6" y2="30" />
+        </g>
+      </g>
+      {/* canopy */}
+      <rect x="120" y="70" width="360" height="18" rx="4" fill="#1cb567" />
+      <rect x="120" y="88" width="360" height="6" fill="#0f9252" />
+      <rect x="150" y="94" width="14" height="150" fill="#d5d9e2" />
+      <rect x="436" y="94" width="14" height="150" fill="#d5d9e2" />
+      <text x="300" y="83" textAnchor="middle" fontSize="15" fontWeight="700" fill="#ffffff">livanto green.</text>
+
+      {/* charger 1 */}
+      <g transform="translate(210,160)">
+        <rect width="56" height="130" rx="10" fill="#ffffff" stroke="#b0f1c9" strokeWidth="2" />
+        <rect x="10" y="16" width="36" height="26" rx="3" fill="#0d4c31" />
+        <circle cx="28" cy="70" r="9" fill="#1cb567" />
+        <path d="M25 65 L31 65 L27 75 L33 75 L23 88 L26 76 L21 76 Z" fill="#fff" />
+        <path d="M6 130 q22 26 44 0" stroke="#8590a8" strokeWidth="3" fill="none" />
+      </g>
+
+      {/* charger 2 */}
+      <g transform="translate(370,160)">
+        <rect width="56" height="130" rx="10" fill="#ffffff" stroke="#b0f1c9" strokeWidth="2" />
+        <rect x="10" y="16" width="36" height="26" rx="3" fill="#0d4c31" />
+        <circle cx="28" cy="70" r="9" fill="#1cb567" />
+        <path d="M25 65 L31 65 L27 75 L33 75 L23 88 L26 76 L21 76 Z" fill="#fff" />
+        <path d="M6 130 q22 26 44 0" stroke="#8590a8" strokeWidth="3" fill="none" />
+      </g>
+
+      {/* car */}
+      <g transform="translate(255,215)">
+        <rect x="0" y="30" width="180" height="50" rx="16" fill="#171a21" />
+        <path d="M18 30 Q40 -4 90 -4 Q140 -4 162 30 Z" fill="#171a21" />
+        <path d="M28 26 Q46 4 90 4 Q134 4 152 26 Z" fill="#66738d" opacity="0.5" />
+        <circle cx="36" cy="82" r="15" fill="#0d0f14" />
+        <circle cx="144" cy="82" r="15" fill="#0d0f14" />
+        <circle cx="36" cy="82" r="6" fill="#8590a8" />
+        <circle cx="144" cy="82" r="6" fill="#8590a8" />
+        {/* charging cable to charger 2 */}
+        <path d="M170 55 q30 10 55 5" stroke="#1cb567" strokeWidth="3" fill="none" strokeLinecap="round" />
+      </g>
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const { signInWithGoogle, user, profile, loading, configured } = useAuth();
   const router = useRouter();
@@ -55,71 +118,69 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-ink-100 p-4 sm:p-6">
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-xl lg:grid-cols-2">
-        {/* Left — brand panel */}
-        <div className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-50 via-brand-50 to-white p-10 lg:flex">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-200/40 blur-3xl"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-brand-300/30 blur-3xl"
-          />
+    <main className="grid min-h-screen w-full bg-white lg:grid-cols-2">
+      {/* Left — brand panel, full bleed */}
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-50 via-brand-50 to-white px-16 py-14 lg:flex">
+        <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-brand-200/40 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-brand-300/30 blur-3xl" />
 
-          <div className="relative">
-            <p className="text-2xl font-bold tracking-tight text-ink-900">
-              livanto <span className="text-brand-600">green.</span>
-            </p>
+        <div className="relative">
+          <p className="text-3xl font-bold tracking-tight text-ink-900">
+            livanto <span className="text-brand-600">green.</span>
+          </p>
 
-            <h1 className="mt-10 text-4xl font-bold leading-tight text-ink-900">
-              Powering the future
-              <br />
-              of <span className="text-brand-600">EV infrastructure</span>
-            </h1>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-500">
-              Livanto Green CRM helps you manage leads, track projects, onboard
-              franchise partners and drive seamless handovers — all in one place.
-            </p>
+          <h1 className="mt-14 text-5xl font-bold leading-[1.1] text-ink-900">
+            Powering the future
+            <br />
+            of <span className="text-brand-600">EV infrastructure</span>
+          </h1>
+          <p className="mt-5 max-w-md text-base leading-relaxed text-ink-500">
+            Livanto Green CRM helps you manage leads, track projects, onboard
+            franchise partners and drive seamless handovers — all in one place.
+          </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              {FEATURES.map(({ icon: Icon, label }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-2 rounded-lg bg-white/70 px-3 py-2 text-xs font-medium text-ink-700 shadow-sm ring-1 ring-inset ring-brand-100"
-                >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand-100 text-brand-700">
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                  {label}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative flex items-center gap-2 text-xs text-ink-400">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-white">
-              <Zap className="h-4 w-4" />
-            </span>
-            Livanto Green Infra Private Limited
+          <div className="mt-10 flex flex-wrap gap-3">
+            {FEATURES.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2.5 rounded-xl bg-white/80 px-4 py-3 text-sm font-medium text-ink-700 shadow-sm ring-1 ring-inset ring-brand-100"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
+                  <Icon className="h-4 w-4" />
+                </span>
+                {label}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Right — sign in */}
-        <div className="flex flex-col justify-center p-8 sm:p-12">
-          <div className="mb-6 flex items-start gap-2.5 rounded-lg bg-brand-50 px-4 py-3 text-xs text-brand-800 ring-1 ring-inset ring-brand-100">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className="relative flex justify-center py-6">
+          <ChargingStationArt />
+        </div>
+
+        <div className="relative flex items-center gap-2.5 text-sm text-ink-400">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-white">
+            <Zap className="h-4 w-4" />
+          </span>
+          Livanto Green Infra Private Limited
+        </div>
+      </div>
+
+      {/* Right — sign in, full bleed */}
+      <div className="flex flex-col justify-center px-6 py-14 sm:px-16 lg:px-24">
+        <div className="mx-auto w-full max-w-md">
+          <div className="mb-8 flex items-start gap-3 rounded-xl bg-brand-50 px-5 py-4 text-sm text-brand-800 ring-1 ring-inset ring-brand-100">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
             <p>
               Sign-in is restricted to <strong>@livantogreen.com</strong> Google
               Workspace accounts. Personal Google accounts cannot access this CRM.
             </p>
           </div>
 
-          <h2 className="text-2xl font-bold text-ink-900">Welcome back</h2>
-          <p className="mt-1 text-sm text-ink-500">Sign in to access your Livanto Green CRM</p>
+          <h2 className="text-3xl font-bold text-ink-900">Welcome back</h2>
+          <p className="mt-2 text-base text-ink-500">Sign in to access your Livanto Green CRM</p>
 
-          <div className="mt-8">
+          <div className="mt-10">
             {!configured ? (
               <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
                 <p className="font-semibold">Firebase is not configured</p>
@@ -139,7 +200,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => void onGoogleSignIn()}
                   loading={busy}
-                  className="flex w-full items-center justify-center gap-3 border border-ink-200 bg-white py-3 text-sm font-medium text-ink-800 hover:bg-ink-50"
+                  className="flex w-full items-center justify-center gap-3 border border-ink-200 bg-white py-4 text-base font-medium text-ink-800 hover:bg-ink-50"
                 >
                   <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
                     <path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.66-.22-2.45H12v4.64h6.47c-.28 1.5-1.13 2.77-2.4 3.62v3h3.88c2.27-2.09 3.57-5.17 3.57-8.81z" />
@@ -160,13 +221,13 @@ export default function LoginPage() {
             )}
           </div>
 
-          <p className="mt-8 text-center text-xs text-ink-400">
+          <p className="mt-10 text-center text-sm text-ink-400">
             Access restricted to authorized Livanto Green team members only.
             <br />
             Accounts are provisioned by an administrator — contact your admin for access.
           </p>
 
-          <p className="mt-6 text-center text-[11px] text-ink-300">
+          <p className="mt-8 text-center text-xs text-ink-300">
             © {new Date().getFullYear()} Livanto Green
           </p>
         </div>
