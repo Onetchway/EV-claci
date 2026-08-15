@@ -639,6 +639,11 @@ export interface AppSettings {
     discoms: string[];
     vendors: string[];
   };
+  /** The standalone OCPP central system (ocpp-server/), a separate Cloud Run service. */
+  ocpp: {
+    /** Host only, no scheme — e.g. "livanto-ocpp-35nnljms4q-as.a.run.app". */
+    serverHost: string;
+  };
   updatedAt?: TS;
   updatedBy?: Actor;
 }

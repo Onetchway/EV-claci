@@ -52,6 +52,7 @@ export function defaultSettings(): AppSettings {
       defaultTenureYears: 5,
     },
     lists: { chargerOems: [], banks: [], discoms: [], vendors: [] },
+    ocpp: { serverHost: "" },
   };
 }
 
@@ -65,6 +66,7 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
     loi: { ...base.loi, ...stored.loi },
     finance: { ...base.finance, ...stored.finance },
     lists: { ...base.lists, ...stored.lists },
+    ocpp: { ...base.ocpp, ...stored.ocpp },
     updatedAt: stored.updatedAt ?? null,
     updatedBy: stored.updatedBy,
   };

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, Landmark, Plus, Settings as SettingsIcon, Trash2 } from "lucide-react";
+import { Building2, Landmark, Plus, Settings as SettingsIcon, Trash2, Zap } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -18,7 +18,9 @@ import { viewerIsAdmin } from "@/lib/permissions";
 import type { AppSettings, FollowupSequence } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
-const TABS = ["Company", "Bank", "Letter of Intent", "Finance", "Dropdown lists", "Follow-up sequences"] as const;
+const TABS = [
+  "Company", "Bank", "Letter of Intent", "Finance", "OCPP", "Dropdown lists", "Follow-up sequences",
+] as const;
 type Tab = (typeof TABS)[number];
 
 /** A simple add/remove editor for the custom dropdown options. */
@@ -437,6 +439,32 @@ export default function SettingsPage() {
             Charger prices and modelled returns come from the Livanto investment workbook and are
             deliberately not editable here — <code>npm run verify</code> checks them against that
             workbook on every build. Individual deals can still override a price on the quotation.
+          </p>
+        </Card>
+      )}
+
+      {tab === "OCPP" && (
+        <Card
+          title="OCPP central system"
+          subtitle="The standalone charger-connection server (a separate Cloud Run service), used to generate charger connection URLs and QR codes in Charger Management."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Server host"
+              hint='Host only, no scheme — e.g. "livanto-ocpp-35nnljms4q-as.a.run.app". Find it with: gcloud run services describe livanto-ocpp --region asia-southeast1 --format="value(status.url)" (strip the leading https://).'
+            >
+              <Input
+                value={form.ocpp.serverHost}
+                onChange={(e) => set("ocpp", { ...form.ocpp, serverHost: e.target.value.trim().replace(/^wss?:\/\//, "").replace(/\/$/, "") })}
+                placeholder="livanto-ocpp-xxxxxxxxxx-as.a.run.app"
+              />
+            </Field>
+          </div>
+          <p className="mt-4 flex items-start gap-2 rounded-lg bg-ink-50 px-3 py-2.5 text-xs text-ink-600">
+            <Zap className="mt-0.5 h-4 w-4 shrink-0" />
+            Chargers connect to <code>wss://&lt;host&gt;/ocpp/&lt;chargerId&gt;</code>. This host changes only if
+            the Cloud Run service is deleted and redeployed under a new name — a routine redeploy of the same
+            service keeps the same URL.
           </p>
         </Card>
       )}
