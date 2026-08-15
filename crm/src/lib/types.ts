@@ -5,10 +5,10 @@ import type {
   FollowupPriority, FollowupStatus, FollowupType, FundingMode, LandType,
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
-  EmspUserType, PaymentStatus, PoStatus, PowerLoad, ProjectOwnership, ProjectStage,
-  ProjectStatus, QuotationStatus, RejectionReason, RfidTokenStatus, Role, Source,
-  Stage, TariffPricingType, TariffScope, TaskStatus, TicketStatus, TicketType,
-  VendorCategory, VendorPaymentStatus, VendorStatus, Workstream,
+  EmspUserType, InvoiceBillToType, InvoiceStatus, PaymentStatus, PoStatus, PowerLoad,
+  ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
+  RfidTokenStatus, Role, Source, Stage, TariffPricingType, TariffScope, TaskStatus,
+  TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -599,6 +599,37 @@ export interface Vehicle {
   assignedDriverId?: string | null;
   createdAt: TS;
   createdBy?: Actor | null;
+}
+
+/**
+ * A GST invoice covering a set of billed charging sessions. Sessions
+ * aren't yet automatically attributed to an EMSP user/corporate account
+ * (that needs an RFID-token-to-user link this build doesn't have yet), so
+ * an invoice is built by hand-picking which billed sessions in a date
+ * range belong to the bill-to party — honest given today's data model,
+ * not a fabricated auto-reconciliation.
+ */
+export interface Invoice {
+  id: string;
+  /** Human-friendly reference, e.g. LG-INV-000012. */
+  invoiceNumber: string;
+  status: InvoiceStatus;
+  billToType: InvoiceBillToType;
+  billToId?: string | null;
+  billToName: string;
+  billToGstin?: string;
+  periodStart: TS;
+  periodEnd: TS;
+  /** chargeSessions doc IDs this invoice covers. */
+  sessionIds: string[];
+  subtotalInr: number;
+  gstInr: number;
+  totalInr: number;
+  notes?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
 }
 
 export interface Asset {

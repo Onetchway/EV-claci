@@ -389,6 +389,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // GST invoices for billed charging sessions.
+    match /invoices/{invoiceId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any

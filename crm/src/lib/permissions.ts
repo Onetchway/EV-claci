@@ -189,3 +189,6 @@ export const canManageEmspUsers = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "FINANCE");
 export const canManageFleets = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
+
+export const canManageInvoices = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");

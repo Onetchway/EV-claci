@@ -78,6 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/earnings", label: "Earnings & Statistics", icon: TrendingUp },
       { href: "/emsp-users", label: "User Management", icon: UserCircle },
       { href: "/fleets", label: "Fleet Management", icon: Truck },
+      { href: "/invoices", label: "Invoicing", icon: FileText },
     ],
   },
   {

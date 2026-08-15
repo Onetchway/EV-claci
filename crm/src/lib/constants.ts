@@ -928,6 +928,28 @@ export const EMSP_USER_TYPE_LABEL: Record<EmspUserType, string> = {
   CORPORATE: "Corporate",
 };
 
+// ------------------------------------------------------------- invoicing
+
+export const INVOICE_BILL_TO_TYPES = ["EMSP_USER", "CORPORATE_ACCOUNT", "MANUAL"] as const;
+export type InvoiceBillToType = (typeof INVOICE_BILL_TO_TYPES)[number];
+
+export const INVOICE_STATUSES = ["DRAFT", "ISSUED", "PAID", "CANCELLED"] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  DRAFT: "Draft",
+  ISSUED: "Issued",
+  PAID: "Paid",
+  CANCELLED: "Cancelled",
+};
+
+export const INVOICE_STATUS_COLOR: Record<InvoiceStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  ISSUED: "bg-sky-100 text-sky-800 ring-sky-200",
+  PAID: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
 // ---------------------------------------------------------------------------
 // Asset register & depreciation — chargers and equipment become tracked
 // assets once a purchase order is received. This is an internal management
