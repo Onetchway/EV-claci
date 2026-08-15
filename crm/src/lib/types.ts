@@ -6,7 +6,7 @@ import type {
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
   PaymentStatus, PoStatus, PowerLoad, ProjectOwnership, ProjectStage,
-  ProjectStatus, RejectionReason, Role, Source, Stage, TaskStatus,
+  ProjectStatus, QuotationStatus, RejectionReason, Role, Source, Stage, TaskStatus,
   VendorCategory, VendorPaymentStatus, VendorStatus, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
@@ -407,6 +407,35 @@ export interface VendorPayment {
   note?: string;
   createdAt: TS;
   createdBy?: Actor | null;
+}
+
+/**
+ * A client-facing quotation — hardware (chargers, priced via the same
+ * catalogue/pricing engine as a lead's quote) and/or EPC service lines
+ * (civil work, electrical installation, O&M...). Optionally linked to a
+ * lead, but stands alone for a walk-in enquiry that isn't a lead yet — the
+ * client details are a snapshot at creation, editable independently
+ * thereafter, the same way a PO snapshots vendorName off the vendor record.
+ */
+export interface Quotation {
+  id: string;
+  /** Human-friendly reference, e.g. LG-QT-000012. */
+  quoteNumber: string;
+  status: QuotationStatus;
+  leadId?: string | null;
+  leadCode?: string | null;
+  client: ClientInfo;
+  items: ConfigItem[];
+  extras: ExtraItem[];
+  discount: number;
+  /** Snapshot of the computed totals at last save — the printed document's source of truth. */
+  totals: Pick<Quote, "subtotal" | "discount" | "taxableValue" | "gst" | "grandTotal" | "effectiveGstPct" | "totalKw" | "unitCount">;
+  validUntil?: TS;
+  notes?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
 }
 
 export interface Asset {

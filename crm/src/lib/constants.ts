@@ -837,6 +837,31 @@ export const PO_STATUS_COLOR: Record<PoStatus, string> = {
 export const VENDOR_PAYMENT_STATUSES = ["PENDING", "PAID"] as const;
 export type VendorPaymentStatus = (typeof VENDOR_PAYMENT_STATUSES)[number];
 
+// ----------------------------------------------------------- client quotations
+
+export const QUOTATION_STATUSES = [
+  "DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CONVERTED",
+] as const;
+export type QuotationStatus = (typeof QUOTATION_STATUSES)[number];
+
+export const QUOTATION_STATUS_LABEL: Record<QuotationStatus, string> = {
+  DRAFT: "Draft",
+  SENT: "Sent to client",
+  ACCEPTED: "Accepted",
+  REJECTED: "Rejected",
+  EXPIRED: "Expired",
+  CONVERTED: "Converted to lead",
+};
+
+export const QUOTATION_STATUS_COLOR: Record<QuotationStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  SENT: "bg-sky-100 text-sky-800 ring-sky-200",
+  ACCEPTED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  REJECTED: "bg-rose-100 text-rose-800 ring-rose-200",
+  EXPIRED: "bg-amber-100 text-amber-800 ring-amber-200",
+  CONVERTED: "bg-indigo-100 text-indigo-800 ring-indigo-200",
+};
+
 // ---------------------------------------------------------------------------
 // Asset register & depreciation — chargers and equipment become tracked
 // assets once a purchase order is received. This is an internal management

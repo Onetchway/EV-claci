@@ -167,3 +167,9 @@ export const canManageAssets = (viewer: Viewer) =>
 
 export const canManageChargers = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
+
+// Client quotations — the same bar as making a pricing decision
+// (canManageCatalog / discount / price-override), since drafting a
+// quotation is exactly that.
+export const canManageQuotations = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");

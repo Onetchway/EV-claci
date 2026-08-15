@@ -290,6 +290,14 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
     }
 
+    // Client-facing quotations (chargers and/or EPC services) — the mirror
+    // image of purchaseOrders, but money coming IN. Same bar as making a
+    // pricing decision (canManageCatalog / discount / price-override).
+    match /quotations/{quotationId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
     // --------------------------------------------------------- OCPP / chargers
 
     // Written only by the standalone OCPP central system (ocpp-server/),

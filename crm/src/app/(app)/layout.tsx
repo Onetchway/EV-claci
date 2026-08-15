@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Boxes, Building2, ChevronDown, FileClock, FileText, HardHat,
-  Handshake, KanbanSquare, Landmark, LayoutDashboard, LineChart, ListTodo,
+  BarChart3, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
+  HardHat, Handshake, KanbanSquare, Landmark, LayoutDashboard, LineChart, ListTodo,
   LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck, Trash2, Truck,
   Users, Users2, X, Zap,
 } from "lucide-react";
@@ -56,7 +56,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/loans", label: "Loan Customers", icon: Landmark },
       { href: "/sites", label: "Site Enquiries", icon: MapPin },
       { href: "/partners", label: "Channel Partners", icon: Handshake },
-      { href: "/catalog", label: "Create Quotation", icon: Package },
+      { href: "/quotations", label: "Create Quotation", icon: FileSignature },
+      { href: "/catalog", label: "Charger Catalogue", icon: Package },
     ],
   },
   {
