@@ -32,34 +32,49 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Sales",
+    label: "Dashboard",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/tasks", label: "Tasks", icon: ListTodo },
-      { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
-      { href: "/leads", label: "Leads", icon: Users2 },
-      { href: "/sites", label: "Site Enquiries", icon: MapPin },
-      { href: "/loans", label: "Loan Customers", icon: Landmark },
-      { href: "/partners", label: "Channel Partners", icon: Handshake },
-      { href: "/b2b", label: "B2B", icon: Building2 },
-    ],
-  },
-  {
-    label: "Delivery",
-    items: [
-      { href: "/projects", label: "Projects", icon: HardHat },
-      { href: "/projects?ownership=COCO", label: "Company Stations", icon: Building2 },
-      { href: "/catalog", label: "Charger Catalogue", icon: Package },
-      { href: "/vendors", label: "Vendors", icon: Truck },
-      { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
-      { href: "/assets", label: "Asset Register", icon: Boxes },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
+      { href: "/dashboard", label: "Lead Dashboard", icon: LayoutDashboard },
       { href: "/executive", label: "Executive Dashboard", icon: LineChart, adminOnly: true },
       { href: "/agents", label: "Agent Performance", icon: BarChart3, adminOnly: true },
+      { href: "/projects?ownership=COCO", label: "Chargers & Stations", icon: Zap },
+    ],
+  },
+  {
+    label: "",
+    items: [{ href: "/tasks", label: "Tasks", icon: ListTodo }],
+  },
+  {
+    label: "",
+    items: [{ href: "/pipeline", label: "Pipeline", icon: KanbanSquare }],
+  },
+  {
+    label: "Sales",
+    items: [
+      { href: "/leads", label: "All Leads", icon: Users2 },
+      { href: "/leads?type=FRANCHISE", label: "Franchise", icon: Handshake },
+      { href: "/leads?type=RWA", label: "RWA", icon: Building2 },
+      { href: "/leads?type=EPC", label: "EPC", icon: HardHat },
+      { href: "/b2b", label: "B2B", icon: Building2 },
+      { href: "/loans", label: "Loan Customers", icon: Landmark },
+      { href: "/sites", label: "Site Enquiries", icon: MapPin },
+      { href: "/partners", label: "Channel Partners", icon: Handshake },
+      { href: "/catalog", label: "Create Quotation", icon: Package },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { href: "/projects", label: "Project Management", icon: HardHat },
+      { href: "/vendors", label: "Vendor Management", icon: Truck },
+      { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
+      { href: "/assets", label: "Asset Register", icon: Boxes },
+      { href: "/catalog", label: "Charger Catalogue", icon: Package },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
       { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
       { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
@@ -223,11 +238,13 @@ function NavList({ groups }: { groups: { label: string; items: NavItem[] }[] }) 
 
   return (
     <>
-      {groups.map((group) => (
-        <div key={group.label} className="mb-3">
-          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-500">
-            {group.label}
-          </p>
+      {groups.map((group, i) => (
+        <div key={group.label || `group-${i}`} className="mb-3">
+          {group.label && (
+            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-500">
+              {group.label}
+            </p>
+          )}
           <ul className="space-y-0.5">
             {group.items.map(({ href, label, icon: Icon }) => {
               const [path, queryString] = href.split("?");
