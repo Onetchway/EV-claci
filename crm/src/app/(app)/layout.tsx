@@ -38,8 +38,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard", label: "Lead Dashboard", icon: LayoutDashboard },
       { href: "/executive", label: "Executive Dashboard", icon: LineChart, adminOnly: true },
       { href: "/agents", label: "Agent Performance", icon: BarChart3, adminOnly: true },
-      { href: "/chargers", label: "Chargers & Stations", icon: Zap },
-      { href: "/earnings", label: "Earnings", icon: TrendingUp },
     ],
   },
   {
@@ -68,9 +66,16 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/vendors", label: "Vendor Management", icon: Truck },
       { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
       { href: "/assets", label: "Asset Register", icon: Boxes },
-      { href: "/tickets", label: "Tickets", icon: Ticket },
+    ],
+  },
+  {
+    label: "CMS",
+    items: [
+      { href: "/chargers", label: "Charger Dashboard", icon: Zap },
+      { href: "/tickets", label: "Ticket Management", icon: Ticket },
       { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
       { href: "/zones", label: "Zones & Load Balancing", icon: MapPin },
+      { href: "/earnings", label: "Earnings & Statistics", icon: TrendingUp },
     ],
   },
   {

@@ -24,6 +24,9 @@ export const CHARGER_REGISTRY = "chargerRegistry";
 export const CHARGER_VENDORS = ["Exicom", "Everta", "Mindra", "Other"] as const;
 export type ChargerVendor = (typeof CHARGER_VENDORS)[number];
 
+export const CHARGER_TYPES = ["AC", "DC"] as const;
+export type ChargerPowerType = (typeof CHARGER_TYPES)[number];
+
 export const CONNECTOR_TYPES = ["Type 2", "CCS2", "CHAdeMO", "GB/T", "Bharat AC-001", "Bharat DC-001"] as const;
 export type ConnectorTypeName = (typeof CONNECTOR_TYPES)[number];
 
@@ -33,7 +36,10 @@ export interface ChargerRegistration {
   chargerId: string;
   label: string;
   location: string;
+  chargerPowerType: ChargerPowerType;
   vendor: ChargerVendor;
+  /** Free-text OEM name, used (and shown instead of `vendor`) when vendor === "Other". */
+  vendorOther?: string;
   model?: string;
   connectorType?: ConnectorTypeName;
   powerKw?: number;
@@ -42,9 +48,17 @@ export interface ChargerRegistration {
   /** Manually entered — no geocoding dependency, so no Maps API key is required. */
   lat?: number | null;
   lng?: number | null;
+  /** Optional link to the EPC/RWA/Software (etc.) lead this charger belongs to. */
+  leadId?: string | null;
+  leadCode?: string | null;
   active: boolean;
   createdAt?: TS;
   createdBy?: Actor;
+}
+
+/** Display name for a registration's manufacturer — the free-text override when vendor is "Other". */
+export function oemLabel(r: Pick<ChargerRegistration, "vendor" | "vendorOther">): string {
+  return r.vendor === "Other" && r.vendorOther?.trim() ? r.vendorOther : r.vendor;
 }
 
 export type ChargerRegistrationDraft = Omit<ChargerRegistration, "id" | "chargerId" | "active" | "createdAt" | "createdBy">;
@@ -94,7 +108,10 @@ export async function registerCharger(draft: ChargerRegistrationDraft, actor: Ac
 
 export async function updateChargerRegistration(
   id: string,
-  patch: Partial<Pick<ChargerRegistration, "label" | "location" | "vendor" | "model" | "connectorType" | "powerKw" | "notes" | "zoneId" | "lat" | "lng">>,
+  patch: Partial<Pick<ChargerRegistration,
+    "label" | "location" | "chargerPowerType" | "vendor" | "vendorOther" | "model" | "connectorType" |
+    "powerKw" | "notes" | "zoneId" | "lat" | "lng" | "leadId" | "leadCode"
+  >>,
 ): Promise<void> {
   await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), { ...patch });
 }

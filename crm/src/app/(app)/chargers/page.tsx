@@ -16,18 +16,19 @@ import {
 } from "@/components/ui";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  chargerWsUrl, CHARGER_VENDORS, CONNECTOR_TYPES, registerCharger, setChargerActive,
+  chargerWsUrl, CHARGER_TYPES, CHARGER_VENDORS, CONNECTOR_TYPES, oemLabel, registerCharger, setChargerActive,
   subscribeChargerRegistry, updateChargerRegistration, type ChargerRegistration, type ChargerRegistrationDraft,
 } from "@/lib/db/charger-registry";
 import {
   subscribeChargePoints, subscribeRecentSessions, type ChargePoint,
   type ChargeSession, type ConnectorStatus,
 } from "@/lib/db/chargers";
+import { subscribeLeads } from "@/lib/db/leads";
 import { sendChargerCommand } from "@/lib/ocpp-commands";
 import { addRfidToken, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
 import { subscribeZones } from "@/lib/db/zones";
 import { canManageChargers, canManageRfid } from "@/lib/permissions";
-import type { RfidToken, Zone } from "@/lib/types";
+import type { Lead, RfidToken, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
 
 const ChargersMap = dynamic(() => import("@/components/chargers-map").then((m) => m.ChargersMap), {
@@ -59,7 +60,9 @@ function durationMinutes(session: ChargeSession): string {
 }
 
 const blankDraft: ChargerRegistrationDraft = {
-  label: "", location: "", vendor: "Exicom", model: "", connectorType: undefined, powerKw: undefined, notes: "",
+  label: "", location: "", chargerPowerType: "DC", vendor: "Exicom", vendorOther: "", model: "",
+  connectorType: undefined, powerKw: undefined, notes: "", lat: null, lng: null, zoneId: null,
+  leadId: null, leadCode: null,
 };
 
 /** Generates and displays the connection QR for a given charger, on demand — nothing is precomputed. */
@@ -133,6 +136,8 @@ export default function ChargersPage() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState<ChargerRegistrationDraft>(blankDraft);
+  const [draftLeadType, setDraftLeadType] = useState<"" | "EPC" | "RWA" | "SOFTWARE">("");
+  const [leadOptions, setLeadOptions] = useState<Lead[]>([]);
   const [registering, setRegistering] = useState(false);
   const [justRegisteredId, setJustRegisteredId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
@@ -156,6 +161,10 @@ export default function ChargersPage() {
   useEffect(() => subscribeChargerRegistry(setRegistry), []);
   useEffect(() => subscribeRfidTokens(setRfidTokens), []);
   useEffect(() => subscribeZones(setZones), []);
+  useEffect(() => {
+    if (!draftLeadType) { setLeadOptions([]); return; }
+    return subscribeLeads({ type: draftLeadType, max: 200 }, setLeadOptions);
+  }, [draftLeadType]);
 
   function openLocate(r: ChargerRegistration) {
     setLocatingReg(r);
@@ -250,6 +259,7 @@ export default function ChargersPage() {
     setAddOpen(false);
     setJustRegisteredId(null);
     setDraft(blankDraft);
+    setDraftLeadType("");
   }
 
   const viewingReg = registry.find((r) => r.id === viewingId) ?? null;
@@ -304,8 +314,10 @@ export default function ChargersPage() {
                 <tr>
                   <th className="th">Label</th>
                   <th className="th">Charger ID</th>
-                  <th className="th">Vendor</th>
+                  <th className="th">Type</th>
+                  <th className="th">OEM</th>
                   <th className="th">Location</th>
+                  <th className="th">Lead</th>
                   <th className="th">Status</th>
                   <th className="th text-right">Actions</th>
                 </tr>
@@ -317,8 +329,10 @@ export default function ChargersPage() {
                     <tr key={r.id} className="hover:bg-ink-50">
                       <td className="td font-medium">{r.label}</td>
                       <td className="td"><code className="text-xs text-ink-600">{r.chargerId}</code></td>
-                      <td className="td text-ink-600">{r.vendor}</td>
+                      <td className="td text-ink-600">{r.chargerPowerType}{r.connectorType ? ` · ${r.connectorType}` : ""}</td>
+                      <td className="td text-ink-600">{oemLabel(r)}</td>
                       <td className="td text-ink-600">{r.location}</td>
+                      <td className="td text-ink-600">{r.leadCode ?? "—"}</td>
                       <td className="td">
                         {!r.active ? (
                           <Badge className="bg-ink-100 text-ink-500 ring-ink-200">Deactivated</Badge>
@@ -621,7 +635,7 @@ export default function ChargersPage() {
             <Button
               onClick={() => void submitRegistration()}
               loading={registering}
-              disabled={!draft.label.trim() || !draft.location.trim()}
+              disabled={!draft.label.trim() || !draft.location.trim() || draft.lat == null || draft.lng == null}
             >
               Register
             </Button>
@@ -646,18 +660,11 @@ export default function ChargersPage() {
                 placeholder="e.g. Site name / address"
               />
             </Field>
-            <Field label="Vendor">
+            <Field label="Charger type">
               <Select
-                value={draft.vendor}
-                onChange={(e) => setDraft((d) => ({ ...d, vendor: e.target.value as ChargerRegistrationDraft["vendor"] }))}
-                options={CHARGER_VENDORS.map((v) => ({ value: v, label: v }))}
-              />
-            </Field>
-            <Field label="Model">
-              <Input
-                value={draft.model ?? ""}
-                onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))}
-                placeholder="Optional"
+                value={draft.chargerPowerType}
+                onChange={(e) => setDraft((d) => ({ ...d, chargerPowerType: e.target.value as ChargerRegistrationDraft["chargerPowerType"] }))}
+                options={CHARGER_TYPES.map((t) => ({ value: t, label: t }))}
               />
             </Field>
             <Field label="Connector type">
@@ -668,13 +675,78 @@ export default function ChargersPage() {
                 placeholder="Optional"
               />
             </Field>
-            <Field label="Power (kW)">
+            <Field label="OEM / Vendor">
+              <Select
+                value={draft.vendor}
+                onChange={(e) => setDraft((d) => ({ ...d, vendor: e.target.value as ChargerRegistrationDraft["vendor"] }))}
+                options={CHARGER_VENDORS.map((v) => ({ value: v, label: v }))}
+              />
+            </Field>
+            {draft.vendor === "Other" && (
+              <Field label="OEM name">
+                <Input
+                  value={draft.vendorOther ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, vendorOther: e.target.value }))}
+                  placeholder="e.g. Delta, ABB"
+                />
+              </Field>
+            )}
+            <Field label="Model">
+              <Input
+                value={draft.model ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))}
+                placeholder="Optional"
+              />
+            </Field>
+            <Field label="Load / power (kW)">
               <Input
                 type="number"
                 min={0}
                 value={draft.powerKw ?? ""}
                 onChange={(e) => setDraft((d) => ({ ...d, powerKw: e.target.value ? Number(e.target.value) : undefined }))}
                 placeholder="Optional"
+              />
+            </Field>
+            <Field label="Zone">
+              <Select
+                value={draft.zoneId ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, zoneId: e.target.value || null }))}
+                options={zones.map((z) => ({ value: z.id, label: z.name }))}
+                placeholder="No zone"
+              />
+            </Field>
+            <Field label="Latitude" required>
+              <Input
+                value={draft.lat ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, lat: e.target.value ? Number(e.target.value) : null }))}
+                placeholder="e.g. 28.5355"
+              />
+            </Field>
+            <Field label="Longitude" required>
+              <Input
+                value={draft.lng ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, lng: e.target.value ? Number(e.target.value) : null }))}
+                placeholder="e.g. 77.3910"
+              />
+            </Field>
+            <Field label="Lead type" hint="Optional — link this charger to the EPC/RWA/Software lead it belongs to.">
+              <Select
+                value={draftLeadType}
+                onChange={(e) => { setDraftLeadType(e.target.value as typeof draftLeadType); setDraft((d) => ({ ...d, leadId: null, leadCode: null })); }}
+                options={[{ value: "EPC", label: "EPC" }, { value: "RWA", label: "RWA" }, { value: "SOFTWARE", label: "Software" }]}
+                placeholder="None"
+              />
+            </Field>
+            <Field label="Lead">
+              <Select
+                value={draft.leadId ?? ""}
+                onChange={(e) => {
+                  const lead = leadOptions.find((l) => l.id === e.target.value);
+                  setDraft((d) => ({ ...d, leadId: lead?.id ?? null, leadCode: lead?.code ?? null }));
+                }}
+                options={leadOptions.map((l) => ({ value: l.id, label: `${l.code} — ${l.client.name}` }))}
+                placeholder={draftLeadType ? "Choose a lead" : "Pick a lead type first"}
+                disabled={!draftLeadType}
               />
             </Field>
             <Field label="Notes" className="sm:col-span-2">
