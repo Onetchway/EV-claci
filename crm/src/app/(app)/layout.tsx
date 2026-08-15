@@ -53,10 +53,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Sales",
     items: [
       { href: "/leads", label: "All Leads", icon: Users2 },
-      { href: "/leads?type=FRANCHISE", label: "Franchise", icon: Handshake },
-      { href: "/leads?type=RWA", label: "RWA", icon: Building2 },
-      { href: "/leads?type=EPC", label: "EPC", icon: HardHat },
-      { href: "/b2b", label: "B2B", icon: Building2 },
       { href: "/loans", label: "Loan Customers", icon: Landmark },
       { href: "/sites", label: "Site Enquiries", icon: MapPin },
       { href: "/partners", label: "Channel Partners", icon: Handshake },
@@ -70,7 +66,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/vendors", label: "Vendor Management", icon: Truck },
       { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
       { href: "/assets", label: "Asset Register", icon: Boxes },
-      { href: "/catalog", label: "Charger Catalogue", icon: Package },
     ],
   },
   {
