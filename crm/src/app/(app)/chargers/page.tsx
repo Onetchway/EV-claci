@@ -24,7 +24,7 @@ import { sendChargerCommand } from "@/lib/ocpp-commands";
 import { addRfidToken, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
 import { canManageChargers, canManageRfid } from "@/lib/permissions";
 import type { RfidToken } from "@/lib/types";
-import { cn, formatDateTime } from "@/lib/utils";
+import { cn, formatDateTime, formatINR } from "@/lib/utils";
 
 const CONNECTOR_COLOR: Record<ConnectorStatus, string> = {
   Available: "bg-emerald-100 text-emerald-800 ring-emerald-200",
@@ -404,6 +404,7 @@ export default function ChargersPage() {
                   <th className="th">Started</th>
                   <th className="th">Duration</th>
                   <th className="th text-right">Energy delivered</th>
+                  <th className="th text-right">Cost</th>
                   {canManage && <th className="th text-right">Actions</th>}
                 </tr>
               </thead>
@@ -419,6 +420,9 @@ export default function ChargersPage() {
                     <td className="td text-ink-600">{formatDateTime(s.startedAt)}</td>
                     <td className="td text-ink-600">{durationMinutes(s)}</td>
                     <td className="td text-right font-medium tabular-nums">{wh(s.energyDeliveredWh)}</td>
+                    <td className="td text-right tabular-nums text-ink-600">
+                      {s.totalCostInr != null ? formatINR(s.totalCostInr) : s.status === "ENDED" ? "No tariff matched" : "—"}
+                    </td>
                     {canManage && (
                       <td className="td text-right">
                         {s.status === "ACTIVE" && (

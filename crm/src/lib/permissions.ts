@@ -179,3 +179,7 @@ export const canManageTickets = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
 export const canManageRfid = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
+
+// Charging-session pricing — a finance/commercial decision, not an ops one.
+export const canManageTariffs = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");

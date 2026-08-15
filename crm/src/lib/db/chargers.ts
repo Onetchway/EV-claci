@@ -61,6 +61,13 @@ export interface ChargeSession {
   latestEnergyWh?: number;
   energyDeliveredWh?: number;
   stoppedReason?: string | null;
+  /** Stamped by the OCPP server at session end, once a matching tariff is found. Absent if no tariff matched. */
+  tariffId?: string | null;
+  tariffName?: string | null;
+  costBeforeGstInr?: number;
+  gstPct?: number;
+  gstInr?: number;
+  totalCostInr?: number;
 }
 
 function mapChargePoint(id: string, data: Record<string, unknown>): ChargePoint {

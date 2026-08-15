@@ -344,6 +344,13 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
     }
 
+    // Charging-session pricing rules — read by the OCPP server (Admin SDK,
+    // bypasses this) to bill a session at TransactionEvent "Ended".
+    match /tariffs/{tariffId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any

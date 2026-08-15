@@ -7,8 +7,8 @@ import type {
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
   PaymentStatus, PoStatus, PowerLoad, ProjectOwnership, ProjectStage,
   ProjectStatus, QuotationStatus, RejectionReason, RfidTokenStatus, Role, Source,
-  Stage, TaskStatus, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus,
-  VendorStatus, Workstream,
+  Stage, TariffPricingType, TariffScope, TaskStatus, TicketStatus, TicketType,
+  VendorCategory, VendorPaymentStatus, VendorStatus, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -469,6 +469,42 @@ export interface RfidToken {
   status: RfidTokenStatus;
   createdAt: TS;
   createdBy?: Actor | null;
+}
+
+/** Local-time-of-day window a tariff applies in, e.g. peak/off-peak. Minutes are minutes-from-midnight, server local time. */
+export interface TariffTimeWindow {
+  /** 0=Sunday..6=Saturday. Empty = every day. */
+  daysOfWeek: number[];
+  startMinute: number;
+  endMinute: number;
+}
+
+/**
+ * A charging-session pricing rule. Resolved by chargePointId + time at
+ * session-end by the OCPP server (ocpp-server/src/tariff.ts mirrors this
+ * resolution logic — no shared package between the two repos, so keep them
+ * in sync deliberately when editing either).
+ */
+export interface Tariff {
+  id: string;
+  name: string;
+  scope: TariffScope;
+  /** Only used when scope === "SPECIFIC_CHARGERS". */
+  chargerIds: string[];
+  pricingType: TariffPricingType;
+  /** ₹ per kWh / per minute / flat per session, excl. GST. */
+  rate: number;
+  gstPct: number;
+  /** Flat ₹ added to every session this tariff prices, excl. GST. */
+  platformFeeInr: number;
+  timeWindow?: TariffTimeWindow | null;
+  /** Tiebreaker when two active rules match with equal specificity — higher wins. */
+  priority: number;
+  active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
 }
 
 export interface Asset {

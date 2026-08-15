@@ -18,6 +18,7 @@ import { db } from "./firebase.js";
 import {
   energyWhFrom, type ConnectorStatus, type TransactionEventRequest,
 } from "./ocpp/types.js";
+import { computeCost, resolveTariff } from "./tariff.js";
 
 export const CHARGE_POINTS = "chargePoints";
 export const CHARGE_SESSIONS = "chargeSessions";
@@ -159,11 +160,51 @@ export async function recordTransactionEvent(
   // Energy delivered needs both ends on record — recompute after the merge
   // rather than trusting a stale read of the pre-merge doc.
   const snap = await ref.get();
-  const start = snap.data()?.energyStartWh as number | undefined;
-  const latest = snap.data()?.latestEnergyWh as number | undefined;
+  const data = snap.data();
+  const start = data?.energyStartWh as number | undefined;
+  const latest = data?.latestEnergyWh as number | undefined;
+  let energyDeliveredWh: number | undefined;
   if (start != null && latest != null && latest >= start) {
-    await ref.set({ energyDeliveredWh: latest - start }, { merge: true });
+    energyDeliveredWh = latest - start;
+    await ref.set({ energyDeliveredWh }, { merge: true });
   }
+
+  if (req.eventType === "Ended") {
+    await billSession(ref, chargePointId, data, energyDeliveredWh);
+  }
+}
+
+/**
+ * Bills a just-ended session against whatever tariff currently applies.
+ * A session with no matching active tariff is left unbilled (no cost
+ * fields written) rather than guessing a rate — the CRM shows this
+ * explicitly as "No tariff matched" instead of a silent ₹0.
+ */
+async function billSession(
+  ref: FirebaseFirestore.DocumentReference,
+  chargePointId: string,
+  sessionData: FirebaseFirestore.DocumentData | undefined,
+  energyDeliveredWh: number | undefined,
+): Promise<void> {
+  const startedAt = (sessionData?.startedAt as Timestamp | undefined)?.toDate();
+  const endedAt = new Date();
+  const durationMinutes = startedAt ? Math.max(0, (endedAt.getTime() - startedAt.getTime()) / 60000) : 0;
+
+  const tariff = await resolveTariff(chargePointId, endedAt);
+  if (!tariff) return;
+
+  const cost = computeCost(tariff, energyDeliveredWh ?? null, durationMinutes);
+  await ref.set(
+    {
+      tariffId: cost.tariffId,
+      tariffName: cost.tariffName,
+      costBeforeGstInr: cost.costBeforeGstInr,
+      gstPct: cost.gstPct,
+      gstInr: cost.gstInr,
+      totalCostInr: cost.totalCostInr,
+    },
+    { merge: true },
+  );
 }
 
 export async function recordMeterValues(

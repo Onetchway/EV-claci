@@ -895,6 +895,22 @@ export const TICKET_STATUS_COLOR: Record<TicketStatus, string> = {
 export const RFID_TOKEN_STATUSES = ["ACTIVE", "BLOCKED"] as const;
 export type RfidTokenStatus = (typeof RFID_TOKEN_STATUSES)[number];
 
+// ------------------------------------------------------ charging tariffs
+
+export const TARIFF_PRICING_TYPES = ["PER_KWH", "PER_MINUTE", "PER_SESSION"] as const;
+export type TariffPricingType = (typeof TARIFF_PRICING_TYPES)[number];
+
+export const TARIFF_PRICING_TYPE_LABEL: Record<TariffPricingType, string> = {
+  PER_KWH: "₹ per kWh",
+  PER_MINUTE: "₹ per minute",
+  PER_SESSION: "Flat per session",
+};
+
+export const TARIFF_SCOPES = ["ALL_CHARGERS", "SPECIFIC_CHARGERS"] as const;
+export type TariffScope = (typeof TARIFF_SCOPES)[number];
+
+export const WEEKDAY_LABEL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 // ---------------------------------------------------------------------------
 // Asset register & depreciation — chargers and equipment become tracked
 // assets once a purchase order is received. This is an internal management
