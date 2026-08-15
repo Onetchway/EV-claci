@@ -33,6 +33,10 @@ export async function apiFetch(path, options = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      clearSession();
+      window.location.href = '/login';
+    }
     throw new Error(data.error || `Request failed: ${res.status}`);
   }
   return data;
