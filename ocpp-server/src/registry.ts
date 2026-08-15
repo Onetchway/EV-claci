@@ -21,6 +21,23 @@ import {
 
 export const CHARGE_POINTS = "chargePoints";
 export const CHARGE_SESSIONS = "chargeSessions";
+export const CHARGER_REGISTRY = "chargerRegistry";
+
+/**
+ * The CRM's dashboard writes registrations here (see
+ * crm/src/lib/db/charger-registry.ts) — a charge point ID is only allowed to
+ * connect if it has an active registration. Keeps anyone who merely guesses
+ * a charge point ID from posing as a real charger and writing fake telemetry.
+ */
+export async function isRegisteredAndActive(chargePointId: string): Promise<boolean> {
+  const snap = await db()
+    .collection(CHARGER_REGISTRY)
+    .where("chargerId", "==", chargePointId)
+    .where("active", "==", true)
+    .limit(1)
+    .get();
+  return !snap.empty;
+}
 
 interface Connection {
   ws: WebSocket;

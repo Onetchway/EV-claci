@@ -20,7 +20,9 @@ import { handleCall } from "./ocpp/handlers.js";
 import {
   encodeCallError, encodeCallResult, isCall, isCallResult, isCallError, parseFrame,
 } from "./ocpp/rpc.js";
-import { markOffline, registerConnection, unregisterConnection } from "./registry.js";
+import {
+  isRegisteredAndActive, markOffline, registerConnection, unregisterConnection,
+} from "./registry.js";
 
 initFirebase();
 
@@ -63,6 +65,25 @@ wss.on("connection", (ws: WebSocket, req) => {
     return;
   }
 
+  // Only charger IDs registered (and left active) in the CRM dashboard may
+  // connect — closes the "anyone who guesses an ID can pose as a charger"
+  // gap. The check is async, so hold off wiring up message/close handlers
+  // until it resolves; a charger rejected here should simply retry later
+  // rather than error, which is normal OCPP reconnect behavior.
+  void isRegisteredAndActive(chargePointId).then((allowed) => {
+    if (!allowed) {
+      console.warn(`[ws] ${chargePointId} rejected — no active registration in chargerRegistry.`);
+      ws.close(1008, "Unknown or inactive charger ID");
+      return;
+    }
+    attachChargePoint(chargePointId, ws);
+  }).catch((err) => {
+    console.error(`[ws] ${chargePointId} registry check failed:`, err);
+    ws.close(1011, "Registry check failed");
+  });
+});
+
+function attachChargePoint(chargePointId: string, ws: WebSocket): void {
   const negotiated = (ws as { protocol?: string }).protocol;
   console.log(`[ws] ${chargePointId} connected (subprotocol: ${negotiated || "none offered"})`);
   if (negotiated && negotiated !== SUPPORTED_SUBPROTOCOL) {
@@ -116,7 +137,7 @@ wss.on("connection", (ws: WebSocket, req) => {
   ws.on("error", (err) => {
     console.error(`[ws] ${chargePointId} error:`, err);
   });
-});
+}
 
 httpServer.listen(PORT, () => {
   console.log(`OCPP 2.0.1 CSMS listening on :${PORT} (health check at /status, charge points at /ocpp/<id>)`);

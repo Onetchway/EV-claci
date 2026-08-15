@@ -32,13 +32,20 @@ watch the Cloud Run logs after connecting a real unit for the first time.
 If that happens, the fix is a 1.6-shaped parallel set of handlers, not a
 rewrite of this server.
 
-## Known gap: no authentication on the WebSocket endpoint yet
+## Charge point allowlisting
 
-OCPP's real security profiles (HTTP Basic Auth per charge point, or mutual
-TLS) aren't implemented in Phase 1 — anyone who knows a charge point ID can
-currently open a connection and post fake data. Fine for an initial test
-against real hardware; before this handles your whole live fleet, add
-Basic Auth (Security Profile 1) as a small follow-up.
+A connection is only accepted if its charge point ID has an active
+registration in Firestore's `chargerRegistry` collection — written by the
+CRM's dashboard (Chargers & Stations → Add charger), which also generates
+the exact `wss://` URL and a QR code for that ID. Unregistered or
+deactivated IDs get their WebSocket closed immediately (code 1008).
+
+This is ID-based allowlisting, not per-message authentication — it stops
+someone from guessing a charge point ID and posting fake telemetry, but it
+is not equivalent to OCPP's real security profiles (HTTP Basic Auth per
+charge point, or mutual TLS), which still aren't implemented. Add Basic
+Auth (Security Profile 1) as a follow-up before this handles a large live
+fleet on a network you don't fully trust.
 
 ## Local development
 
