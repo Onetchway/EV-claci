@@ -151,3 +151,12 @@ export const canPermanentlyDelete = (viewer: Viewer) => hasRole(viewer, "SUPER_A
 
 export const canManageCatalog = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+
+// ---------------------------------------------------------------------------
+// Procurement & vendors — who Livanto pays to build a station. Operations
+// runs this day to day; Finance needs it to reconcile spend; either can
+// record a vendor payment, same bar as verifying a lead payment.
+// ---------------------------------------------------------------------------
+
+export const canManageVendors = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "FINANCE");

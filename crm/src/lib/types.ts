@@ -4,8 +4,9 @@ import type {
   DocKind, DocStatus, EoiStatus, FollowupPriority, FollowupStatus, FollowupType,
   FundingMode, LandType, LeadStatus, LeadType, LoanStage, LocationType,
   Ownership, OwnerType, PartnerCategory, PartnerStatus, PartnerTier,
-  PaymentMilestone, PaymentMode, PaymentStatus, PowerLoad, ProjectOwnership,
-  ProjectStage, ProjectStatus, RejectionReason, Role, Source, Stage, TaskStatus,
+  PaymentMilestone, PaymentMode, PaymentStatus, PoStatus, PowerLoad,
+  ProjectOwnership, ProjectStage, ProjectStatus, RejectionReason, Role, Source,
+  Stage, TaskStatus, VendorCategory, VendorPaymentStatus, VendorStatus,
   Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
@@ -335,6 +336,77 @@ export interface PartnerCommission {
   status: CommissionStatus;
   accruedAt: TS;
   paidAt?: TS | null;
+}
+
+export interface Vendor {
+  id: string;
+  /** Human-friendly reference, e.g. LG-VN-0004. */
+  code: string;
+  name: string;
+  category: VendorCategory;
+  contactName?: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  gstin?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifsc?: string;
+  paymentTerms?: string;
+  status: VendorStatus;
+  notes?: string;
+  totalOrdered: number;
+  totalPaid: number;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+export interface PoItem {
+  id: string;
+  description: string;
+  qty: number;
+  unitPrice: number;
+  gstPct: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  /** Human-friendly reference, e.g. LG-PO-000012. */
+  poNumber: string;
+  vendorId: string;
+  vendorName: string;
+  status: PoStatus;
+  items: PoItem[];
+  subtotal: number;
+  gst: number;
+  total: number;
+  paidAmount: number;
+  dueAmount: number;
+  /** Which project/station this procurement is for, if any. */
+  linkedProjectId?: string | null;
+  linkedProjectCode?: string | null;
+  expectedDeliveryAt?: TS;
+  receivedAt?: TS | null;
+  notes?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+export interface VendorPayment {
+  id: string;
+  poId: string;
+  amount: number;
+  mode: PaymentMode;
+  reference?: string;
+  status: VendorPaymentStatus;
+  paidAt: TS;
+  note?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
 }
 
 export interface AppNotification {

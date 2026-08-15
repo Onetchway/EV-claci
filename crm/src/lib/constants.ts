@@ -790,6 +790,54 @@ export const COMMISSION_STATUS_COLOR: Record<CommissionStatus, string> = {
 };
 
 // ---------------------------------------------------------------------------
+// Procurement & vendors — who Livanto pays to build a station, as opposed to
+// Channel Partners above, who Livanto pays for bringing a lead in.
+// ---------------------------------------------------------------------------
+
+export const VENDOR_CATEGORIES = [
+  "CHARGER_OEM", "EPC_CONTRACTOR", "CIVIL_WORK", "ELECTRICAL", "TRANSPORT", "OTHER",
+] as const;
+export type VendorCategory = (typeof VENDOR_CATEGORIES)[number];
+
+export const VENDOR_CATEGORY_LABEL: Record<VendorCategory, string> = {
+  CHARGER_OEM: "Charger OEM",
+  EPC_CONTRACTOR: "EPC Contractor",
+  CIVIL_WORK: "Civil Work",
+  ELECTRICAL: "Electrical / LT Panel",
+  TRANSPORT: "Transport / Logistics",
+  OTHER: "Other",
+};
+
+export const VENDOR_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+export type VendorStatus = (typeof VENDOR_STATUSES)[number];
+
+export const PO_STATUSES = [
+  "DRAFT", "SENT", "ACKNOWLEDGED", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED",
+] as const;
+export type PoStatus = (typeof PO_STATUSES)[number];
+
+export const PO_STATUS_LABEL: Record<PoStatus, string> = {
+  DRAFT: "Draft",
+  SENT: "Sent to vendor",
+  ACKNOWLEDGED: "Acknowledged",
+  PARTIALLY_RECEIVED: "Partially received",
+  RECEIVED: "Received",
+  CANCELLED: "Cancelled",
+};
+
+export const PO_STATUS_COLOR: Record<PoStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  SENT: "bg-sky-100 text-sky-800 ring-sky-200",
+  ACKNOWLEDGED: "bg-indigo-100 text-indigo-800 ring-indigo-200",
+  PARTIALLY_RECEIVED: "bg-amber-100 text-amber-800 ring-amber-200",
+  RECEIVED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
+export const VENDOR_PAYMENT_STATUSES = ["PENDING", "PAID"] as const;
+export type VendorPaymentStatus = (typeof VENDOR_PAYMENT_STATUSES)[number];
+
+// ---------------------------------------------------------------------------
 // Lead scoring — a deterministic 0-100 signal of how likely a lead is to
 // close, shown as Hot/Warm/Cold. Not machine-learned: a transparent sum of
 // factors the sales team already tracks, so it's explainable on request.

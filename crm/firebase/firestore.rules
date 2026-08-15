@@ -253,6 +253,25 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
     }
 
+    // ----------------------------------------------------- vendors & procurement
+
+    // Who Livanto pays to build a station — Operations/Finance manage this,
+    // same bar as the app's canManageVendors().
+    match /vendors/{vendorId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
+    match /purchaseOrders/{poId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+
+      match /payments/{paymentId} {
+        allow read: if signedIn();
+        allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+      }
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any
