@@ -17,6 +17,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Login is restricted to Livanto Green's own Google Workspace — this is
+    // the real enforcement boundary, not the login page's UI. Without this,
+    // any successfully-authenticated Google account could self-provision an
+    // active Agent profile via the first-run bootstrap rule below.
+    function fromWorkspace() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower().matches('.*@livantogreen[.]com')
+        && request.auth.token.email_verified == true;
+    }
+
     function role() {
       return signedIn() && request.auth.token.role != null
         ? request.auth.token.role
@@ -93,7 +104,7 @@ service cloud.firestore {
       // Profiles are created by the /api/users route with the Admin SDK, which
       // bypasses these rules. The one exception is first-run bootstrap: the
       // very first account may create its own profile.
-      allow create: if signedIn()
+      allow create: if fromWorkspace()
                     && userId == uid()
                     && request.resource.data.uid == uid()
                     && request.resource.data.role == 'AGENT'

@@ -5,8 +5,9 @@ import {
   type ReactNode,
 } from "react";
 import {
-  onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword,
-  signOut as fbSignOut, updatePassword, type User,
+  GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail,
+  signInWithEmailAndPassword, signInWithPopup, signOut as fbSignOut,
+  updatePassword, type User,
 } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 
@@ -30,12 +31,23 @@ interface AuthState {
   configured: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   changePassword: (next: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+
+/**
+ * Sign-in is restricted to Livanto Green's own Google Workspace. The `hd`
+ * hint below only steers Google's account chooser — it is not enforcement,
+ * since a user can still pick a different account in the picker. The real
+ * boundary is the post-sign-in domain check here (which signs a mismatched
+ * account straight back out before it can touch anything) and the matching
+ * Firestore rule on the user-profile bootstrap write.
+ */
+const WORKSPACE_DOMAIN = "livantogreen.com";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
@@ -104,6 +116,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
   }, []);
 
+  const signInWithGoogle = useCallback(async () => {
+    setError(null);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ hd: WORKSPACE_DOMAIN, prompt: "select_account" });
+    const result = await signInWithPopup(getFirebaseAuth(), provider);
+    const email = (result.user.email ?? "").toLowerCase();
+    if (!email.endsWith(`@${WORKSPACE_DOMAIN}`)) {
+      await fbSignOut(getFirebaseAuth());
+      throw new Error(`Only ${WORKSPACE_DOMAIN} Google Workspace accounts can sign in. Signed in as ${email || "unknown"}.`);
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
     await fbSignOut(getFirebaseAuth());
     setProfile(null);
@@ -141,11 +165,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured: firebaseConfigured,
       error,
       signIn,
+      signInWithGoogle,
       signOut,
       resetPassword,
       changePassword,
     };
-  }, [loading, user, profile, error, signIn, signOut, resetPassword, changePassword]);
+  }, [loading, user, profile, error, signIn, signInWithGoogle, signOut, resetPassword, changePassword]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
