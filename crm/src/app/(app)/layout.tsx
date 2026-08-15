@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Boxes, Building2, FileClock, FileText, HardHat, Handshake,
-  KanbanSquare, Landmark, LayoutDashboard, LineChart, ListTodo, LogOut, MapPin,
-  Menu, Package, Settings, ShieldCheck, Trash2, Truck, Users, Users2, X, Zap,
+  BarChart3, Boxes, Building2, ChevronDown, FileClock, FileText, HardHat,
+  Handshake, KanbanSquare, Landmark, LayoutDashboard, LineChart, ListTodo,
+  LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck, Trash2, Truck,
+  Users, Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -235,42 +236,88 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 function NavList({ groups }: { groups: { label: string; items: NavItem[] }[] }) {
   const pathname = usePathname();
   const search = useSearchParams().toString();
+  const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("livanto-nav-collapsed");
+      if (saved) setCollapsed(JSON.parse(saved));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function toggle(label: string) {
+    setCollapsed((c) => {
+      const next = { ...c, [label]: !c[label] };
+      try { localStorage.setItem("livanto-nav-collapsed", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }
+
+  const needle = query.trim().toLowerCase();
+  const filtered = needle
+    ? groups
+        .map((g) => ({ ...g, items: g.items.filter((it) => it.label.toLowerCase().includes(needle)) }))
+        .filter((g) => g.items.length > 0)
+    : groups;
 
   return (
     <>
-      {groups.map((group, i) => (
-        <div key={group.label || `group-${i}`} className="mb-3">
-          {group.label && (
-            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-500">
-              {group.label}
-            </p>
-          )}
-          <ul className="space-y-0.5">
-            {group.items.map(({ href, label, icon: Icon }) => {
-              const [path, queryString] = href.split("?");
-              const active =
-                (pathname === path || pathname.startsWith(`${path}/`)) &&
-                (queryString ?? "") === search;
-              return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition",
-                      active
-                        ? "bg-brand-600 font-medium text-white"
-                        : "text-ink-300 hover:bg-ink-800 hover:text-white",
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+      <div className="relative mb-3 px-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-500" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search…"
+          className="w-full rounded-lg border border-ink-700 bg-ink-800 py-1.5 pl-8 pr-2 text-sm text-white placeholder:text-ink-500 focus:border-brand-500 focus:outline-none"
+        />
+      </div>
+
+      {filtered.map((group, i) => {
+        const isCollapsed = !needle && group.label && collapsed[group.label];
+        return (
+          <div key={group.label || `group-${i}`} className="mb-3">
+            {group.label && (
+              <button
+                type="button"
+                onClick={() => toggle(group.label)}
+                className="flex w-full items-center justify-between px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-500 hover:text-ink-300"
+              >
+                {group.label}
+                <ChevronDown className={cn("h-3 w-3 transition-transform", isCollapsed && "-rotate-90")} />
+              </button>
+            )}
+            {!isCollapsed && (
+              <ul className="space-y-0.5">
+                {group.items.map(({ href, label, icon: Icon }) => {
+                  const [path, queryString] = href.split("?");
+                  const active =
+                    (pathname === path || pathname.startsWith(`${path}/`)) &&
+                    (queryString ?? "") === search;
+                  return (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        className={cn(
+                          "flex items-center gap-2.5 rounded-full px-3 py-2 text-sm transition",
+                          active
+                            ? "bg-brand-600 font-medium text-white"
+                            : "text-ink-300 hover:bg-ink-800 hover:text-white",
+                        )}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </>
   );
 }
