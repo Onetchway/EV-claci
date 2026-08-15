@@ -307,6 +307,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Admin-entered charger metadata (label, vendor, site, generated
+    // connection ID) — deliberately a separate collection from
+    // chargePoints/chargeSessions above, which only the OCPP server ever
+    // writes. The OCPP server checks this collection (via the Admin SDK,
+    // bypassing these rules) before accepting a WebSocket connection, so
+    // only chargers registered here — and marked active — can connect.
+    match /chargerRegistry/{chargerId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any
