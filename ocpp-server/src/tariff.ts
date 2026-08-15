@@ -13,7 +13,7 @@
 import { db } from "./firebase.js";
 
 export type TariffPricingType = "PER_KWH" | "PER_MINUTE" | "PER_SESSION";
-export type TariffScope = "ALL_CHARGERS" | "SPECIFIC_CHARGERS";
+export type TariffScope = "ALL_CHARGERS" | "STATE" | "ZONE" | "SPECIFIC_CHARGERS";
 
 export interface TariffTimeWindow {
   daysOfWeek: number[];
@@ -26,6 +26,8 @@ export interface TariffDoc {
   name: string;
   scope: TariffScope;
   chargerIds: string[];
+  zoneIds: string[];
+  states: string[];
   pricingType: TariffPricingType;
   rate: number;
   gstPct: number;
@@ -52,16 +54,40 @@ function matchesTimeWindow(tw: TariffTimeWindow, at: Date): boolean {
 }
 
 /** Higher = more specific; used to pick the best match when several tariffs apply. */
+const SCOPE_SPECIFICITY: Record<TariffScope, number> = {
+  SPECIFIC_CHARGERS: 3,
+  ZONE: 2,
+  STATE: 1,
+  ALL_CHARGERS: 0,
+};
 function specificity(t: TariffDoc): number {
-  return (t.scope === "SPECIFIC_CHARGERS" ? 2 : 0) + (t.timeWindow ? 1 : 0);
+  return SCOPE_SPECIFICITY[t.scope] + (t.timeWindow ? 1 : 0);
+}
+
+interface ChargerContext {
+  zoneId: string | null;
+  state: string | null;
+}
+
+async function loadChargerContext(chargerId: string): Promise<ChargerContext> {
+  const snap = await db().collection("chargerRegistry").where("chargerId", "==", chargerId).limit(1).get();
+  if (snap.empty) return { zoneId: null, state: null };
+  const data = snap.docs[0]!.data();
+  return { zoneId: (data.zoneId as string | undefined) ?? null, state: (data.state as string | undefined) ?? null };
 }
 
 export async function resolveTariff(chargerId: string, at: Date): Promise<TariffDoc | null> {
-  const snap = await db().collection("tariffs").where("active", "==", true).get();
+  const [snap, ctx] = await Promise.all([
+    db().collection("tariffs").where("active", "==", true).get(),
+    loadChargerContext(chargerId),
+  ]);
+
   const candidates: TariffDoc[] = [];
   for (const doc of snap.docs) {
     const t = { id: doc.id, ...doc.data() } as TariffDoc;
     if (t.scope === "SPECIFIC_CHARGERS" && !t.chargerIds.includes(chargerId)) continue;
+    if (t.scope === "ZONE" && (!ctx.zoneId || !t.zoneIds.includes(ctx.zoneId))) continue;
+    if (t.scope === "STATE" && (!ctx.state || !t.states.includes(ctx.state))) continue;
     if (t.timeWindow && !matchesTimeWindow(t.timeWindow, at)) continue;
     candidates.push(t);
   }

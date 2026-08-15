@@ -27,6 +27,7 @@ import { subscribeLeads } from "@/lib/db/leads";
 import { sendChargerCommand } from "@/lib/ocpp-commands";
 import { addRfidToken, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
 import { subscribeZones } from "@/lib/db/zones";
+import { INDIAN_STATES } from "@/lib/constants";
 import { canManageChargers, canManageRfid } from "@/lib/permissions";
 import type { Lead, RfidToken, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
@@ -60,7 +61,7 @@ function durationMinutes(session: ChargeSession): string {
 }
 
 const blankDraft: ChargerRegistrationDraft = {
-  label: "", location: "", chargerPowerType: "DC", vendor: "Exicom", vendorOther: "", model: "",
+  label: "", location: "", state: "", chargerPowerType: "DC", vendor: "Exicom", vendorOther: "", model: "",
   connectorType: undefined, powerKw: undefined, notes: "", lat: null, lng: null, zoneId: null,
   leadId: null, leadCode: null,
 };
@@ -658,6 +659,14 @@ export default function ChargersPage() {
                 value={draft.location}
                 onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
                 placeholder="e.g. Site name / address"
+              />
+            </Field>
+            <Field label="State" className="sm:col-span-2">
+              <Select
+                value={draft.state ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, state: e.target.value }))}
+                options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
+                placeholder="Optional"
               />
             </Field>
             <Field label="Charger type">

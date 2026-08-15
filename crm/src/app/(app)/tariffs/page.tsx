@@ -10,17 +10,21 @@ import {
 } from "@/components/ui";
 import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
 import { createTariff, subscribeTariffs, updateTariff, setTariffActive, type TariffDraft } from "@/lib/db/tariffs";
+import { subscribeZones } from "@/lib/db/zones";
 import {
-  TARIFF_PRICING_TYPE_LABEL, TARIFF_PRICING_TYPES, TARIFF_SCOPES, WEEKDAY_LABEL,
+  INDIAN_STATES, TARIFF_PRICING_TYPE_LABEL, TARIFF_PRICING_TYPES, TARIFF_SCOPE_LABEL,
+  TARIFF_SCOPES, WEEKDAY_LABEL,
 } from "@/lib/constants";
 import { canManageTariffs } from "@/lib/permissions";
-import type { Tariff } from "@/lib/types";
+import type { Tariff, Zone } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 const blankDraft: TariffDraft = {
   name: "",
   scope: "ALL_CHARGERS",
   chargerIds: [],
+  zoneIds: [],
+  states: [],
   pricingType: "PER_KWH",
   rate: 0,
   gstPct: 18,
@@ -52,6 +56,7 @@ export default function TariffsPage() {
 
   const [rows, setRows] = useState<Tariff[] | null>(null);
   const [chargers, setChargers] = useState<ChargerRegistration[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<TariffDraft>(blankDraft);
@@ -59,8 +64,17 @@ export default function TariffsPage() {
 
   useEffect(() => subscribeTariffs(setRows), []);
   useEffect(() => subscribeChargerRegistry(setChargers), []);
+  useEffect(() => subscribeZones(setZones), []);
 
   const chargerLabel = useMemo(() => new Map(chargers.map((c) => [c.chargerId, c.label])), [chargers]);
+  const zoneLabel = useMemo(() => new Map(zones.map((z) => [z.id, z.name])), [zones]);
+
+  function appliesToLabel(t: Tariff): string {
+    if (t.scope === "ALL_CHARGERS") return "All chargers";
+    if (t.scope === "SPECIFIC_CHARGERS") return t.chargerIds.length ? t.chargerIds.map((id) => chargerLabel.get(id) ?? id).join(", ") : "—";
+    if (t.scope === "ZONE") return t.zoneIds.length ? t.zoneIds.map((id) => zoneLabel.get(id) ?? id).join(", ") : "—";
+    return t.states.length ? t.states.join(", ") : "—";
+  }
 
   function openNew() {
     setEditingId(null);
@@ -72,8 +86,8 @@ export default function TariffsPage() {
   function openEdit(t: Tariff) {
     setEditingId(t.id);
     setDraft({
-      name: t.name, scope: t.scope, chargerIds: t.chargerIds, pricingType: t.pricingType,
-      rate: t.rate, gstPct: t.gstPct, platformFeeInr: t.platformFeeInr,
+      name: t.name, scope: t.scope, chargerIds: t.chargerIds, zoneIds: t.zoneIds, states: t.states,
+      pricingType: t.pricingType, rate: t.rate, gstPct: t.gstPct, platformFeeInr: t.platformFeeInr,
       timeWindow: t.timeWindow ?? null, priority: t.priority, active: t.active,
     });
     setUseTimeWindow(!!t.timeWindow);
@@ -134,11 +148,7 @@ export default function TariffsPage() {
               {rows.map((t) => (
                 <tr key={t.id} className="hover:bg-ink-50">
                   <td className="td font-medium">{t.name}</td>
-                  <td className="td text-ink-600">
-                    {t.scope === "ALL_CHARGERS" ? "All chargers" : (
-                      t.chargerIds.length ? t.chargerIds.map((id) => chargerLabel.get(id) ?? id).join(", ") : "—"
-                    )}
-                  </td>
+                  <td className="td text-ink-600">{appliesToLabel(t)}</td>
                   <td className="td tabular-nums">{rateLabel(t)}{t.platformFeeInr > 0 && <span className="text-ink-500"> + {formatINR(t.platformFeeInr)}</span>}</td>
                   <td className="td text-ink-600">{t.gstPct}%</td>
                   <td className="td text-ink-600">{timeWindowLabel(t)}</td>
@@ -188,7 +198,7 @@ export default function TariffsPage() {
               <Select
                 value={draft.scope}
                 onChange={(e) => setDraft((d) => ({ ...d, scope: e.target.value as TariffDraft["scope"] }))}
-                options={TARIFF_SCOPES.map((s) => ({ value: s, label: s === "ALL_CHARGERS" ? "All chargers (default)" : "Specific chargers" }))}
+                options={TARIFF_SCOPES.map((s) => ({ value: s, label: TARIFF_SCOPE_LABEL[s] }))}
               />
             </Field>
             <Field label="Priority" hint="Higher wins when two rules tie on specificity.">
@@ -209,6 +219,44 @@ export default function TariffsPage() {
                     onChange={(v) => setDraft((d) => ({
                       ...d,
                       chargerIds: v ? [...d.chargerIds, c.chargerId] : d.chargerIds.filter((x) => x !== c.chargerId),
+                    }))}
+                  />
+                ))}
+              </div>
+            </Field>
+          )}
+
+          {draft.scope === "ZONE" && (
+            <Field label="Zones / sites">
+              <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2">
+                {zones.length === 0 ? (
+                  <p className="text-xs text-ink-500">No zones created yet — see Zones & Load Balancing.</p>
+                ) : zones.map((z) => (
+                  <Checkbox
+                    key={z.id}
+                    label={z.name}
+                    checked={draft.zoneIds.includes(z.id)}
+                    onChange={(v) => setDraft((d) => ({
+                      ...d,
+                      zoneIds: v ? [...d.zoneIds, z.id] : d.zoneIds.filter((x) => x !== z.id),
+                    }))}
+                  />
+                ))}
+              </div>
+            </Field>
+          )}
+
+          {draft.scope === "STATE" && (
+            <Field label="States">
+              <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2">
+                {INDIAN_STATES.map((s) => (
+                  <Checkbox
+                    key={s}
+                    label={s}
+                    checked={draft.states.includes(s)}
+                    onChange={(v) => setDraft((d) => ({
+                      ...d,
+                      states: v ? [...d.states, s] : d.states.filter((x) => x !== s),
                     }))}
                   />
                 ))}

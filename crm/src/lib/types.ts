@@ -491,6 +491,10 @@ export interface Tariff {
   scope: TariffScope;
   /** Only used when scope === "SPECIFIC_CHARGERS". */
   chargerIds: string[];
+  /** Only used when scope === "ZONE". */
+  zoneIds: string[];
+  /** Only used when scope === "STATE". */
+  states: string[];
   pricingType: TariffPricingType;
   /** ₹ per kWh / per minute / flat per session, excl. GST. */
   rate: number;

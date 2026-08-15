@@ -36,6 +36,7 @@ export interface ChargerRegistration {
   chargerId: string;
   label: string;
   location: string;
+  state?: string;
   chargerPowerType: ChargerPowerType;
   vendor: ChargerVendor;
   /** Free-text OEM name, used (and shown instead of `vendor`) when vendor === "Other". */
@@ -109,7 +110,7 @@ export async function registerCharger(draft: ChargerRegistrationDraft, actor: Ac
 export async function updateChargerRegistration(
   id: string,
   patch: Partial<Pick<ChargerRegistration,
-    "label" | "location" | "chargerPowerType" | "vendor" | "vendorOther" | "model" | "connectorType" |
+    "label" | "location" | "state" | "chargerPowerType" | "vendor" | "vendorOther" | "model" | "connectorType" |
     "powerKw" | "notes" | "zoneId" | "lat" | "lng" | "leadId" | "leadCode"
   >>,
 ): Promise<void> {
