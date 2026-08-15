@@ -32,8 +32,10 @@ export function subscribePayments(
 
 export interface PaymentDraft {
   milestone: PaymentMilestone;
-  /** Amount excluding GST — GST is always derived, never typed in. */
+  /** Amount excluding GST — GST is derived from gstPct, never typed in directly. */
   baseAmount: number;
+  /** GST rate as a fraction (0.18 = 18%). Defaults to the standard 18% rate. */
+  gstPct?: number;
   mode: PaymentMode;
   reference?: string;
   status: PaymentStatus;
@@ -42,14 +44,15 @@ export interface PaymentDraft {
   note?: string;
 }
 
-function amounts(baseAmount: number) {
+function amounts(baseAmount: number, gstPct: number = GST_RATE) {
   const base = Math.max(0, Math.round(baseAmount));
-  const gst = Math.round(base * GST_RATE);
-  return { baseAmount: base, gstAmount: gst, totalAmount: base + gst };
+  const pct = Math.max(0, gstPct);
+  const gst = Math.round(base * pct);
+  return { baseAmount: base, gstPct: pct, gstAmount: gst, totalAmount: base + gst };
 }
 
 export async function addPayment(lead: Lead, draft: PaymentDraft, actor: Actor): Promise<void> {
-  const money = amounts(draft.baseAmount);
+  const money = amounts(draft.baseAmount, draft.gstPct);
   await addDoc(sub(lead.id), {
     ...money,
     milestone: draft.milestone,
@@ -90,7 +93,9 @@ export async function updatePayment(
     updatedBy: actor,
   };
 
-  if (patch.baseAmount !== undefined) Object.assign(update, amounts(patch.baseAmount));
+  if (patch.baseAmount !== undefined || patch.gstPct !== undefined) {
+    Object.assign(update, amounts(patch.baseAmount ?? payment.baseAmount, patch.gstPct ?? payment.gstPct));
+  }
   if (patch.milestone !== undefined) update.milestone = patch.milestone;
   if (patch.mode !== undefined) update.mode = patch.mode;
   if (patch.reference !== undefined) update.reference = patch.reference;

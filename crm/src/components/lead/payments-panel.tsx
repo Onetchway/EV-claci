@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Plus, Trash2 } from "lucide-react";
+import { BadgeCheck, Plus, Printer, Receipt as ReceiptIcon, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -8,6 +8,7 @@ import {
   Textarea, useAsyncAction,
 } from "@/components/ui";
 import { GST_RATE } from "@/lib/catalog";
+import { useSettings } from "@/hooks/use-settings";
 import {
   MILESTONE_LABEL, PAYMENT_MILESTONES, PAYMENT_MODES, PAYMENT_STATUSES,
   PAYMENT_STATUS_COLOR,
@@ -20,9 +21,15 @@ import { canDeletePayment, canVerifyPayment, type Viewer } from "@/lib/permissio
 import type { Actor, Lead, Payment } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
+// Presets cover every slab Livanto actually invoices at; "Custom" unlocks a
+// free-typed rate for the odd one-off that doesn't fit those.
+const GST_PRESETS = [0.05, 0.089, 0.12, 0.18] as const;
+
 interface DraftState {
   milestone: PaymentMilestone;
   baseAmount: string;
+  gstPct: string;
+  gstCustom: boolean;
   mode: PaymentMode;
   reference: string;
   status: PaymentStatus;
@@ -33,6 +40,8 @@ interface DraftState {
 const blankDraft = (milestone: PaymentMilestone, amount = ""): DraftState => ({
   milestone,
   baseAmount: amount,
+  gstPct: String(GST_RATE * 100),
+  gstCustom: false,
   mode: "NEFT",
   reference: "",
   status: "RECEIVED",
@@ -54,7 +63,9 @@ export function PaymentsPanel({
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Payment | null>(null);
+  const [receiptFor, setReceiptFor] = useState<Payment | null>(null);
   const { busy, run } = useAsyncAction();
+  const { settings } = useSettings();
 
   useEffect(
     () => subscribePayments(lead.id, (rows) => { setPayments(rows); setLoading(false); }, () => setLoading(false)),
@@ -65,7 +76,8 @@ export function PaymentsPanel({
 
   useEffect(() => onSummary?.(summary.collectedPct), [summary.collectedPct, onSummary]);
 
-  const draftGst = draft ? Math.round((Number(draft.baseAmount) || 0) * GST_RATE) : 0;
+  const draftGstPct = draft ? Math.max(0, Number(draft.gstPct) || 0) / 100 : 0;
+  const draftGst = draft ? Math.round((Number(draft.baseAmount) || 0) * draftGstPct) : 0;
   const draftTotal = draft ? (Math.round(Number(draft.baseAmount) || 0) + draftGst) : 0;
 
   function openNew(milestone: PaymentMilestone) {
@@ -78,9 +90,12 @@ export function PaymentsPanel({
 
   function openEdit(p: Payment) {
     setEditing(p);
+    const pct = (p.gstPct ?? GST_RATE) * 100;
     setDraft({
       milestone: p.milestone,
       baseAmount: String(p.baseAmount),
+      gstPct: String(pct),
+      gstCustom: !GST_PRESETS.some((g) => Math.abs(g * 100 - pct) < 0.001),
       mode: p.mode,
       reference: p.reference ?? "",
       status: p.status,
@@ -93,10 +108,12 @@ export function PaymentsPanel({
     if (!draft) return;
     const base = Math.round(Number(draft.baseAmount) || 0);
     if (base <= 0) throw new Error("Enter an amount greater than zero.");
+    const gstPct = Math.max(0, Number(draft.gstPct) || 0) / 100;
 
     const payload = {
       milestone: draft.milestone,
       baseAmount: base,
+      gstPct,
       mode: draft.mode,
       reference: draft.reference.trim(),
       status: draft.status,
@@ -113,6 +130,7 @@ export function PaymentsPanel({
 
   return (
     <div className="space-y-4">
+      <div className={receiptFor ? "hidden print:hidden" : "space-y-4"}>
       <Card
         title="Collection summary"
         subtitle="Reconciled against the quotation's three-stage schedule."
@@ -211,7 +229,10 @@ export function PaymentsPanel({
                       {p.note && <span className="mt-0.5 block max-w-[220px] truncate text-xs text-ink-500">{p.note}</span>}
                     </td>
                     <td className="td text-right tabular-nums">{formatINR(p.baseAmount)}</td>
-                    <td className="td text-right tabular-nums text-ink-500">{formatINR(p.gstAmount)}</td>
+                    <td className="td text-right tabular-nums text-ink-500">
+                      {formatINR(p.gstAmount)}
+                      <span className="ml-1 text-[10px] text-ink-400">@{((p.gstPct ?? GST_RATE) * 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}%</span>
+                    </td>
                     <td className="td text-right font-semibold tabular-nums">{formatINR(p.totalAmount)}</td>
                     <td className="td">
                       {p.mode}
@@ -231,6 +252,15 @@ export function PaymentsPanel({
                     </td>
                     <td className="td">
                       <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setReceiptFor(p)}
+                          className="rounded p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
+                          aria-label="View receipt"
+                          title="Receipt"
+                        >
+                          <ReceiptIcon className="h-3.5 w-3.5" />
+                        </button>
                         {canVerifyPayment(viewer) && p.status !== "VERIFIED" && (
                           <button
                             type="button"
@@ -268,6 +298,16 @@ export function PaymentsPanel({
           </div>
         )}
       </Card>
+      </div>
+
+      {receiptFor && (
+        <PaymentReceipt
+          lead={lead}
+          payment={receiptFor}
+          company={settings.company}
+          onClose={() => setReceiptFor(null)}
+        />
+      )}
 
       <Modal
         open={draft !== null}
@@ -303,6 +343,34 @@ export function PaymentsPanel({
               />
             </Field>
 
+            <Field label="GST rate" required>
+              <div className="flex gap-2">
+                <Select
+                  className="flex-1"
+                  value={draft.gstCustom ? "custom" : draft.gstPct}
+                  onChange={(e) => {
+                    if (e.target.value === "custom") setDraft({ ...draft, gstCustom: true });
+                    else setDraft({ ...draft, gstCustom: false, gstPct: e.target.value });
+                  }}
+                  options={[
+                    ...GST_PRESETS.map((g) => ({ value: String(g * 100), label: `${g * 100}%` })),
+                    { value: "custom", label: "Custom…" },
+                  ]}
+                />
+                {draft.gstCustom && (
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    className="w-24"
+                    value={draft.gstPct}
+                    onChange={(e) => setDraft({ ...draft, gstPct: e.target.value })}
+                    aria-label="Custom GST percentage"
+                  />
+                )}
+              </div>
+            </Field>
+
             <Field label="Payment mode">
               <Select
                 value={draft.mode}
@@ -334,7 +402,7 @@ export function PaymentsPanel({
             </Field>
 
             <div className="sm:col-span-2 rounded-lg bg-ink-50 px-3 py-2.5 text-sm">
-              <div className="flex justify-between"><span className="text-ink-600">GST @ 18%</span><span className="tabular-nums">{formatINR(draftGst)}</span></div>
+              <div className="flex justify-between"><span className="text-ink-600">GST @ {(draftGstPct * 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}%</span><span className="tabular-nums">{formatINR(draftGst)}</span></div>
               <div className="mt-1 flex justify-between font-semibold"><span>Total received</span><span className="tabular-nums">{formatINR(draftTotal)}</span></div>
             </div>
           </div>
@@ -371,6 +439,123 @@ export function PaymentsPanel({
           </p>
         )}
       </Modal>
+    </div>
+  );
+}
+
+function PaymentReceipt({
+  lead, payment, company, onClose,
+}: {
+  lead: Lead;
+  payment: Payment;
+  company: { legalName: string; shortName: string; address: string; gstin: string; cin: string; email: string; website: string; logoUrl: string };
+  onClose: () => void;
+}) {
+  const receiptNo = `RCPT-${lead.code}-${payment.id.slice(0, 6).toUpperCase()}`;
+  const gstPct = payment.gstPct ?? GST_RATE;
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between print:hidden">
+        <Button onClick={onClose}>&larr; Back to payments</Button>
+        <Button variant="primary" onClick={() => window.print()}>
+          <Printer className="h-4 w-4" /> Print / Save as PDF
+        </Button>
+      </div>
+
+      <article className="loi-sheet mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
+        <div className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
+          {company.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={company.logoUrl} alt={company.shortName} className="h-10 w-auto shrink-0 object-contain" />
+          ) : (
+            <p className="text-lg font-bold tracking-tight text-ink-900">{company.legalName}</p>
+          )}
+          <div className="text-right">
+            <p className="text-xs text-ink-500">Payment Receipt &middot; {receiptNo}</p>
+            {(company.email || company.website) && (
+              <p className="mt-1 text-[11px] text-ink-400">
+                {company.email}
+                {company.email && company.website && <> &nbsp;|&nbsp; </>}
+                {company.website}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-ink-500">Received from</p>
+            <p className="font-medium text-ink-900">{lead.client?.name}</p>
+            {lead.client?.company && <p className="text-ink-600">{lead.client.company}</p>}
+            <p className="text-ink-600">{lead.client?.phone}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-ink-500">Lead / Client code</p>
+            <p className="font-medium text-ink-900">{lead.code}</p>
+            <p className="mt-2 text-xs text-ink-500">Date</p>
+            <p className="text-ink-900">{formatDate(payment.paidAt)}</p>
+          </div>
+        </div>
+
+        <table className="mt-6 w-full text-sm">
+          <thead>
+            <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
+              <th className="pb-2">Particulars</th>
+              <th className="pb-2 text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-ink-100">
+              <td className="py-2">{MILESTONE_LABEL[payment.milestone]}</td>
+              <td className="py-2 text-right tabular-nums">{formatINR(payment.baseAmount)}</td>
+            </tr>
+            <tr className="border-b border-ink-100">
+              <td className="py-2 text-ink-600">
+                GST @ {(gstPct * 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}%
+              </td>
+              <td className="py-2 text-right tabular-nums text-ink-600">{formatINR(payment.gstAmount)}</td>
+            </tr>
+            <tr>
+              <td className="py-2 font-semibold">Total received</td>
+              <td className="py-2 text-right font-semibold tabular-nums">{formatINR(payment.totalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-ink-500">Payment mode</p>
+            <p className="text-ink-900">{payment.mode}</p>
+          </div>
+          {payment.reference && (
+            <div className="text-right">
+              <p className="text-xs text-ink-500">Reference / UTR</p>
+              <p className="text-ink-900">{payment.reference}</p>
+            </div>
+          )}
+        </div>
+
+        {payment.note && (
+          <div className="mt-4 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{payment.note}</div>
+        )}
+
+        <div className="mt-8 flex items-center justify-between text-xs text-ink-500">
+          <span>Status: {payment.status}</span>
+          <span>Received by: {payment.createdBy?.name}</span>
+        </div>
+
+        <footer className="mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
+          <p>{company.legalName}</p>
+          <p>
+            {[
+              company.gstin && `GSTN. ${company.gstin}`,
+              company.cin && `CIN. ${company.cin}`,
+              company.address,
+            ].filter(Boolean).join(" | ")}
+          </p>
+        </footer>
+      </article>
     </div>
   );
 }

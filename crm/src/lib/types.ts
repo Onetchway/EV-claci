@@ -238,6 +238,8 @@ export interface Payment {
   milestone: PaymentMilestone;
   /** Amount excluding GST. */
   baseAmount: number;
+  /** GST rate applied, as a fraction (0.18 = 18%). Defaults to 18% on older entries that predate this field. */
+  gstPct?: number;
   gstAmount: number;
   totalAmount: number;
   mode: PaymentMode;
