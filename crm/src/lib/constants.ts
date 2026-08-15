@@ -918,6 +918,16 @@ export const TARIFF_SCOPE_LABEL: Record<TariffScope, string> = {
 
 export const WEEKDAY_LABEL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+// -------------------------------------------------------- EMSP users & fleet
+
+export const EMSP_USER_TYPES = ["RETAIL", "CORPORATE"] as const;
+export type EmspUserType = (typeof EMSP_USER_TYPES)[number];
+
+export const EMSP_USER_TYPE_LABEL: Record<EmspUserType, string> = {
+  RETAIL: "Retail",
+  CORPORATE: "Corporate",
+};
+
 // ---------------------------------------------------------------------------
 // Asset register & depreciation — chargers and equipment become tracked
 // assets once a purchase order is received. This is an internal management

@@ -357,6 +357,30 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
     }
 
+    // EMSP (driver-facing) users and the corporate accounts they can bill to.
+    match /corporateAccounts/{accountId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+    match /emspUsers/{userId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
+    // Fleet operators: fleets, their vehicles and drivers.
+    match /fleets/{fleetId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+    match /vehicles/{vehicleId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+    match /drivers/{driverId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any

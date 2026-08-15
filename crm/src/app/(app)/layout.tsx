@@ -7,7 +7,7 @@ import {
   BarChart3, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
   HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard, LineChart,
   ListTodo, LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck, Ticket,
-  Trash2, TrendingUp, Truck, Users, Users2, X, Zap,
+  Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -76,6 +76,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
       { href: "/zones", label: "Zones & Load Balancing", icon: MapPin },
       { href: "/earnings", label: "Earnings & Statistics", icon: TrendingUp },
+      { href: "/emsp-users", label: "User Management", icon: UserCircle },
+      { href: "/fleets", label: "Fleet Management", icon: Truck },
     ],
   },
   {

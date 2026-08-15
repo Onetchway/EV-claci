@@ -5,7 +5,7 @@ import type {
   FollowupPriority, FollowupStatus, FollowupType, FundingMode, LandType,
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
-  PaymentStatus, PoStatus, PowerLoad, ProjectOwnership, ProjectStage,
+  EmspUserType, PaymentStatus, PoStatus, PowerLoad, ProjectOwnership, ProjectStage,
   ProjectStatus, QuotationStatus, RejectionReason, RfidTokenStatus, Role, Source,
   Stage, TariffPricingType, TariffScope, TaskStatus, TicketStatus, TicketType,
   VendorCategory, VendorPaymentStatus, VendorStatus, Workstream,
@@ -523,6 +523,63 @@ export interface Zone {
   id: string;
   name: string;
   maxLoadKw: number;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+/** A corporate customer paying for employee/fleet charging under one account. */
+export interface CorporateAccount {
+  id: string;
+  name: string;
+  gstin?: string;
+  billingEmail?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+/** An EMSP (driver-facing) user — distinct from AppUser, which is CRM team login. */
+export interface EmspUser {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  type: EmspUserType;
+  /** Only set when type === "CORPORATE". */
+  corporateAccountId?: string | null;
+  rfidTokenId?: string | null;
+  active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+export interface Fleet {
+  id: string;
+  name: string;
+  corporateAccountId?: string | null;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+export interface Driver {
+  id: string;
+  fleetId: string;
+  name: string;
+  phone: string;
+  licenseNumber?: string;
+  emspUserId?: string | null;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+export interface Vehicle {
+  id: string;
+  fleetId: string;
+  regNumber: string;
+  /** References ev-cars.ts's EV_CAR_CATALOG, or OTHER_CAR_ID for a manual entry. */
+  carId: string;
+  carLabel: string;
+  batteryKwh?: number;
+  assignedDriverId?: string | null;
   createdAt: TS;
   createdBy?: Actor | null;
 }
