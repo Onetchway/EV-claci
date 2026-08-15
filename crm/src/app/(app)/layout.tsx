@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
   Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
-  LineChart, ListTodo, LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck,
+  ListTodo, LogOut, MapPin, Menu, Package, Search, Settings, ShieldCheck,
   Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
 } from "lucide-react";
 
@@ -35,18 +35,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Dashboard",
     items: [
-      { href: "/dashboard", label: "Lead Dashboard", icon: LayoutDashboard },
-      { href: "/executive", label: "Executive Dashboard", icon: LineChart, adminOnly: true },
-      { href: "/agents", label: "Agent Performance", icon: BarChart3, adminOnly: true },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/agents", label: "Team Performance", icon: BarChart3, adminOnly: true },
     ],
-  },
-  {
-    label: "",
-    items: [{ href: "/tasks", label: "Tasks", icon: ListTodo }],
-  },
-  {
-    label: "",
-    items: [{ href: "/pipeline", label: "Pipeline", icon: KanbanSquare }],
   },
   {
     label: "Sales",
@@ -224,6 +215,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <GlobalSearch />
           </div>
           <div className="ml-auto flex items-center gap-1">
+            <Link
+              href="/tasks"
+              className={cn(
+                "rounded-lg p-2 hover:bg-ink-100",
+                pathname === "/tasks" ? "bg-ink-100 text-ink-900" : "text-ink-500 hover:text-ink-800",
+              )}
+              title="Tasks"
+            >
+              <ListTodo className="h-5 w-5" />
+            </Link>
+            <Link
+              href="/pipeline"
+              className={cn(
+                "rounded-lg p-2 hover:bg-ink-100",
+                pathname === "/pipeline" ? "bg-ink-100 text-ink-900" : "text-ink-500 hover:text-ink-800",
+              )}
+              title="Pipeline"
+            >
+              <KanbanSquare className="h-5 w-5" />
+            </Link>
             {user && <NotificationBell uid={user.uid} />}
           </div>
         </header>

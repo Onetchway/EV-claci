@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, BadgeIndianRupee, CheckCircle2, FileSignature, Plus, TrendingUp,
-  Users2, XCircle,
+  AlertTriangle, BadgeIndianRupee, Battery, CheckCircle2, FileSignature, Plus,
+  TrendingUp, Users2, Wifi, XCircle, Zap,
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer,
@@ -21,6 +21,7 @@ import {
 import {
   EOI_STATUS_COLOR, EOI_STATUS_LABEL, FOLLOWUP_TYPE_LABEL, STAGES, STAGE_META,
 } from "@/lib/constants";
+import { subscribeChargePoints, subscribeRecentSessions, type ChargePoint, type ChargeSession } from "@/lib/db/chargers";
 import { subscribeOpenTasks, summariseTasks } from "@/lib/db/tasks";
 import { isAdmin } from "@/lib/permissions";
 import { scoreLead } from "@/lib/scoring";
@@ -35,6 +36,17 @@ export default function DashboardPage() {
 
   const [openTasks, setOpenTasks] = useState<FollowupTask[]>([]);
   useEffect(() => subscribeOpenTasks(setOpenTasks), []);
+
+  const [chargePoints, setChargePoints] = useState<ChargePoint[]>([]);
+  const [chargerSessions, setChargerSessions] = useState<ChargeSession[]>([]);
+  useEffect(() => subscribeChargePoints(setChargePoints), []);
+  useEffect(() => subscribeRecentSessions(setChargerSessions), []);
+  const chargerStats = useMemo(() => {
+    const online = chargePoints.filter((p) => p.status === "ONLINE").length;
+    const active = chargerSessions.filter((s) => s.status === "ACTIVE").length;
+    const energyWh = chargerSessions.reduce((a, s) => a + (s.energyDeliveredWh ?? 0), 0);
+    return { total: chargePoints.length, online, active, energyKwh: energyWh / 1000 };
+  }, [chargePoints, chargerSessions]);
   const myTasks = useMemo(
     () => (role && isAdmin(role) ? openTasks : openTasks.filter((t) => t.ownerId === profile?.uid)),
     [openTasks, role, profile],
@@ -145,6 +157,20 @@ export default function DashboardPage() {
           icon={<Users2 className="h-4 w-4" />}
         />
       </div>
+
+      <Card
+        title="Chargers & Stations"
+        subtitle="Live status from the OCPP central system"
+        actions={<Link href="/chargers"><Button size="sm">Open full dashboard</Button></Link>}
+        className="mt-4"
+      >
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Registered chargers" value={chargerStats.total} icon={<Zap className="h-4 w-4" />} />
+          <StatCard label="Online now" value={chargerStats.online} tone={chargerStats.online ? "positive" : "default"} icon={<Wifi className="h-4 w-4" />} />
+          <StatCard label="Active sessions" value={chargerStats.active} tone={chargerStats.active ? "positive" : "default"} icon={<Battery className="h-4 w-4" />} />
+          <StatCard label="Energy delivered (recent)" value={`${chargerStats.energyKwh.toFixed(1)} kWh`} />
+        </div>
+      </Card>
 
       {(taskCounts.dueToday > 0 || taskCounts.overdue > 0) && (
         <Card title="Today's tasks" subtitle={role && isAdmin(role) ? "Across the whole team" : "Yours"} className="mt-4">
