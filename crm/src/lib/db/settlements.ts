@@ -8,7 +8,7 @@
  */
 
 import {
-  collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
+  collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, writeBatch,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -33,4 +33,11 @@ export function subscribeSiteRevenueShares(
 
 export async function markRevenueSharePaid(id: string): Promise<void> {
   await updateDoc(doc(getDb(), SITE_REVENUE_SHARES, id), { status: "PAID", paidAt: serverTimestamp() });
+}
+
+/** A "monthly settlements" run — marks every given PENDING entry PAID in one batch, instead of one-by-one. Firestore batches cap at 500 writes; callers filter to a manageable set (e.g. one site's pending entries) before calling this. */
+export async function markRevenueSharesPaidBatch(ids: string[]): Promise<void> {
+  const batch = writeBatch(getDb());
+  for (const id of ids) batch.update(doc(getDb(), SITE_REVENUE_SHARES, id), { status: "PAID", paidAt: serverTimestamp() });
+  await batch.commit();
 }

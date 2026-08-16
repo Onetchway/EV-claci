@@ -1,15 +1,16 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { AlertOctagon, Banknote, CheckCircle2, Plus, Trash2, Zap } from "lucide-react";
+import { AlertOctagon, Banknote, CheckCircle2, Plus, Printer, Trash2, Zap } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard, useAsyncAction,
 } from "@/components/ui";
+import { useSettings } from "@/hooks/use-settings";
 import { createElectricityBill, deleteElectricityBill, subscribeElectricityBills, type ElectricityBillDraft } from "@/lib/db/electricity-bills";
 import { subscribeFailedPayments } from "@/lib/db/failed-payments";
-import { markRevenueSharePaid, subscribeSiteRevenueShares } from "@/lib/db/settlements";
+import { markRevenueSharePaid, markRevenueSharesPaidBatch, subscribeSiteRevenueShares } from "@/lib/db/settlements";
 import { subscribeZones } from "@/lib/db/zones";
 import { canManageSettlements } from "@/lib/permissions";
 import type { ElectricityBill, FailedPayment, SiteRevenueShare, Zone } from "@/lib/types";
@@ -20,6 +21,8 @@ export default function SettlementsPage() {
   const viewer = useViewer();
   const canManage = canManageSettlements(viewer);
   const { run, busy } = useAsyncAction();
+  const { settings } = useSettings();
+  const [statementOpen, setStatementOpen] = useState(false);
 
   const [rows, setRows] = useState<SiteRevenueShare[] | null>(null);
   const [zoneFilter, setZoneFilter] = useState("");
@@ -78,6 +81,17 @@ export default function SettlementsPage() {
     };
   }, [filtered]);
 
+  const pendingIdsForZone = useMemo(
+    () => (zoneFilter ? filtered.filter((r) => r.status === "PENDING").map((r) => r.id) : []),
+    [filtered, zoneFilter],
+  );
+
+  async function runMonthlySettlement() {
+    if (pendingIdsForZone.length === 0) return;
+    if (!window.confirm(`Mark all ${pendingIdsForZone.length} pending entries for this site as paid?`)) return;
+    await run(() => markRevenueSharesPaidBatch(pendingIdsForZone), "Monthly settlement run complete.");
+  }
+
   return (
     <>
       <PageHeader
@@ -92,6 +106,12 @@ export default function SettlementsPage() {
               placeholder="All sites"
             />
             {zoneFilter && <Button size="sm" onClick={() => setBankOpen(true)}>Bank details</Button>}
+            {zoneFilter && <Button size="sm" onClick={() => setStatementOpen(true)}><Printer className="h-4 w-4" /> Statement</Button>}
+            {zoneFilter && canManage && pendingIdsForZone.length > 0 && (
+              <Button size="sm" variant="primary" loading={busy} onClick={() => void runMonthlySettlement()}>
+                Mark all paid ({pendingIdsForZone.length})
+              </Button>
+            )}
           </>
         )}
       />
@@ -267,6 +287,54 @@ export default function SettlementsPage() {
           </div>
           <Field label="Notes"><Input value={billNotes} onChange={(e) => setBillNotes(e.target.value)} placeholder="e.g. DISCOM invoice #" /></Field>
         </div>
+      </Modal>
+
+      <Modal
+        open={statementOpen}
+        onClose={() => setStatementOpen(false)}
+        title={`Statement — ${allZones.find((z) => z.id === zoneFilter)?.name ?? ""}`}
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setStatementOpen(false)}>Close</Button>
+            <Button variant="primary" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print / Save as PDF</Button>
+          </>
+        )}
+      >
+        <article className="print:p-0">
+          <div className="mb-4 flex items-start justify-between gap-4 border-b border-ink-200 pb-3">
+            <div>
+              <p className="text-sm font-bold text-ink-900">{settings.company.legalName}</p>
+              <p className="text-xs text-ink-500">Revenue-share statement</p>
+            </div>
+            <div className="text-right text-xs text-ink-500">
+              <p>{allZones.find((z) => z.id === zoneFilter)?.name}</p>
+              <p>Generated {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</p>
+            </div>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="border-b border-ink-200">
+              <tr>
+                <th className="th">Recipient</th><th className="th">Charger</th><th className="th">When</th>
+                <th className="th text-right">Owed</th><th className="th">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-100">
+              {filtered.map((r) => (
+                <tr key={r.id}>
+                  <td className="td">{r.recipientName ?? "Site host"}</td>
+                  <td className="td text-ink-600">{r.chargePointId ?? "—"}</td>
+                  <td className="td text-ink-600">{formatDateTime(r.createdAt)}</td>
+                  <td className="td text-right tabular-nums">{formatINR(r.shareAmountInr)}</td>
+                  <td className="td">{r.status === "PAID" ? "Paid" : "Pending"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <dl className="mt-4 flex justify-end gap-6 border-t border-ink-200 pt-3 text-sm">
+            <div className="flex items-center gap-2"><dt className="text-ink-500">Pending</dt><dd className="font-medium tabular-nums">{formatINR(totals.pendingAmount)}</dd></div>
+            <div className="flex items-center gap-2"><dt className="text-ink-500">Paid</dt><dd className="font-medium tabular-nums">{formatINR(totals.paidAmount)}</dd></div>
+          </dl>
+        </article>
       </Modal>
 
       <Modal
