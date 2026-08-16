@@ -27,3 +27,36 @@ export async function checkIdToken(idToken: string): Promise<"Accepted" | "Block
   const status = match.docs[0]!.data().status as string | undefined;
   return status === "ACTIVE" ? "Accepted" : "Blocked";
 }
+
+/**
+ * Corporate benefit cap check — separate from checkIdToken's allow-list
+ * check, since a cap only applies to an id token linked to an EMSP user
+ * with monthlyCapInr set. Sums this calendar month's session-charge debits
+ * *attributed to that specific user* (walletTransactions.emspUserId), not
+ * the shared corporate wallet balance, so one employee's spend doesn't get
+ * blamed on another's cap.
+ */
+export async function checkMonthlyCap(idToken: string): Promise<boolean> {
+  const tokenSnap = await db().collection(RFID_TOKENS).where("idToken", "==", idToken).limit(1).get();
+  if (tokenSnap.empty) return true;
+  const tokenId = tokenSnap.docs[0]!.id;
+
+  const userSnap = await db().collection("emspUsers").where("rfidTokenId", "==", tokenId).limit(1).get();
+  if (userSnap.empty) return true;
+  const user = userSnap.docs[0]!;
+  const cap = user.data().monthlyCapInr as number | undefined;
+  if (!cap || cap <= 0) return true;
+
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const txnSnap = await db()
+    .collection("walletTransactions")
+    .where("emspUserId", "==", user.id)
+    .where("type", "==", "DEBIT")
+    .where("createdAt", ">=", monthStart)
+    .get();
+  const spent = txnSnap.docs.reduce((a, d) => a + ((d.data().amountInr as number | undefined) ?? 0), 0);
+  return spent < cap;
+}

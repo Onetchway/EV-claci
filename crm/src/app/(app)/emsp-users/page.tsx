@@ -32,6 +32,7 @@ export default function EmspUsersPage() {
   const [uEmail, setUEmail] = useState("");
   const [uType, setUType] = useState<"RETAIL" | "CORPORATE">("RETAIL");
   const [uAccountId, setUAccountId] = useState("");
+  const [uMonthlyCap, setUMonthlyCap] = useState("");
 
   const [acctOpen, setAcctOpen] = useState(false);
   const [aName, setAName] = useState("");
@@ -70,8 +71,9 @@ export default function EmspUsersPage() {
       await createEmspUser({
         name: uName.trim(), phone: uPhone.trim(), email: uEmail.trim() || undefined,
         type: uType, corporateAccountId: uType === "CORPORATE" ? (uAccountId || null) : null,
+        monthlyCapInr: uType === "CORPORATE" && uMonthlyCap.trim() ? Number(uMonthlyCap) : undefined,
       }, actor);
-      setUName(""); setUPhone(""); setUEmail(""); setUAccountId(""); setUserOpen(false);
+      setUName(""); setUPhone(""); setUEmail(""); setUAccountId(""); setUMonthlyCap(""); setUserOpen(false);
     }, "User added.");
   }
 
@@ -194,9 +196,14 @@ export default function EmspUsersPage() {
             <Select value={uType} onChange={(e) => setUType(e.target.value as "RETAIL" | "CORPORATE")} options={EMSP_USER_TYPES.map((t) => ({ value: t, label: EMSP_USER_TYPE_LABEL[t] }))} />
           </Field>
           {uType === "CORPORATE" && (
-            <Field label="Corporate account">
-              <Select value={uAccountId} onChange={(e) => setUAccountId(e.target.value)} options={accounts.map((a) => ({ value: a.id, label: a.name }))} placeholder="Choose an account" />
-            </Field>
+            <>
+              <Field label="Corporate account">
+                <Select value={uAccountId} onChange={(e) => setUAccountId(e.target.value)} options={accounts.map((a) => ({ value: a.id, label: a.name }))} placeholder="Choose an account" />
+              </Field>
+              <Field label="Monthly benefit cap (₹)">
+                <Input type="number" min={0} value={uMonthlyCap} onChange={(e) => setUMonthlyCap(e.target.value)} placeholder="Optional — no cap if blank" />
+              </Field>
+            </>
           )}
         </div>
       </Modal>

@@ -57,6 +57,8 @@ export async function debitWalletForSession(
       amountInr: totalCostInr,
       type: "DEBIT",
       sessionId,
+      /** The individual EMSP user who tapped the tag — distinct from ownerId when a corporate wallet is shared, and what per-employee monthly caps are measured against. */
+      emspUserId: userDoc.id,
       createdAt: FieldValue.serverTimestamp(),
     });
   });

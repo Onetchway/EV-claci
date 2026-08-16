@@ -8,7 +8,7 @@
 import {
   markOnline, recordMeterValues, recordTransactionEvent, touchHeartbeat, updateConnectorStatus,
 } from "../registry.js";
-import { checkIdToken } from "../rfid.js";
+import { checkIdToken, checkMonthlyCap } from "../rfid.js";
 import { openTicketIfNeeded } from "../tickets.js";
 import { OcppErrorCode } from "./rpc.js";
 import {
@@ -72,7 +72,10 @@ export async function handleCall(
 
     case "Authorize": {
       const req = payload as AuthorizeRequest;
-      const status = await checkIdToken(req.idToken.idToken);
+      let status: AuthorizeResponse["idTokenInfo"]["status"] = await checkIdToken(req.idToken.idToken);
+      if (status === "Accepted" && !(await checkMonthlyCap(req.idToken.idToken))) {
+        status = "NoCredit";
+      }
       const res: AuthorizeResponse = { idTokenInfo: { status } };
       return ok(res);
     }

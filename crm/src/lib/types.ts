@@ -555,6 +555,8 @@ export interface EmspUser {
   corporateAccountId?: string | null;
   rfidTokenId?: string | null;
   walletBalanceInr?: number;
+  /** Corporate benefit cap — this employee's own session spend, resettable-by-calendar-month, is blocked at the charger (Authorize → NoCredit) once it reaches this. Only meaningful when corporateAccountId is set. */
+  monthlyCapInr?: number;
   active: boolean;
   createdAt: TS;
   createdBy?: Actor | null;
@@ -569,6 +571,8 @@ export interface WalletTransaction {
   ownerId: string;
   amountInr: number;
   type: "TOPUP" | "DEBIT";
+  /** The individual EMSP user this debit is attributed to — set on DEBIT rows, may differ from ownerId when a corporate wallet is shared. What monthlyCapInr is measured against. */
+  emspUserId?: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   createdAt: TS;

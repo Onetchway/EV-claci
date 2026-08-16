@@ -47,7 +47,7 @@ export interface AuthorizeRequest {
   idToken: IdToken;
 }
 export interface AuthorizeResponse {
-  idTokenInfo: { status: "Accepted" | "Blocked" | "Expired" | "Invalid" | "Unknown" };
+  idTokenInfo: { status: "Accepted" | "Blocked" | "Expired" | "Invalid" | "Unknown" | "NoCredit" };
 }
 
 export type TransactionEventType = "Started" | "Updated" | "Ended";

@@ -6,11 +6,11 @@ import { Car, IndianRupee, Zap } from "lucide-react";
 
 import { useViewer } from "@/components/auth-provider";
 import {
-  Badge, Card, EmptyState, Field, PageHeader, Select, Spinner, useAsyncAction,
+  Badge, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
 import { subscribeSessionsForWalletOwner, type ChargeSession } from "@/lib/db/chargers";
 import {
-  getCorporateAccount, setEmspUserRfidToken, subscribeEmspUser, subscribeWalletTransactions,
+  getCorporateAccount, setEmspUserMonthlyCap, setEmspUserRfidToken, subscribeEmspUser, subscribeWalletTransactions,
 } from "@/lib/db/emsp-users";
 import { subscribeDriverForEmspUser, subscribeVehiclesForDriver } from "@/lib/db/fleets";
 import { subscribeRfidTokens } from "@/lib/db/rfid";
@@ -64,6 +64,18 @@ export default function EmspUserProfilePage() {
   const linkedToken = useMemo(() => rfidTokens.find((t) => t.id === user?.rfidTokenId) ?? null, [rfidTokens, user]);
   const walletBalance = account ? (account.walletBalanceInr ?? 0) : (user?.walletBalanceInr ?? 0);
 
+  const spentThisMonth = useMemo(() => {
+    if (!user) return 0;
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    return txns
+      .filter((t) => t.type === "DEBIT" && t.emspUserId === user.id)
+      .filter((t) => {
+        const ms = (t.createdAt as { toMillis?: () => number } | null)?.toMillis?.();
+        return ms != null && ms >= monthStart.getTime();
+      })
+      .reduce((a, t) => a + t.amountInr, 0);
+  }, [txns, user]);
+
   if (user === undefined) {
     return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   }
@@ -110,6 +122,35 @@ export default function EmspUserProfilePage() {
               Sessions started with this tag are automatically debited from this {account ? "corporate account's" : "user's"} wallet at session end.
             </p>
           </div>
+
+          {account && (
+            <div className="mt-4 border-t border-ink-100 pt-4">
+              <Field label="Monthly benefit cap (₹)">
+                {canManage ? (
+                  <Input
+                    type="number"
+                    min={0}
+                    defaultValue={user.monthlyCapInr ?? ""}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      void run(() => setEmspUserMonthlyCap(id, v ? Number(v) : null));
+                    }}
+                    placeholder="No cap"
+                  />
+                ) : (
+                  <p className="text-sm text-ink-600">{user.monthlyCapInr ? formatINR(user.monthlyCapInr) : "No cap"}</p>
+                )}
+              </Field>
+              {user.monthlyCapInr ? (
+                <p className="mt-1 text-xs text-ink-500">
+                  Spent this month: {formatINR(spentThisMonth)} of {formatINR(user.monthlyCapInr)}
+                  {spentThisMonth >= user.monthlyCapInr && " — this tag will be declined (NoCredit) at the charger until next month."}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-ink-500">Blocks this employee's tag at the charger (not just a warning) once their own spend this calendar month reaches the cap.</p>
+              )}
+            </div>
+          )}
         </Card>
 
         <Card title="Wallet" actions={<IndianRupee className="h-4 w-4 text-ink-400" />}>

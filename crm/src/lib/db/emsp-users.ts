@@ -92,6 +92,11 @@ export async function setEmspUserRfidToken(id: string, rfidTokenId: string | nul
   await updateDoc(doc(getDb(), EMSP_USERS, id), { rfidTokenId });
 }
 
+/** Sets (or clears, with null) this employee's monthly corporate benefit cap. Enforced by ocpp-server at Authorize, not just shown here. */
+export async function setEmspUserMonthlyCap(id: string, monthlyCapInr: number | null): Promise<void> {
+  await updateDoc(doc(getDb(), EMSP_USERS, id), { monthlyCapInr });
+}
+
 function mapTransaction(id: string, data: Record<string, unknown>): WalletTransaction {
   return { id, ...(data as Omit<WalletTransaction, "id">) };
 }
