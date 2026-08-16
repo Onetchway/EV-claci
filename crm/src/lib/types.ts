@@ -504,11 +504,18 @@ export interface Ticket {
 }
 
 /** An RFID/tag the OCPP server's Authorize handler will accept. */
+export type RfidActivationScope = "GLOBAL" | "ZONE" | "CHARGER";
+
 export interface RfidToken {
   id: string;
   idToken: string;
   label: string;
   status: RfidTokenStatus;
+  /** Where this card is valid to Authorize at — GLOBAL (default, matches prior behavior), a specific site (ZONE), or specific chargers (CHARGER). */
+  activationScope?: RfidActivationScope;
+  scopeZoneId?: string | null;
+  scopeChargerIds?: string[];
+  description?: string;
   createdAt: TS;
   createdBy?: Actor | null;
 }

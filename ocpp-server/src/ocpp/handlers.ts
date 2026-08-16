@@ -75,7 +75,7 @@ export async function handleCall(
 
     case "Authorize": {
       const req = payload as AuthorizeRequest;
-      let status: AuthorizeResponse["idTokenInfo"]["status"] = await checkIdToken(req.idToken.idToken);
+      let status: AuthorizeResponse["idTokenInfo"]["status"] = await checkIdToken(req.idToken.idToken, chargePointId);
       if (status === "Accepted" && !(await checkMonthlyCap(req.idToken.idToken))) {
         status = "NoCredit";
       }

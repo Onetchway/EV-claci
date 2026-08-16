@@ -13,7 +13,13 @@ import { db } from "./firebase.js";
 
 export const RFID_TOKENS = "rfidTokens";
 
-export async function checkIdToken(idToken: string): Promise<"Accepted" | "Blocked" | "Unknown"> {
+/** Resolves the zoneId a charger belongs to, for RFID ZONE-scope checks — same lookup tariff.ts's loadChargerContext does. */
+async function zoneIdForCharger(chargePointId: string): Promise<string | null> {
+  const snap = await db().collection("chargerRegistry").where("chargerId", "==", chargePointId).limit(1).get();
+  return snap.empty ? null : ((snap.docs[0]!.data().zoneId as string | undefined) ?? null);
+}
+
+export async function checkIdToken(idToken: string, chargePointId: string): Promise<"Accepted" | "Blocked" | "Unknown"> {
   const collection = db().collection(RFID_TOKENS);
 
   const [any, match] = await Promise.all([
@@ -24,8 +30,20 @@ export async function checkIdToken(idToken: string): Promise<"Accepted" | "Block
   if (any.empty) return "Accepted"; // no tokens registered yet — open mode
 
   if (match.empty) return "Unknown";
-  const status = match.docs[0]!.data().status as string | undefined;
-  return status === "ACTIVE" ? "Accepted" : "Blocked";
+  const token = match.docs[0]!.data();
+  const status = token.status as string | undefined;
+  if (status !== "ACTIVE") return "Blocked";
+
+  const scope = (token.activationScope as string | undefined) ?? "GLOBAL";
+  if (scope === "CHARGER") {
+    const chargerIds = (token.scopeChargerIds as string[] | undefined) ?? [];
+    if (!chargerIds.includes(chargePointId)) return "Blocked";
+  } else if (scope === "ZONE") {
+    const scopeZoneId = token.scopeZoneId as string | undefined;
+    const actualZoneId = await zoneIdForCharger(chargePointId);
+    if (!scopeZoneId || scopeZoneId !== actualZoneId) return "Blocked";
+  }
+  return "Accepted";
 }
 
 /**

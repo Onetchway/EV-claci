@@ -30,11 +30,19 @@ export function subscribeRfidTokens(
   );
 }
 
-export async function addRfidToken(idToken: string, label: string, actor: Actor): Promise<void> {
+export async function addRfidToken(
+  idToken: string,
+  label: string,
+  actor: Actor,
+  scope?: { activationScope: "GLOBAL" | "ZONE" | "CHARGER"; scopeZoneId?: string | null; scopeChargerIds?: string[] },
+): Promise<void> {
   await addDoc(collection(getDb(), RFID_TOKENS), {
     idToken: idToken.trim(),
     label: label.trim(),
     status: "ACTIVE",
+    activationScope: scope?.activationScope ?? "GLOBAL",
+    scopeZoneId: scope?.scopeZoneId ?? null,
+    scopeChargerIds: scope?.scopeChargerIds ?? [],
     createdAt: serverTimestamp(),
     createdBy: actor,
   });
@@ -42,6 +50,17 @@ export async function addRfidToken(idToken: string, label: string, actor: Actor)
 
 export async function setRfidTokenStatus(id: string, status: "ACTIVE" | "BLOCKED"): Promise<void> {
   await updateDoc(doc(getDb(), RFID_TOKENS, id), { status });
+}
+
+export async function setRfidTokenScope(
+  id: string,
+  scope: { activationScope: "GLOBAL" | "ZONE" | "CHARGER"; scopeZoneId?: string | null; scopeChargerIds?: string[] },
+): Promise<void> {
+  await updateDoc(doc(getDb(), RFID_TOKENS, id), {
+    activationScope: scope.activationScope,
+    scopeZoneId: scope.scopeZoneId ?? null,
+    scopeChargerIds: scope.scopeChargerIds ?? [],
+  });
 }
 
 export async function deleteRfidToken(id: string): Promise<void> {
