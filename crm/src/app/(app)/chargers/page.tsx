@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Battery, Copy, ExternalLink, FileText, Lock, MapPin as MapPinIcon, Pencil, Plus, Power, PowerOff, QrCode,
-  RotateCcw, Settings2, Square, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
+  Copy, ExternalLink, FileText, Lock, MapPin as MapPinIcon, Pencil, Plus, Power, PowerOff, QrCode,
+  RotateCcw, Settings2, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard,
+  Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner,
   useAsyncAction, useToast,
 } from "@/components/ui";
 import { useSettings } from "@/hooks/use-settings";
@@ -20,8 +20,7 @@ import {
   type ChargerRegistration, type ChargerRegistrationDraft, type ConnectorTypeName,
 } from "@/lib/db/charger-registry";
 import {
-  subscribeChargePoints, subscribeRecentSessions, type ChargePoint,
-  type ChargeSession, type ConnectorStatus,
+  subscribeChargePoints, type ChargePoint, type ConnectorStatus,
 } from "@/lib/db/chargers";
 import { subscribeLeads } from "@/lib/db/leads";
 import { sendChargerCommand } from "@/lib/ocpp-commands";
@@ -29,8 +28,7 @@ import { addRfidToken, deleteRfidToken, setRfidTokenScope, setRfidTokenStatus, s
 import { subscribeTickets } from "@/lib/db/tickets";
 import { subscribeZones } from "@/lib/db/zones";
 import { INDIAN_STATES, LEAD_TYPE_LABEL, LEAD_TYPES, type LeadType } from "@/lib/constants";
-import { canManageChargers, canManageRfid, canVerifyPayment } from "@/lib/permissions";
-import { applySessionDiscount } from "@/lib/sessions-client";
+import { canManageChargers, canManageRfid } from "@/lib/permissions";
 import type { Lead, RfidToken, Ticket, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
 
@@ -41,21 +39,6 @@ const CONNECTOR_COLOR: Record<ConnectorStatus, string> = {
   Unavailable: "bg-ink-100 text-ink-600 ring-ink-200",
   Faulted: "bg-rose-100 text-rose-800 ring-rose-200",
 };
-
-function wh(v?: number): string {
-  if (v == null) return "—";
-  return `${(v / 1000).toFixed(2)} kWh`;
-}
-
-function durationMinutes(session: ChargeSession): string {
-  const start = session.startedAt as { toMillis?: () => number } | undefined;
-  const end = session.endedAt as { toMillis?: () => number } | undefined;
-  const startMs = start?.toMillis?.();
-  if (!startMs) return "—";
-  const endMs = end?.toMillis?.() ?? Date.now();
-  const mins = Math.max(0, Math.round((endMs - startMs) / 60000));
-  return mins < 60 ? `${mins} min` : `${(mins / 60).toFixed(1)} hr`;
-}
 
 const blankDraft: ChargerRegistrationDraft = {
   label: "", location: "", state: "", chargerPowerType: "DC", vendor: "Exicom", vendorOther: "", model: "",
@@ -120,11 +103,8 @@ export default function ChargersPage() {
   const viewer = useViewer();
   const { settings } = useSettings();
   const canManage = canManageChargers(viewer);
-  const canFinance = canVerifyPayment(viewer);
-  const [discountBusy, setDiscountBusy] = useState<string | null>(null);
 
   const [points, setPoints] = useState<ChargePoint[]>([]);
-  const [sessions, setSessions] = useState<ChargeSession[]>([]);
   const [registry, setRegistry] = useState<ChargerRegistration[]>([]);
   const [rfidTokens, setRfidTokens] = useState<RfidToken[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
@@ -183,7 +163,6 @@ export default function ChargersPage() {
     () => subscribeChargePoints((rows) => { setPoints(rows); setLoading(false); }, (e) => { setError(e.message); setLoading(false); }),
     [],
   );
-  useEffect(() => subscribeRecentSessions(setSessions), []);
   useEffect(() => subscribeChargerRegistry(setRegistry), []);
   useEffect(() => subscribeRfidTokens(setRfidTokens), []);
   useEffect(() => subscribeZones(setZones), []);
@@ -220,31 +199,6 @@ export default function ChargersPage() {
       push((e as Error).message, "error");
     } finally {
       setCommandBusy(null);
-    }
-  }
-
-  async function issueSessionDiscount(s: ChargeSession) {
-    const cost = s.totalCostInr ?? 0;
-    const amountStr = window.prompt(`Discount how much (₹) off this ${formatINR(cost)} session? Up to the full amount.`, "");
-    if (amountStr == null) return;
-    const amount = Number(amountStr);
-    if (!amount || amount <= 0 || amount > cost) {
-      push("Enter a valid amount up to the session's current total.", "error");
-      return;
-    }
-    const reason = window.prompt("Reason for this discount (shown in the audit trail):", "");
-    if (!reason?.trim()) {
-      push("A reason is required.", "error");
-      return;
-    }
-    setDiscountBusy(s.id);
-    try {
-      await applySessionDiscount(s.id, amount, reason.trim());
-      push("Discount applied.", "success");
-    } catch (e) {
-      push((e as Error).message, "error");
-    } finally {
-      setDiscountBusy(null);
     }
   }
 
@@ -352,13 +306,6 @@ export default function ChargersPage() {
     return rows;
   }, [registry, siteFilter, cityFilter, stateFilter, connectorTypeFilter, faultFilter, chargerSearch, zoneName, zoneById, openTicketChargerIds]);
 
-  const stats = useMemo(() => {
-    const online = points.filter((p) => p.status === "ONLINE").length;
-    const active = sessions.filter((s) => s.status === "ACTIVE").length;
-    const energyToday = sessions.reduce((a, s) => a + (s.energyDeliveredWh ?? 0), 0);
-    return { total: registry.filter((r) => r.active).length, online, active, energyToday };
-  }, [points, sessions, registry]);
-
   async function submitRegistration() {
     if (!actor || !draft.label.trim() || !draft.location.trim()) return;
     setRegistering(true);
@@ -415,19 +362,12 @@ export default function ChargersPage() {
   return (
     <>
       <PageHeader
-        title="Chargers & Stations"
-        description="Live status, remote commands and fault tickets from the OCPP central system."
+        title="Charger Management"
+        description="Register, configure and remotely command chargers. Fleet summary lives on the CMS Dashboard; live sessions are on the Sessions page."
         actions={canManage && (
           <Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add charger</Button>
         )}
       />
-
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Registered chargers" value={stats.total} icon={<Zap className="h-4 w-4" />} />
-        <StatCard label="Online now" value={stats.online} tone={stats.online ? "positive" : "default"} icon={<Wifi className="h-4 w-4" />} />
-        <StatCard label="Active sessions" value={stats.active} tone={stats.active ? "positive" : "default"} icon={<Battery className="h-4 w-4" />} />
-        <StatCard label="Energy delivered (recent)" value={wh(stats.energyToday)} />
-      </div>
 
       {error && (
         <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-inset ring-rose-200">
@@ -731,87 +671,6 @@ export default function ChargersPage() {
           ))}
         </div>
       )}
-
-      <Card title="Recent sessions" subtitle={`${sessions.length} session${sessions.length === 1 ? "" : "s"}`} className="mt-4">
-        {sessions.length === 0 ? (
-          <EmptyState icon={<Battery className="h-8 w-8" />} title="No sessions yet" />
-        ) : (
-          <div className="overflow-x-auto scroll-thin">
-            <table className="w-full">
-              <thead className="border-b border-ink-200">
-                <tr>
-                  <th className="th">Charge point</th>
-                  <th className="th">Status</th>
-                  <th className="th">Started</th>
-                  <th className="th">Duration</th>
-                  <th className="th">User</th>
-                  <th className="th">Vehicle</th>
-                  <th className="th text-right">Energy delivered</th>
-                  <th className="th text-right">Cost</th>
-                  {(canManage || canFinance) && <th className="th text-right">Actions</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ink-100">
-                {sessions.map((s) => (
-                  <tr key={s.id} className="hover:bg-ink-50">
-                    <td className="td font-medium">{s.chargePointId}</td>
-                    <td className="td">
-                      <Badge className={s.status === "ACTIVE" ? "bg-sky-100 text-sky-800 ring-sky-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
-                        {s.status}
-                      </Badge>
-                    </td>
-                    <td className="td text-ink-600">{formatDateTime(s.startedAt)}</td>
-                    <td className="td text-ink-600">{durationMinutes(s)}</td>
-                    <td className="td text-ink-600">{s.walletOwnerName ?? "—"}</td>
-                    <td className="td text-ink-600">{s.vehicleRegNumber ?? "—"}</td>
-                    <td className="td text-right font-medium tabular-nums">{wh(s.energyDeliveredWh)}</td>
-                    <td className="td text-right tabular-nums text-ink-600">
-                      {s.totalCostInr != null ? (
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span>{formatINR(s.totalCostInr)}</span>
-                          {s.walletDebited && (
-                            <span className="text-[10px] font-medium uppercase tracking-wide text-emerald-600">
-                              Paid — {s.walletOwnerName ?? "wallet"}
-                            </span>
-                          )}
-                          {s.manualDiscountInr != null && (
-                            <span className="text-[10px] font-medium uppercase tracking-wide text-amber-600">
-                              -{formatINR(s.manualDiscountInr)} discount
-                            </span>
-                          )}
-                        </div>
-                      ) : s.status === "ENDED" ? "No tariff matched" : "—"}
-                    </td>
-                    {(canManage || canFinance) && (
-                      <td className="td text-right">
-                        {canFinance && s.totalCostInr != null && (
-                          <Button
-                            size="sm"
-                            loading={discountBusy === s.id}
-                            onClick={() => void issueSessionDiscount(s)}
-                          >
-                            Discount
-                          </Button>
-                        )}
-                        {canManage && s.status === "ACTIVE" && (
-                          <Button
-                            size="sm"
-                            disabled={commandBusy === s.chargePointId + "Remote stop"}
-                            onClick={() => void runCommand(s.chargePointId, "Remote stop", () =>
-                              sendChargerCommand(s.chargePointId, "RequestStopTransaction", { transactionId: s.transactionId }))}
-                          >
-                            <Square className="h-3.5 w-3.5" /> Stop
-                          </Button>
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
 
       <Card
         title="RFID tokens"

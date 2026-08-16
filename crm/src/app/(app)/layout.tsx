@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, BookOpen, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
+  BarChart3, Battery, BookOpen, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
   Gauge, Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, MapPin, Menu, Package, Percent, Receipt, Repeat, Search, Settings, ShieldCheck,
   Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
@@ -44,11 +44,12 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "CMS",
     items: [
-      { href: "/chargers", label: "Charger Dashboard", icon: Zap },
-      { href: "/tickets", label: "Ticket Management", icon: Ticket },
-      { href: "/diagnostics", label: "Diagnostic Knowledge Base", icon: BookOpen },
-      { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
+      { href: "/cms-dashboard", label: "CMS Dashboard", icon: LayoutDashboard },
+      { href: "/chargers", label: "Charger Management", icon: Zap },
       { href: "/stations", label: "Station Management", icon: Building2 },
+      { href: "/sessions", label: "Sessions", icon: Battery },
+      { href: "/tickets", label: "Ticket Management", icon: Ticket },
+      { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
       { href: "/zones", label: "Zones & Load Balancing", icon: MapPin },
       { href: "/earnings", label: "Earnings & Statistics", icon: TrendingUp },
       { href: "/insights", label: "Business Insights", icon: Gauge },
@@ -88,6 +89,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+      { href: "/diagnostics", label: "Diagnostic Knowledge Base", icon: BookOpen },
       { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
       { href: "/developer", label: "Developer (API & Webhooks)", icon: Terminal, adminOnly: true },
       { href: "/trash", label: "Trash", icon: Trash2, adminOnly: true },
