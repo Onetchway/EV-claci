@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import {
   Battery, Copy, Lock, MapPin as MapPinIcon, Plus, Power, PowerOff, QrCode, RotateCcw,
-  Square, Wifi, WifiOff, Zap,
+  Square, Wifi, WifiOff, X, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -18,6 +18,7 @@ import { useSettings } from "@/hooks/use-settings";
 import {
   chargerWsUrl, CHARGER_TYPES, CHARGER_VENDORS, CONNECTOR_TYPES, oemLabel, registerCharger, setChargerActive,
   subscribeChargerRegistry, updateChargerRegistration, type ChargerRegistration, type ChargerRegistrationDraft,
+  type ConnectorTypeName,
 } from "@/lib/db/charger-registry";
 import {
   subscribeChargePoints, subscribeRecentSessions, type ChargePoint,
@@ -330,7 +331,10 @@ export default function ChargersPage() {
                     <tr key={r.id} className="hover:bg-ink-50">
                       <td className="td font-medium">{r.label}</td>
                       <td className="td"><code className="text-xs text-ink-600">{r.chargerId}</code></td>
-                      <td className="td text-ink-600">{r.chargerPowerType}{r.connectorType ? ` · ${r.connectorType}` : ""}</td>
+                      <td className="td text-ink-600">
+                        {r.chargerPowerType}{r.connectorType ? ` · ${r.connectorType}` : ""}
+                        {r.connectors && r.connectors.length > 0 && ` +${r.connectors.length}`}
+                      </td>
                       <td className="td text-ink-600">{oemLabel(r)}</td>
                       <td className="td text-ink-600">{r.location}</td>
                       <td className="td text-ink-600">{r.leadCode ?? "—"}</td>
@@ -716,6 +720,59 @@ export default function ChargersPage() {
                 placeholder="Optional"
               />
             </Field>
+            <div className="sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-ink-700">Additional connectors</p>
+                <Button
+                  size="sm"
+                  onClick={() => setDraft((d) => ({
+                    ...d,
+                    connectors: [
+                      ...(d.connectors ?? []),
+                      { connectorId: (d.connectors?.length ?? 0) + 2, connectorType: CONNECTOR_TYPES[0], powerKw: undefined },
+                    ],
+                  }))}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add connector
+                </Button>
+              </div>
+              <p className="mt-1 text-xs text-ink-500">
+                Connector 1 uses the type/power above. Add a row here for each extra gun on a multi-connector EVSE
+                (e.g. a DC charger with both CCS2 and CHAdeMO). Connector IDs must match what the charger reports over OCPP.
+              </p>
+              {(draft.connectors ?? []).length > 0 && (
+                <div className="mt-2 grid gap-2">
+                  {(draft.connectors ?? []).map((c, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="w-20 shrink-0 text-xs text-ink-500">Connector {c.connectorId}</span>
+                      <Select
+                        className="flex-1"
+                        value={c.connectorType}
+                        onChange={(e) => setDraft((d) => ({
+                          ...d,
+                          connectors: (d.connectors ?? []).map((row, ri) => (ri === i ? { ...row, connectorType: e.target.value as ConnectorTypeName } : row)),
+                        }))}
+                        options={CONNECTOR_TYPES.map((c2) => ({ value: c2, label: c2 }))}
+                      />
+                      <Input
+                        className="w-28"
+                        type="number"
+                        min={0}
+                        value={c.powerKw ?? ""}
+                        onChange={(e) => setDraft((d) => ({
+                          ...d,
+                          connectors: (d.connectors ?? []).map((row, ri) => (ri === i ? { ...row, powerKw: e.target.value ? Number(e.target.value) : undefined } : row)),
+                        }))}
+                        placeholder="kW"
+                      />
+                      <Button size="sm" onClick={() => setDraft((d) => ({ ...d, connectors: (d.connectors ?? []).filter((_, ri) => ri !== i) }))}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <Field label="Zone">
               <Select
                 value={draft.zoneId ?? ""}

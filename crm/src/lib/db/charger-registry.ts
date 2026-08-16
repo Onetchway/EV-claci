@@ -30,6 +30,18 @@ export type ChargerPowerType = (typeof CHARGER_TYPES)[number];
 export const CONNECTOR_TYPES = ["Type 2", "CCS2", "CHAdeMO", "GB/T", "Bharat AC-001", "Bharat DC-001"] as const;
 export type ConnectorTypeName = (typeof CONNECTOR_TYPES)[number];
 
+/**
+ * A single physical gun on a multi-connector EVSE (e.g. a DC charger with
+ * both a CCS2 and a CHAdeMO gun sharing one power cabinet). connectorId
+ * matches the OCPP connectorId reported in chargePoints' live `connectors`
+ * map, so the registration spec can be joined with live status per-gun.
+ */
+export interface ChargerConnector {
+  connectorId: number;
+  connectorType: ConnectorTypeName;
+  powerKw?: number;
+}
+
 export interface ChargerRegistration {
   id: string;
   /** The path segment the charger's Central System URL is keyed by. Immutable once set. */
@@ -42,8 +54,11 @@ export interface ChargerRegistration {
   /** Free-text OEM name, used (and shown instead of `vendor`) when vendor === "Other". */
   vendorOther?: string;
   model?: string;
+  /** Connector 1's type/power — kept for single-gun chargers (the common case) and as a fallback. */
   connectorType?: ConnectorTypeName;
   powerKw?: number;
+  /** Set only for multi-gun EVSEs (2+ connectors) — each with its own type/power. Absent means single-connector, use connectorType/powerKw above. */
+  connectors?: ChargerConnector[];
   notes?: string;
   zoneId?: string | null;
   /** Manually entered — no geocoding dependency, so no Maps API key is required. */
@@ -111,7 +126,7 @@ export async function updateChargerRegistration(
   id: string,
   patch: Partial<Pick<ChargerRegistration,
     "label" | "location" | "state" | "chargerPowerType" | "vendor" | "vendorOther" | "model" | "connectorType" |
-    "powerKw" | "notes" | "zoneId" | "lat" | "lng" | "leadId" | "leadCode"
+    "powerKw" | "connectors" | "notes" | "zoneId" | "lat" | "lng" | "leadId" | "leadCode"
   >>,
 ): Promise<void> {
   await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), { ...patch });
