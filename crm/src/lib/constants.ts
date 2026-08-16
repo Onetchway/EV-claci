@@ -943,6 +943,18 @@ export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
   CANCELLED: "Cancelled",
 };
 
+export const SITE_TYPES = ["RWA", "HOTEL", "FUEL_STATION", "HIGHWAY", "CORPORATE", "OTHER"] as const;
+export type SiteType = (typeof SITE_TYPES)[number];
+
+export const SITE_TYPE_LABEL: Record<SiteType, string> = {
+  RWA: "RWA",
+  HOTEL: "Hotel",
+  FUEL_STATION: "Fuel station",
+  HIGHWAY: "Highway",
+  CORPORATE: "Corporate campus",
+  OTHER: "Other",
+};
+
 export const INVOICE_STATUS_COLOR: Record<InvoiceStatus, string> = {
   DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
   ISSUED: "bg-sky-100 text-sky-800 ring-sky-200",

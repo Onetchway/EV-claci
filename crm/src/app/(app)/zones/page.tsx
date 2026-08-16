@@ -5,11 +5,12 @@ import { AlertTriangle, Plus, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Spinner, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
+import { SITE_TYPE_LABEL, SITE_TYPES, type SiteType } from "@/lib/constants";
 import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
 import { subscribeChargePoints, type ChargePoint } from "@/lib/db/chargers";
-import { createZone, deleteZone, subscribeZones, updateZone } from "@/lib/db/zones";
+import { createZone, deleteZone, subscribeZones, updateZone, type ZoneDraft } from "@/lib/db/zones";
 import { canManageChargers } from "@/lib/permissions";
 import type { Zone } from "@/lib/types";
 
@@ -26,6 +27,10 @@ export default function ZonesPage() {
   const [editing, setEditing] = useState<Zone | null>(null);
   const [name, setName] = useState("");
   const [maxLoadKw, setMaxLoadKw] = useState(0);
+  const [siteType, setSiteType] = useState<SiteType | "">("");
+  const [address, setAddress] = useState("");
+  const [discomName, setDiscomName] = useState("");
+  const [slaHours, setSlaHours] = useState("");
 
   useEffect(() => subscribeZones(setZones), []);
   useEffect(() => subscribeChargerRegistry(setChargers), []);
@@ -51,6 +56,10 @@ export default function ZonesPage() {
     setEditing(null);
     setName("");
     setMaxLoadKw(0);
+    setSiteType("");
+    setAddress("");
+    setDiscomName("");
+    setSlaHours("");
     setModalOpen(true);
   }
 
@@ -58,14 +67,26 @@ export default function ZonesPage() {
     setEditing(z);
     setName(z.name);
     setMaxLoadKw(z.maxLoadKw);
+    setSiteType(z.siteType ?? "");
+    setAddress(z.address ?? "");
+    setDiscomName(z.discomName ?? "");
+    setSlaHours(z.slaHours != null ? String(z.slaHours) : "");
     setModalOpen(true);
   }
 
   async function submit() {
     if (!actor || !name.trim()) return;
+    const draft: ZoneDraft = {
+      name: name.trim(),
+      maxLoadKw,
+      siteType: siteType || undefined,
+      address: address.trim() || undefined,
+      discomName: discomName.trim() || undefined,
+      slaHours: slaHours.trim() ? Number(slaHours) : undefined,
+    };
     await run(async () => {
-      if (editing) await updateZone(editing.id, name.trim(), maxLoadKw);
-      else await createZone(name.trim(), maxLoadKw, actor);
+      if (editing) await updateZone(editing.id, draft);
+      else await createZone(draft, actor);
       setModalOpen(false);
     }, editing ? "Zone updated." : "Zone created.");
   }
@@ -140,6 +161,29 @@ export default function ZonesPage() {
           </Field>
           <Field label="Sanctioned load cap (kW)">
             <Input type="number" min={0} value={maxLoadKw} onChange={(e) => setMaxLoadKw(Number(e.target.value) || 0)} />
+          </Field>
+          <Field label="Site type">
+            <Select
+              value={siteType}
+              onChange={(e) => setSiteType(e.target.value as SiteType | "")}
+              placeholder="Select site type"
+              options={SITE_TYPES.map((t) => ({ value: t, label: SITE_TYPE_LABEL[t] }))}
+            />
+          </Field>
+          <Field label="Address">
+            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Site address" />
+          </Field>
+          <Field label="DISCOM name">
+            <Input value={discomName} onChange={(e) => setDiscomName(e.target.value)} placeholder="e.g. BSES Rajdhani, Tata Power" />
+          </Field>
+          <Field label="Fault ticket SLA override (hours)">
+            <Input
+              type="number"
+              min={0}
+              value={slaHours}
+              onChange={(e) => setSlaHours(e.target.value)}
+              placeholder="Leave blank to use the platform default"
+            />
           </Field>
         </div>
       </Modal>

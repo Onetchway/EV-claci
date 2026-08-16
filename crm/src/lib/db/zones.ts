@@ -24,15 +24,17 @@ export function subscribeZones(
   );
 }
 
-export async function createZone(name: string, maxLoadKw: number, actor: Actor): Promise<string> {
+export type ZoneDraft = Pick<Zone, "name" | "maxLoadKw" | "siteType" | "address" | "discomName" | "slaHours">;
+
+export async function createZone(draft: ZoneDraft, actor: Actor): Promise<string> {
   const ref = await addDoc(collection(getDb(), ZONES), {
-    name, maxLoadKw, createdAt: serverTimestamp(), createdBy: actor,
+    ...draft, createdAt: serverTimestamp(), createdBy: actor,
   });
   return ref.id;
 }
 
-export async function updateZone(id: string, name: string, maxLoadKw: number): Promise<void> {
-  await updateDoc(doc(getDb(), ZONES, id), { name, maxLoadKw });
+export async function updateZone(id: string, draft: ZoneDraft): Promise<void> {
+  await updateDoc(doc(getDb(), ZONES, id), { ...draft });
 }
 
 export async function deleteZone(id: string): Promise<void> {

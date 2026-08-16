@@ -7,8 +7,9 @@ import type {
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
   EmspUserType, InvoiceBillToType, InvoiceStatus, PaymentStatus, PoStatus, PowerLoad,
   ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
-  RfidTokenStatus, Role, Source, Stage, TariffPricingType, TariffScope, TaskStatus,
-  TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus, Workstream,
+  RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
+  TaskStatus, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
+  Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -523,6 +524,11 @@ export interface Zone {
   id: string;
   name: string;
   maxLoadKw: number;
+  siteType?: SiteType;
+  address?: string;
+  discomName?: string;
+  /** Overrides the OCPP server's flat default fault-ticket SLA (FAULT_SLA_HOURS) for chargers in this zone. */
+  slaHours?: number;
   createdAt: TS;
   createdBy?: Actor | null;
 }
