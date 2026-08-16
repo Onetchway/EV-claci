@@ -3,7 +3,7 @@
 /** Driver-facing (EMSP) users and the corporate accounts some of them bill to. */
 
 import {
-  addDoc, collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -41,6 +41,17 @@ export async function createCorporateAccount(
   return ref.id;
 }
 
+export async function updateCorporateAccount(
+  id: string,
+  draft: { name: string; gstin?: string; billingEmail?: string },
+): Promise<void> {
+  await updateDoc(doc(getDb(), CORPORATE_ACCOUNTS, id), { ...draft });
+}
+
+export async function deleteCorporateAccount(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), CORPORATE_ACCOUNTS, id));
+}
+
 export function subscribeEmspUsers(
   cb: (rows: EmspUser[]) => void,
   onError?: (e: Error) => void,
@@ -63,6 +74,16 @@ export async function createEmspUser(draft: EmspUserDraft, actor: Actor): Promis
 
 export async function setEmspUserActive(id: string, active: boolean): Promise<void> {
   await updateDoc(doc(getDb(), EMSP_USERS, id), { active });
+}
+
+export type EmspUserEditDraft = Pick<EmspUser, "name" | "phone" | "email" | "type" | "corporateAccountId">;
+
+export async function updateEmspUser(id: string, draft: EmspUserEditDraft): Promise<void> {
+  await updateDoc(doc(getDb(), EMSP_USERS, id), { ...draft });
+}
+
+export async function deleteEmspUser(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), EMSP_USERS, id));
 }
 
 export async function getEmspUser(id: string): Promise<EmspUser | null> {

@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Building2, IndianRupee, Plus, UserCircle } from "lucide-react";
+import {
+  Building2, IndianRupee, Pencil, Plus, Trash2, UserCircle,
+} from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
-  createCorporateAccount, createEmspUser, setEmspUserActive, subscribeCorporateAccounts, subscribeEmspUsers,
+  createCorporateAccount, createEmspUser, deleteCorporateAccount, deleteEmspUser, setEmspUserActive,
+  subscribeCorporateAccounts, subscribeEmspUsers, updateCorporateAccount, updateEmspUser,
 } from "@/lib/db/emsp-users";
 import { EMSP_USER_TYPE_LABEL, EMSP_USER_TYPES } from "@/lib/constants";
 import { canManageEmspUsers } from "@/lib/permissions";
@@ -27,6 +30,7 @@ export default function EmspUsersPage() {
   const [accounts, setAccounts] = useState<CorporateAccount[]>([]);
 
   const [userOpen, setUserOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<EmspUser | null>(null);
   const [uName, setUName] = useState("");
   const [uPhone, setUPhone] = useState("");
   const [uEmail, setUEmail] = useState("");
@@ -35,6 +39,7 @@ export default function EmspUsersPage() {
   const [uMonthlyCap, setUMonthlyCap] = useState("");
 
   const [acctOpen, setAcctOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<CorporateAccount | null>(null);
   const [aName, setAName] = useState("");
   const [aGstin, setAGstin] = useState("");
   const [aEmail, setAEmail] = useState("");
@@ -65,24 +70,68 @@ export default function EmspUsersPage() {
     }
   }
 
+  function openNewUser() {
+    setEditingUser(null);
+    setUName(""); setUPhone(""); setUEmail(""); setUType("RETAIL"); setUAccountId(""); setUMonthlyCap("");
+    setUserOpen(true);
+  }
+
+  function openEditUser(u: EmspUser) {
+    setEditingUser(u);
+    setUName(u.name); setUPhone(u.phone); setUEmail(u.email ?? ""); setUType(u.type);
+    setUAccountId(u.corporateAccountId ?? ""); setUMonthlyCap(u.monthlyCapInr != null ? String(u.monthlyCapInr) : "");
+    setUserOpen(true);
+  }
+
   async function submitUser() {
     if (!actor || !uName.trim() || !uPhone.trim()) return;
     await run(async () => {
-      await createEmspUser({
-        name: uName.trim(), phone: uPhone.trim(), email: uEmail.trim() || undefined,
-        type: uType, corporateAccountId: uType === "CORPORATE" ? (uAccountId || null) : null,
-        monthlyCapInr: uType === "CORPORATE" && uMonthlyCap.trim() ? Number(uMonthlyCap) : undefined,
-      }, actor);
-      setUName(""); setUPhone(""); setUEmail(""); setUAccountId(""); setUMonthlyCap(""); setUserOpen(false);
-    }, "User added.");
+      if (editingUser) {
+        await updateEmspUser(editingUser.id, {
+          name: uName.trim(), phone: uPhone.trim(), email: uEmail.trim() || undefined,
+          type: uType, corporateAccountId: uType === "CORPORATE" ? (uAccountId || null) : null,
+        });
+      } else {
+        await createEmspUser({
+          name: uName.trim(), phone: uPhone.trim(), email: uEmail.trim() || undefined,
+          type: uType, corporateAccountId: uType === "CORPORATE" ? (uAccountId || null) : null,
+          monthlyCapInr: uType === "CORPORATE" && uMonthlyCap.trim() ? Number(uMonthlyCap) : undefined,
+        }, actor);
+      }
+      setUserOpen(false);
+    }, editingUser ? "User updated." : "User added.");
+  }
+
+  function openNewAccount() {
+    setEditingAccount(null);
+    setAName(""); setAGstin(""); setAEmail("");
+    setAcctOpen(true);
+  }
+
+  function openEditAccount(a: CorporateAccount) {
+    setEditingAccount(a);
+    setAName(a.name); setAGstin(a.gstin ?? ""); setAEmail(a.billingEmail ?? "");
+    setAcctOpen(true);
   }
 
   async function submitAccount() {
     if (!actor || !aName.trim()) return;
     await run(async () => {
-      await createCorporateAccount({ name: aName.trim(), gstin: aGstin.trim() || undefined, billingEmail: aEmail.trim() || undefined }, actor);
-      setAName(""); setAGstin(""); setAEmail(""); setAcctOpen(false);
-    }, "Corporate account added.");
+      const draft = { name: aName.trim(), gstin: aGstin.trim() || undefined, billingEmail: aEmail.trim() || undefined };
+      if (editingAccount) await updateCorporateAccount(editingAccount.id, draft);
+      else await createCorporateAccount(draft, actor);
+      setAcctOpen(false);
+    }, editingAccount ? "Corporate account updated." : "Corporate account added.");
+  }
+
+  async function removeUser(u: EmspUser) {
+    if (!window.confirm(`Delete ${u.name}? This can't be undone.`)) return;
+    await run(() => deleteEmspUser(u.id), "User deleted.");
+  }
+
+  async function removeAccount(a: CorporateAccount) {
+    if (!window.confirm(`Delete ${a.name}? This can't be undone — any users still linked to it will lose their corporate wallet.`)) return;
+    await run(() => deleteCorporateAccount(a.id), "Corporate account deleted.");
   }
 
   return (
@@ -92,8 +141,8 @@ export default function EmspUsersPage() {
         description="Driver-facing (EMSP) users — retail and corporate — separate from CRM team logins under Team & Roles."
         actions={canManage && (
           <>
-            <Button onClick={() => setAcctOpen(true)}><Building2 className="h-4 w-4" /> New corporate account</Button>
-            <Button variant="primary" onClick={() => setUserOpen(true)}><Plus className="h-4 w-4" /> New user</Button>
+            <Button onClick={openNewAccount}><Building2 className="h-4 w-4" /> New corporate account</Button>
+            <Button variant="primary" onClick={openNewUser}><Plus className="h-4 w-4" /> New user</Button>
           </>
         )}
       />
@@ -116,9 +165,13 @@ export default function EmspUsersPage() {
                     <td className="td text-right tabular-nums">{formatINR(a.walletBalanceInr ?? 0)}</td>
                     <td className="td text-right">
                       {canManage && (
-                        <Button size="sm" onClick={() => setTopupFor({ ownerType: "CORPORATE_ACCOUNT", ownerId: a.id, name: a.name })}>
-                          <IndianRupee className="h-3.5 w-3.5" /> Top up
-                        </Button>
+                        <div className="flex justify-end gap-1.5">
+                          <Button size="sm" onClick={() => setTopupFor({ ownerType: "CORPORATE_ACCOUNT", ownerId: a.id, name: a.name })}>
+                            <IndianRupee className="h-3.5 w-3.5" /> Top up
+                          </Button>
+                          <Button size="sm" onClick={() => openEditAccount(a)}><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" onClick={() => void removeAccount(a)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -163,9 +216,11 @@ export default function EmspUsersPage() {
                           <Button size="sm" onClick={() => setTopupFor({ ownerType: "EMSP_USER", ownerId: u.id, name: u.name })}>
                             <IndianRupee className="h-3.5 w-3.5" />
                           </Button>
+                          <Button size="sm" onClick={() => openEditUser(u)}><Pencil className="h-3.5 w-3.5" /></Button>
                           <Button size="sm" onClick={() => void run(() => setEmspUserActive(u.id, !u.active))}>
                             {u.active ? "Deactivate" : "Reactivate"}
                           </Button>
+                          <Button size="sm" onClick={() => void removeUser(u)}><Trash2 className="h-3.5 w-3.5" /></Button>
                         </div>
                       </td>
                     )}
@@ -180,11 +235,13 @@ export default function EmspUsersPage() {
       <Modal
         open={userOpen}
         onClose={() => setUserOpen(false)}
-        title="New user"
+        title={editingUser ? "Edit user" : "New user"}
         footer={(
           <>
             <Button variant="ghost" onClick={() => setUserOpen(false)}>Cancel</Button>
-            <Button variant="primary" loading={busy} disabled={!uName.trim() || !uPhone.trim()} onClick={() => void submitUser()}>Add</Button>
+            <Button variant="primary" loading={busy} disabled={!uName.trim() || !uPhone.trim()} onClick={() => void submitUser()}>
+              {editingUser ? "Save" : "Add"}
+            </Button>
           </>
         )}
       >
@@ -200,10 +257,15 @@ export default function EmspUsersPage() {
               <Field label="Corporate account">
                 <Select value={uAccountId} onChange={(e) => setUAccountId(e.target.value)} options={accounts.map((a) => ({ value: a.id, label: a.name }))} placeholder="Choose an account" />
               </Field>
-              <Field label="Monthly benefit cap (₹)">
-                <Input type="number" min={0} value={uMonthlyCap} onChange={(e) => setUMonthlyCap(e.target.value)} placeholder="Optional — no cap if blank" />
-              </Field>
+              {!editingUser && (
+                <Field label="Monthly benefit cap (₹)">
+                  <Input type="number" min={0} value={uMonthlyCap} onChange={(e) => setUMonthlyCap(e.target.value)} placeholder="Optional — no cap if blank" />
+                </Field>
+              )}
             </>
+          )}
+          {editingUser && uType === "CORPORATE" && (
+            <p className="text-xs text-ink-500">Edit the monthly benefit cap from this user's profile page.</p>
           )}
         </div>
       </Modal>
@@ -211,11 +273,13 @@ export default function EmspUsersPage() {
       <Modal
         open={acctOpen}
         onClose={() => setAcctOpen(false)}
-        title="New corporate account"
+        title={editingAccount ? "Edit corporate account" : "New corporate account"}
         footer={(
           <>
             <Button variant="ghost" onClick={() => setAcctOpen(false)}>Cancel</Button>
-            <Button variant="primary" loading={busy} disabled={!aName.trim()} onClick={() => void submitAccount()}>Add</Button>
+            <Button variant="primary" loading={busy} disabled={!aName.trim()} onClick={() => void submitAccount()}>
+              {editingAccount ? "Save" : "Add"}
+            </Button>
           </>
         )}
       >

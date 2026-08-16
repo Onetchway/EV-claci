@@ -2,14 +2,15 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Car, Plus, User } from "lucide-react";
+import { Car, Plus, Trash2, User } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, useAsyncAction,
 } from "@/components/ui";
 import {
-  assignVehicleDriver, createDriver, createVehicle, subscribeDrivers, subscribeFleets, subscribeVehicles,
+  assignVehicleDriver, createDriver, createVehicle, deleteDriver, deleteVehicle,
+  subscribeDrivers, subscribeFleets, subscribeVehicles,
 } from "@/lib/db/fleets";
 import { EV_CAR_CATALOG, findCar, OTHER_CAR_ID } from "@/lib/ev-cars";
 import { canManageFleets } from "@/lib/permissions";
@@ -79,7 +80,7 @@ export default function FleetDetailPage() {
             <div className="overflow-x-auto scroll-thin">
               <table className="w-full">
                 <thead className="border-b border-ink-200">
-                  <tr><th className="th">Reg. no.</th><th className="th">Car</th><th className="th">Battery</th><th className="th">Driver</th></tr>
+                  <tr><th className="th">Reg. no.</th><th className="th">Car</th><th className="th">Battery</th><th className="th">Driver</th>{canManage && <th className="th text-right">Actions</th>}</tr>
                 </thead>
                 <tbody className="divide-y divide-ink-100">
                   {vehicles.map((v) => (
@@ -97,6 +98,19 @@ export default function FleetDetailPage() {
                           />
                         ) : (v.assignedDriverId ? driverName.get(v.assignedDriverId) ?? "—" : "—")}
                       </td>
+                      {canManage && (
+                        <td className="td text-right">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (!window.confirm(`Delete vehicle ${v.regNumber}?`)) return;
+                              void run(() => deleteVehicle(v.id), "Vehicle deleted.");
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -116,7 +130,7 @@ export default function FleetDetailPage() {
             <div className="overflow-x-auto scroll-thin">
               <table className="w-full">
                 <thead className="border-b border-ink-200">
-                  <tr><th className="th">Name</th><th className="th">Phone</th><th className="th">License</th></tr>
+                  <tr><th className="th">Name</th><th className="th">Phone</th><th className="th">License</th>{canManage && <th className="th text-right">Actions</th>}</tr>
                 </thead>
                 <tbody className="divide-y divide-ink-100">
                   {drivers.map((d) => (
@@ -124,6 +138,19 @@ export default function FleetDetailPage() {
                       <td className="td font-medium">{d.name}</td>
                       <td className="td text-ink-600">{d.phone}</td>
                       <td className="td text-ink-600">{d.licenseNumber || "—"}</td>
+                      {canManage && (
+                        <td className="td text-right">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (!window.confirm(`Delete driver ${d.name}?`)) return;
+                              void run(() => deleteDriver(d.id), "Driver deleted.");
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

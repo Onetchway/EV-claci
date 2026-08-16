@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Plus, Truck } from "lucide-react";
+import { Plus, Trash2, Truck } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
 import { subscribeCorporateAccounts } from "@/lib/db/emsp-users";
-import { createFleet, subscribeFleets } from "@/lib/db/fleets";
+import { createFleet, deleteFleet, subscribeFleets } from "@/lib/db/fleets";
 import { canManageFleets } from "@/lib/permissions";
 import type { CorporateAccount, Fleet } from "@/lib/types";
 
@@ -52,7 +52,24 @@ export default function FleetsPage() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {fleets.map((f) => (
             <Link key={f.id} href={`/fleets/${f.id}`}>
-              <Card title={f.name} className="transition hover:ring-2 hover:ring-brand-300">
+              <Card
+                title={f.name}
+                className="transition hover:ring-2 hover:ring-brand-300"
+                actions={canManage && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault(); e.stopPropagation();
+                      if (!window.confirm(`Delete ${f.name}? Its vehicles and drivers will be orphaned.`)) return;
+                      void run(() => deleteFleet(f.id), "Fleet deleted.");
+                    }}
+                    className="rounded-md p-1.5 text-ink-500 hover:bg-rose-50 hover:text-rose-700"
+                    title="Delete fleet"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              >
                 <p className="text-sm text-ink-500">View vehicles &amp; drivers →</p>
               </Card>
             </Link>

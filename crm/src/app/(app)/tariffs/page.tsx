@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { IndianRupee, Plus } from "lucide-react";
+import { IndianRupee, Plus, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -9,7 +9,7 @@ import {
   Select, Spinner, useAsyncAction,
 } from "@/components/ui";
 import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
-import { createTariff, subscribeTariffs, updateTariff, setTariffActive, type TariffDraft } from "@/lib/db/tariffs";
+import { createTariff, deleteTariff, subscribeTariffs, updateTariff, setTariffActive, type TariffDraft } from "@/lib/db/tariffs";
 import { subscribeZones } from "@/lib/db/zones";
 import {
   INDIAN_STATES, TARIFF_PRICING_TYPE_LABEL, TARIFF_PRICING_TYPES, TARIFF_SCOPE_LABEL,
@@ -164,6 +164,15 @@ export default function TariffsPage() {
                         <Button size="sm" onClick={() => openEdit(t)}>Edit</Button>
                         <Button size="sm" onClick={() => void run(() => setTariffActive(t.id, !t.active, actor!))}>
                           {t.active ? "Disable" : "Enable"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!window.confirm(`Delete tariff "${t.name}"? This can't be undone.`)) return;
+                            void run(() => deleteTariff(t.id), "Tariff deleted.");
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </td>

@@ -3,7 +3,7 @@
 /** Fleet operators: fleets, their vehicles, and their drivers. */
 
 import {
-  addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -88,6 +88,18 @@ export async function createDriver(draft: DriverDraft, actor: Actor): Promise<st
 
 export async function assignVehicleDriver(vehicleId: string, driverId: string | null): Promise<void> {
   await updateDoc(doc(getDb(), VEHICLES, vehicleId), { assignedDriverId: driverId });
+}
+
+export async function deleteFleet(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), FLEETS, id));
+}
+
+export async function deleteVehicle(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), VEHICLES, id));
+}
+
+export async function deleteDriver(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), DRIVERS, id));
 }
 
 /** Finds the fleet driver record (if any) linked to a given EMSP user — the join for a unified customer/driver profile. */

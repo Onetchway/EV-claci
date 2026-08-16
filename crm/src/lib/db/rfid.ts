@@ -7,7 +7,7 @@
  */
 
 import {
-  addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
+  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -42,4 +42,8 @@ export async function addRfidToken(idToken: string, label: string, actor: Actor)
 
 export async function setRfidTokenStatus(id: string, status: "ACTIVE" | "BLOCKED"): Promise<void> {
   await updateDoc(doc(getDb(), RFID_TOKENS, id), { status });
+}
+
+export async function deleteRfidToken(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), RFID_TOKENS, id));
 }

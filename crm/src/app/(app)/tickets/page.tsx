@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Plus, Ticket as TicketIcon } from "lucide-react";
+import { AlertTriangle, Plus, Ticket as TicketIcon, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -11,9 +11,9 @@ import {
 import {
   TICKET_STATUS_COLOR, TICKET_STATUS_LABEL, TICKET_STATUSES, TICKET_TYPE_LABEL, type TicketStatus,
 } from "@/lib/constants";
-import { assignTicket, createManualTicket, subscribeTickets, updateTicketStatus } from "@/lib/db/tickets";
+import { assignTicket, createManualTicket, deleteTicket, subscribeTickets, updateTicketStatus } from "@/lib/db/tickets";
 import { subscribeUsers } from "@/lib/db/users";
-import { canManageTickets } from "@/lib/permissions";
+import { canManageTickets, hasRole } from "@/lib/permissions";
 import type { AppUser, Ticket } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 
@@ -26,6 +26,7 @@ export default function TicketsPage() {
   const { actor } = useAuth();
   const viewer = useViewer();
   const canManage = canManageTickets(viewer);
+  const canDelete = hasRole(viewer, "SUPER_ADMIN");
   const { run, busy } = useAsyncAction();
 
   const [rows, setRows] = useState<Ticket[]>([]);
@@ -105,7 +106,7 @@ export default function TicketsPage() {
                 <th className="th">Status</th>
                 <th className="th">SLA due</th>
                 <th className="th">Assigned to</th>
-                {canManage && <th className="th text-right">Actions</th>}
+                {(canManage || canDelete) && <th className="th text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
@@ -129,21 +130,36 @@ export default function TicketsPage() {
                     {t.slaDueAt ? formatDateTime(t.slaDueAt) : "—"}
                   </td>
                   <td className="td text-ink-600">{t.assignedTo?.name ?? "Unassigned"}</td>
-                  {canManage && (
+                  {(canManage || canDelete) && (
                     <td className="td text-right">
-                      <Select
-                        value={t.assignedTo?.uid ?? ""}
-                        onChange={(e) => {
-                          const u = users.find((x) => x.uid === e.target.value);
-                          void run(() => assignTicket(
-                            t.id,
-                            u ? { uid: u.uid, name: u.name, role: u.role } : null,
-                            actor!,
-                          ));
-                        }}
-                        options={users.map((u) => ({ value: u.uid, label: u.name }))}
-                        placeholder="Assign…"
-                      />
+                      <div className="flex items-center justify-end gap-1.5">
+                        {canManage && (
+                          <Select
+                            value={t.assignedTo?.uid ?? ""}
+                            onChange={(e) => {
+                              const u = users.find((x) => x.uid === e.target.value);
+                              void run(() => assignTicket(
+                                t.id,
+                                u ? { uid: u.uid, name: u.name, role: u.role } : null,
+                                actor!,
+                              ));
+                            }}
+                            options={users.map((u) => ({ value: u.uid, label: u.name }))}
+                            placeholder="Assign…"
+                          />
+                        )}
+                        {canDelete && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (!window.confirm("Delete this ticket? This can't be undone.")) return;
+                              void run(() => deleteTicket(t.id), "Ticket deleted.");
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>

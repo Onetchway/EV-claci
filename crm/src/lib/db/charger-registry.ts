@@ -13,7 +13,7 @@
  */
 
 import {
-  addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
+  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -140,6 +140,11 @@ export async function updateChargerRegistration(
  */
 export async function setChargerActive(id: string, active: boolean): Promise<void> {
   await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), { active });
+}
+
+/** Hard delete — unlike setChargerActive(false), this removes the record entirely and can't be undone from the CRM. */
+export async function deleteChargerRegistration(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), CHARGER_REGISTRY, id));
 }
 
 export function chargerWsUrl(serverHost: string, chargerId: string): string {

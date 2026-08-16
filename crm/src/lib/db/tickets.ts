@@ -10,7 +10,7 @@
  */
 
 import {
-  addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import type { TicketStatus } from "../constants";
@@ -75,4 +75,9 @@ export async function assignTicket(id: string, assignee: Actor | null, actor: Ac
     updatedAt: serverTimestamp(),
     updatedBy: actor,
   });
+}
+
+/** Firestore rules restrict this to SUPER_ADMIN — fault/offline tickets are an operational history, not something most roles should be able to erase. */
+export async function deleteTicket(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), TICKETS, id));
 }

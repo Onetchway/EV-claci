@@ -9,7 +9,7 @@
  */
 
 import {
-  addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
+  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -55,4 +55,8 @@ export async function updateTariff(id: string, draft: TariffDraft, actor: Actor)
 
 export async function setTariffActive(id: string, active: boolean, actor: Actor): Promise<void> {
   await updateDoc(doc(getDb(), TARIFFS, id), { active, updatedAt: serverTimestamp(), updatedBy: actor });
+}
+
+export async function deleteTariff(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), TARIFFS, id));
 }

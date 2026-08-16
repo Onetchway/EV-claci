@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import {
   Battery, Copy, Lock, MapPin as MapPinIcon, Plus, Power, PowerOff, QrCode, RotateCcw,
-  Square, Wifi, WifiOff, X, Zap,
+  Square, Trash2, Wifi, WifiOff, X, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -16,9 +16,9 @@ import {
 } from "@/components/ui";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  chargerWsUrl, CHARGER_TYPES, CHARGER_VENDORS, CONNECTOR_TYPES, oemLabel, registerCharger, setChargerActive,
-  subscribeChargerRegistry, updateChargerRegistration, type ChargerRegistration, type ChargerRegistrationDraft,
-  type ConnectorTypeName,
+  chargerWsUrl, CHARGER_TYPES, CHARGER_VENDORS, CONNECTOR_TYPES, deleteChargerRegistration, oemLabel,
+  registerCharger, setChargerActive, subscribeChargerRegistry, updateChargerRegistration,
+  type ChargerRegistration, type ChargerRegistrationDraft, type ConnectorTypeName,
 } from "@/lib/db/charger-registry";
 import {
   subscribeChargePoints, subscribeRecentSessions, type ChargePoint,
@@ -26,9 +26,9 @@ import {
 } from "@/lib/db/chargers";
 import { subscribeLeads } from "@/lib/db/leads";
 import { sendChargerCommand } from "@/lib/ocpp-commands";
-import { addRfidToken, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
+import { addRfidToken, deleteRfidToken, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
 import { subscribeZones } from "@/lib/db/zones";
-import { INDIAN_STATES } from "@/lib/constants";
+import { INDIAN_STATES, LEAD_TYPE_LABEL, LEAD_TYPES, type LeadType } from "@/lib/constants";
 import { canManageChargers, canManageRfid } from "@/lib/permissions";
 import type { Lead, RfidToken, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
@@ -138,7 +138,7 @@ export default function ChargersPage() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState<ChargerRegistrationDraft>(blankDraft);
-  const [draftLeadType, setDraftLeadType] = useState<"" | "EPC" | "RWA" | "SOFTWARE">("");
+  const [draftLeadType, setDraftLeadType] = useState<"" | LeadType>("");
   const [leadOptions, setLeadOptions] = useState<Lead[]>([]);
   const [registering, setRegistering] = useState(false);
   const [justRegisteredId, setJustRegisteredId] = useState<string | null>(null);
@@ -381,6 +381,19 @@ export default function ChargersPage() {
                               {r.active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
                             </button>
                           )}
+                          {canManage && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!window.confirm(`Delete ${r.label}? This can't be undone.`)) return;
+                                void run(() => deleteChargerRegistration(r.id), "Charger deleted.");
+                              }}
+                              className="rounded-md p-1.5 text-ink-500 hover:bg-rose-50 hover:text-rose-700"
+                              title="Delete charger"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -582,12 +595,23 @@ export default function ChargersPage() {
                     </td>
                     {canManageRfid(viewer) && (
                       <td className="td text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => void run(() => setRfidTokenStatus(t.id, t.status === "ACTIVE" ? "BLOCKED" : "ACTIVE"))}
-                        >
-                          {t.status === "ACTIVE" ? "Block" : "Unblock"}
-                        </Button>
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            onClick={() => void run(() => setRfidTokenStatus(t.id, t.status === "ACTIVE" ? "BLOCKED" : "ACTIVE"))}
+                          >
+                            {t.status === "ACTIVE" ? "Block" : "Unblock"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (!window.confirm(`Delete tag ${t.label}? This can't be undone.`)) return;
+                              void run(() => deleteRfidToken(t.id), "Token deleted.");
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -804,11 +828,11 @@ export default function ChargersPage() {
                 placeholder="e.g. 77.3910"
               />
             </Field>
-            <Field label="Lead type" hint="Optional — link this charger to the EPC/RWA/Software lead it belongs to.">
+            <Field label="Lead type" hint="Optional — link this charger to the lead it belongs to.">
               <Select
                 value={draftLeadType}
                 onChange={(e) => { setDraftLeadType(e.target.value as typeof draftLeadType); setDraft((d) => ({ ...d, leadId: null, leadCode: null })); }}
-                options={[{ value: "EPC", label: "EPC" }, { value: "RWA", label: "RWA" }, { value: "SOFTWARE", label: "Software" }]}
+                options={LEAD_TYPES.map((t) => ({ value: t, label: LEAD_TYPE_LABEL[t] }))}
                 placeholder="None"
               />
             </Field>
