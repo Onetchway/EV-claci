@@ -134,6 +134,32 @@ export function subscribeSessionsSince(
   );
 }
 
+/** All sessions auto-debited to a given wallet owner (retail user or corporate account) — no orderBy, so no composite index; sorted client-side. */
+export function subscribeSessionsForWalletOwner(
+  ownerType: "EMSP_USER" | "CORPORATE_ACCOUNT",
+  ownerId: string,
+  cb: (rows: ChargeSession[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(
+      collection(getDb(), CHARGE_SESSIONS),
+      where("walletOwnerType", "==", ownerType),
+      where("walletOwnerId", "==", ownerId),
+    ),
+    (snap) => {
+      const rows = snap.docs.map((d) => mapSession(d.id, d.data()));
+      rows.sort((a, b) => {
+        const am = (a.lastUpdateAt as { toMillis?: () => number } | undefined)?.toMillis?.() ?? 0;
+        const bm = (b.lastUpdateAt as { toMillis?: () => number } | undefined)?.toMillis?.() ?? 0;
+        return bm - am;
+      });
+      cb(rows);
+    },
+    (err) => onError?.(err as Error),
+  );
+}
+
 export function subscribeSessionsForChargePoint(
   chargePointId: string,
   cb: (rows: ChargeSession[]) => void,

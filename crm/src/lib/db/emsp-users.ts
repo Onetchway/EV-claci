@@ -3,14 +3,15 @@
 /** Driver-facing (EMSP) users and the corporate accounts some of them bill to. */
 
 import {
-  addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
+  addDoc, collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
-import type { Actor, CorporateAccount, EmspUser } from "../types";
+import type { Actor, CorporateAccount, EmspUser, WalletOwnerType, WalletTransaction } from "../types";
 
 export const CORPORATE_ACCOUNTS = "corporateAccounts";
 export const EMSP_USERS = "emspUsers";
+export const WALLET_TRANSACTIONS = "walletTransactions";
 
 function mapAccount(id: string, data: Record<string, unknown>): CorporateAccount {
   return { id, ...(data as Omit<CorporateAccount, "id">) };
@@ -62,4 +63,56 @@ export async function createEmspUser(draft: EmspUserDraft, actor: Actor): Promis
 
 export async function setEmspUserActive(id: string, active: boolean): Promise<void> {
   await updateDoc(doc(getDb(), EMSP_USERS, id), { active });
+}
+
+export async function getEmspUser(id: string): Promise<EmspUser | null> {
+  const snap = await getDoc(doc(getDb(), EMSP_USERS, id));
+  return snap.exists() ? mapUser(snap.id, snap.data()) : null;
+}
+
+export function subscribeEmspUser(
+  id: string,
+  cb: (row: EmspUser | null) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    doc(getDb(), EMSP_USERS, id),
+    (snap) => cb(snap.exists() ? mapUser(snap.id, snap.data()) : null),
+    (err) => onError?.(err as Error),
+  );
+}
+
+export async function getCorporateAccount(id: string): Promise<CorporateAccount | null> {
+  const snap = await getDoc(doc(getDb(), CORPORATE_ACCOUNTS, id));
+  return snap.exists() ? mapAccount(snap.id, snap.data()) : null;
+}
+
+/** Links (or unlinks) the RFID tag this user taps to start a session — what makes automatic per-session wallet debit actually resolve to them. */
+export async function setEmspUserRfidToken(id: string, rfidTokenId: string | null): Promise<void> {
+  await updateDoc(doc(getDb(), EMSP_USERS, id), { rfidTokenId });
+}
+
+function mapTransaction(id: string, data: Record<string, unknown>): WalletTransaction {
+  return { id, ...(data as Omit<WalletTransaction, "id">) };
+}
+
+export function subscribeWalletTransactions(
+  ownerType: WalletOwnerType,
+  ownerId: string,
+  cb: (rows: WalletTransaction[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), WALLET_TRANSACTIONS), where("ownerType", "==", ownerType), where("ownerId", "==", ownerId)),
+    (snap) => {
+      const rows = snap.docs.map((d) => mapTransaction(d.id, d.data()));
+      rows.sort((a, b) => {
+        const am = (a.createdAt as { toMillis?: () => number } | null)?.toMillis?.() ?? 0;
+        const bm = (b.createdAt as { toMillis?: () => number } | null)?.toMillis?.() ?? 0;
+        return bm - am;
+      });
+      cb(rows);
+    },
+    (err) => onError?.(err as Error),
+  );
 }

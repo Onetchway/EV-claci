@@ -89,3 +89,28 @@ export async function createDriver(draft: DriverDraft, actor: Actor): Promise<st
 export async function assignVehicleDriver(vehicleId: string, driverId: string | null): Promise<void> {
   await updateDoc(doc(getDb(), VEHICLES, vehicleId), { assignedDriverId: driverId });
 }
+
+/** Finds the fleet driver record (if any) linked to a given EMSP user — the join for a unified customer/driver profile. */
+export function subscribeDriverForEmspUser(
+  emspUserId: string,
+  cb: (row: Driver | null) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), DRIVERS), where("emspUserId", "==", emspUserId)),
+    (snap) => cb(snap.empty ? null : mapDriver(snap.docs[0]!.id, snap.docs[0]!.data())),
+    (err) => onError?.(err as Error),
+  );
+}
+
+export function subscribeVehiclesForDriver(
+  driverId: string,
+  cb: (rows: Vehicle[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), VEHICLES), where("assignedDriverId", "==", driverId)),
+    (snap) => cb(snap.docs.map((d) => mapVehicle(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}

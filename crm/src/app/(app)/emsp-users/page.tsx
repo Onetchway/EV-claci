@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Building2, IndianRupee, Plus, UserCircle } from "lucide-react";
 
@@ -144,7 +145,7 @@ export default function EmspUsersPage() {
               <tbody className="divide-y divide-ink-100">
                 {users.map((u) => (
                   <tr key={u.id} className="hover:bg-ink-50">
-                    <td className="td font-medium">{u.name}</td>
+                    <td className="td font-medium"><Link href={`/emsp-users/${u.id}`} className="hover:underline">{u.name}</Link></td>
                     <td className="td text-ink-600">{u.phone}</td>
                     <td className="td text-ink-600">{EMSP_USER_TYPE_LABEL[u.type]}</td>
                     <td className="td text-ink-600">{u.corporateAccountId ? (accountName.get(u.corporateAccountId) ?? "—") : "—"}</td>
