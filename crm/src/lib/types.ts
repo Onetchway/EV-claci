@@ -622,6 +622,27 @@ export interface WalletTransaction {
   emspUserId?: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
+  /** Set on a TOPUP that redeemed a coupon. */
+  couponCode?: string;
+  /** Bonus credited on top of amountInr from the coupon — amountInr already includes it, this is just for display. */
+  couponBonusInr?: number;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+export type CouponType = "PERCENT" | "FLAT";
+
+/** A wallet top-up promo code — validated and redeemed server-side in /api/payments/razorpay/verify, never trusted from the client. */
+export interface Coupon {
+  id: string;
+  code: string;
+  type: CouponType;
+  /** % (0-100) if type is PERCENT, flat ₹ bonus if type is FLAT. */
+  value: number;
+  active: boolean;
+  maxUses?: number;
+  usedCount: number;
+  expiresAt?: TS | null;
   createdAt: TS;
   createdBy?: Actor | null;
 }

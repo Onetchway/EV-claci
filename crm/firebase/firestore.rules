@@ -405,6 +405,14 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
     }
 
+    // Wallet top-up promo codes. Redemption (usedCount increments) only ever
+    // happens via the Admin SDK in /api/payments/razorpay/verify, so client
+    // writes here are just the admin-authoring side (create/enable/disable/delete).
+    match /coupons/{couponId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
     // Site (host) revenue-share ledger — written by ocpp-server's Admin SDK
     // at session-bill time; the CRM only ever reads and flips PENDING→PAID.
     match /siteRevenueShares/{shareId} {

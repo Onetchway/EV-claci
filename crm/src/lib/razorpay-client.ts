@@ -47,6 +47,7 @@ async function authedFetch(path: string, body: unknown) {
 
 export interface WalletTopupResult {
   ok: true;
+  bonusInr?: number;
 }
 
 /** Opens Razorpay Checkout for a wallet top-up; resolves once the payment is verified server-side, rejects on failure or cancellation. */
@@ -55,6 +56,7 @@ export function topUpWallet(opts: {
   ownerId: string;
   ownerName: string;
   amountInr: number;
+  couponCode?: string;
 }): Promise<WalletTopupResult> {
   return new Promise((resolve, reject) => {
     (async () => {
@@ -78,7 +80,8 @@ export function topUpWallet(opts: {
             razorpayOrderId: response.razorpay_order_id,
             razorpayPaymentId: response.razorpay_payment_id,
             razorpaySignature: response.razorpay_signature,
-          }).then(() => resolve({ ok: true })).catch(reject);
+            couponCode: opts.couponCode || undefined,
+          }).then((res) => resolve({ ok: true, bonusInr: res.bonusInr })).catch(reject);
         },
         modal: { ondismiss: () => reject(new Error("Payment cancelled.")) },
       });

@@ -46,6 +46,7 @@ export default function EmspUsersPage() {
 
   const [topupFor, setTopupFor] = useState<{ ownerType: WalletOwnerType; ownerId: string; name: string } | null>(null);
   const [topupAmount, setTopupAmount] = useState("500");
+  const [topupCoupon, setTopupCoupon] = useState("");
   const [topupBusy, setTopupBusy] = useState(false);
   const { push } = useToast();
 
@@ -60,9 +61,18 @@ export default function EmspUsersPage() {
     if (!amount || amount <= 0) return;
     setTopupBusy(true);
     try {
-      await topUpWallet({ ownerType: topupFor.ownerType, ownerId: topupFor.ownerId, ownerName: topupFor.name, amountInr: amount });
-      push(`₹${amount} added to ${topupFor.name}'s wallet.`, "success");
+      const result = await topUpWallet({
+        ownerType: topupFor.ownerType, ownerId: topupFor.ownerId, ownerName: topupFor.name,
+        amountInr: amount, couponCode: topupCoupon.trim() || undefined,
+      });
+      push(
+        result.bonusInr
+          ? `₹${amount} + ₹${result.bonusInr} coupon bonus added to ${topupFor.name}'s wallet.`
+          : `₹${amount} added to ${topupFor.name}'s wallet.`,
+        "success",
+      );
       setTopupFor(null);
+      setTopupCoupon("");
     } catch (e) {
       push((e as Error).message, "error");
     } finally {
@@ -292,7 +302,7 @@ export default function EmspUsersPage() {
 
       <Modal
         open={!!topupFor}
-        onClose={() => setTopupFor(null)}
+        onClose={() => { setTopupFor(null); setTopupCoupon(""); }}
         title={`Top up wallet — ${topupFor?.name ?? ""}`}
         description="Opens Razorpay Checkout. Requires RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET set in this app's environment."
         footer={(
@@ -306,6 +316,9 @@ export default function EmspUsersPage() {
       >
         <Field label="Amount (₹)">
           <Input type="number" min={1} value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} />
+        </Field>
+        <Field label="Coupon code" hint="Optional — validated when payment completes.">
+          <Input value={topupCoupon} onChange={(e) => setTopupCoupon(e.target.value.toUpperCase())} placeholder="e.g. WELCOME10" />
         </Field>
       </Modal>
     </>

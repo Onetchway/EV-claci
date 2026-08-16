@@ -24,6 +24,8 @@ const Body = z.object({
   razorpayOrderId: z.string().min(1),
   razorpayPaymentId: z.string().min(1),
   razorpaySignature: z.string().min(1),
+  /** Optional promo code — validated and redeemed here, never trusted from the client beyond the code string itself. */
+  couponCode: z.string().max(40).optional(),
 });
 
 export async function POST(req: Request) {
@@ -47,24 +49,51 @@ export async function POST(req: Request) {
     const collectionName = body.ownerType === "EMSP_USER" ? "emspUsers" : "corporateAccounts";
     const ownerRef = db.collection(collectionName).doc(body.ownerId);
 
+    let bonusInr = 0;
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ownerRef);
       if (!snap.exists) throw new ApiError("Wallet owner not found.", 404);
+
+      let couponRef: FirebaseFirestore.DocumentReference | null = null;
+      let couponUsedCount = 0;
+      if (body.couponCode) {
+        const couponQuery = await tx.get(
+          db.collection("coupons").where("code", "==", body.couponCode.trim().toUpperCase()).limit(1),
+        );
+        if (couponQuery.empty) throw new ApiError(`Coupon "${body.couponCode}" not found.`, 400);
+        const couponDoc = couponQuery.docs[0]!;
+        const coupon = couponDoc.data();
+        if (!coupon.active) throw new ApiError("This coupon is no longer active.", 400);
+        const expiresAt = coupon.expiresAt as FirebaseFirestore.Timestamp | null | undefined;
+        if (expiresAt && expiresAt.toMillis() < Date.now()) throw new ApiError("This coupon has expired.", 400);
+        couponUsedCount = (coupon.usedCount as number | undefined) ?? 0;
+        if (coupon.maxUses && couponUsedCount >= coupon.maxUses) {
+          throw new ApiError("This coupon has reached its redemption limit.", 400);
+        }
+        bonusInr = coupon.type === "PERCENT"
+          ? Math.round(body.amountInr * ((coupon.value as number) / 100) * 100) / 100
+          : (coupon.value as number);
+        couponRef = couponDoc.ref;
+      }
+
       const current = (snap.data()?.walletBalanceInr as number | undefined) ?? 0;
-      tx.update(ownerRef, { walletBalanceInr: current + body.amountInr });
+      const credited = body.amountInr + bonusInr;
+      tx.update(ownerRef, { walletBalanceInr: current + credited });
       tx.set(db.collection("walletTransactions").doc(), {
         ownerType: body.ownerType,
         ownerId: body.ownerId,
-        amountInr: body.amountInr,
+        amountInr: credited,
         type: "TOPUP",
         razorpayOrderId: body.razorpayOrderId,
         razorpayPaymentId: body.razorpayPaymentId,
+        ...(body.couponCode && { couponCode: body.couponCode.trim().toUpperCase(), couponBonusInr: bonusInr }),
         createdAt: FieldValue.serverTimestamp(),
         createdBy: { uid: caller.uid, name: caller.name, role: caller.role },
       });
+      if (couponRef) tx.update(couponRef, { usedCount: couponUsedCount + 1 });
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, bonusInr });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.issues[0]?.message ?? "Invalid input." }, { status: 400 });
