@@ -64,12 +64,16 @@ export interface ChargeSession {
   latestEnergyWh?: number;
   energyDeliveredWh?: number;
   stoppedReason?: string | null;
+  /** Cumulative minutes spent in a non-"Charging" state (connected but idle) — what idle/parking fees are computed against. */
+  idleMinutes?: number;
   /** Stamped by the OCPP server at session end, once a matching tariff is found. Absent if no tariff matched. */
   tariffId?: string | null;
   tariffName?: string | null;
   costBeforeGstInr?: number;
   gstPct?: number;
   gstInr?: number;
+  parkingFeeInr?: number;
+  idleFeeInr?: number;
   totalCostInr?: number;
   /** Set when the session's id token was traced to an EMSP user/corporate account and the cost was auto-debited from their wallet. */
   walletDebited?: boolean;

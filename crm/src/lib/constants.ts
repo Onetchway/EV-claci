@@ -906,14 +906,16 @@ export const TARIFF_PRICING_TYPE_LABEL: Record<TariffPricingType, string> = {
   PER_SESSION: "Flat per session",
 };
 
-export const TARIFF_SCOPES = ["ALL_CHARGERS", "STATE", "ZONE", "SPECIFIC_CHARGERS"] as const;
+export const TARIFF_SCOPES = ["ALL_CHARGERS", "STATE", "CITY", "ZONE", "SPECIFIC_CHARGERS", "SPECIFIC_CONNECTORS"] as const;
 export type TariffScope = (typeof TARIFF_SCOPES)[number];
 
 export const TARIFF_SCOPE_LABEL: Record<TariffScope, string> = {
   ALL_CHARGERS: "All chargers (default)",
   STATE: "State-wise",
+  CITY: "City-wise",
   ZONE: "Site / zone-wise",
   SPECIFIC_CHARGERS: "Specific chargers",
+  SPECIFIC_CONNECTORS: "Specific connectors",
 };
 
 export const WEEKDAY_LABEL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

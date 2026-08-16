@@ -23,12 +23,17 @@ const blankDraft: TariffDraft = {
   name: "",
   scope: "ALL_CHARGERS",
   chargerIds: [],
+  connectorKeys: [],
   zoneIds: [],
+  cities: [],
   states: [],
   pricingType: "PER_KWH",
   rate: 0,
   gstPct: 18,
   platformFeeInr: 0,
+  parkingFeeInr: 0,
+  idleFeeInrPerMin: 0,
+  idleGraceMinutes: 0,
   timeWindow: null,
   priority: 0,
   active: true,
@@ -81,10 +86,30 @@ export default function TariffsPage() {
     [chargers, zoneLabel],
   );
 
+  const connectorOptions = useMemo(() => {
+    const rows: { key: string; label: string }[] = [];
+    for (const c of chargersBySite) {
+      const site = c.zoneId ? zoneLabel.get(c.zoneId) : undefined;
+      const base = site ? `${c.label} (${site})` : c.label;
+      rows.push({ key: `${c.chargerId}#1`, label: `${base} — Connector 1${c.connectorType ? ` (${c.connectorType})` : ""}` });
+      for (const conn of c.connectors ?? []) {
+        rows.push({ key: `${c.chargerId}#${conn.connectorId}`, label: `${base} — Connector ${conn.connectorId} (${conn.connectorType})` });
+      }
+    }
+    return rows;
+  }, [chargersBySite, zoneLabel]);
+
+  const cities = useMemo(
+    () => [...new Set(zones.map((z) => z.city).filter((c): c is string => !!c))].sort(),
+    [zones],
+  );
+
   function appliesToLabel(t: Tariff): string {
     if (t.scope === "ALL_CHARGERS") return "All chargers";
+    if (t.scope === "SPECIFIC_CONNECTORS") return t.connectorKeys.length ? `${t.connectorKeys.length} connector${t.connectorKeys.length === 1 ? "" : "s"}` : "—";
     if (t.scope === "SPECIFIC_CHARGERS") return t.chargerIds.length ? t.chargerIds.map((id) => chargerLabel.get(id) ?? id).join(", ") : "—";
     if (t.scope === "ZONE") return t.zoneIds.length ? t.zoneIds.map((id) => zoneLabel.get(id) ?? id).join(", ") : "—";
+    if (t.scope === "CITY") return t.cities.length ? t.cities.join(", ") : "—";
     return t.states.length ? t.states.join(", ") : "—";
   }
 
@@ -98,8 +123,10 @@ export default function TariffsPage() {
   function openEdit(t: Tariff) {
     setEditingId(t.id);
     setDraft({
-      name: t.name, scope: t.scope, chargerIds: t.chargerIds, zoneIds: t.zoneIds, states: t.states,
+      name: t.name, scope: t.scope, chargerIds: t.chargerIds, connectorKeys: t.connectorKeys ?? [],
+      zoneIds: t.zoneIds, cities: t.cities ?? [], states: t.states,
       pricingType: t.pricingType, rate: t.rate, gstPct: t.gstPct, platformFeeInr: t.platformFeeInr,
+      parkingFeeInr: t.parkingFeeInr ?? 0, idleFeeInrPerMin: t.idleFeeInrPerMin ?? 0, idleGraceMinutes: t.idleGraceMinutes ?? 0,
       timeWindow: t.timeWindow ?? null, priority: t.priority, active: t.active,
     });
     setUseTimeWindow(!!t.timeWindow);
@@ -227,6 +254,26 @@ export default function TariffsPage() {
             </Field>
           </div>
 
+          {draft.scope === "SPECIFIC_CONNECTORS" && (
+            <Field label="Connectors" hint="One tariff per gun — e.g. price the CCS2 connector differently from the CHAdeMO connector on the same charger.">
+              <div className="max-h-52 space-y-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2">
+                {connectorOptions.length === 0 ? (
+                  <p className="text-xs text-ink-500">No chargers registered yet.</p>
+                ) : connectorOptions.map((c) => (
+                  <Checkbox
+                    key={c.key}
+                    label={c.label}
+                    checked={draft.connectorKeys.includes(c.key)}
+                    onChange={(v) => setDraft((d) => ({
+                      ...d,
+                      connectorKeys: v ? [...d.connectorKeys, c.key] : d.connectorKeys.filter((x) => x !== c.key),
+                    }))}
+                  />
+                ))}
+              </div>
+            </Field>
+          )}
+
           {draft.scope === "SPECIFIC_CHARGERS" && (
             <Field label="Chargers" hint="Grouped by site — pick individual chargers even when a site has several with different specs (e.g. one 60 kW DC plus four 7.4 kW AC).">
               <div className="max-h-52 space-y-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2">
@@ -260,6 +307,26 @@ export default function TariffsPage() {
                     onChange={(v) => setDraft((d) => ({
                       ...d,
                       zoneIds: v ? [...d.zoneIds, z.id] : d.zoneIds.filter((x) => x !== z.id),
+                    }))}
+                  />
+                ))}
+              </div>
+            </Field>
+          )}
+
+          {draft.scope === "CITY" && (
+            <Field label="Cities" hint="Matches a charger by its site's city (set on Zones & Load Balancing / Station Management).">
+              <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2">
+                {cities.length === 0 ? (
+                  <p className="text-xs text-ink-500">No sites have a city set yet.</p>
+                ) : cities.map((c) => (
+                  <Checkbox
+                    key={c}
+                    label={c}
+                    checked={draft.cities.includes(c)}
+                    onChange={(v) => setDraft((d) => ({
+                      ...d,
+                      cities: v ? [...d.cities, c] : d.cities.filter((x) => x !== c),
                     }))}
                   />
                 ))}
@@ -304,6 +371,25 @@ export default function TariffsPage() {
           <Field label="Platform fee (₹, flat, excl. GST)" hint="Added to every session this tariff prices, on top of the rate above.">
             <Input type="number" min={0} value={draft.platformFeeInr} onChange={(e) => setDraft((d) => ({ ...d, platformFeeInr: Number(e.target.value) || 0 }))} />
           </Field>
+
+          <div className="rounded-lg bg-ink-50 p-3">
+            <p className="label mb-2">Idle / overstay fees</p>
+            <p className="mb-3 text-xs text-ink-500">
+              "Idle" is time the vehicle is connected but not drawing power (charge complete, or suspended) — tracked automatically from the charger's reported state.
+              A grace period is forgiven before either fee starts.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Grace period (minutes)">
+                <Input type="number" min={0} value={draft.idleGraceMinutes ?? 0} onChange={(e) => setDraft((d) => ({ ...d, idleGraceMinutes: Number(e.target.value) || 0 }))} />
+              </Field>
+              <Field label="Idle fee (₹/min after grace)">
+                <Input type="number" min={0} value={draft.idleFeeInrPerMin ?? 0} onChange={(e) => setDraft((d) => ({ ...d, idleFeeInrPerMin: Number(e.target.value) || 0 }))} />
+              </Field>
+              <Field label="Parking fee (₹, flat, once over grace)">
+                <Input type="number" min={0} value={draft.parkingFeeInr ?? 0} onChange={(e) => setDraft((d) => ({ ...d, parkingFeeInr: Number(e.target.value) || 0 }))} />
+              </Field>
+            </div>
+          </div>
 
           <Checkbox label="Only applies during a specific time window" checked={useTimeWindow} onChange={setUseTimeWindow} />
 

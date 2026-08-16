@@ -517,8 +517,12 @@ export interface Tariff {
   scope: TariffScope;
   /** Only used when scope === "SPECIFIC_CHARGERS". */
   chargerIds: string[];
+  /** Only used when scope === "SPECIFIC_CONNECTORS" — each entry is "chargerId#connectorId". */
+  connectorKeys: string[];
   /** Only used when scope === "ZONE". */
   zoneIds: string[];
+  /** Only used when scope === "CITY" — matches a charger's zone.city. */
+  cities: string[];
   /** Only used when scope === "STATE". */
   states: string[];
   pricingType: TariffPricingType;
@@ -527,6 +531,12 @@ export interface Tariff {
   gstPct: number;
   /** Flat ₹ added to every session this tariff prices, excl. GST. */
   platformFeeInr: number;
+  /** Flat ₹ charged once a session has any idle time recorded (connected but not drawing charge, past the grace window) — an "overstay" fee, distinct from the per-minute idle fee below. */
+  parkingFeeInr?: number;
+  /** ₹ per minute spent idle (OCPP chargingState other than "Charging") beyond idleGraceMinutes. */
+  idleFeeInrPerMin?: number;
+  /** Minutes of idle time forgiven before idleFeeInrPerMin starts accruing. Defaults to 0 if idleFeeInrPerMin is set. */
+  idleGraceMinutes?: number;
   timeWindow?: TariffTimeWindow | null;
   /** Tiebreaker when two active rules match with equal specificity — higher wins. */
   priority: number;

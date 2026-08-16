@@ -142,12 +142,28 @@ export async function recordTransactionEvent(
   const ref = db().collection(CHARGE_SESSIONS).doc(id);
   const energyWh = energyWhFrom(req.meterValue);
 
+  // Idle-time tracking for idle/parking fees: each event is a fresh
+  // observation of chargingState. The time since the *previous* observation
+  // counts as idle if the *previous* state wasn't "Charging" — read before
+  // the merge below overwrites chargingState/stateChangedAt.
+  const prevSnap = await ref.get();
+  const prev = prevSnap.data();
+  const prevState = prev?.chargingState as string | null | undefined;
+  const prevChangedAt = (prev?.stateChangedAt ?? prev?.startedAt) as Timestamp | undefined;
+  let idleMinutes = (prev?.idleMinutes as number | undefined) ?? 0;
+  if (req.eventType !== "Started" && prevChangedAt) {
+    const elapsedMin = (new Date(req.timestamp).getTime() - prevChangedAt.toDate().getTime()) / 60000;
+    if (elapsedMin > 0 && prevState && prevState !== "Charging") idleMinutes += elapsedMin;
+  }
+
   const patch: Record<string, unknown> = {
     chargePointId,
     transactionId: req.transactionInfo.transactionId,
     evseId: req.evse?.id ?? null,
     connectorId: req.evse?.connectorId ?? null,
     chargingState: req.transactionInfo.chargingState ?? null,
+    stateChangedAt: Timestamp.fromDate(new Date(req.timestamp)),
+    idleMinutes: req.eventType === "Started" ? 0 : Math.round(idleMinutes * 100) / 100,
     idToken: req.idToken?.idToken ?? null,
     lastEventType: req.eventType,
     lastUpdateAt: FieldValue.serverTimestamp(),
@@ -201,11 +217,13 @@ async function billSession(
   const startedAt = (sessionData?.startedAt as Timestamp | undefined)?.toDate();
   const endedAt = new Date();
   const durationMinutes = startedAt ? Math.max(0, (endedAt.getTime() - startedAt.getTime()) / 60000) : 0;
+  const idleMinutes = (sessionData?.idleMinutes as number | undefined) ?? 0;
+  const connectorId = sessionData?.connectorId as number | null | undefined;
 
-  const tariff = await resolveTariff(chargePointId, endedAt);
+  const tariff = await resolveTariff(chargePointId, endedAt, connectorId);
   if (!tariff) return;
 
-  const cost = computeCost(tariff, energyDeliveredWh ?? null, durationMinutes);
+  const cost = computeCost(tariff, energyDeliveredWh ?? null, durationMinutes, idleMinutes);
   const idToken = sessionData?.idToken as string | null | undefined;
   const discountPct = await subscriptionDiscountFor(idToken);
   const totalCostInr = discountPct
@@ -219,6 +237,8 @@ async function billSession(
       costBeforeGstInr: cost.costBeforeGstInr,
       gstPct: cost.gstPct,
       gstInr: cost.gstInr,
+      parkingFeeInr: cost.parkingFeeInr,
+      idleFeeInr: cost.idleFeeInr,
       totalCostInr,
       ...(discountPct && { subscriptionDiscountPct: discountPct }),
     },

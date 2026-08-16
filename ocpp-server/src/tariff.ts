@@ -13,7 +13,7 @@
 import { db } from "./firebase.js";
 
 export type TariffPricingType = "PER_KWH" | "PER_MINUTE" | "PER_SESSION";
-export type TariffScope = "ALL_CHARGERS" | "STATE" | "ZONE" | "SPECIFIC_CHARGERS";
+export type TariffScope = "ALL_CHARGERS" | "STATE" | "CITY" | "ZONE" | "SPECIFIC_CHARGERS" | "SPECIFIC_CONNECTORS";
 
 export interface TariffTimeWindow {
   daysOfWeek: number[];
@@ -26,12 +26,17 @@ export interface TariffDoc {
   name: string;
   scope: TariffScope;
   chargerIds: string[];
+  connectorKeys: string[];
   zoneIds: string[];
+  cities: string[];
   states: string[];
   pricingType: TariffPricingType;
   rate: number;
   gstPct: number;
   platformFeeInr: number;
+  parkingFeeInr?: number;
+  idleFeeInrPerMin?: number;
+  idleGraceMinutes?: number;
   timeWindow?: TariffTimeWindow | null;
   priority: number;
   active: boolean;
@@ -43,6 +48,8 @@ export interface BilledCost {
   costBeforeGstInr: number;
   gstPct: number;
   gstInr: number;
+  parkingFeeInr: number;
+  idleFeeInr: number;
   totalCostInr: number;
 }
 
@@ -55,8 +62,10 @@ function matchesTimeWindow(tw: TariffTimeWindow, at: Date): boolean {
 
 /** Higher = more specific; used to pick the best match when several tariffs apply. */
 const SCOPE_SPECIFICITY: Record<TariffScope, number> = {
-  SPECIFIC_CHARGERS: 3,
-  ZONE: 2,
+  SPECIFIC_CONNECTORS: 5,
+  SPECIFIC_CHARGERS: 4,
+  ZONE: 3,
+  CITY: 2,
   STATE: 1,
   ALL_CHARGERS: 0,
 };
@@ -67,26 +76,41 @@ function specificity(t: TariffDoc): number {
 export interface ChargerContext {
   zoneId: string | null;
   state: string | null;
+  city: string | null;
 }
 
 export async function loadChargerContext(chargerId: string): Promise<ChargerContext> {
   const snap = await db().collection("chargerRegistry").where("chargerId", "==", chargerId).limit(1).get();
-  if (snap.empty) return { zoneId: null, state: null };
+  if (snap.empty) return { zoneId: null, state: null, city: null };
   const data = snap.docs[0]!.data();
-  return { zoneId: (data.zoneId as string | undefined) ?? null, state: (data.state as string | undefined) ?? null };
+  const zoneId = (data.zoneId as string | undefined) ?? null;
+  let city: string | null = null;
+  if (zoneId) {
+    const zoneSnap = await db().collection("zones").doc(zoneId).get();
+    city = (zoneSnap.data()?.city as string | undefined) ?? null;
+  }
+  return { zoneId, state: (data.state as string | undefined) ?? null, city };
 }
 
-export async function resolveTariff(chargerId: string, at: Date): Promise<TariffDoc | null> {
+export async function resolveTariff(
+  chargerId: string,
+  at: Date,
+  connectorId?: number | null,
+): Promise<TariffDoc | null> {
   const [snap, ctx] = await Promise.all([
     db().collection("tariffs").where("active", "==", true).get(),
     loadChargerContext(chargerId),
   ]);
 
+  const connectorKey = connectorId != null ? `${chargerId}#${connectorId}` : null;
+
   const candidates: TariffDoc[] = [];
   for (const doc of snap.docs) {
     const t = { id: doc.id, ...doc.data() } as TariffDoc;
+    if (t.scope === "SPECIFIC_CONNECTORS" && (!connectorKey || !(t.connectorKeys ?? []).includes(connectorKey))) continue;
     if (t.scope === "SPECIFIC_CHARGERS" && !t.chargerIds.includes(chargerId)) continue;
     if (t.scope === "ZONE" && (!ctx.zoneId || !t.zoneIds.includes(ctx.zoneId))) continue;
+    if (t.scope === "CITY" && (!ctx.city || !(t.cities ?? []).includes(ctx.city))) continue;
     if (t.scope === "STATE" && (!ctx.state || !t.states.includes(ctx.state))) continue;
     if (t.timeWindow && !matchesTimeWindow(t.timeWindow, at)) continue;
     candidates.push(t);
@@ -99,13 +123,23 @@ export async function resolveTariff(chargerId: string, at: Date): Promise<Tariff
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export function computeCost(tariff: TariffDoc, energyWh: number | null, durationMinutes: number): BilledCost {
+export function computeCost(
+  tariff: TariffDoc,
+  energyWh: number | null,
+  durationMinutes: number,
+  idleMinutes = 0,
+): BilledCost {
   let base: number;
   if (tariff.pricingType === "PER_KWH") base = tariff.rate * ((energyWh ?? 0) / 1000);
   else if (tariff.pricingType === "PER_MINUTE") base = tariff.rate * durationMinutes;
   else base = tariff.rate;
 
-  const costBeforeGstInr = round2(base + tariff.platformFeeInr);
+  const graceMinutes = tariff.idleGraceMinutes ?? 0;
+  const billableIdleMinutes = Math.max(0, idleMinutes - graceMinutes);
+  const idleFeeInr = tariff.idleFeeInrPerMin ? round2(tariff.idleFeeInrPerMin * billableIdleMinutes) : 0;
+  const parkingFeeInr = (tariff.parkingFeeInr && idleMinutes > graceMinutes) ? tariff.parkingFeeInr : 0;
+
+  const costBeforeGstInr = round2(base + tariff.platformFeeInr + idleFeeInr + parkingFeeInr);
   const gstInr = round2(costBeforeGstInr * (tariff.gstPct / 100));
   return {
     tariffId: tariff.id,
@@ -113,6 +147,8 @@ export function computeCost(tariff: TariffDoc, energyWh: number | null, duration
     costBeforeGstInr,
     gstPct: tariff.gstPct,
     gstInr,
+    parkingFeeInr,
+    idleFeeInr,
     totalCostInr: round2(costBeforeGstInr + gstInr),
   };
 }
