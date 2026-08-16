@@ -66,8 +66,20 @@ export default function TariffsPage() {
   useEffect(() => subscribeChargerRegistry(setChargers), []);
   useEffect(() => subscribeZones(setZones), []);
 
-  const chargerLabel = useMemo(() => new Map(chargers.map((c) => [c.chargerId, c.label])), [chargers]);
   const zoneLabel = useMemo(() => new Map(zones.map((z) => [z.id, z.name])), [zones]);
+  const chargerLabel = useMemo(
+    () => new Map(chargers.map((c) => [c.chargerId, c.zoneId && zoneLabel.get(c.zoneId) ? `${c.label} (${zoneLabel.get(c.zoneId)})` : c.label])),
+    [chargers, zoneLabel],
+  );
+  /** Chargers sorted by site so a multi-charger site's rows sit together in the picker — unassigned chargers last. */
+  const chargersBySite = useMemo(
+    () => [...chargers].sort((a, b) => {
+      const sa = a.zoneId ? zoneLabel.get(a.zoneId) ?? "" : "￿";
+      const sb = b.zoneId ? zoneLabel.get(b.zoneId) ?? "" : "￿";
+      return sa === sb ? a.label.localeCompare(b.label) : sa.localeCompare(sb);
+    }),
+    [chargers, zoneLabel],
+  );
 
   function appliesToLabel(t: Tariff): string {
     if (t.scope === "ALL_CHARGERS") return "All chargers";
@@ -216,14 +228,14 @@ export default function TariffsPage() {
           </div>
 
           {draft.scope === "SPECIFIC_CHARGERS" && (
-            <Field label="Chargers">
-              <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2">
-                {chargers.length === 0 ? (
+            <Field label="Chargers" hint="Grouped by site — pick individual chargers even when a site has several with different specs (e.g. one 60 kW DC plus four 7.4 kW AC).">
+              <div className="max-h-52 space-y-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2">
+                {chargersBySite.length === 0 ? (
                   <p className="text-xs text-ink-500">No chargers registered yet.</p>
-                ) : chargers.map((c) => (
+                ) : chargersBySite.map((c) => (
                   <Checkbox
                     key={c.id}
-                    label={c.label}
+                    label={chargerLabel.get(c.chargerId) ?? c.label}
                     checked={draft.chargerIds.includes(c.chargerId)}
                     onChange={(v) => setDraft((d) => ({
                       ...d,

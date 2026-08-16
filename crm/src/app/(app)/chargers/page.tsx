@@ -130,6 +130,7 @@ export default function ChargersPage() {
   const [zones, setZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [siteFilter, setSiteFilter] = useState("");
 
   const [locatingReg, setLocatingReg] = useState<ChargerRegistration | null>(null);
   const [locZoneId, setLocZoneId] = useState("");
@@ -231,6 +232,11 @@ export default function ChargersPage() {
   }
 
   const pointByChargerId = useMemo(() => new Map(points.map((p) => [p.chargePointId ?? p.id, p])), [points]);
+  const zoneName = useMemo(() => new Map(zones.map((z) => [z.id, z.name])), [zones]);
+  const filteredRegistry = useMemo(
+    () => (siteFilter ? registry.filter((r) => r.zoneId === siteFilter) : registry),
+    [registry, siteFilter],
+  );
 
   const mapPins: MapPin[] = useMemo(
     () => registry
@@ -313,7 +319,19 @@ export default function ChargersPage() {
         )}
       </Card>
 
-      <Card title="Registered chargers" subtitle="Only these charger IDs are allowed to connect to the OCPP server." className="mb-4">
+      <Card
+        title="Registered chargers"
+        subtitle="Only these charger IDs are allowed to connect to the OCPP server."
+        actions={registry.length > 0 && (
+          <Select
+            value={siteFilter}
+            onChange={(e) => setSiteFilter(e.target.value)}
+            options={zones.map((z) => ({ value: z.id, label: z.name }))}
+            placeholder="All sites"
+          />
+        )}
+        className="mb-4"
+      >
         {registry.length === 0 ? (
           <EmptyState
             icon={<QrCode className="h-8 w-8" />}
@@ -327,6 +345,7 @@ export default function ChargersPage() {
               <thead className="border-b border-ink-200">
                 <tr>
                   <th className="th">Label</th>
+                  <th className="th">Site</th>
                   <th className="th">Charger ID</th>
                   <th className="th">Type</th>
                   <th className="th">OEM</th>
@@ -337,11 +356,12 @@ export default function ChargersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
-                {registry.map((r) => {
+                {filteredRegistry.map((r) => {
                   const live = pointByChargerId.get(r.chargerId);
                   return (
                     <tr key={r.id} className="hover:bg-ink-50">
                       <td className="td font-medium">{r.label}</td>
+                      <td className="td text-ink-600">{r.zoneId ? zoneName.get(r.zoneId) ?? "—" : "—"}</td>
                       <td className="td"><code className="text-xs text-ink-600">{r.chargerId}</code></td>
                       <td className="td text-ink-600">
                         {r.chargerPowerType}{r.connectorType ? ` · ${r.connectorType}` : ""}
