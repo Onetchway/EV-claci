@@ -10,12 +10,14 @@
  */
 
 import {
-  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+  addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp,
+  updateDoc, where,
 } from "firebase/firestore";
+import { deleteObject, getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 
-import type { TicketStatus } from "../constants";
-import { getDb } from "../firebase/client";
-import type { Actor, Ticket } from "../types";
+import type { TicketFaultClass, TicketStatus } from "../constants";
+import { getBucket, getDb } from "../firebase/client";
+import type { Actor, Ticket, TicketPart } from "../types";
 
 export const TICKETS = "tickets";
 
@@ -80,4 +82,52 @@ export async function assignTicket(id: string, assignee: Actor | null, actor: Ac
 /** Firestore rules restrict this to SUPER_ADMIN — fault/offline tickets are an operational history, not something most roles should be able to erase. */
 export async function deleteTicket(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), TICKETS, id));
+}
+
+export async function setTicketFaultClass(id: string, faultClass: TicketFaultClass | null, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), TICKETS, id), { faultClass, updatedAt: serverTimestamp(), updatedBy: actor });
+}
+
+export async function setTicketRepairDetails(
+  id: string,
+  patch: { parts?: TicketPart[]; repairCostInr?: number },
+  actor: Actor,
+): Promise<void> {
+  await updateDoc(doc(getDb(), TICKETS, id), { ...patch, updatedAt: serverTimestamp(), updatedBy: actor });
+}
+
+/** Re-verifies the charger is actually working, then closes the ticket — distinct from just marking RESOLVED, which doesn't require that check. */
+export async function verifyAndCloseTicket(id: string, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), TICKETS, id), {
+    status: "CLOSED",
+    resolvedAt: serverTimestamp(),
+    verifiedAt: serverTimestamp(),
+    verifiedBy: actor,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+export async function uploadTicketPhoto(ticketId: string, file: File, actor: Actor): Promise<void> {
+  const safeName = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
+  const storagePath = `tickets/${ticketId}/${Date.now()}_${safeName}`;
+  const storageRef = ref(getBucket(), storagePath);
+  const task = uploadBytesResumable(storageRef, file, { contentType: file.type });
+  await new Promise<void>((resolve, reject) => {
+    task.on("state_changed", undefined, reject, () => resolve());
+  });
+  const url = await getDownloadURL(storageRef);
+  await updateDoc(doc(getDb(), TICKETS, ticketId), {
+    photoUrls: arrayUnion(url),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+export async function removeTicketPhoto(ticketId: string, url: string, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), TICKETS, ticketId), {
+    photoUrls: arrayRemove(url),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
 }

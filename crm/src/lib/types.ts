@@ -8,7 +8,7 @@ import type {
   EmspUserType, InvoiceBillToType, InvoiceStatus, PaymentStatus, PoStatus, PowerLoad,
   ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
-  TaskStatus, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
+  TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
   WebhookEvent, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
@@ -469,17 +469,31 @@ export interface Quotation {
  * via the Admin SDK — everything from here on (assignment, status, SLA
  * tracking) is normal CRM territory.
  */
+export interface TicketPart {
+  name: string;
+  costInr: number;
+}
+
 export interface Ticket {
   id: string;
   chargePointId: string;
   type: TicketType;
   status: TicketStatus;
   description: string;
+  /** A finer fault taxonomy than `type` — set by whoever investigates, not auto-detected. */
+  faultClass?: TicketFaultClass | null;
   assignedTo?: Actor | null;
   openedAt: TS;
   slaDueAt?: TS;
   /** Set once by the SLA-breach sweep (workflow automation) — a SUPER_ADMIN escalation notification/webhook only fires once per breach. */
   slaEscalatedAt?: TS | null;
+  photoUrls?: string[];
+  parts?: TicketPart[];
+  /** Labour/misc repair cost, excluding parts (parts total is derived from `parts`). */
+  repairCostInr?: number;
+  /** Set when a technician re-checks the charger is actually working before closing — distinct from just marking RESOLVED. */
+  verifiedAt?: TS | null;
+  verifiedBy?: Actor | null;
   resolvedAt?: TS | null;
   createdAt: TS;
   createdBy?: Actor | null;

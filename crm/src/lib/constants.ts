@@ -873,6 +873,21 @@ export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
   MANUAL: "Manual",
 };
 
+export const TICKET_FAULT_CLASSES = [
+  "CONNECTOR", "POWER_SUPPLY", "COMMUNICATION", "PHYSICAL_DAMAGE", "SOFTWARE", "METERING", "OTHER",
+] as const;
+export type TicketFaultClass = (typeof TICKET_FAULT_CLASSES)[number];
+
+export const TICKET_FAULT_CLASS_LABEL: Record<TicketFaultClass, string> = {
+  CONNECTOR: "Connector / gun",
+  POWER_SUPPLY: "Power supply",
+  COMMUNICATION: "Communication / network",
+  PHYSICAL_DAMAGE: "Physical damage",
+  SOFTWARE: "Firmware / software",
+  METERING: "Metering",
+  OTHER: "Other",
+};
+
 export const TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 

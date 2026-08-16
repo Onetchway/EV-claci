@@ -39,6 +39,13 @@ service firebase.storage {
                     || (signedIn() && resource.metadata.uploadedBy == request.auth.uid);
     }
 
+    match /tickets/{ticketId}/{fileName} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'] && acceptableFile();
+      allow update: if false;
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
