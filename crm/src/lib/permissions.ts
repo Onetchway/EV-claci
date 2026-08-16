@@ -180,6 +180,10 @@ export const canManageTickets = (viewer: Viewer) =>
 export const canManageRfid = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
 
+// The diagnostic knowledge base is edited by whoever also triages tickets.
+export const canManageDiagnostics = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "CUSTOMER_SUPPORT");
+
 // Charging-session pricing — a finance/commercial decision, not an ops one.
 export const canManageTariffs = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");

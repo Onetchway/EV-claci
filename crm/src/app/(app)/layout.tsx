@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
+  BarChart3, BookOpen, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
   Gauge, Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, MapPin, Menu, Package, Percent, Repeat, Search, Settings, ShieldCheck,
   Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
@@ -46,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/chargers", label: "Charger Dashboard", icon: Zap },
       { href: "/tickets", label: "Ticket Management", icon: Ticket },
+      { href: "/diagnostics", label: "Diagnostic Knowledge Base", icon: BookOpen },
       { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
       { href: "/stations", label: "Station Management", icon: Building2 },
       { href: "/zones", label: "Zones & Load Balancing", icon: MapPin },

@@ -382,6 +382,12 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
     }
 
+    // OEM fault-code reference for NOC/support triage.
+    match /diagnosticCodes/{codeId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'CUSTOMER_SUPPORT'];
+    }
+
     // Charging-session pricing rules — read by the OCPP server (Admin SDK,
     // bypasses this) to bill a session at TransactionEvent "Ended".
     match /tariffs/{tariffId} {

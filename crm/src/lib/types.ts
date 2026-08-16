@@ -803,6 +803,22 @@ export interface Coupon {
   createdBy?: Actor | null;
 }
 
+export type DiagnosticSeverity = "INFO" | "WARNING" | "CRITICAL";
+
+/** A searchable OEM error-code reference so NOC/support staff can look up what a fault code means and how to resolve it, without waiting on a vendor callback. */
+export interface DiagnosticCode {
+  id: string;
+  code: string;
+  vendor: string;
+  title: string;
+  description?: string;
+  likelyCause?: string;
+  recommendedAction?: string;
+  severity: DiagnosticSeverity;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
 export interface Fleet {
   id: string;
   name: string;
