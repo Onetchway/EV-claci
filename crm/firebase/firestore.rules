@@ -320,6 +320,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Written only by the OCPP server (Admin SDK) when a charger reconnects
+    // after an OFFLINE period — feeds MTTR / historical-uptime reporting.
+    match /downtimeEvents/{eventId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     match /chargeSessions/{sessionId} {
       allow read: if signedIn();
       allow write: if false;

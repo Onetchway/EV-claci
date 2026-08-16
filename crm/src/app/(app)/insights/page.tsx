@@ -9,7 +9,8 @@ import {
 import { Card, EmptyState, PageHeader, Spinner, StatCard } from "@/components/ui";
 import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
 import {
-  subscribeChargePoints, subscribeSessionsSince, type ChargePoint, type ChargeSession, type ConnectorStatus,
+  subscribeChargePoints, subscribeDowntimeEventsSince, subscribeSessionsSince,
+  type ChargePoint, type ChargeSession, type ConnectorStatus, type DowntimeEvent,
 } from "@/lib/db/chargers";
 import { subscribeElectricityBills } from "@/lib/db/electricity-bills";
 import { subscribeSiteRevenueShares } from "@/lib/db/settlements";
@@ -39,6 +40,7 @@ export default function InsightsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [shares, setShares] = useState<SiteRevenueShare[]>([]);
   const [bills, setBills] = useState<ElectricityBill[]>([]);
+  const [downtimeEvents, setDowntimeEvents] = useState<DowntimeEvent[]>([]);
 
   useEffect(() => subscribeChargerRegistry(setRegistry), []);
   useEffect(() => subscribeChargePoints(setPoints), []);
@@ -50,6 +52,11 @@ export default function InsightsPage() {
     since.setDate(since.getDate() - RANGE_DAYS);
     return subscribeSessionsSince(since, setSessions);
   }, []);
+  useEffect(() => {
+    const since = new Date();
+    since.setDate(since.getDate() - RANGE_DAYS);
+    return subscribeDowntimeEventsSince(since, setDowntimeEvents);
+  }, []);
 
   const billed = useMemo(() => (sessions ?? []).filter((s) => s.totalCostInr != null), [sessions]);
 
@@ -59,6 +66,16 @@ export default function InsightsPage() {
     const online = active.filter((r) => onlineIds.has(r.chargerId)).length;
     return { total: active.length, online, pct: active.length ? Math.round((online / active.length) * 100) : 0 };
   }, [registry, points]);
+
+  const reliability = useMemo(() => {
+    if (downtimeEvents.length === 0) return { mttrMinutes: null as number | null, uptimePct: null as number | null, outages: 0 };
+    const totalDowntimeMinutes = downtimeEvents.reduce((a, e) => a + e.durationMinutes, 0);
+    const mttrMinutes = Math.round(totalDowntimeMinutes / downtimeEvents.length);
+    const chargerCount = new Set(downtimeEvents.map((e) => e.chargePointId)).size || 1;
+    const totalWindowMinutes = RANGE_DAYS * 24 * 60 * chargerCount;
+    const uptimePct = Math.max(0, Math.round(((totalWindowMinutes - totalDowntimeMinutes) / totalWindowMinutes) * 1000) / 10);
+    return { mttrMinutes, uptimePct, outages: downtimeEvents.length };
+  }, [downtimeEvents]);
 
   const slaCompliance = useMemo(() => {
     const closed = tickets.filter((t) => (t.status === "RESOLVED" || t.status === "CLOSED") && t.resolvedAt && t.slaDueAt);
@@ -176,6 +193,21 @@ export default function InsightsPage() {
           icon={<AlertTriangle className="h-4 w-4" />}
         />
         <StatCard label="Net revenue (30d, after site share)" value={formatCompactINR(revenue.net)} icon={<IndianRupee className="h-4 w-4" />} />
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <StatCard
+          label="MTTR (30d)"
+          value={reliability.mttrMinutes != null ? `${reliability.mttrMinutes} min` : "—"}
+          icon={<Zap className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Fleet uptime (30d)"
+          value={reliability.uptimePct != null ? `${reliability.uptimePct}%` : "—"}
+          tone={reliability.uptimePct != null && reliability.uptimePct < 95 ? "warn" : "default"}
+          icon={<Gauge className="h-4 w-4" />}
+        />
+        <StatCard label="Outages (30d)" value={reliability.outages} icon={<AlertTriangle className="h-4 w-4" />} />
       </div>
 
       <div className="mb-4 grid gap-4 lg:grid-cols-3">

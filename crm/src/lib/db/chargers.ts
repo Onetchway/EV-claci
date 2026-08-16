@@ -16,6 +16,7 @@ import type { TS } from "../types";
 
 export const CHARGE_POINTS = "chargePoints";
 export const CHARGE_SESSIONS = "chargeSessions";
+export const DOWNTIME_EVENTS = "downtimeEvents";
 
 export type ChargePointStatus = "ONLINE" | "OFFLINE";
 export type ConnectorStatus = "Available" | "Occupied" | "Reserved" | "Unavailable" | "Faulted";
@@ -182,6 +183,35 @@ export function subscribeSessionsForChargePoint(
       fsLimit(50),
     ),
     (snap) => cb(snap.docs.map((d) => mapSession(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** One entry per outage — written by the OCPP server the moment a charger reconnects. Feeds MTTR / historical-uptime reporting. */
+export interface DowntimeEvent {
+  id: string;
+  chargePointId: string;
+  disconnectedAt: TS;
+  recoveredAt: TS;
+  durationMinutes: number;
+}
+
+function mapDowntimeEvent(id: string, data: Record<string, unknown>): DowntimeEvent {
+  return { id, ...(data as Omit<DowntimeEvent, "id">) };
+}
+
+export function subscribeDowntimeEventsSince(
+  since: Date,
+  cb: (rows: DowntimeEvent[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(
+      collection(getDb(), DOWNTIME_EVENTS),
+      where("recoveredAt", ">=", since),
+      orderBy("recoveredAt", "desc"),
+    ),
+    (snap) => cb(snap.docs.map((d) => mapDowntimeEvent(d.id, d.data()))),
     (err) => onError?.(err as Error),
   );
 }

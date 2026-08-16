@@ -27,6 +27,7 @@ import { dispatchWebhookSafe } from "./webhooks.js";
 export const CHARGE_POINTS = "chargePoints";
 export const CHARGE_SESSIONS = "chargeSessions";
 export const CHARGER_REGISTRY = "chargerRegistry";
+export const DOWNTIME_EVENTS = "downtimeEvents";
 
 /**
  * The CRM's dashboard writes registrations here (see
@@ -71,10 +72,33 @@ export async function recordFirmwareStatus(chargePointId: string, status: string
   );
 }
 
+/**
+ * Logs a `downtimeEvents` entry for MTTR/historical-uptime reporting whenever
+ * a charger reconnects after having been marked OFFLINE — the gap between
+ * `disconnectedAt` and now is the outage duration.
+ */
+async function logDowntimeIfRecovering(chargePointId: string): Promise<void> {
+  const chargePointRef = db().collection(CHARGE_POINTS).doc(chargePointId);
+  const snap = await chargePointRef.get();
+  const prev = snap.data();
+  if (!prev || prev.status !== "OFFLINE" || !prev.disconnectedAt) return;
+
+  const disconnectedAt = prev.disconnectedAt as Timestamp;
+  const durationMinutes = Math.max(0, (Date.now() - disconnectedAt.toMillis()) / 60000);
+  await db().collection(DOWNTIME_EVENTS).add({
+    chargePointId,
+    disconnectedAt,
+    recoveredAt: FieldValue.serverTimestamp(),
+    durationMinutes,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
 export async function markOnline(
   chargePointId: string,
   boot: { vendorName?: string; model?: string; serialNumber?: string; firmwareVersion?: string; reason?: string },
 ): Promise<void> {
+  await logDowntimeIfRecovering(chargePointId).catch(() => undefined);
   await db().collection(CHARGE_POINTS).doc(chargePointId).set(
     {
       chargePointId,
@@ -85,6 +109,7 @@ export async function markOnline(
       firmwareVersion: boot.firmwareVersion ?? null,
       lastBootReason: boot.reason ?? null,
       connectedAt: FieldValue.serverTimestamp(),
+      disconnectedAt: null,
       lastSeenAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     },
