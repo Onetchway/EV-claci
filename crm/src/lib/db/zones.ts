@@ -24,7 +24,11 @@ export function subscribeZones(
   );
 }
 
-export type ZoneDraft = Pick<Zone, "name" | "maxLoadKw" | "siteType" | "address" | "discomName" | "slaHours" | "revenueSharePct">;
+export type ZoneDraft = Pick<Zone,
+  "name" | "maxLoadKw" | "siteType" | "address" | "city" | "pincode" | "state" | "pocName" | "pocPhone" |
+  "discomName" | "slaHours" | "revenueShareType" | "revenueShareValue" |
+  "bankAccountNumber" | "bankIfscCode" | "bankAccountName" | "bankName"
+>;
 
 export async function createZone(draft: ZoneDraft, actor: Actor): Promise<string> {
   const ref = await addDoc(collection(getDb(), ZONES), {

@@ -11,7 +11,7 @@ import "server-only";
 
 import { adminDb } from "@/lib/firebase/admin";
 
-export type OcppCommandAction = "RequestStartTransaction" | "RequestStopTransaction" | "Reset" | "UnlockConnector" | "ChangeAvailability" | "UpdateFirmware";
+export type OcppCommandAction = "RequestStartTransaction" | "RequestStopTransaction" | "Reset" | "UnlockConnector" | "ChangeAvailability" | "UpdateFirmware" | "ClearCache";
 
 export async function sendOcppCommand(
   chargerId: string,

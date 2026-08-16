@@ -551,15 +551,29 @@ export interface Zone {
   maxLoadKw: number;
   siteType?: SiteType;
   address?: string;
+  city?: string;
+  pincode?: string;
+  state?: string;
+  /** Site host's point of contact — the person Settlements/electricity-bill questions actually go to. */
+  pocName?: string;
+  pocPhone?: string;
   discomName?: string;
   /** Overrides the OCPP server's flat default fault-ticket SLA (FAULT_SLA_HOURS) for chargers in this zone. */
   slaHours?: number;
-  /** % of each session's total (post-GST) revenue owed to this site's host/owner — e.g. an RWA hosting the charger. Unset or 0 = no revenue share, nothing accrues. */
-  revenueSharePct?: number;
+  /** Whether — and how — each session's total (post-GST) revenue is shared with this site's host/owner. Unset type = no revenue share, nothing accrues. */
+  revenueShareType?: RevenueShareType;
+  /** % (0-100) if type is PERCENT, flat ₹ per session if type is FIXED. */
+  revenueShareValue?: number;
+  /** Where a settlement payout to this site actually goes — shown on Settlements, never validated against a real bank. */
+  bankAccountNumber?: string;
+  bankIfscCode?: string;
+  bankAccountName?: string;
+  bankName?: string;
   createdAt: TS;
   createdBy?: Actor | null;
 }
 
+export type RevenueShareType = "PERCENT" | "FIXED";
 export type RevenueShareStatus = "PENDING" | "PAID";
 
 /**
@@ -575,7 +589,9 @@ export interface SiteRevenueShare {
   sessionId: string;
   chargePointId: string;
   grossAmountInr: number;
-  sharePct: number;
+  shareType: RevenueShareType;
+  /** The rate that produced shareAmountInr — a % if shareType is PERCENT, the flat ₹ amount itself if FIXED. */
+  shareRate: number;
   shareAmountInr: number;
   status: RevenueShareStatus;
   createdAt: TS;

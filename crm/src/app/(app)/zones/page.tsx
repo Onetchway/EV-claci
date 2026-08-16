@@ -7,12 +7,16 @@ import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
-import { SITE_TYPE_LABEL, SITE_TYPES, type SiteType } from "@/lib/constants";
+import { INDIAN_STATES, SITE_TYPE_LABEL, SITE_TYPES, type SiteType } from "@/lib/constants";
 import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
 import { subscribeChargePoints, type ChargePoint } from "@/lib/db/chargers";
 import { createZone, deleteZone, subscribeZones, updateZone, type ZoneDraft } from "@/lib/db/zones";
 import { canManageChargers } from "@/lib/permissions";
-import type { Zone } from "@/lib/types";
+import type { RevenueShareType, Zone } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+const TABS = ["Details", "Revenue share", "Bank details"] as const;
+type Tab = (typeof TABS)[number];
 
 export default function ZonesPage() {
   const { actor } = useAuth();
@@ -24,14 +28,26 @@ export default function ZonesPage() {
   const [chargers, setChargers] = useState<ChargerRegistration[]>([]);
   const [points, setPoints] = useState<ChargePoint[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>("Details");
   const [editing, setEditing] = useState<Zone | null>(null);
+
   const [name, setName] = useState("");
   const [maxLoadKw, setMaxLoadKw] = useState(0);
   const [siteType, setSiteType] = useState<SiteType | "">("");
   const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [state, setState] = useState("");
+  const [pocName, setPocName] = useState("");
+  const [pocPhone, setPocPhone] = useState("");
   const [discomName, setDiscomName] = useState("");
   const [slaHours, setSlaHours] = useState("");
-  const [revenueSharePct, setRevenueSharePct] = useState("");
+  const [revenueShareType, setRevenueShareType] = useState<RevenueShareType | "">("");
+  const [revenueShareValue, setRevenueShareValue] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [bankIfscCode, setBankIfscCode] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [bankName, setBankName] = useState("");
 
   useEffect(() => subscribeZones(setZones), []);
   useEffect(() => subscribeChargerRegistry(setChargers), []);
@@ -53,15 +69,17 @@ export default function ZonesPage() {
     return map;
   }, [chargers, pointByChargerId]);
 
+  function resetForm() {
+    setName(""); setMaxLoadKw(0); setSiteType(""); setAddress(""); setCity(""); setPincode(""); setState("");
+    setPocName(""); setPocPhone(""); setDiscomName(""); setSlaHours("");
+    setRevenueShareType(""); setRevenueShareValue("");
+    setBankAccountNumber(""); setBankIfscCode(""); setBankAccountName(""); setBankName("");
+  }
+
   function openNew() {
     setEditing(null);
-    setName("");
-    setMaxLoadKw(0);
-    setSiteType("");
-    setAddress("");
-    setDiscomName("");
-    setSlaHours("");
-    setRevenueSharePct("");
+    resetForm();
+    setTab("Details");
     setModalOpen(true);
   }
 
@@ -71,9 +89,20 @@ export default function ZonesPage() {
     setMaxLoadKw(z.maxLoadKw);
     setSiteType(z.siteType ?? "");
     setAddress(z.address ?? "");
+    setCity(z.city ?? "");
+    setPincode(z.pincode ?? "");
+    setState(z.state ?? "");
+    setPocName(z.pocName ?? "");
+    setPocPhone(z.pocPhone ?? "");
     setDiscomName(z.discomName ?? "");
     setSlaHours(z.slaHours != null ? String(z.slaHours) : "");
-    setRevenueSharePct(z.revenueSharePct != null ? String(z.revenueSharePct) : "");
+    setRevenueShareType(z.revenueShareType ?? "");
+    setRevenueShareValue(z.revenueShareValue != null ? String(z.revenueShareValue) : "");
+    setBankAccountNumber(z.bankAccountNumber ?? "");
+    setBankIfscCode(z.bankIfscCode ?? "");
+    setBankAccountName(z.bankAccountName ?? "");
+    setBankName(z.bankName ?? "");
+    setTab("Details");
     setModalOpen(true);
   }
 
@@ -84,9 +113,19 @@ export default function ZonesPage() {
       maxLoadKw,
       siteType: siteType || undefined,
       address: address.trim() || undefined,
+      city: city.trim() || undefined,
+      pincode: pincode.trim() || undefined,
+      state: state || undefined,
+      pocName: pocName.trim() || undefined,
+      pocPhone: pocPhone.trim() || undefined,
       discomName: discomName.trim() || undefined,
       slaHours: slaHours.trim() ? Number(slaHours) : undefined,
-      revenueSharePct: revenueSharePct.trim() ? Number(revenueSharePct) : undefined,
+      revenueShareType: revenueShareType || undefined,
+      revenueShareValue: revenueShareType && revenueShareValue.trim() ? Number(revenueShareValue) : undefined,
+      bankAccountNumber: bankAccountNumber.trim() || undefined,
+      bankIfscCode: bankIfscCode.trim() || undefined,
+      bankAccountName: bankAccountName.trim() || undefined,
+      bankName: bankName.trim() || undefined,
     };
     await run(async () => {
       if (editing) await updateZone(editing.id, draft);
@@ -159,47 +198,102 @@ export default function ZonesPage() {
           </>
         )}
       >
-        <div className="grid gap-4">
-          <Field label="Name" required>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Basement parking, Block A" />
-          </Field>
-          <Field label="Sanctioned load cap (kW)">
-            <Input type="number" min={0} value={maxLoadKw} onChange={(e) => setMaxLoadKw(Number(e.target.value) || 0)} />
-          </Field>
-          <Field label="Site type">
-            <Select
-              value={siteType}
-              onChange={(e) => setSiteType(e.target.value as SiteType | "")}
-              placeholder="Select site type"
-              options={SITE_TYPES.map((t) => ({ value: t, label: SITE_TYPE_LABEL[t] }))}
-            />
-          </Field>
-          <Field label="Address">
-            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Site address" />
-          </Field>
-          <Field label="DISCOM name">
-            <Input value={discomName} onChange={(e) => setDiscomName(e.target.value)} placeholder="e.g. BSES Rajdhani, Tata Power" />
-          </Field>
-          <Field label="Fault ticket SLA override (hours)">
-            <Input
-              type="number"
-              min={0}
-              value={slaHours}
-              onChange={(e) => setSlaHours(e.target.value)}
-              placeholder="Leave blank to use the platform default"
-            />
-          </Field>
-          <Field label="Revenue share to site owner (%)" hint="Accrues automatically per session on /settlements — e.g. an RWA hosting this charger. Leave blank for no share.">
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              value={revenueSharePct}
-              onChange={(e) => setRevenueSharePct(e.target.value)}
-              placeholder="e.g. 15"
-            />
-          </Field>
+        <div className="mb-4 flex gap-1 border-b border-ink-100">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={cn(
+                "border-b-2 px-3 py-2 text-sm font-medium",
+                tab === t ? "border-brand-500 text-brand-700" : "border-transparent text-ink-500 hover:text-ink-700",
+              )}
+            >
+              {t}
+            </button>
+          ))}
         </div>
+
+        {tab === "Details" && (
+          <div className="grid gap-4">
+            <Field label="Name" required>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Basement parking, Block A" />
+            </Field>
+            <Field label="Sanctioned load cap (kW)">
+              <Input type="number" min={0} value={maxLoadKw} onChange={(e) => setMaxLoadKw(Number(e.target.value) || 0)} />
+            </Field>
+            <Field label="Site type">
+              <Select
+                value={siteType}
+                onChange={(e) => setSiteType(e.target.value as SiteType | "")}
+                placeholder="Select site type"
+                options={SITE_TYPES.map((t) => ({ value: t, label: SITE_TYPE_LABEL[t] }))}
+              />
+            </Field>
+            <Field label="Address">
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" />
+            </Field>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="City"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
+              <Field label="Pincode"><Input value={pincode} onChange={(e) => setPincode(e.target.value)} /></Field>
+              <Field label="State">
+                <Select value={state} onChange={(e) => setState(e.target.value)} options={INDIAN_STATES.map((s) => ({ value: s, label: s }))} placeholder="—" />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="POC name" hint="Who to contact at this site."><Input value={pocName} onChange={(e) => setPocName(e.target.value)} /></Field>
+              <Field label="POC phone"><Input value={pocPhone} onChange={(e) => setPocPhone(e.target.value)} /></Field>
+            </div>
+            <Field label="DISCOM name">
+              <Input value={discomName} onChange={(e) => setDiscomName(e.target.value)} placeholder="e.g. BSES Rajdhani, Tata Power" />
+            </Field>
+            <Field label="Fault ticket SLA override (hours)">
+              <Input
+                type="number"
+                min={0}
+                value={slaHours}
+                onChange={(e) => setSlaHours(e.target.value)}
+                placeholder="Leave blank to use the platform default"
+              />
+            </Field>
+          </div>
+        )}
+
+        {tab === "Revenue share" && (
+          <div className="grid gap-4">
+            <Field label="Share with site host?">
+              <Select
+                value={revenueShareType}
+                onChange={(e) => setRevenueShareType(e.target.value as RevenueShareType | "")}
+                options={[{ value: "PERCENT", label: "Yes — % of each session" }, { value: "FIXED", label: "Yes — flat ₹ per session" }]}
+                placeholder="No revenue share"
+              />
+            </Field>
+            {revenueShareType && (
+              <Field label={revenueShareType === "PERCENT" ? "Share (%)" : "Flat amount per session (₹)"}>
+                <Input
+                  type="number"
+                  min={0}
+                  max={revenueShareType === "PERCENT" ? 100 : undefined}
+                  value={revenueShareValue}
+                  onChange={(e) => setRevenueShareValue(e.target.value)}
+                  placeholder={revenueShareType === "PERCENT" ? "e.g. 15" : "e.g. 20"}
+                />
+              </Field>
+            )}
+            <p className="text-xs text-ink-500">Accrues automatically per session on /settlements — e.g. an RWA hosting this charger.</p>
+          </div>
+        )}
+
+        {tab === "Bank details" && (
+          <div className="grid gap-4">
+            <p className="text-xs text-ink-500">Where a settlement payout to this site's host actually goes — shown on /settlements, not validated against a real bank.</p>
+            <Field label="Bank account number"><Input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} /></Field>
+            <Field label="IFSC code"><Input value={bankIfscCode} onChange={(e) => setBankIfscCode(e.target.value.toUpperCase())} /></Field>
+            <Field label="Account holder name"><Input value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} /></Field>
+            <Field label="Bank name"><Input value={bankName} onChange={(e) => setBankName(e.target.value)} /></Field>
+          </div>
+        )}
       </Modal>
     </>
   );

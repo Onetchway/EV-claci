@@ -31,6 +31,7 @@ export default function SettlementsPage() {
   const [billStart, setBillStart] = useState("");
   const [billEnd, setBillEnd] = useState("");
   const [billNotes, setBillNotes] = useState("");
+  const [bankOpen, setBankOpen] = useState(false);
 
   useEffect(() => subscribeSiteRevenueShares(setRows), []);
   useEffect(() => subscribeZones(setAllZones), []);
@@ -80,12 +81,15 @@ export default function SettlementsPage() {
         title="Settlements"
         description="Per-session revenue share owed to a site host (set on Zones & Load Balancing), accrued automatically as sessions bill. Mark an entry paid once you've actually paid the site out — this doesn't move money itself."
         actions={(
-          <Select
-            value={zoneFilter}
-            onChange={(e) => setZoneFilter(e.target.value)}
-            options={zones.map(([id, name]) => ({ value: id, label: name }))}
-            placeholder="All sites"
-          />
+          <>
+            <Select
+              value={zoneFilter}
+              onChange={(e) => setZoneFilter(e.target.value)}
+              options={zones.map(([id, name]) => ({ value: id, label: name }))}
+              placeholder="All sites"
+            />
+            {zoneFilter && <Button size="sm" onClick={() => setBankOpen(true)}>Bank details</Button>}
+          </>
         )}
       />
 
@@ -126,7 +130,7 @@ export default function SettlementsPage() {
                     <td className="td text-ink-600">{r.chargePointId}</td>
                     <td className="td text-ink-600">{formatDateTime(r.createdAt)}</td>
                     <td className="td text-right tabular-nums text-ink-600">{formatINR(r.grossAmountInr)}</td>
-                    <td className="td text-right tabular-nums text-ink-600">{r.sharePct}%</td>
+                    <td className="td text-right tabular-nums text-ink-600">{r.shareType === "PERCENT" ? `${r.shareRate}%` : formatINR(r.shareRate)}</td>
                     <td className="td text-right tabular-nums font-medium">{formatINR(r.shareAmountInr)}</td>
                     <td className="td">
                       <Badge className={r.status === "PAID" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-amber-100 text-amber-800 ring-amber-200"}>
@@ -223,6 +227,29 @@ export default function SettlementsPage() {
           </div>
           <Field label="Notes"><Input value={billNotes} onChange={(e) => setBillNotes(e.target.value)} placeholder="e.g. DISCOM invoice #" /></Field>
         </div>
+      </Modal>
+
+      <Modal
+        open={bankOpen}
+        onClose={() => setBankOpen(false)}
+        title={`Bank details — ${allZones.find((z) => z.id === zoneFilter)?.name ?? ""}`}
+        footer={<Button onClick={() => setBankOpen(false)}>Close</Button>}
+      >
+        {(() => {
+          const z = allZones.find((zz) => zz.id === zoneFilter);
+          if (!z || (!z.bankAccountNumber && !z.pocName)) {
+            return <p className="text-sm text-ink-500">Nothing entered yet — set it under Zones & Load Balancing → Edit → Bank details.</p>;
+          }
+          return (
+            <dl className="grid gap-2 text-sm">
+              {z.pocName && <div className="flex justify-between"><dt className="text-ink-500">POC</dt><dd>{z.pocName}{z.pocPhone ? ` · ${z.pocPhone}` : ""}</dd></div>}
+              {z.bankAccountName && <div className="flex justify-between"><dt className="text-ink-500">Account holder</dt><dd>{z.bankAccountName}</dd></div>}
+              {z.bankAccountNumber && <div className="flex justify-between"><dt className="text-ink-500">Account number</dt><dd className="font-mono">{z.bankAccountNumber}</dd></div>}
+              {z.bankIfscCode && <div className="flex justify-between"><dt className="text-ink-500">IFSC</dt><dd className="font-mono">{z.bankIfscCode}</dd></div>}
+              {z.bankName && <div className="flex justify-between"><dt className="text-ink-500">Bank</dt><dd>{z.bankName}</dd></div>}
+            </dl>
+          );
+        })()}
       </Modal>
     </>
   );

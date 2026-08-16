@@ -545,6 +545,13 @@ export default function ChargersPage() {
                   >
                     <UploadCloud className="h-3.5 w-3.5" /> Update firmware
                   </Button>
+                  <Button
+                    size="sm"
+                    disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Clear cache"}
+                    onClick={() => void runCommand(p.chargePointId, "Clear cache", () => sendChargerCommand(p.chargePointId, "ClearCache", {}))}
+                  >
+                    Clear cache
+                  </Button>
                 </div>
               )}
             </div>
