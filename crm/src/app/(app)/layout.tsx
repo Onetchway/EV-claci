@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3, Battery, BookOpen, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
   Gauge, Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
-  ListTodo, LogOut, MapPin, Menu, Package, Percent, Receipt, Repeat, Search, Settings, ShieldCheck,
+  ListTodo, LogOut, MapPin, Menu, MessageSquareWarning, Package, Percent, Receipt, Repeat, Search, Settings, ShieldCheck,
   Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
 } from "lucide-react";
 
@@ -15,7 +15,8 @@ import { GlobalSearch } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
 import { Avatar, Button, EmptyState, Spinner } from "@/components/ui";
 import { useChargerCatalog } from "@/hooks/use-catalog";
-import { ROLE_LABEL } from "@/lib/constants";
+import { ROLE_LABEL, type Role } from "@/lib/constants";
+import { subscribeRoleAccessPolicy } from "@/lib/db/access-policy";
 import { subscribeOrganization } from "@/lib/db/organizations";
 import { hasPageAccess } from "@/lib/page-access";
 import { isAdmin } from "@/lib/permissions";
@@ -50,6 +51,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/stations", label: "Station Management", icon: Building2 },
       { href: "/sessions", label: "Sessions", icon: Battery },
       { href: "/tickets", label: "Ticket Management", icon: Ticket },
+      { href: "/complaints", label: "Complaints", icon: MessageSquareWarning },
       { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
       { href: "/zones", label: "Zones & Load Balancing", icon: MapPin },
       { href: "/earnings", label: "Earnings & Statistics", icon: TrendingUp },
@@ -105,6 +107,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [org, setOrg] = useState<Organization | null>(null);
+  const [rolePolicy, setRolePolicy] = useState<Record<string, Role[]> | null>(null);
+
+  useEffect(() => subscribeRoleAccessPolicy(setRolePolicy), []);
 
   // Keeps the pricing engine's custom-charger registry in sync app-wide, not
   // just while the Catalogue page happens to be mounted.
@@ -162,7 +167,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((n) => (!n.adminOnly || (role && isAdmin(role))) && hasPageAccess(n.href, roles)),
+    items: g.items.filter((n) => (!n.adminOnly || (role && isAdmin(role)))
+      && hasPageAccess(n.href, roles, { policyOverrides: rolePolicy, userOverrides: profile?.pageAccessOverrides })),
   })).filter((g) => g.items.length > 0);
 
   const sidebar = (
@@ -272,7 +278,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">
-          {hasPageAccess(pathname, roles) ? children : (
+          {hasPageAccess(pathname, roles, { policyOverrides: rolePolicy, userOverrides: profile?.pageAccessOverrides }) ? children : (
             <EmptyState
               icon={<ShieldCheck className="h-8 w-8 text-rose-500" />}
               title="Restricted"

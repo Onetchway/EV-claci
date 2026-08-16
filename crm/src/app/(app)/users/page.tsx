@@ -14,10 +14,11 @@ import { agentPerformance } from "@/lib/analytics";
 import {
   INDIAN_STATES, ROLES, ROLE_HINT, ROLE_LABEL, ROLE_RANK, type Role,
 } from "@/lib/constants";
+import { setPageRoles, subscribeRoleAccessPolicy } from "@/lib/db/access-policy";
 import { subscribeOrganizations } from "@/lib/db/organizations";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { PAGE_ACCESS, PAGE_LABEL } from "@/lib/page-access";
+import { DEFAULT_PAGE_ACCESS, PAGE_ACCESS_PATHS, PAGE_LABEL } from "@/lib/page-access";
 import { canAssignRole, isAdmin, isSuperAdmin } from "@/lib/permissions";
 import type { AppUser, Organization } from "@/lib/types";
 import { formatCompactINR, formatDate } from "@/lib/utils";
@@ -55,7 +56,7 @@ async function authedFetch(path: string, init: RequestInit) {
 }
 
 export default function UsersPage() {
-  const { profile, role } = useAuth();
+  const { profile, role, actor } = useAuth();
   const { push } = useToast();
   const { busy, run } = useAsyncAction();
 
@@ -65,6 +66,8 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AppUser | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [rolePolicy, setRolePolicy] = useState<Record<string, Role[]> | null>(null);
+  const [overridesFor, setOverridesFor] = useState<AppUser | null>(null);
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", roles: ["AGENT"] as Role[], region: "", password: "",
@@ -81,8 +84,10 @@ export default function UsersPage() {
     if (!role || !isSuperAdmin(role)) return;
     return subscribeOrganizations(setOrgs);
   }, [role]);
+  useEffect(() => subscribeRoleAccessPolicy(setRolePolicy), []);
 
   const viewer = useViewer();
+  const superAdmin = !!role && isSuperAdmin(role);
 
   if (role && !isAdmin(role)) {
     return (
@@ -118,6 +123,26 @@ export default function UsersPage() {
     await authedFetch(`/api/users/${uid}`, { method: "PATCH", body: JSON.stringify(patch) });
   }
 
+  const effectivePolicy = { ...DEFAULT_PAGE_ACCESS, ...(rolePolicy ?? {}) };
+
+  async function toggleRoleForPage(path: string, r: Role) {
+    if (!actor) return;
+    const current = effectivePolicy[path] ?? [];
+    const next = current.includes(r) ? current.filter((x) => x !== r) : [...current, r];
+    await run(() => setPageRoles(path, next, actor), undefined);
+  }
+
+  async function setUserOverride(uid: string, path: string, value: boolean | null) {
+    if (!overridesFor) return;
+    const next = { ...(overridesFor.pageAccessOverrides ?? {}) };
+    if (value === null) delete next[path];
+    else next[path] = value;
+    await run(async () => {
+      await patchUser(uid, { pageAccessOverrides: next });
+      setOverridesFor((u) => (u ? { ...u, pageAccessOverrides: next } : u));
+    }, "Access override saved.");
+  }
+
   const counts = {
     total: users.length,
     active: users.filter((u) => u.active).length,
@@ -146,7 +171,11 @@ export default function UsersPage() {
 
       <Card
         title="Roles & access"
-        subtitle="Which CMS pages each role can view. SUPER_ADMIN always has access to everything. Pages not listed (Dashboard, Sales, Operations, most of Settings) are open to any signed-in user, gated only by their action buttons."
+        subtitle={
+          superAdmin
+            ? "Which pages each role can view, across CRM and CMS. Click a cell to toggle it — changes apply to every user with that role immediately. SUPER_ADMIN always has full access. Need an exception for one person instead? Use \"Access\" on their row below."
+            : "Which pages each role can view, across CRM and CMS. SUPER_ADMIN always has full access. Only a Super Admin can edit this matrix."
+        }
         className="mb-4"
       >
         <div className="overflow-x-auto scroll-thin">
@@ -160,16 +189,31 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
-              {Object.entries(PAGE_ACCESS).map(([path, allowed]) => (
-                <tr key={path} className="hover:bg-ink-50">
-                  <td className="td sticky left-0 bg-white font-medium">{PAGE_LABEL[path] ?? path}</td>
-                  {ROLES.filter((r) => r !== "SUPER_ADMIN").map((r) => (
-                    <td key={r} className="td text-center">
-                      {allowed.includes(r) && <Check className="mx-auto h-4 w-4 text-brand-600" />}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {PAGE_ACCESS_PATHS.map((path) => {
+                const allowed = effectivePolicy[path] ?? [];
+                return (
+                  <tr key={path} className="hover:bg-ink-50">
+                    <td className="td sticky left-0 bg-white font-medium">{PAGE_LABEL[path] ?? path}</td>
+                    {ROLES.filter((r) => r !== "SUPER_ADMIN").map((r) => (
+                      <td key={r} className="td text-center">
+                        {superAdmin ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void toggleRoleForPage(path, r)}
+                            className="mx-auto flex h-5 w-5 items-center justify-center rounded hover:bg-ink-100 disabled:opacity-50"
+                            aria-label={`Toggle ${ROLE_LABEL[r]} access to ${PAGE_LABEL[path] ?? path}`}
+                          >
+                            {allowed.includes(r) && <Check className="h-4 w-4 text-brand-600" />}
+                          </button>
+                        ) : (
+                          allowed.includes(r) && <Check className="mx-auto h-4 w-4 text-brand-600" />
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -230,14 +274,25 @@ export default function UsersPage() {
                         </Badge>
                       </td>
                       <td className="td text-right">
-                        {editable && (
-                          <button
-                            onClick={() => setEditing(u)}
-                            className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
-                          >
-                            Manage
-                          </button>
-                        )}
+                        <div className="flex justify-end gap-1">
+                          {superAdmin && (
+                            <button
+                              onClick={() => setOverridesFor(u)}
+                              className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
+                              title="Per-user page access overrides"
+                            >
+                              Access
+                            </button>
+                          )}
+                          {editable && (
+                            <button
+                              onClick={() => setEditing(u)}
+                              className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
+                            >
+                              Manage
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -418,6 +473,50 @@ export default function UsersPage() {
             <Copy className="h-3.5 w-3.5" /> Copy
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!overridesFor}
+        onClose={() => setOverridesFor(null)}
+        title={`Access overrides — ${overridesFor?.name ?? ""}`}
+        description="Overrides the role-based default for this one person only. Most people should never need any of these — use the Roles & access matrix above to change a whole role instead."
+        wide
+        footer={<Button onClick={() => setOverridesFor(null)}>Done</Button>}
+      >
+        {overridesFor && (
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr><th className="th">Page</th><th className="th">Access</th></tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {PAGE_ACCESS_PATHS.map((path) => {
+                  const roleDefault = (effectivePolicy[path] ?? []).some((r) => rolesFor(overridesFor).includes(r));
+                  const override = overridesFor.pageAccessOverrides?.[path];
+                  return (
+                    <tr key={path}>
+                      <td className="td">{PAGE_LABEL[path] ?? path}</td>
+                      <td className="td">
+                        <Select
+                          value={override === undefined ? "default" : override ? "allow" : "deny"}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            void setUserOverride(overridesFor.uid, path, v === "default" ? null : v === "allow");
+                          }}
+                          options={[
+                            { value: "default", label: `Default (role: ${roleDefault ? "allowed" : "blocked"})` },
+                            { value: "allow", label: "Always allow" },
+                            { value: "deny", label: "Always deny" },
+                          ]}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
     </>
   );

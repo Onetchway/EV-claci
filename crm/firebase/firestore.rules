@@ -376,6 +376,12 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
+    // Customer/driver-initiated complaints — separate from charger-fault tickets above.
+    match /complaints/{complaintId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'CUSTOMER_SUPPORT'];
+    }
+
     // RFID/tag allow-list the OCPP server's Authorize handler reads.
     match /rfidTokens/{tokenId} {
       allow read: if signedIn();

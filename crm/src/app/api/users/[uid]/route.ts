@@ -19,6 +19,8 @@ const PatchUser = z.object({
   password: z.string().min(8).max(72).optional(),
   /** Which white-label tenant this team member belongs to. Null clears it back to the default organisation. */
   orgId: z.string().max(128).nullable().optional(),
+  /** Per-user page-access override — replaces the whole map. Super admin only; see lib/page-access.ts. */
+  pageAccessOverrides: z.record(z.string(), z.boolean()).nullable().optional(),
 });
 
 function assertCanAssign(callerRole: Role, target: Role) {
@@ -67,9 +69,12 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     if (body.orgId !== undefined && caller.role !== "SUPER_ADMIN") {
       throw new ApiError("Only a super admin can assign a team member's organisation.", 403);
     }
+    if (body.pageAccessOverrides !== undefined && caller.role !== "SUPER_ADMIN") {
+      throw new ApiError("Only a super admin can override a team member's page access.", 403);
+    }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "region", "managerId", "active", "orgId"] as const) {
+    for (const key of ["name", "phone", "region", "managerId", "active", "orgId", "pageAccessOverrides"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

@@ -917,6 +917,49 @@ export const TICKET_STATUS_COLOR: Record<TicketStatus, string> = {
   CLOSED: "bg-ink-100 text-ink-600 ring-ink-200",
 };
 
+// ------------------------------------------------------------- Complaints
+// Customer/driver-initiated issues — separate from Tickets, which are
+// charger-fault-only and opened by the OCPP server or ops staff. A
+// complaint might be about billing, app behavior, or service quality with
+// no charger fault involved at all.
+
+export const COMPLAINT_CATEGORIES = ["BILLING", "CHARGER_ISSUE", "APP_ISSUE", "SERVICE_QUALITY", "OTHER"] as const;
+export type ComplaintCategory = (typeof COMPLAINT_CATEGORIES)[number];
+
+export const COMPLAINT_CATEGORY_LABEL: Record<ComplaintCategory, string> = {
+  BILLING: "Billing / payment",
+  CHARGER_ISSUE: "Charger issue",
+  APP_ISSUE: "App / website issue",
+  SERVICE_QUALITY: "Service quality",
+  OTHER: "Other",
+};
+
+export const COMPLAINT_STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const;
+export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
+
+export const COMPLAINT_STATUS_LABEL: Record<ComplaintStatus, string> = {
+  OPEN: "Open",
+  IN_PROGRESS: "In progress",
+  RESOLVED: "Resolved",
+  CLOSED: "Closed",
+};
+
+export const COMPLAINT_STATUS_COLOR: Record<ComplaintStatus, string> = {
+  OPEN: "bg-rose-100 text-rose-800 ring-rose-200",
+  IN_PROGRESS: "bg-amber-100 text-amber-800 ring-amber-200",
+  RESOLVED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CLOSED: "bg-ink-100 text-ink-600 ring-ink-200",
+};
+
+export const COMPLAINT_PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
+export type ComplaintPriority = (typeof COMPLAINT_PRIORITIES)[number];
+
+export const COMPLAINT_PRIORITY_LABEL: Record<ComplaintPriority, string> = {
+  LOW: "Low",
+  MEDIUM: "Medium",
+  HIGH: "High",
+};
+
 // ------------------------------------------------------------- RFID tokens
 
 export const RFID_TOKEN_STATUSES = ["ACTIVE", "BLOCKED"] as const;

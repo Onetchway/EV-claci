@@ -1,6 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 import type {
   ActivityType, AssetCategory, AssetStatus, CommercialModel, CommissionStatus,
+  ComplaintCategory, ComplaintPriority, ComplaintStatus,
   ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EoiStatus,
   FollowupPriority, FollowupStatus, FollowupType, FundingMode, LandType,
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
@@ -37,6 +38,8 @@ export interface AppUser {
   photoURL?: string | null;
   /** No orgId = the default (Livanto's own) organisation. Set only for a white-label tenant's team members. */
   orgId?: string | null;
+  /** Per-user page-access override, keyed by page path — takes priority over the role-based default from roleAccessPolicy. true = always allow this page for this user regardless of role; false = always deny even if their role would normally allow it. A path absent here just falls through to the role policy. Super Admin only, set from Team & Roles. */
+  pageAccessOverrides?: Record<string, boolean>;
   createdAt: TS;
   createdBy?: string | null;
   lastLoginAt?: TS;
@@ -501,6 +504,29 @@ export interface Ticket {
   createdBy?: Actor | null;
   updatedAt?: TS;
   updatedBy?: Actor | null;
+}
+
+/** A customer/driver-initiated complaint — billing, app behavior, service quality — distinct from a charger-fault Ticket, which is opened automatically or by ops staff against a specific charger. */
+export interface Complaint {
+  id: string;
+  category: ComplaintCategory;
+  priority: ComplaintPriority;
+  status: ComplaintStatus;
+  subject: string;
+  description: string;
+  /** Free text if the complainant isn't a registered EMSP user (e.g. phoned in). */
+  customerName?: string;
+  customerPhone?: string;
+  /** Set when the complainant is a registered driver — links back to their wallet/session history. */
+  emspUserId?: string | null;
+  relatedChargerId?: string | null;
+  relatedSessionId?: string | null;
+  assignedTo?: Actor | null;
+  resolutionNotes?: string;
+  resolvedAt?: TS | null;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
 }
 
 /** An RFID/tag the OCPP server's Authorize handler will accept. */

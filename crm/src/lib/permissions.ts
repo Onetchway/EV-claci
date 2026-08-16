@@ -184,6 +184,10 @@ export const canManageRfid = (viewer: Viewer) =>
 export const canManageDiagnostics = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "CUSTOMER_SUPPORT");
 
+// Customer complaints — same bar as Customer Support's other customer-facing work.
+export const canManageComplaints = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "CUSTOMER_SUPPORT");
+
 // Charging-session pricing — a finance/commercial decision, not an ops one.
 export const canManageTariffs = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");
