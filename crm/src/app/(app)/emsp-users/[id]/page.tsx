@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Car, IndianRupee, Undo2, Zap } from "lucide-react";
+import { Car, Download, IndianRupee, Undo2, Zap } from "lucide-react";
 
 import { useViewer } from "@/components/auth-provider";
 import {
@@ -18,7 +18,7 @@ import { subscribeRfidTokens } from "@/lib/db/rfid";
 import { EMSP_USER_TYPE_LABEL } from "@/lib/constants";
 import { canManageEmspUsers, canManageSettlements } from "@/lib/permissions";
 import type { CorporateAccount, Driver, EmspUser, RfidToken, Vehicle, WalletTransaction } from "@/lib/types";
-import { formatDateTime, formatINR } from "@/lib/utils";
+import { downloadCsv, formatDateTime, formatINR } from "@/lib/utils";
 
 export default function EmspUserProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +28,16 @@ export default function EmspUserProfilePage() {
   const { run, busy } = useAsyncAction();
   const { push } = useToast();
   const [refundingId, setRefundingId] = useState<string | null>(null);
+
+  function exportWalletCsv() {
+    downloadCsv(`wallet-report-${user?.name ?? id}.csv`, [
+      ["Date", "Type", "Amount (INR)", "Razorpay Payment ID", "Coupon", "Note", "Refunded"],
+      ...txns.map((t) => [
+        formatDateTime(t.createdAt), t.type, t.amountInr,
+        t.razorpayPaymentId ?? "", t.couponCode ?? "", t.note ?? "", t.refunded ? "Yes" : "No",
+      ]),
+    ]);
+  }
 
   async function issueRefund(t: WalletTransaction) {
     const remaining = Math.round(((t.amountInr) - (t.refundedAmountInr ?? 0)) * 100) / 100;
@@ -180,7 +190,19 @@ export default function EmspUserProfilePage() {
           )}
         </Card>
 
-        <Card title="Wallet" actions={<IndianRupee className="h-4 w-4 text-ink-400" />}>
+        <Card
+          title="Wallet"
+          actions={(
+            <div className="flex items-center gap-2">
+              {txns.length > 0 && (
+                <Button size="sm" onClick={exportWalletCsv} title="Export wallet report">
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              <IndianRupee className="h-4 w-4 text-ink-400" />
+            </div>
+          )}
+        >
           <p className="text-2xl font-semibold tabular-nums">{formatINR(walletBalance)}</p>
           <p className="text-xs text-ink-500">{account ? "Shared corporate balance — top up from User Management." : "Top up from User Management."}</p>
           <div className="mt-3 max-h-64 overflow-y-auto scroll-thin border-t border-ink-100 pt-3">
