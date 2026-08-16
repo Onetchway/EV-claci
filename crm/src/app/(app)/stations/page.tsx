@@ -29,6 +29,7 @@ const ChargersMap = dynamic(() => import("@/components/chargers-map").then((m) =
 export default function StationsPage() {
   const viewer = useViewer();
   const canManage = canManageChargers(viewer);
+  const isSiteOwner = viewer.role === "SITE_OWNER";
 
   const [zones, setZones] = useState<Zone[] | null>(null);
   const [chargers, setChargers] = useState<ChargerRegistration[]>([]);
@@ -41,14 +42,25 @@ export default function StationsPage() {
   useEffect(() => subscribeChargerRegistry(setChargers), []);
   useEffect(() => subscribeChargePoints(setPoints), []);
 
+  // A Site Owner only ever sees the site(s) their account is linked to via Zone.ownerUid.
+  const visibleZones = useMemo(
+    () => (isSiteOwner ? (zones ?? []).filter((z) => z.ownerUid === viewer.uid) : zones),
+    [zones, isSiteOwner, viewer.uid],
+  );
+  const visibleZoneIds = useMemo(() => new Set((visibleZones ?? []).map((z) => z.id)), [visibleZones]);
+  const visibleChargers = useMemo(
+    () => (isSiteOwner ? chargers.filter((c) => c.zoneId && visibleZoneIds.has(c.zoneId)) : chargers),
+    [chargers, isSiteOwner, visibleZoneIds],
+  );
+
   useEffect(() => {
-    if (!selectedId && zones && zones.length > 0) setSelectedId(zones[0]!.id);
-  }, [zones, selectedId]);
+    if (!selectedId && visibleZones && visibleZones.length > 0) setSelectedId(visibleZones[0]!.id);
+  }, [visibleZones, selectedId]);
 
   const pointByChargerId = useMemo(() => new Map(points.map((p) => [p.chargePointId ?? p.id, p])), [points]);
 
   const mapPins: MapPinType[] = useMemo(
-    () => chargers
+    () => visibleChargers
       .filter((c) => c.active && c.lat != null && c.lng != null)
       .map((c) => ({
         id: c.chargerId,
@@ -57,38 +69,38 @@ export default function StationsPage() {
         lng: c.lng!,
         online: pointByChargerId.get(c.chargerId)?.status === "ONLINE",
       })),
-    [chargers, pointByChargerId],
+    [visibleChargers, pointByChargerId],
   );
 
   const chargerCountByZone = useMemo(() => {
     const map = new Map<string, number>();
-    for (const c of chargers) {
+    for (const c of visibleChargers) {
       if (!c.zoneId || !c.active) continue;
       map.set(c.zoneId, (map.get(c.zoneId) ?? 0) + 1);
     }
     return map;
-  }, [chargers]);
+  }, [visibleChargers]);
 
   const filteredZones = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return zones ?? [];
-    return (zones ?? []).filter((z) =>
+    if (!q) return visibleZones ?? [];
+    return (visibleZones ?? []).filter((z) =>
       z.name.toLowerCase().includes(q)
       || (z.address ?? "").toLowerCase().includes(q)
       || (z.city ?? "").toLowerCase().includes(q));
-  }, [zones, search]);
+  }, [visibleZones, search]);
 
-  const selected = zones?.find((z) => z.id === selectedId) ?? null;
+  const selected = visibleZones?.find((z) => z.id === selectedId) ?? null;
   const stationChargers = useMemo(
-    () => (selected ? chargers.filter((c) => c.zoneId === selected.id) : []),
-    [chargers, selected],
+    () => (selected ? visibleChargers.filter((c) => c.zoneId === selected.id) : []),
+    [visibleChargers, selected],
   );
 
   return (
     <>
       <PageHeader
         title="Station Management"
-        description="Every site (RWA, hotel, corporate campus, etc.) and the chargers installed there — site details, revenue share and bank details in one place. Per-charger setup and remote commands still happen on Charger Dashboard."
+        description="Every site (RWA, hotel, corporate campus, etc.) and the chargers installed there — site details, revenue share and bank details in one place. Per-charger setup and remote commands still happen on Charger Management."
         actions={canManage && <Button variant="primary" onClick={() => { setSelectedId(null); setModalOpen(true); }}><Plus className="h-4 w-4" /> New station</Button>}
       />
 
@@ -104,10 +116,10 @@ export default function StationsPage() {
 
       {zones === null ? (
         <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>
-      ) : zones.length === 0 ? (
+      ) : (visibleZones ?? []).length === 0 ? (
         <EmptyState
           icon={<Building2 className="h-8 w-8" />}
-          title="No stations yet"
+          title={isSiteOwner ? "No site linked to your account yet" : "No stations yet"}
           action={canManage && <Button variant="primary" onClick={() => setModalOpen(true)}><Plus className="h-4 w-4" /> New station</Button>}
         />
       ) : (

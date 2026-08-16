@@ -20,6 +20,7 @@ export default function SettlementsPage() {
   const { actor } = useAuth();
   const viewer = useViewer();
   const canManage = canManageSettlements(viewer);
+  const isSiteOwner = viewer.role === "SITE_OWNER";
   const { run, busy } = useAsyncAction();
   const { settings } = useSettings();
   const [statementOpen, setStatementOpen] = useState(false);
@@ -43,11 +44,21 @@ export default function SettlementsPage() {
   useEffect(() => subscribeElectricityBills(setBills), []);
   useEffect(() => (canManage ? subscribeFailedPayments(setFailedPayments) : undefined), [canManage]);
 
+  // A Site Owner only ever sees revenue shares for the site(s) their account is linked to via Zone.ownerUid.
+  const ownedZoneIds = useMemo(
+    () => new Set(isSiteOwner ? allZones.filter((z) => z.ownerUid === viewer.uid).map((z) => z.id) : []),
+    [allZones, isSiteOwner, viewer.uid],
+  );
+  const visibleRows = useMemo(
+    () => (isSiteOwner ? (rows ?? []).filter((r) => ownedZoneIds.has(r.zoneId)) : rows),
+    [rows, isSiteOwner, ownedZoneIds],
+  );
+
   const zones = useMemo(() => {
     const map = new Map<string, string>();
-    for (const r of rows ?? []) map.set(r.zoneId, r.zoneName);
+    for (const r of visibleRows ?? []) map.set(r.zoneId, r.zoneName);
     return [...map.entries()];
-  }, [rows]);
+  }, [visibleRows]);
 
   async function submitBill() {
     if (!actor || !billZoneId || !Number(billAmount) || !billStart || !billEnd) return;
@@ -68,8 +79,8 @@ export default function SettlementsPage() {
   }
 
   const filtered = useMemo(
-    () => (zoneFilter ? (rows ?? []).filter((r) => r.zoneId === zoneFilter) : rows ?? []),
-    [rows, zoneFilter],
+    () => (zoneFilter ? (visibleRows ?? []).filter((r) => r.zoneId === zoneFilter) : visibleRows ?? []),
+    [visibleRows, zoneFilter],
   );
 
   const totals = useMemo(() => {

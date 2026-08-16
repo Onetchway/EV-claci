@@ -10,8 +10,9 @@ import {
   Button, Field, Input, Modal, Select, useAsyncAction,
 } from "@/components/ui";
 import { INDIAN_STATES, SITE_TYPE_LABEL, SITE_TYPES, type SiteType } from "@/lib/constants";
+import { subscribeUsers } from "@/lib/db/users";
 import { createZone, updateZone, type ZoneDraft } from "@/lib/db/zones";
-import type { AdditionalRevenueShare, RevenueShareType, Zone } from "@/lib/types";
+import type { AdditionalRevenueShare, AppUser, RevenueShareType, Zone } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TABS = ["Details", "Revenue share", "Bank details"] as const;
@@ -29,6 +30,7 @@ export function ZoneEditModal({
   const { actor } = useAuth();
   const { run, busy } = useAsyncAction();
   const [tab, setTab] = useState<Tab>("Details");
+  const [users, setUsers] = useState<AppUser[]>([]);
 
   const [name, setName] = useState("");
   const [maxLoadKw, setMaxLoadKw] = useState(0);
@@ -39,6 +41,7 @@ export function ZoneEditModal({
   const [state, setState] = useState("");
   const [pocName, setPocName] = useState("");
   const [pocPhone, setPocPhone] = useState("");
+  const [ownerUid, setOwnerUid] = useState("");
   const [discomName, setDiscomName] = useState("");
   const [slaHours, setSlaHours] = useState("");
   const [revenueShareType, setRevenueShareType] = useState<RevenueShareType | "">("");
@@ -49,6 +52,8 @@ export function ZoneEditModal({
   const [bankIfscCode, setBankIfscCode] = useState("");
   const [bankAccountName, setBankAccountName] = useState("");
   const [bankName, setBankName] = useState("");
+
+  useEffect(() => subscribeUsers(setUsers), []);
 
   useEffect(() => {
     if (!open) return;
@@ -63,6 +68,7 @@ export function ZoneEditModal({
       setState(editing.state ?? "");
       setPocName(editing.pocName ?? "");
       setPocPhone(editing.pocPhone ?? "");
+      setOwnerUid(editing.ownerUid ?? "");
       setDiscomName(editing.discomName ?? "");
       setSlaHours(editing.slaHours != null ? String(editing.slaHours) : "");
       setRevenueShareType(editing.revenueShareType ?? "");
@@ -75,7 +81,7 @@ export function ZoneEditModal({
       setBankName(editing.bankName ?? "");
     } else {
       setName(""); setMaxLoadKw(0); setSiteType(""); setAddress(""); setCity(""); setPincode(""); setState("");
-      setPocName(""); setPocPhone(""); setDiscomName(""); setSlaHours("");
+      setPocName(""); setPocPhone(""); setOwnerUid(""); setDiscomName(""); setSlaHours("");
       setRevenueShareType(""); setRevenueShareValue(""); setRevenueShareMinGuaranteeInr(""); setAdditionalRevenueShares([]);
       setBankAccountNumber(""); setBankIfscCode(""); setBankAccountName(""); setBankName("");
     }
@@ -93,6 +99,7 @@ export function ZoneEditModal({
       state: state || undefined,
       pocName: pocName.trim() || undefined,
       pocPhone: pocPhone.trim() || undefined,
+      ownerUid: ownerUid || null,
       discomName: discomName.trim() || undefined,
       slaHours: slaHours.trim() ? Number(slaHours) : undefined,
       revenueShareType: revenueShareType || undefined,
@@ -172,6 +179,14 @@ export function ZoneEditModal({
             <Field label="POC name" hint="Who to contact at this site."><Input value={pocName} onChange={(e) => setPocName(e.target.value)} /></Field>
             <Field label="POC phone"><Input value={pocPhone} onChange={(e) => setPocPhone(e.target.value)} /></Field>
           </div>
+          <Field label="Site Owner account" hint="A staff account with the Site Owner role — they'll see only this site on Station Management and Settlements.">
+            <Select
+              value={ownerUid}
+              onChange={(e) => setOwnerUid(e.target.value)}
+              options={users.filter((u) => u.role === "SITE_OWNER").map((u) => ({ value: u.id, label: u.name }))}
+              placeholder="No Site Owner linked"
+            />
+          </Field>
           <Field label="DISCOM name">
             <Input value={discomName} onChange={(e) => setDiscomName(e.target.value)} placeholder="e.g. BSES Rajdhani, Tata Power" />
           </Field>

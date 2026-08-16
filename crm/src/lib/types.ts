@@ -596,6 +596,8 @@ export interface Zone {
   /** Site host's point of contact — the person Settlements/electricity-bill questions actually go to. */
   pocName?: string;
   pocPhone?: string;
+  /** The staff user (SITE_OWNER role) who should see only this site — scopes Station Management and Settlements to zones they own. Unset means no SITE_OWNER account is tied to this site yet. */
+  ownerUid?: string | null;
   discomName?: string;
   /** Overrides the OCPP server's flat default fault-ticket SLA (FAULT_SLA_HOURS) for chargers in this zone. */
   slaHours?: number;
