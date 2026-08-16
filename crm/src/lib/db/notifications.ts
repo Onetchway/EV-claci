@@ -179,3 +179,73 @@ export function notifyStageOrStatus(opts: {
     ),
   });
 }
+
+/** Customer-facing wrapper (invoices, receipts, wallet alerts) — separate branding from the internal-staff wrap() above; company name is caller-supplied so white-label Organizations can send under their own name. */
+function wrapCustomer(bodyHtml: string, companyName = "Livanto Green"): string {
+  return (
+    `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;line-height:1.6;max-width:520px">` +
+    `<p style="margin:0 0 16px;font-weight:700;font-size:18px;color:#0f766e">${companyName}</p>` +
+    bodyHtml +
+    `<p style="margin:24px 0 0;color:#888;font-size:12px">This is an automated message from ${companyName}. Please don't reply directly to this email.</p>` +
+    `</div>`
+  );
+}
+
+export function emailInvoiceIssued(opts: {
+  to: string;
+  invoiceNumber: string;
+  totalInr: number;
+  invoiceUrl: string;
+  companyName?: string;
+}): void {
+  queueEmailSafe({
+    to: [opts.to],
+    subject: `Invoice ${opts.invoiceNumber} from ${opts.companyName ?? "Livanto Green"}`,
+    html: wrapCustomer(
+      `<p>Hello,</p>` +
+      `<p>Your invoice <strong>${opts.invoiceNumber}</strong> for <strong>₹${opts.totalInr.toLocaleString("en-IN")}</strong> is ready.</p>` +
+      `<p><a href="${opts.invoiceUrl}" style="color:#0f766e">View invoice →</a></p>`,
+      opts.companyName,
+    ),
+  });
+}
+
+export function emailPaymentReceipt(opts: {
+  to: string;
+  amountInr: number;
+  newBalanceInr: number;
+  razorpayPaymentId?: string;
+  companyName?: string;
+}): void {
+  queueEmailSafe({
+    to: [opts.to],
+    subject: `Payment received — ₹${opts.amountInr.toLocaleString("en-IN")}`,
+    html: wrapCustomer(
+      `<p>Hello,</p>` +
+      `<p>We've received your top-up of <strong>₹${opts.amountInr.toLocaleString("en-IN")}</strong>.</p>` +
+      `<p>New wallet balance: <strong>₹${opts.newBalanceInr.toLocaleString("en-IN")}</strong></p>` +
+      (opts.razorpayPaymentId ? `<p style="color:#888;font-size:12px">Payment reference: ${opts.razorpayPaymentId}</p>` : ""),
+      opts.companyName,
+    ),
+  });
+}
+
+export function emailLowWalletBalance(opts: {
+  to: string;
+  balanceInr: number;
+  thresholdInr: number;
+  topUpUrl?: string;
+  companyName?: string;
+}): void {
+  queueEmailSafe({
+    to: [opts.to],
+    subject: `Low wallet balance — ₹${opts.balanceInr.toLocaleString("en-IN")}`,
+    html: wrapCustomer(
+      `<p>Hello,</p>` +
+      `<p>Your wallet balance is now <strong>₹${opts.balanceInr.toLocaleString("en-IN")}</strong>, below the ₹${opts.thresholdInr.toLocaleString("en-IN")} alert threshold.</p>` +
+      `<p>Top up soon to avoid a declined session at the charger.</p>` +
+      (opts.topUpUrl ? `<p><a href="${opts.topUpUrl}" style="color:#0f766e">Top up now →</a></p>` : ""),
+      opts.companyName,
+    ),
+  });
+}

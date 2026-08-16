@@ -51,6 +51,7 @@ export async function POST(req: Request) {
     const ownerRef = db.collection(collectionName).doc(body.ownerId);
 
     let bonusInr = 0;
+    let newBalanceInr = 0;
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ownerRef);
       if (!snap.exists) throw new ApiError("Wallet owner not found.", 404);
@@ -83,7 +84,8 @@ export async function POST(req: Request) {
 
       const current = (snap.data()?.walletBalanceInr as number | undefined) ?? 0;
       const credited = body.amountInr + bonusInr;
-      tx.update(ownerRef, { walletBalanceInr: current + credited });
+      newBalanceInr = current + credited;
+      tx.update(ownerRef, { walletBalanceInr: newBalanceInr });
       tx.set(db.collection("walletTransactions").doc(), {
         ownerType: body.ownerType,
         ownerId: body.ownerId,
@@ -105,7 +107,7 @@ export async function POST(req: Request) {
       razorpayPaymentId: body.razorpayPaymentId,
     });
 
-    return NextResponse.json({ ok: true, bonusInr });
+    return NextResponse.json({ ok: true, bonusInr, newBalanceInr });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.issues[0]?.message ?? "Invalid input." }, { status: 400 });

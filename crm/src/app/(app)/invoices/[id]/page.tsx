@@ -13,6 +13,8 @@ import { INVOICE_STATUS_COLOR, INVOICE_STATUS_LABEL, INVOICE_STATUSES, type Invo
 import {
   createCreditDebitNote, setInvoiceTax, subscribeCreditDebitNotesForInvoice, subscribeInvoice, updateInvoiceStatus,
 } from "@/lib/db/invoices";
+import { getCorporateAccount, getEmspUser } from "@/lib/db/emsp-users";
+import { emailInvoiceIssued } from "@/lib/db/notifications";
 import { subscribeOrganization } from "@/lib/db/organizations";
 import { canManageInvoices } from "@/lib/permissions";
 import type { CreditDebitNote, CreditDebitNoteKind, Invoice, Organization } from "@/lib/types";
@@ -50,6 +52,25 @@ export default function InvoiceDetailPage() {
     setHsnSac(inv?.hsnSac ?? "");
     setTdsPct(inv?.tdsPct != null ? String(inv.tdsPct) : "");
   }, [inv?.id, inv?.hsnSac, inv?.tdsPct]);
+
+  async function changeStatus(status: InvoiceStatus) {
+    if (!actor || !inv) return;
+    await updateInvoiceStatus(inv.id, status, actor);
+    if (status !== "ISSUED" || !inv.billToId) return;
+    const email = inv.billToType === "EMSP_USER"
+      ? (await getEmspUser(inv.billToId))?.email
+      : inv.billToType === "CORPORATE_ACCOUNT"
+        ? (await getCorporateAccount(inv.billToId))?.billingEmail
+        : undefined;
+    if (!email) return;
+    emailInvoiceIssued({
+      to: email,
+      invoiceNumber: inv.invoiceNumber,
+      totalInr: inv.totalInr,
+      invoiceUrl: `${window.location.origin}/invoices/${inv.id}`,
+      companyName: brandedCompany.shortName,
+    });
+  }
 
   async function saveTax() {
     if (!actor || !inv) return;
@@ -93,7 +114,7 @@ export default function InvoiceDetailPage() {
             {canManage ? (
               <Select
                 value={inv.status}
-                onChange={(e) => void updateInvoiceStatus(inv.id, e.target.value as InvoiceStatus, actor!)}
+                onChange={(e) => void changeStatus(e.target.value as InvoiceStatus)}
                 options={INVOICE_STATUSES.map((s) => ({ value: s, label: INVOICE_STATUS_LABEL[s] }))}
               />
             ) : (

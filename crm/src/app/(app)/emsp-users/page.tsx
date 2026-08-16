@@ -8,17 +8,19 @@ import {
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction, useToast,
+  Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
   createCorporateAccount, createEmspUser, deleteCorporateAccount, deleteEmspUser, setEmspUserActive,
   subscribeCorporateAccounts, subscribeEmspUsers, updateCorporateAccount, updateEmspUser,
 } from "@/lib/db/emsp-users";
 import { EMSP_USER_TYPE_LABEL, EMSP_USER_TYPES } from "@/lib/constants";
-import { canManageEmspUsers } from "@/lib/permissions";
-import { topUpWallet } from "@/lib/razorpay-client";
+import { emailPaymentReceipt } from "@/lib/db/notifications";
+import { canManageEmspUsers, hasRole } from "@/lib/permissions";
+import { topUpWallet, type WalletTopupResult } from "@/lib/razorpay-client";
 import type { CorporateAccount, EmspUser, WalletOwnerType } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
+import { manualWalletCredit } from "@/lib/wallet-client";
 
 export default function EmspUsersPage() {
   const { actor } = useAuth();
@@ -48,7 +50,11 @@ export default function EmspUsersPage() {
   const [topupAmount, setTopupAmount] = useState("500");
   const [topupCoupon, setTopupCoupon] = useState("");
   const [topupBusy, setTopupBusy] = useState(false);
+  const [manualCredit, setManualCredit] = useState(false);
+  const [manualReason, setManualReason] = useState("");
   const { push } = useToast();
+
+  const canManualCredit = hasRole(viewer, "SUPER_ADMIN", "ADMIN");
 
   useEffect(() => subscribeEmspUsers(setUsers), []);
   useEffect(() => subscribeCorporateAccounts(setAccounts), []);
@@ -59,20 +65,40 @@ export default function EmspUsersPage() {
     if (!topupFor) return;
     const amount = Number(topupAmount);
     if (!amount || amount <= 0) return;
+    if (manualCredit && !manualReason.trim()) {
+      push("A reason is required for a manual credit.", "error");
+      return;
+    }
     setTopupBusy(true);
     try {
-      const result = await topUpWallet({
-        ownerType: topupFor.ownerType, ownerId: topupFor.ownerId, ownerName: topupFor.name,
-        amountInr: amount, couponCode: topupCoupon.trim() || undefined,
-      });
+      const result = manualCredit
+        ? await manualWalletCredit(topupFor.ownerType, topupFor.ownerId, amount, manualReason.trim())
+        : await topUpWallet({
+          ownerType: topupFor.ownerType, ownerId: topupFor.ownerId, ownerName: topupFor.name,
+          amountInr: amount, couponCode: topupCoupon.trim() || undefined,
+        });
       push(
-        result.bonusInr
+        "bonusInr" in result && result.bonusInr
           ? `₹${amount} + ₹${result.bonusInr} coupon bonus added to ${topupFor.name}'s wallet.`
           : `₹${amount} added to ${topupFor.name}'s wallet.`,
         "success",
       );
+      const email = topupFor.ownerType === "EMSP_USER"
+        ? users?.find((u) => u.id === topupFor.ownerId)?.email
+        : accounts.find((a) => a.id === topupFor.ownerId)?.billingEmail;
+      if (!manualCredit && email && result.newBalanceInr != null) {
+        const paidResult = result as WalletTopupResult;
+        emailPaymentReceipt({
+          to: email,
+          amountInr: amount + (paidResult.bonusInr ?? 0),
+          newBalanceInr: paidResult.newBalanceInr!,
+          razorpayPaymentId: paidResult.razorpayPaymentId,
+        });
+      }
       setTopupFor(null);
       setTopupCoupon("");
+      setManualCredit(false);
+      setManualReason("");
     } catch (e) {
       push((e as Error).message, "error");
     } finally {
@@ -302,24 +328,42 @@ export default function EmspUsersPage() {
 
       <Modal
         open={!!topupFor}
-        onClose={() => { setTopupFor(null); setTopupCoupon(""); }}
+        onClose={() => { setTopupFor(null); setTopupCoupon(""); setManualCredit(false); setManualReason(""); }}
         title={`Top up wallet — ${topupFor?.name ?? ""}`}
-        description="Opens Razorpay Checkout. Requires RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET set in this app's environment."
+        description={manualCredit
+          ? "Credits the wallet directly — no payment is taken. Restricted to Super Admin / Admin, and requires a reason for the audit trail."
+          : "Opens Razorpay Checkout. Requires RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET set in this app's environment."}
         footer={(
           <>
             <Button variant="ghost" onClick={() => setTopupFor(null)}>Cancel</Button>
-            <Button variant="primary" loading={topupBusy} disabled={!Number(topupAmount)} onClick={() => void submitTopup()}>
-              Pay ₹{topupAmount || 0}
+            <Button
+              variant="primary"
+              loading={topupBusy}
+              disabled={!Number(topupAmount) || (manualCredit && !manualReason.trim())}
+              onClick={() => void submitTopup()}
+            >
+              {manualCredit ? `Credit ₹${topupAmount || 0}` : `Pay ₹${topupAmount || 0}`}
             </Button>
           </>
         )}
       >
-        <Field label="Amount (₹)">
-          <Input type="number" min={1} value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} />
-        </Field>
-        <Field label="Coupon code" hint="Optional — validated when payment completes.">
-          <Input value={topupCoupon} onChange={(e) => setTopupCoupon(e.target.value.toUpperCase())} placeholder="e.g. WELCOME10" />
-        </Field>
+        <div className="grid gap-4">
+          <Field label="Amount (₹)">
+            <Input type="number" min={1} value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} />
+          </Field>
+          {canManualCredit && (
+            <Checkbox checked={manualCredit} onChange={setManualCredit} label="Manual credit — no real payment (Super Admin / Admin only)" />
+          )}
+          {manualCredit ? (
+            <Field label="Reason" required hint="Shown in the wallet transaction audit trail.">
+              <Input value={manualReason} onChange={(e) => setManualReason(e.target.value)} placeholder="e.g. Goodwill credit for outage on 12 Aug" />
+            </Field>
+          ) : (
+            <Field label="Coupon code" hint="Optional — validated when payment completes.">
+              <Input value={topupCoupon} onChange={(e) => setTopupCoupon(e.target.value.toUpperCase())} placeholder="e.g. WELCOME10" />
+            </Field>
+          )}
+        </div>
       </Modal>
     </>
   );
