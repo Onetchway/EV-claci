@@ -5,6 +5,7 @@
  * between "ignored" and "not supported yet."
  */
 
+import { db } from "../firebase.js";
 import {
   markOnline, recordFirmwareStatus, recordMeterValues, recordTransactionEvent, touchHeartbeat, updateConnectorStatus,
 } from "../registry.js";
@@ -44,9 +45,11 @@ export async function handleCall(
         firmwareVersion: req.chargingStation?.firmwareVersion,
         reason: req.reason,
       });
+      const regSnap = await db().collection("chargerRegistry").where("chargerId", "==", chargePointId).limit(1).get();
+      const interval = (regSnap.docs[0]?.data().heartbeatIntervalSec as number | undefined) ?? 300;
       const res: BootNotificationResponse = {
         currentTime: new Date().toISOString(),
-        interval: 300,
+        interval,
         status: "Accepted",
       };
       return ok(res);

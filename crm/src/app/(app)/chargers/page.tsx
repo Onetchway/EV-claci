@@ -9,7 +9,7 @@ import QRCode from "qrcode";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard,
+  Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard,
   useAsyncAction, useToast,
 } from "@/components/ui";
 import { useSettings } from "@/hooks/use-settings";
@@ -60,13 +60,15 @@ const blankDraft: ChargerRegistrationDraft = {
   label: "", location: "", state: "", chargerPowerType: "DC", vendor: "Exicom", vendorOther: "", model: "",
   connectorType: undefined, powerKw: undefined, notes: "", lat: null, lng: null, zoneId: null,
   leadId: null, leadCode: null,
+  reservationsEnabled: false, accessType: "PUBLIC", open24Hours: true, openingHours: "",
+  heartbeatIntervalSec: 300, maxSocPercent: undefined, photoUrl: null,
 };
 
 /** Generates and displays the connection QR for a given charger, on demand — nothing is precomputed. */
-function ConnectionDetails({ serverHost, chargerId }: { serverHost: string; chargerId: string }) {
+function ConnectionDetails({ serverHost, chargerId, connectionToken }: { serverHost: string; chargerId: string; connectionToken?: string }) {
   const [qr, setQr] = useState<string | null>(null);
   const { push } = useToast();
-  const url = serverHost ? chargerWsUrl(serverHost, chargerId) : "";
+  const url = serverHost ? chargerWsUrl(serverHost, chargerId, connectionToken) : "";
 
   useEffect(() => {
     if (!url) { setQr(null); return; }
@@ -146,6 +148,7 @@ export default function ChargersPage() {
   const [leadOptions, setLeadOptions] = useState<Lead[]>([]);
   const [registering, setRegistering] = useState(false);
   const [justRegisteredId, setJustRegisteredId] = useState<string | null>(null);
+  const [justRegisteredToken, setJustRegisteredToken] = useState<string | undefined>(undefined);
   const [editingRegId, setEditingRegId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
 
@@ -353,11 +356,12 @@ export default function ChargersPage() {
         push("Charger updated.", "success");
         closeAddModal();
       } else {
-        const chargerId = await registerCharger(
+        const { chargerId, connectionToken } = await registerCharger(
           { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined },
           actor,
         );
         setJustRegisteredId(chargerId);
+        setJustRegisteredToken(connectionToken);
         setDraft(blankDraft);
       }
     } catch (e) {
@@ -377,6 +381,10 @@ export default function ChargersPage() {
       installationDate: tsToDate(r.installationDate), warrantyStart: tsToDate(r.warrantyStart), warrantyEnd: tsToDate(r.warrantyEnd),
       connectorType: r.connectorType, powerKw: r.powerKw, connectors: r.connectors, notes: r.notes ?? "",
       zoneId: r.zoneId ?? null, lat: r.lat ?? null, lng: r.lng ?? null, leadId: r.leadId ?? null, leadCode: r.leadCode ?? null,
+      reservationsEnabled: r.reservationsEnabled ?? false, accessType: r.accessType ?? "PUBLIC",
+      open24Hours: r.open24Hours ?? true, openingHours: r.openingHours ?? "",
+      heartbeatIntervalSec: r.heartbeatIntervalSec ?? 300, maxSocPercent: r.maxSocPercent,
+      photoUrl: r.photoUrl ?? null,
     });
     setAddOpen(true);
   }
@@ -384,6 +392,7 @@ export default function ChargersPage() {
   function closeAddModal() {
     setAddOpen(false);
     setJustRegisteredId(null);
+    setJustRegisteredToken(undefined);
     setEditingRegId(null);
     setDraft(blankDraft);
     setDraftLeadType("");
@@ -1005,7 +1014,7 @@ export default function ChargersPage() {
         )}
       >
         {justRegisteredId ? (
-          <ConnectionDetails serverHost={settings.ocpp.serverHost} chargerId={justRegisteredId} />
+          <ConnectionDetails serverHost={settings.ocpp.serverHost} chargerId={justRegisteredId} connectionToken={justRegisteredToken} />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Label" required className="sm:col-span-2">
@@ -1214,6 +1223,48 @@ export default function ChargersPage() {
                 onChange={(e) => setDraft((d) => ({ ...d, warrantyEnd: e.target.value ? new Date(e.target.value) : null }))}
               />
             </Field>
+            <Field label="Access type">
+              <Select
+                value={draft.accessType ?? "PUBLIC"}
+                onChange={(e) => setDraft((d) => ({ ...d, accessType: e.target.value as "PUBLIC" | "PRIVATE" }))}
+                options={[{ value: "PUBLIC", label: "Public" }, { value: "PRIVATE", label: "Private" }]}
+              />
+            </Field>
+            <Field label="Heartbeat interval (seconds)">
+              <Input
+                type="number" min={30}
+                value={draft.heartbeatIntervalSec ?? 300}
+                onChange={(e) => setDraft((d) => ({ ...d, heartbeatIntervalSec: Number(e.target.value) || 300 }))}
+              />
+            </Field>
+            <Field label="Max SOC % (optional)" hint="Leave blank for no limit.">
+              <Input
+                type="number" min={1} max={100}
+                value={draft.maxSocPercent ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, maxSocPercent: e.target.value ? Number(e.target.value) : undefined }))}
+              />
+            </Field>
+            <div className="flex items-center gap-4 sm:col-span-1">
+              <Checkbox
+                label="Open 24 hours"
+                checked={draft.open24Hours ?? true}
+                onChange={(v) => setDraft((d) => ({ ...d, open24Hours: v }))}
+              />
+              <Checkbox
+                label="Reservations enabled"
+                checked={draft.reservationsEnabled ?? false}
+                onChange={(v) => setDraft((d) => ({ ...d, reservationsEnabled: v }))}
+              />
+            </div>
+            {!draft.open24Hours && (
+              <Field label="Opening hours" className="sm:col-span-2">
+                <Input
+                  value={draft.openingHours ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, openingHours: e.target.value }))}
+                  placeholder="e.g. 6 AM – 11 PM"
+                />
+              </Field>
+            )}
             <Field label="Notes" className="sm:col-span-2">
               <Input
                 value={draft.notes ?? ""}
@@ -1231,7 +1282,7 @@ export default function ChargersPage() {
         title={viewingReg ? `Connect ${viewingReg.label}` : ""}
         footer={<Button onClick={() => setViewingId(null)}>Close</Button>}
       >
-        {viewingReg && <ConnectionDetails serverHost={settings.ocpp.serverHost} chargerId={viewingReg.chargerId} />}
+        {viewingReg && <ConnectionDetails serverHost={settings.ocpp.serverHost} chargerId={viewingReg.chargerId} connectionToken={viewingReg.connectionToken} />}
       </Modal>
 
       <Modal

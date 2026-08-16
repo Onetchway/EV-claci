@@ -15,8 +15,9 @@
 import {
   addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, Timestamp, updateDoc,
 } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 
-import { getDb } from "../firebase/client";
+import { getBucket, getDb } from "../firebase/client";
 import type { Actor, TS } from "../types";
 
 export const CHARGER_REGISTRY = "chargerRegistry";
@@ -79,6 +80,22 @@ export interface ChargerRegistration {
   active: boolean;
   createdAt?: TS;
   createdBy?: Actor;
+
+  /** A photo of the physical unit, shown on its detail page. */
+  photoUrl?: string | null;
+  /** Whether this charger is bookable in advance — OCPP 2.0.1 ReserveNow/CancelReservation. Off by default; most sites don't want walk-up chargers held. */
+  reservationsEnabled?: boolean;
+  /** Restricts this charger from the public map/directory — still fully manageable here, just not advertised. */
+  accessType?: "PUBLIC" | "PRIVATE";
+  open24Hours?: boolean;
+  /** Free text, e.g. "6 AM – 11 PM" — only meaningful when open24Hours is false. */
+  openingHours?: string;
+  /** Sent as the HeartbeatInterval in BootNotification's response — how often the charger should check in. Defaults to 300s (5 min) server-side if unset. */
+  heartbeatIntervalSec?: number;
+  /** A vehicle's target state of charge for a SetChargingProfile-based charge limit — 100 (no limit) if unset. */
+  maxSocPercent?: number;
+  /** A shared secret appended to this charger's WebSocket URL as ?token=... — a lightweight connection-auth layer on top of the charger-ID allow-list, short of full OCPP Security Profile certificates. */
+  connectionToken?: string;
 }
 
 /** Display name for a registration's manufacturer — the free-text override when vendor is "Other". */
@@ -88,7 +105,7 @@ export function oemLabel(r: Pick<ChargerRegistration, "vendor" | "vendorOther">)
 
 export type ChargerRegistrationDraft = Omit<
   ChargerRegistration,
-  "id" | "chargerId" | "active" | "createdAt" | "createdBy" | "installationDate" | "warrantyStart" | "warrantyEnd"
+  "id" | "chargerId" | "active" | "createdAt" | "createdBy" | "installationDate" | "warrantyStart" | "warrantyEnd" | "connectionToken"
 > & {
   installationDate?: Date | null;
   warrantyStart?: Date | null;
@@ -135,16 +152,42 @@ export function subscribeChargerRegistry(
 }
 
 /** Returns the generated chargerId — the caller needs it immediately to render the QR/URL. */
-export async function registerCharger(draft: ChargerRegistrationDraft, actor: Actor): Promise<string> {
+/** A per-charger shared secret for the connection-auth token — not cryptographically sensitive enough to need a server round-trip, just needs to be unguessable. */
+function generateConnectionToken(): string {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
+export async function registerCharger(draft: ChargerRegistrationDraft, actor: Actor): Promise<{ chargerId: string; connectionToken: string }> {
   const chargerId = `${slugify(draft.label)}-${uniqueSuffix()}`;
+  const connectionToken = generateConnectionToken();
   await addDoc(collection(getDb(), CHARGER_REGISTRY), {
     ...draftDatesToTimestamps(draft),
     chargerId,
     active: true,
+    connectionToken,
     createdAt: serverTimestamp(),
     createdBy: actor,
   });
-  return chargerId;
+  return { chargerId, connectionToken };
+}
+
+/** Rotates a charger's connection token — the old one stops working immediately, so the charger must be reconfigured with the new URL. */
+export async function regenerateConnectionToken(id: string): Promise<string> {
+  const token = generateConnectionToken();
+  await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), { connectionToken: token });
+  return token;
+}
+
+export async function uploadChargerPhoto(id: string, file: File): Promise<void> {
+  const safeName = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
+  const storagePath = `chargers/${id}/${Date.now()}_${safeName}`;
+  const storageRef = ref(getBucket(), storagePath);
+  const task = uploadBytesResumable(storageRef, file, { contentType: file.type });
+  await new Promise<void>((resolve, reject) => {
+    task.on("state_changed", undefined, reject, () => resolve());
+  });
+  const url = await getDownloadURL(storageRef);
+  await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), { photoUrl: url });
 }
 
 export async function updateChargerRegistration(
@@ -169,6 +212,7 @@ export async function deleteChargerRegistration(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), CHARGER_REGISTRY, id));
 }
 
-export function chargerWsUrl(serverHost: string, chargerId: string): string {
-  return `wss://${serverHost}/ocpp/${chargerId}`;
+export function chargerWsUrl(serverHost: string, chargerId: string, connectionToken?: string): string {
+  const base = `wss://${serverHost}/ocpp/${chargerId}`;
+  return connectionToken ? `${base}?token=${connectionToken}` : base;
 }

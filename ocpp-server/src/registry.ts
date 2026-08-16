@@ -35,14 +35,25 @@ export const DOWNTIME_EVENTS = "downtimeEvents";
  * connect if it has an active registration. Keeps anyone who merely guesses
  * a charge point ID from posing as a real charger and writing fake telemetry.
  */
-export async function isRegisteredAndActive(chargePointId: string): Promise<boolean> {
+/**
+ * A charger must be registered + active to connect at all. If its
+ * registration also carries a connectionToken (a lightweight per-charger
+ * secret — see the CRM's "Connect to Charger" URL), the caller's token
+ * must match it too. Registrations from before this feature existed have
+ * no token set, so they connect exactly as they did before — this never
+ * locks out an already-deployed charger.
+ */
+export async function isRegisteredAndActive(chargePointId: string, token?: string | null): Promise<boolean> {
   const snap = await db()
     .collection(CHARGER_REGISTRY)
     .where("chargerId", "==", chargePointId)
     .where("active", "==", true)
     .limit(1)
     .get();
-  return !snap.empty;
+  if (snap.empty) return false;
+  const registeredToken = snap.docs[0]!.data().connectionToken as string | undefined;
+  if (!registeredToken) return true;
+  return registeredToken === token;
 }
 
 interface Connection {

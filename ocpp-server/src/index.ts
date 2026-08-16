@@ -116,22 +116,44 @@ function chargePointIdFromUrl(url: string | undefined): string | null {
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
+/** Reads ?token=... off the connection URL, or the Authorization header (Basic or Bearer) as an alternative — matches the two options the CRM's "Connect to Charger" panel documents. */
+function connectionTokenFromRequest(url: string | undefined, headers: IncomingMessage["headers"]): string | null {
+  if (url) {
+    const match = url.match(/[?&]token=([^&]+)/);
+    if (match) return decodeURIComponent(match[1]!);
+  }
+  const auth = headers.authorization;
+  if (auth?.startsWith("Bearer ")) return auth.slice(7).trim();
+  if (auth?.startsWith("Basic ")) {
+    try {
+      const decoded = Buffer.from(auth.slice(6).trim(), "base64").toString("utf8");
+      return decoded.split(":")[1] ?? null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 wss.on("connection", (ws: WebSocket, req) => {
   const chargePointId = chargePointIdFromUrl(req.url);
   if (!chargePointId) {
     ws.close(1008, "Connect to /ocpp/<chargePointId>");
     return;
   }
+  const token = connectionTokenFromRequest(req.url, req.headers);
 
   // Only charger IDs registered (and left active) in the CRM dashboard may
   // connect — closes the "anyone who guesses an ID can pose as a charger"
-  // gap. The check is async, so hold off wiring up message/close handlers
-  // until it resolves; a charger rejected here should simply retry later
-  // rather than error, which is normal OCPP reconnect behavior.
-  void isRegisteredAndActive(chargePointId).then((allowed) => {
+  // gap. A registration with a connectionToken set also requires that
+  // token to match. The check is async, so hold off wiring up
+  // message/close handlers until it resolves; a charger rejected here
+  // should simply retry later rather than error, which is normal OCPP
+  // reconnect behavior.
+  void isRegisteredAndActive(chargePointId, token).then((allowed) => {
     if (!allowed) {
-      console.warn(`[ws] ${chargePointId} rejected — no active registration in chargerRegistry.`);
-      ws.close(1008, "Unknown or inactive charger ID");
+      console.warn(`[ws] ${chargePointId} rejected — no active/matching registration in chargerRegistry.`);
+      ws.close(1008, "Unknown or inactive charger ID, or invalid token");
       return;
     }
     attachChargePoint(chargePointId, ws);

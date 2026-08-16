@@ -46,6 +46,13 @@ service firebase.storage {
       allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
     }
 
+    match /chargers/{chargerId}/{fileName} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'] && acceptableFile();
+      allow update: if false;
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
