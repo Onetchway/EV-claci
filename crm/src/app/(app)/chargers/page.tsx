@@ -25,10 +25,11 @@ import {
 import { subscribeLeads } from "@/lib/db/leads";
 import { sendChargerCommand } from "@/lib/ocpp-commands";
 import { addRfidToken, deleteRfidToken, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
+import { subscribeTickets } from "@/lib/db/tickets";
 import { subscribeZones } from "@/lib/db/zones";
 import { INDIAN_STATES, LEAD_TYPE_LABEL, LEAD_TYPES, type LeadType } from "@/lib/constants";
 import { canManageChargers, canManageRfid } from "@/lib/permissions";
-import type { Lead, RfidToken, Zone } from "@/lib/types";
+import type { Lead, RfidToken, Ticket, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
 
 const CONNECTOR_COLOR: Record<ConnectorStatus, string> = {
@@ -125,6 +126,11 @@ export default function ChargersPage() {
   const [error, setError] = useState<string | null>(null);
   const [siteFilter, setSiteFilter] = useState("");
   const [chargerSearch, setChargerSearch] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
+  const [connectorTypeFilter, setConnectorTypeFilter] = useState("");
+  const [faultFilter, setFaultFilter] = useState(false);
+  const [openTickets, setOpenTickets] = useState<Ticket[]>([]);
 
   const [locatingReg, setLocatingReg] = useState<ChargerRegistration | null>(null);
   const [locZoneId, setLocZoneId] = useState("");
@@ -170,6 +176,7 @@ export default function ChargersPage() {
   useEffect(() => subscribeChargerRegistry(setRegistry), []);
   useEffect(() => subscribeRfidTokens(setRfidTokens), []);
   useEffect(() => subscribeZones(setZones), []);
+  useEffect(() => subscribeTickets({}, (rows) => setOpenTickets(rows.filter((t) => t.status === "OPEN" || t.status === "IN_PROGRESS"))), []);
   useEffect(() => {
     if (!draftLeadType) { setLeadOptions([]); return; }
     return subscribeLeads({ type: draftLeadType, max: 200 }, setLeadOptions);
@@ -275,8 +282,22 @@ export default function ChargersPage() {
 
   const pointByChargerId = useMemo(() => new Map(points.map((p) => [p.chargePointId ?? p.id, p])), [points]);
   const zoneName = useMemo(() => new Map(zones.map((z) => [z.id, z.name])), [zones]);
+  const zoneById = useMemo(() => new Map(zones.map((z) => [z.id, z])), [zones]);
+  const openTicketChargerIds = useMemo(() => new Set(openTickets.map((t) => t.chargePointId)), [openTickets]);
+  const cities = useMemo(() => [...new Set(zones.map((z) => z.city).filter((c): c is string => !!c))].sort(), [zones]);
+  const connectorTypeOptions = useMemo(
+    () => [...new Set(registry.flatMap((r) => [r.connectorType, ...(r.connectors ?? []).map((c) => c.connectorType)].filter(Boolean)))] as string[],
+    [registry],
+  );
+
   const filteredRegistry = useMemo(() => {
     let rows = siteFilter ? registry.filter((r) => r.zoneId === siteFilter) : registry;
+    if (cityFilter) rows = rows.filter((r) => r.zoneId && zoneById.get(r.zoneId)?.city === cityFilter);
+    if (stateFilter) rows = rows.filter((r) => r.state === stateFilter);
+    if (connectorTypeFilter) {
+      rows = rows.filter((r) => r.connectorType === connectorTypeFilter || (r.connectors ?? []).some((c) => c.connectorType === connectorTypeFilter));
+    }
+    if (faultFilter) rows = rows.filter((r) => openTicketChargerIds.has(r.chargerId));
     const q = chargerSearch.trim().toLowerCase();
     if (q) {
       rows = rows.filter((r) =>
@@ -286,7 +307,7 @@ export default function ChargersPage() {
         || (r.zoneId && (zoneName.get(r.zoneId) ?? "").toLowerCase().includes(q)));
     }
     return rows;
-  }, [registry, siteFilter, chargerSearch, zoneName]);
+  }, [registry, siteFilter, cityFilter, stateFilter, connectorTypeFilter, faultFilter, chargerSearch, zoneName, zoneById, openTicketChargerIds]);
 
   const stats = useMemo(() => {
     const online = points.filter((p) => p.status === "ONLINE").length;
@@ -383,6 +404,31 @@ export default function ChargersPage() {
               options={zones.map((z) => ({ value: z.id, label: z.name }))}
               placeholder="All sites"
             />
+            <Select
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              options={cities.map((c) => ({ value: c, label: c }))}
+              placeholder="All cities"
+            />
+            <Select
+              value={stateFilter}
+              onChange={(e) => setStateFilter(e.target.value)}
+              options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
+              placeholder="All states"
+            />
+            <Select
+              value={connectorTypeFilter}
+              onChange={(e) => setConnectorTypeFilter(e.target.value)}
+              options={connectorTypeOptions.map((c) => ({ value: c, label: c }))}
+              placeholder="All connector types"
+            />
+            <Button
+              size="sm"
+              variant={faultFilter ? "primary" : undefined}
+              onClick={() => setFaultFilter((v) => !v)}
+            >
+              {faultFilter ? "Faulted only ✓" : "Faulted only"}
+            </Button>
           </>
         )}
         className="mb-4"

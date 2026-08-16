@@ -137,6 +137,16 @@ export default function InsightsPage() {
     return [...map.values()];
   }, [shares]);
 
+  /** Revenue per individual charger (30d), unlike siteRevenue which rolls up by site — straight from billed sessions, not the revenue-share ledger, so it isn't affected by however many parties split a session. */
+  const revenuePerCharger = useMemo(() => {
+    const byCharger = new Map<string, number>();
+    for (const s of billed) byCharger.set(s.chargePointId, (byCharger.get(s.chargePointId) ?? 0) + (s.totalCostInr ?? 0));
+    return [...byCharger.entries()]
+      .map(([chargePointId, revenue]) => ({ chargePointId, revenue }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+  }, [billed]);
+
   const siteRevenue = useMemo(() => {
     const byZone = new Map<string, number>();
     for (const g of grossBySession) byZone.set(g.zoneName, (byZone.get(g.zoneName) ?? 0) + g.grossAmountInr);
@@ -195,7 +205,7 @@ export default function InsightsPage() {
         <StatCard label="Net revenue (30d, after site share)" value={formatCompactINR(revenue.net)} icon={<IndianRupee className="h-4 w-4" />} />
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="MTTR (30d)"
           value={reliability.mttrMinutes != null ? `${reliability.mttrMinutes} min` : "—"}
@@ -208,6 +218,11 @@ export default function InsightsPage() {
           icon={<Gauge className="h-4 w-4" />}
         />
         <StatCard label="Outages (30d)" value={reliability.outages} icon={<AlertTriangle className="h-4 w-4" />} />
+        <StatCard
+          label="Utilisation (live)"
+          value={totalConnectors > 0 ? `${Math.round(((connectorStatusCounts.get("Occupied") ?? 0) / totalConnectors) * 100)}%` : "—"}
+          icon={<Gauge className="h-4 w-4" />}
+        />
       </div>
 
       <div className="mb-4 grid gap-4 lg:grid-cols-3">
@@ -287,6 +302,24 @@ export default function InsightsPage() {
                   <YAxis type="category" dataKey="site" width={110} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => formatINR(v)} />
                   <Bar dataKey="revenue" fill="#1cb567" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
+
+        <Card title="Revenue per charger (30d)" className="lg:col-span-2">
+          {revenuePerCharger.length === 0 ? (
+            <EmptyState icon={<Banknote className="h-8 w-8" />} title="No billed sessions in the last 30 days" />
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenuePerCharger} layout="vertical" margin={{ left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                  <XAxis type="number" tickFormatter={(v) => formatCompactINR(v)} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="chargePointId" width={110} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => formatINR(v)} />
+                  <Bar dataKey="revenue" fill="#2f7de1" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
