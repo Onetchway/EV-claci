@@ -105,8 +105,17 @@ export function adminAuth(): Auth {
   return getAuth(getAdminApp());
 }
 
+let adminDbInstance: Firestore | undefined;
+
 export function adminDb(): Firestore {
-  return getFirestore(getAdminApp());
+  if (!adminDbInstance) {
+    adminDbInstance = getFirestore(getAdminApp());
+    // Same reasoning as the client SDK's getDb(): a spread draft with an
+    // unset optional field carries `undefined`, which Admin SDK writes
+    // reject by default instead of just omitting the key.
+    adminDbInstance.settings({ ignoreUndefinedProperties: true });
+  }
+  return adminDbInstance;
 }
 
 export { getApp };

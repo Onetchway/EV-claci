@@ -2,7 +2,7 @@
 
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { initializeFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const config = {
@@ -37,7 +37,13 @@ export function getFirebaseAuth(): Auth {
 }
 
 export function getDb(): Firestore {
-  if (!dbInstance) dbInstance = getFirestore(ensureApp());
+  // ignoreUndefinedProperties: an optional form field left blank naturally
+  // becomes `undefined` in a draft object (e.g. maxSocPercent) — Firestore's
+  // default addDoc/updateDoc rejects that outright ("Unsupported field
+  // value: undefined") rather than just omitting the field. This setting
+  // makes it behave the sane way everywhere, instead of requiring every
+  // call site to manually strip undefined keys before writing.
+  if (!dbInstance) dbInstance = initializeFirestore(ensureApp(), { ignoreUndefinedProperties: true });
   return dbInstance;
 }
 
