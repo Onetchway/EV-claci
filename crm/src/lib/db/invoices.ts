@@ -35,6 +35,7 @@ async function nextInvoiceNumber(): Promise<string> {
 export interface InvoiceDraft {
   billToType: InvoiceBillToType;
   billToId?: string | null;
+  organizationId?: string | null;
   billToName: string;
   billToGstin?: string;
   periodStart: Date;
@@ -53,6 +54,7 @@ export async function createInvoice(draft: InvoiceDraft, actor: Actor): Promise<
     status: "DRAFT" as InvoiceStatus,
     billToType: draft.billToType,
     billToId: draft.billToId ?? null,
+    organizationId: draft.organizationId ?? null,
     billToName: draft.billToName,
     billToGstin: draft.billToGstin ?? "",
     periodStart: Timestamp.fromDate(draft.periodStart),

@@ -10,9 +10,10 @@ import {
 import { subscribeSessionsSince, type ChargeSession } from "@/lib/db/chargers";
 import { subscribeCorporateAccounts, subscribeEmspUsers } from "@/lib/db/emsp-users";
 import { createInvoice } from "@/lib/db/invoices";
+import { subscribeOrganizations } from "@/lib/db/organizations";
 import { INVOICE_BILL_TO_TYPES, type InvoiceBillToType } from "@/lib/constants";
 import { canManageInvoices } from "@/lib/permissions";
-import type { CorporateAccount, EmspUser } from "@/lib/types";
+import type { CorporateAccount, EmspUser, Organization } from "@/lib/types";
 import { formatDateTime, formatINR } from "@/lib/utils";
 
 function toMillis(ts: unknown): number | null {
@@ -36,11 +37,14 @@ export default function NewInvoicePage() {
 
   const [users, setUsers] = useState<EmspUser[]>([]);
   const [accounts, setAccounts] = useState<CorporateAccount[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organizationId, setOrganizationId] = useState("");
   const [sessions, setSessions] = useState<ChargeSession[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => subscribeEmspUsers(setUsers), []);
   useEffect(() => subscribeCorporateAccounts(setAccounts), []);
+  useEffect(() => subscribeOrganizations(setOrganizations), []);
   useEffect(() => {
     const since = new Date(periodStart);
     return subscribeSessionsSince(since, (rows) => { setSessions(rows); setSelectedIds(new Set()); });
@@ -71,6 +75,7 @@ export default function NewInvoicePage() {
     await run(async () => {
       const { id } = await createInvoice({
         billToType, billToId: billToType === "MANUAL" ? null : billToId,
+        organizationId: organizationId || null,
         billToName: billToName.trim(), billToGstin: billToType === "MANUAL" ? manualGstin.trim() : undefined,
         periodStart: new Date(periodStart), periodEnd: new Date(periodEnd),
         sessionIds: selected.map((s) => s.id), subtotalInr, gstInr, totalInr,
@@ -111,6 +116,14 @@ export default function NewInvoicePage() {
                   <Field label="GSTIN"><Input value={manualGstin} onChange={(e) => setManualGstin(e.target.value)} /></Field>
                 </>
               )}
+              <Field label="White-label tenant" hint="Optional — prints that Organisation's logo instead of the platform's own.">
+                <Select
+                  value={organizationId}
+                  onChange={(e) => setOrganizationId(e.target.value)}
+                  options={organizations.map((o) => ({ value: o.id, label: o.name }))}
+                  placeholder="None (platform branding)"
+                />
+              </Field>
             </div>
           </Card>
 

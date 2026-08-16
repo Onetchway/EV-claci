@@ -13,8 +13,9 @@ import { INVOICE_STATUS_COLOR, INVOICE_STATUS_LABEL, INVOICE_STATUSES, type Invo
 import {
   createCreditDebitNote, setInvoiceTax, subscribeCreditDebitNotesForInvoice, subscribeInvoice, updateInvoiceStatus,
 } from "@/lib/db/invoices";
+import { subscribeOrganization } from "@/lib/db/organizations";
 import { canManageInvoices } from "@/lib/permissions";
-import type { CreditDebitNote, CreditDebitNoteKind, Invoice } from "@/lib/types";
+import type { CreditDebitNote, CreditDebitNoteKind, Invoice, Organization } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 export default function InvoiceDetailPage() {
@@ -27,6 +28,7 @@ export default function InvoiceDetailPage() {
   const { run, busy } = useAsyncAction();
 
   const [inv, setInv] = useState<Invoice | null | undefined>(undefined);
+  const [org, setOrg] = useState<Organization | null>(null);
   const [printMode, setPrintMode] = useState(false);
   const [notes, setNotes] = useState<CreditDebitNote[]>([]);
   const [hsnSac, setHsnSac] = useState("");
@@ -39,6 +41,10 @@ export default function InvoiceDetailPage() {
   const [noteReason, setNoteReason] = useState("");
 
   useEffect(() => subscribeInvoice(id, setInv), [id]);
+  useEffect(() => {
+    if (!inv?.organizationId) { setOrg(null); return; }
+    return subscribeOrganization(inv.organizationId, setOrg);
+  }, [inv?.organizationId]);
   useEffect(() => subscribeCreditDebitNotesForInvoice(id, setNotes), [id]);
   useEffect(() => {
     setHsnSac(inv?.hsnSac ?? "");
@@ -71,7 +77,10 @@ export default function InvoiceDetailPage() {
   if (inv === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (inv === null) return <EmptyState title="Invoice not found" />;
 
-  if (printMode) return <InvoiceDocument inv={inv} company={settings.company} onClose={() => setPrintMode(false)} />;
+  const brandedCompany = org
+    ? { ...settings.company, shortName: org.name, legalName: org.name, logoUrl: org.logoUrl ?? settings.company.logoUrl }
+    : settings.company;
+  if (printMode) return <InvoiceDocument inv={inv} company={brandedCompany} onClose={() => setPrintMode(false)} />;
 
   return (
     <>

@@ -845,6 +845,8 @@ export interface Invoice {
   status: InvoiceStatus;
   billToType: InvoiceBillToType;
   billToId?: string | null;
+  /** Optional white-label tenant this invoice is issued under — when set, the printed invoice uses that Organization's logo instead of the platform's own. */
+  organizationId?: string | null;
   billToName: string;
   billToGstin?: string;
   periodStart: TS;
