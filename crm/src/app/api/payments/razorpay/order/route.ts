@@ -1,8 +1,8 @@
-import Razorpay from "razorpay";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ApiError, errorResponse, requireCaller } from "../../../_lib/guard";
+import { getRazorpayClient } from "@/lib/razorpay-admin.server";
+import { errorResponse, requireCaller } from "../../../_lib/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,25 +21,12 @@ const Body = z.object({
   amountInr: z.number().positive().max(500000),
 });
 
-function razorpay(): Razorpay {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  if (!keyId || !keySecret) {
-    throw new ApiError(
-      "Razorpay isn't configured yet — set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in this app's environment " +
-        "(Firebase App Hosting → your backend → Environment variables) to enable wallet top-ups.",
-      503,
-    );
-  }
-  return new Razorpay({ key_id: keyId, key_secret: keySecret });
-}
-
 export async function POST(req: Request) {
   try {
     await requireCaller(req, "OPERATIONS");
     const body = Body.parse(await req.json());
 
-    const client = razorpay();
+    const client = getRazorpayClient();
     const order = await client.orders.create({
       amount: Math.round(body.amountInr * 100), // paise
       currency: "INR",

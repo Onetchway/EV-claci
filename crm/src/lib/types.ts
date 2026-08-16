@@ -582,6 +582,23 @@ export interface SiteRevenueShare {
   paidAt?: TS | null;
 }
 
+/**
+ * A manually-entered DISCOM electricity bill for a site, for the Station
+ * Profit figure on Business Insights — there's no meter/utility
+ * integration, so this is bookkeeping input, not an automatic pull.
+ */
+export interface ElectricityBill {
+  id: string;
+  zoneId: string;
+  zoneName: string;
+  amountInr: number;
+  periodStart: TS;
+  periodEnd: TS;
+  notes?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
 /** A corporate customer paying for employee/fleet charging under one account. */
 export interface CorporateAccount {
   id: string;
@@ -654,7 +671,7 @@ export interface WalletTransaction {
   ownerType: WalletOwnerType;
   ownerId: string;
   amountInr: number;
-  type: "TOPUP" | "DEBIT";
+  type: "TOPUP" | "DEBIT" | "REFUND";
   /** The individual EMSP user this debit is attributed to — set on DEBIT rows, may differ from ownerId when a corporate wallet is shared. What monthlyCapInr is measured against. */
   emspUserId?: string;
   razorpayOrderId?: string;
@@ -665,6 +682,11 @@ export interface WalletTransaction {
   couponBonusInr?: number;
   /** Free-text context for a DEBIT that isn't a charging session — e.g. a subscription renewal. */
   note?: string;
+  /** Set on a TOPUP once it's been refunded — the refund itself is a separate REFUND row referencing this one via refundOfId. */
+  refunded?: boolean;
+  /** Set on a REFUND row — the id of the TOPUP it refunds. */
+  refundOfId?: string;
+  razorpayRefundId?: string;
   createdAt: TS;
   createdBy?: Actor | null;
 }

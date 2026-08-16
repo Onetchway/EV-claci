@@ -31,6 +31,10 @@ function loadCheckoutScript(): Promise<void> {
   return scriptPromise;
 }
 
+export async function refundTopup(walletTransactionId: string): Promise<{ ok: true; refundId: string }> {
+  return authedFetch("/api/payments/razorpay/refund", { walletTransactionId }) as Promise<{ ok: true; refundId: string }>;
+}
+
 async function authedFetch(path: string, body: unknown) {
   const current = getFirebaseAuth().currentUser;
   if (!current) throw new Error("Your session expired. Sign in again.");

@@ -426,6 +426,14 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
     }
 
+    // Manually-entered DISCOM electricity bills, for the Station Profit
+    // figure on Business Insights — bookkeeping input, same access as
+    // Settlements (Finance/Admin/SuperAdmin).
+    match /electricityBills/{billId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
     // Site (host) revenue-share ledger — written by ocpp-server's Admin SDK
     // at session-bill time; the CRM only ever reads and flips PENDING→PAID.
     match /siteRevenueShares/{shareId} {

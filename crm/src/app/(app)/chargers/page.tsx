@@ -131,6 +131,7 @@ export default function ChargersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [siteFilter, setSiteFilter] = useState("");
+  const [chargerSearch, setChargerSearch] = useState("");
 
   const [locatingReg, setLocatingReg] = useState<ChargerRegistration | null>(null);
   const [locZoneId, setLocZoneId] = useState("");
@@ -233,10 +234,18 @@ export default function ChargersPage() {
 
   const pointByChargerId = useMemo(() => new Map(points.map((p) => [p.chargePointId ?? p.id, p])), [points]);
   const zoneName = useMemo(() => new Map(zones.map((z) => [z.id, z.name])), [zones]);
-  const filteredRegistry = useMemo(
-    () => (siteFilter ? registry.filter((r) => r.zoneId === siteFilter) : registry),
-    [registry, siteFilter],
-  );
+  const filteredRegistry = useMemo(() => {
+    let rows = siteFilter ? registry.filter((r) => r.zoneId === siteFilter) : registry;
+    const q = chargerSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((r) =>
+        r.label.toLowerCase().includes(q)
+        || r.chargerId.toLowerCase().includes(q)
+        || r.location.toLowerCase().includes(q)
+        || (r.zoneId && (zoneName.get(r.zoneId) ?? "").toLowerCase().includes(q)));
+    }
+    return rows;
+  }, [registry, siteFilter, chargerSearch, zoneName]);
 
   const mapPins: MapPin[] = useMemo(
     () => registry
@@ -323,12 +332,20 @@ export default function ChargersPage() {
         title="Registered chargers"
         subtitle="Only these charger IDs are allowed to connect to the OCPP server."
         actions={registry.length > 0 && (
-          <Select
-            value={siteFilter}
-            onChange={(e) => setSiteFilter(e.target.value)}
-            options={zones.map((z) => ({ value: z.id, label: z.name }))}
-            placeholder="All sites"
-          />
+          <>
+            <Input
+              value={chargerSearch}
+              onChange={(e) => setChargerSearch(e.target.value)}
+              placeholder="Search chargers…"
+              className="w-40"
+            />
+            <Select
+              value={siteFilter}
+              onChange={(e) => setSiteFilter(e.target.value)}
+              options={zones.map((z) => ({ value: z.id, label: z.name }))}
+              placeholder="All sites"
+            />
+          </>
         )}
         className="mb-4"
       >

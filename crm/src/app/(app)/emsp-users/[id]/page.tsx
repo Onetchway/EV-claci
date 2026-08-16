@@ -2,20 +2,21 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Car, IndianRupee, Zap } from "lucide-react";
+import { Car, IndianRupee, Undo2, Zap } from "lucide-react";
 
 import { useViewer } from "@/components/auth-provider";
 import {
-  Badge, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, useAsyncAction, useToast,
 } from "@/components/ui";
 import { subscribeSessionsForWalletOwner, type ChargeSession } from "@/lib/db/chargers";
 import {
   getCorporateAccount, setEmspUserMonthlyCap, setEmspUserRfidToken, subscribeEmspUser, subscribeWalletTransactions,
 } from "@/lib/db/emsp-users";
 import { subscribeDriverForEmspUser, subscribeVehiclesForDriver } from "@/lib/db/fleets";
+import { refundTopup } from "@/lib/razorpay-client";
 import { subscribeRfidTokens } from "@/lib/db/rfid";
 import { EMSP_USER_TYPE_LABEL } from "@/lib/constants";
-import { canManageEmspUsers } from "@/lib/permissions";
+import { canManageEmspUsers, canManageSettlements } from "@/lib/permissions";
 import type { CorporateAccount, Driver, EmspUser, RfidToken, Vehicle, WalletTransaction } from "@/lib/types";
 import { formatDateTime, formatINR } from "@/lib/utils";
 
@@ -23,7 +24,23 @@ export default function EmspUserProfilePage() {
   const { id } = useParams<{ id: string }>();
   const viewer = useViewer();
   const canManage = canManageEmspUsers(viewer);
+  const canRefund = canManageSettlements(viewer);
   const { run, busy } = useAsyncAction();
+  const { push } = useToast();
+  const [refundingId, setRefundingId] = useState<string | null>(null);
+
+  async function issueRefund(t: WalletTransaction) {
+    if (!window.confirm(`Refund ${formatINR(t.amountInr)} to Razorpay and claw it back from the wallet?`)) return;
+    setRefundingId(t.id);
+    try {
+      await refundTopup(t.id);
+      push("Refund issued.", "success");
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setRefundingId(null);
+    }
+  }
 
   const [user, setUser] = useState<EmspUser | null | undefined>(undefined);
   const [account, setAccount] = useState<CorporateAccount | null>(null);
@@ -164,12 +181,22 @@ export default function EmspUserProfilePage() {
                 {txns.map((t) => (
                   <div key={t.id} className="flex items-center justify-between text-sm">
                     <div>
-                      <p className={t.type === "TOPUP" ? "text-emerald-700" : "text-ink-700"}>{t.type === "TOPUP" ? "Top-up" : "Session charge"}</p>
+                      <p className={t.type === "TOPUP" ? "text-emerald-700" : t.type === "REFUND" ? "text-amber-700" : "text-ink-700"}>
+                        {t.type === "TOPUP" ? "Top-up" : t.type === "REFUND" ? "Refund" : (t.note ?? "Session charge")}
+                        {t.refunded && <span className="ml-1.5 text-xs font-normal text-ink-400">(refunded)</span>}
+                      </p>
                       <p className="text-xs text-ink-500">{formatDateTime(t.createdAt)}</p>
                     </div>
-                    <span className={`tabular-nums font-medium ${t.type === "TOPUP" ? "text-emerald-700" : "text-rose-600"}`}>
-                      {t.type === "TOPUP" ? "+" : "-"}{formatINR(t.amountInr)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`tabular-nums font-medium ${t.type === "TOPUP" ? "text-emerald-700" : t.type === "REFUND" ? "text-amber-700" : "text-rose-600"}`}>
+                        {t.type === "DEBIT" ? "-" : "+"}{formatINR(t.amountInr)}
+                      </span>
+                      {canRefund && t.type === "TOPUP" && t.razorpayPaymentId && !t.refunded && (
+                        <Button size="sm" loading={refundingId === t.id} onClick={() => void issueRefund(t)} title="Refund">
+                          <Undo2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

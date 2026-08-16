@@ -8,11 +8,23 @@ import {
 
 import { Card, EmptyState, PageHeader, Spinner, StatCard } from "@/components/ui";
 import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
-import { subscribeChargePoints, subscribeSessionsSince, type ChargePoint, type ChargeSession } from "@/lib/db/chargers";
+import {
+  subscribeChargePoints, subscribeSessionsSince, type ChargePoint, type ChargeSession, type ConnectorStatus,
+} from "@/lib/db/chargers";
+import { subscribeElectricityBills } from "@/lib/db/electricity-bills";
 import { subscribeSiteRevenueShares } from "@/lib/db/settlements";
 import { subscribeTickets } from "@/lib/db/tickets";
-import type { SiteRevenueShare, Ticket } from "@/lib/types";
-import { formatCompactINR, formatINR } from "@/lib/utils";
+import type { ElectricityBill, SiteRevenueShare, Ticket } from "@/lib/types";
+import { cn, formatCompactINR, formatINR } from "@/lib/utils";
+
+const CONNECTOR_STATUS_COLOR: Record<ConnectorStatus, string> = {
+  Available: "bg-emerald-500",
+  Occupied: "bg-sky-500",
+  Reserved: "bg-indigo-500",
+  Unavailable: "bg-ink-300",
+  Faulted: "bg-rose-500",
+};
+const CONNECTOR_STATUS_ORDER: ConnectorStatus[] = ["Available", "Occupied", "Reserved", "Unavailable", "Faulted"];
 
 const RANGE_DAYS = 30;
 
@@ -26,11 +38,13 @@ export default function InsightsPage() {
   const [sessions, setSessions] = useState<ChargeSession[] | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [shares, setShares] = useState<SiteRevenueShare[]>([]);
+  const [bills, setBills] = useState<ElectricityBill[]>([]);
 
   useEffect(() => subscribeChargerRegistry(setRegistry), []);
   useEffect(() => subscribeChargePoints(setPoints), []);
   useEffect(() => subscribeTickets({}, setTickets), []);
   useEffect(() => subscribeSiteRevenueShares(setShares), []);
+  useEffect(() => subscribeElectricityBills(setBills), []);
   useEffect(() => {
     const since = new Date();
     since.setDate(since.getDate() - RANGE_DAYS);
@@ -56,10 +70,37 @@ export default function InsightsPage() {
   const openTickets = useMemo(() => tickets.filter((t) => t.status === "OPEN" || t.status === "IN_PROGRESS").length, [tickets]);
 
   const revenue = useMemo(() => {
+    const since = Date.now() - RANGE_DAYS * 24 * 60 * 60 * 1000;
     const sessionRevenue = billed.reduce((a, s) => a + (s.totalCostInr ?? 0), 0);
-    const shareOwed = shares.reduce((a, r) => a + r.shareAmountInr, 0);
+    const shareOwed = shares
+      .filter((r) => (toMillis(r.createdAt) ?? 0) >= since)
+      .reduce((a, r) => a + r.shareAmountInr, 0);
     return { sessionRevenue, shareOwed, net: sessionRevenue - shareOwed };
   }, [billed, shares]);
+
+  const connectorStatusCounts = useMemo(() => {
+    const counts = new Map<ConnectorStatus, number>();
+    for (const p of points) {
+      for (const c of Object.values(p.connectors ?? {})) {
+        counts.set(c.status, (counts.get(c.status) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [points]);
+  const totalConnectors = useMemo(
+    () => [...connectorStatusCounts.values()].reduce((a, n) => a + n, 0),
+    [connectorStatusCounts],
+  );
+
+  const connectorTypeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of registry) {
+      if (!r.active) continue;
+      if (r.connectorType) counts.set(r.connectorType, (counts.get(r.connectorType) ?? 0) + 1);
+      for (const c of r.connectors ?? []) counts.set(c.connectorType, (counts.get(c.connectorType) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [registry]);
 
   const siteRevenue = useMemo(() => {
     const byZone = new Map<string, number>();
@@ -69,6 +110,31 @@ export default function InsightsPage() {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 8);
   }, [shares]);
+
+  /**
+   * All-time per-site P&L: gross session revenue minus what's owed to the
+   * host minus logged electricity bills. Electricity is manual bookkeeping
+   * input (no meter integration), so a site with no bills logged shows "—"
+   * rather than a profit figure that's silently ignoring a real cost.
+   */
+  const stationProfit = useMemo(() => {
+    const byZone = new Map<string, { zoneName: string; revenue: number; shareOwed: number; electricity: number; hasBills: boolean }>();
+    for (const s of shares) {
+      const entry = byZone.get(s.zoneId) ?? { zoneName: s.zoneName, revenue: 0, shareOwed: 0, electricity: 0, hasBills: false };
+      entry.revenue += s.grossAmountInr;
+      entry.shareOwed += s.shareAmountInr;
+      byZone.set(s.zoneId, entry);
+    }
+    for (const b of bills) {
+      const entry = byZone.get(b.zoneId) ?? { zoneName: b.zoneName, revenue: 0, shareOwed: 0, electricity: 0, hasBills: false };
+      entry.electricity += b.amountInr;
+      entry.hasBills = true;
+      byZone.set(b.zoneId, entry);
+    }
+    return [...byZone.entries()]
+      .map(([zoneId, e]) => ({ zoneId, ...e, profit: e.revenue - e.shareOwed - e.electricity }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [shares, bills]);
 
   return (
     <>
@@ -89,6 +155,59 @@ export default function InsightsPage() {
         <StatCard label="Net revenue (30d, after site share)" value={formatCompactINR(revenue.net)} icon={<IndianRupee className="h-4 w-4" />} />
       </div>
 
+      <div className="mb-4 grid gap-4 lg:grid-cols-3">
+        <Card title="Connector status" subtitle={`${totalConnectors} connector${totalConnectors === 1 ? "" : "s"} reporting`}>
+          {totalConnectors === 0 ? (
+            <p className="text-sm text-ink-500">No connector status reported yet.</p>
+          ) : (
+            <>
+              <div className="flex h-3 overflow-hidden rounded-full bg-ink-100">
+                {CONNECTOR_STATUS_ORDER.filter((s) => connectorStatusCounts.get(s)).map((s) => (
+                  <div
+                    key={s}
+                    className={cn(CONNECTOR_STATUS_COLOR[s], "h-full")}
+                    style={{ width: `${((connectorStatusCounts.get(s) ?? 0) / totalConnectors) * 100}%` }}
+                    title={`${s}: ${connectorStatusCounts.get(s)}`}
+                  />
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
+                {CONNECTOR_STATUS_ORDER.filter((s) => connectorStatusCounts.get(s)).map((s) => (
+                  <div key={s} className="flex items-center gap-1.5">
+                    <span className={cn("h-2 w-2 rounded-full", CONNECTOR_STATUS_COLOR[s])} />
+                    <span className="text-ink-600">{s}</span>
+                    <span className="ml-auto tabular-nums font-medium text-ink-800">{connectorStatusCounts.get(s)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </Card>
+
+        <Card title="Connector types" subtitle="Across active registered chargers" className="lg:col-span-2">
+          {connectorTypeCounts.length === 0 ? (
+            <p className="text-sm text-ink-500">No connector types recorded yet.</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {connectorTypeCounts.map(([type, count]) => {
+                const max = connectorTypeCounts[0]![1];
+                return (
+                  <div key={type}>
+                    <div className="flex items-center justify-between text-xs text-ink-600">
+                      <span>{type}</span>
+                      <span className="tabular-nums font-medium text-ink-800">{count}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink-100">
+                      <div className="h-full rounded-full bg-brand-500" style={{ width: `${(count / max) * 100}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Revenue breakdown (30d)" className="lg:col-span-1">
           <dl className="grid gap-2 text-sm">
@@ -101,7 +220,7 @@ export default function InsightsPage() {
           </p>
         </Card>
 
-        <Card title="Top sites by gross revenue (30d)" className="lg:col-span-2">
+        <Card title="Top sites by gross revenue (all time)" className="lg:col-span-2">
           {siteRevenue.length === 0 ? (
             <EmptyState icon={<Banknote className="h-8 w-8" />} title="No revenue-share activity yet" description="Set a revenue share % on a zone (Zones & Load Balancing) to see sites here." />
           ) : (
@@ -119,6 +238,43 @@ export default function InsightsPage() {
           )}
         </Card>
       </div>
+
+      <Card
+        title="Station profit (all time)"
+        subtitle="Gross revenue minus site payouts minus logged electricity bills — log bills on /settlements"
+        className="mt-4"
+      >
+        {stationProfit.length === 0 ? (
+          <EmptyState icon={<Banknote className="h-8 w-8" />} title="No site activity yet" />
+        ) : (
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr>
+                  <th className="th">Site</th>
+                  <th className="th text-right">Gross revenue</th>
+                  <th className="th text-right">Owed to host</th>
+                  <th className="th text-right">Electricity</th>
+                  <th className="th text-right">Profit</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {stationProfit.map((s) => (
+                  <tr key={s.zoneId} className="hover:bg-ink-50">
+                    <td className="td font-medium">{s.zoneName}</td>
+                    <td className="td text-right tabular-nums text-ink-600">{formatINR(s.revenue)}</td>
+                    <td className="td text-right tabular-nums text-rose-600">-{formatINR(s.shareOwed)}</td>
+                    <td className="td text-right tabular-nums text-rose-600">{s.hasBills ? `-${formatINR(s.electricity)}` : "—"}</td>
+                    <td className="td text-right tabular-nums font-medium">
+                      {s.hasBills ? formatINR(s.profit) : <span className="text-ink-400" title="No electricity bill logged yet — profit would overstate the real margin">Needs bill</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       {billed.length === 0 && sessions !== null && (
         <p className="mt-4 flex items-center gap-1.5 text-sm text-ink-500">
