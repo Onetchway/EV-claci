@@ -28,6 +28,9 @@ const ROLE_STYLE: Record<Role, string> = {
   AGENT: "bg-ink-100 text-ink-700 ring-ink-200",
   FINANCE: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   OPERATIONS: "bg-amber-100 text-amber-800 ring-amber-200",
+  FLEET_MANAGER: "bg-teal-100 text-teal-800 ring-teal-200",
+  CUSTOMER_SUPPORT: "bg-pink-100 text-pink-800 ring-pink-200",
+  SITE_OWNER: "bg-orange-100 text-orange-800 ring-orange-200",
   VIEWER: "bg-slate-100 text-slate-600 ring-slate-200",
 };
 

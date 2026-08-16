@@ -186,9 +186,9 @@ export const canManageTariffs = (viewer: Viewer) =>
 
 // EMSP (driver-facing) users, corporate accounts, and fleet/vehicle/driver records.
 export const canManageEmspUsers = (viewer: Viewer) =>
-  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "FINANCE");
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "FINANCE", "CUSTOMER_SUPPORT");
 export const canManageFleets = (viewer: Viewer) =>
-  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS", "FLEET_MANAGER");
 
 export const canManageInvoices = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");

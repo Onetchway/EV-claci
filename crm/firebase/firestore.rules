@@ -377,25 +377,25 @@ service cloud.firestore {
     // EMSP (driver-facing) users and the corporate accounts they can bill to.
     match /corporateAccounts/{accountId} {
       allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE', 'CUSTOMER_SUPPORT'];
     }
     match /emspUsers/{userId} {
       allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE', 'CUSTOMER_SUPPORT'];
     }
 
     // Fleet operators: fleets, their vehicles and drivers.
     match /fleets/{fleetId} {
       allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
     }
     match /vehicles/{vehicleId} {
       allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
     }
     match /drivers/{driverId} {
       allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
     }
 
     // Wallet top-ups/debits — written only by the Razorpay verify API route

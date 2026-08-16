@@ -7,6 +7,9 @@ export const ROLES = [
   "AGENT",
   "FINANCE",
   "OPERATIONS",
+  "FLEET_MANAGER",
+  "CUSTOMER_SUPPORT",
+  "SITE_OWNER",
   "VIEWER",
 ] as const;
 export type Role = (typeof ROLES)[number];
@@ -18,6 +21,9 @@ export const ROLE_LABEL: Record<Role, string> = {
   AGENT: "Agent",
   FINANCE: "Finance",
   OPERATIONS: "Operations",
+  FLEET_MANAGER: "Fleet Manager",
+  CUSTOMER_SUPPORT: "Customer Support",
+  SITE_OWNER: "Site Owner",
   VIEWER: "Viewer",
 };
 
@@ -28,6 +34,9 @@ export const ROLE_HINT: Record<Role, string> = {
   AGENT: "Only their own leads.",
   FINANCE: "Every lead read-only, plus payment verification and EOI issue.",
   OPERATIONS: "Every lead read-only, plus document verification and stage moves.",
+  FLEET_MANAGER: "Manages fleets, vehicles and drivers, and their EMSP users — an internal staff role standing in for a corporate/fleet customer, not an external self-service login.",
+  CUSTOMER_SUPPORT: "Assists EMSP users and corporate accounts (wallet, RFID, subscriptions) — no charger, tariff, or financial-settlement access.",
+  SITE_OWNER: "Read-only view of Station Management and Settlements — sees revenue-share payouts, no write access anywhere.",
   VIEWER: "Read-only across the organisation.",
 };
 
@@ -38,9 +47,12 @@ export const ROLE_HINT: Record<Role, string> = {
  */
 export const ROLE_RANK: Record<Role, number> = {
   VIEWER: 0,
+  SITE_OWNER: 0,
   AGENT: 1,
   OPERATIONS: 2,
   FINANCE: 2,
+  FLEET_MANAGER: 2,
+  CUSTOMER_SUPPORT: 1,
   SALES_MANAGER: 3,
   ADMIN: 4,
   SUPER_ADMIN: 5,
