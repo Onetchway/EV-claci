@@ -412,6 +412,13 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
     }
 
+    match /creditDebitNotes/{noteId} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+      // Notes are an immutable correction record — issue a new one instead of editing.
+      allow update, delete: if isSuperAdmin();
+    }
+
     match /subscriptionPlans/{planId} {
       allow read: if signedIn();
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];

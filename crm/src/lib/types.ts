@@ -842,11 +842,32 @@ export interface Invoice {
   subtotalInr: number;
   gstInr: number;
   totalInr: number;
+  /** HSN (goods) or SAC (services) code shown on the printed invoice — free text, since the applicable code is a call for the customer's CA/accountant, not something this app should assert. */
+  hsnSac?: string;
+  /** % the bill-to party will deduct as TDS before paying (common for B2B/corporate accounts) — informational, doesn't change totalInr, just what's actually expected to be received. */
+  tdsPct?: number;
+  tdsInr?: number;
   notes?: string;
   createdAt: TS;
   createdBy?: Actor | null;
   updatedAt?: TS;
   updatedBy?: Actor | null;
+}
+
+export type CreditDebitNoteKind = "CREDIT" | "DEBIT";
+
+/** A correction against an already-issued invoice — e.g. a billing dispute resolved after the fact — without editing the original invoice's figures. */
+export interface CreditDebitNote {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  noteNumber: string;
+  kind: CreditDebitNoteKind;
+  amountInr: number;
+  gstInr: number;
+  reason: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
 }
 
 export interface Asset {
