@@ -128,6 +128,9 @@ export default function TicketsPage() {
                   </td>
                   <td className={`td ${isOverdue(t) ? "font-medium text-rose-700" : "text-ink-600"}`}>
                     {t.slaDueAt ? formatDateTime(t.slaDueAt) : "—"}
+                    {t.slaEscalatedAt && (
+                      <Badge className="ml-1.5 bg-rose-100 text-rose-800 ring-rose-200">Escalated</Badge>
+                    )}
                   </td>
                   <td className="td text-ink-600">{t.assignedTo?.name ?? "Unassigned"}</td>
                   {(canManage || canDelete) && (

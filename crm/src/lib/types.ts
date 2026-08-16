@@ -478,6 +478,8 @@ export interface Ticket {
   assignedTo?: Actor | null;
   openedAt: TS;
   slaDueAt?: TS;
+  /** Set once by the SLA-breach sweep (workflow automation) — a SUPER_ADMIN escalation notification/webhook only fires once per breach. */
+  slaEscalatedAt?: TS | null;
   resolvedAt?: TS | null;
   createdAt: TS;
   createdBy?: Actor | null;

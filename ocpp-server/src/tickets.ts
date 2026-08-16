@@ -123,3 +123,47 @@ export async function sweepStaleConnections(): Promise<void> {
     await openTicketIfNeeded(doc.id, "OFFLINE", `No heartbeat received for over ${Math.round(OFFLINE_SWEEP_MS / 60000)} minutes.`);
   }
 }
+
+/**
+ * Workflow automation: an open ticket that's blown past its SLA doesn't
+ * just sit there — this escalates it once (SUPER_ADMIN-only notification +
+ * a ticket.sla_breached webhook), stamping slaEscalatedAt so a later sweep
+ * doesn't re-notify for the same breach every run. Run periodically from
+ * index.ts, same as the other sweeps.
+ */
+export async function sweepSlaBreaches(): Promise<void> {
+  const now = new Date();
+  const snap = await db()
+    .collection(TICKETS)
+    .where("status", "in", ["OPEN", "IN_PROGRESS"])
+    .where("slaDueAt", "<", now)
+    .get();
+
+  const overdue = snap.docs.filter((d) => !d.data().slaEscalatedAt);
+  if (overdue.length === 0) return;
+
+  const [byPrimary, byRoles] = await Promise.all([
+    db().collection("users").where("role", "==", "SUPER_ADMIN").get(),
+    db().collection("users").where("roles", "array-contains", "SUPER_ADMIN").get(),
+  ]);
+  const superAdminUids = new Set([...byPrimary.docs, ...byRoles.docs].map((d) => d.id));
+
+  const batch = db().batch();
+  for (const doc of overdue) {
+    const t = doc.data();
+    batch.update(doc.ref, { slaEscalatedAt: FieldValue.serverTimestamp() });
+    for (const uid of superAdminUids) {
+      const ref = db().collection("notifications").doc();
+      batch.set(ref, {
+        uid,
+        title: `SLA breached: ${t.chargePointId as string}`,
+        body: `This ticket has been open past its SLA deadline and needs attention.`,
+        href: "/tickets",
+        read: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    dispatchWebhookSafe("ticket.sla_breached", { ticketId: doc.id, chargePointId: t.chargePointId, type: t.type });
+  }
+  await batch.commit();
+}

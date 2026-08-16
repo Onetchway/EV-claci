@@ -11,7 +11,7 @@ import { createHmac } from "node:crypto";
 
 import { db } from "./firebase.js";
 
-type WebhookEvent = "session.ended" | "ticket.opened";
+type WebhookEvent = "session.ended" | "ticket.opened" | "ticket.sla_breached";
 
 export function dispatchWebhookSafe(event: WebhookEvent, payload: Record<string, unknown>): void {
   void dispatchWebhook(event, payload).catch((err) => {

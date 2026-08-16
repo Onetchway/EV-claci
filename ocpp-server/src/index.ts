@@ -26,7 +26,7 @@ import {
 import {
   isRegisteredAndActive, markOffline, registerConnection, unregisterConnection,
 } from "./registry.js";
-import { sweepStaleConnections, OFFLINE_SWEEP_MS } from "./tickets.js";
+import { sweepStaleConnections, sweepSlaBreaches, OFFLINE_SWEEP_MS } from "./tickets.js";
 import { sweepZoneLoads } from "./load-balancer.js";
 import { sweepSubscriptionRenewals } from "./subscriptions.js";
 
@@ -212,3 +212,8 @@ const SUBSCRIPTION_RENEWAL_SWEEP_MS = Number(process.env.SUBSCRIPTION_RENEWAL_SW
 setInterval(() => {
   sweepSubscriptionRenewals().catch((err) => console.error("[sweep] subscription renewal sweep failed:", err));
 }, SUBSCRIPTION_RENEWAL_SWEEP_MS);
+
+const SLA_BREACH_SWEEP_MS = Number(process.env.SLA_BREACH_SWEEP_MS) || 15 * 60 * 1000;
+setInterval(() => {
+  sweepSlaBreaches().catch((err) => console.error("[sweep] SLA breach sweep failed:", err));
+}, SLA_BREACH_SWEEP_MS);
