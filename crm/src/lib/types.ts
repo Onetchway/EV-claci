@@ -701,6 +701,8 @@ export interface AppNotification {
   title: string;
   body: string;
   leadId?: string | null;
+  /** Generic link for non-lead notifications (e.g. a ticket) — leadId takes precedence when both are absent-checked. */
+  href?: string | null;
   read: boolean;
   createdAt: TS;
 }

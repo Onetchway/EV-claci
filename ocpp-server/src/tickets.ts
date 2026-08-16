@@ -20,6 +20,50 @@ export const OFFLINE_SWEEP_MS = Number(process.env.OFFLINE_SWEEP_MS) || 6 * 60 *
 
 export type TicketType = "OFFLINE" | "FAULT" | "MANUAL";
 
+const NOTIFY_ROLES = ["SUPER_ADMIN", "ADMIN", "OPERATIONS"];
+
+/** Notifies every CRM user whose role (primary or additional) can act on a ticket — best-effort, never blocks ticket creation. */
+async function notifyTicketOpened(chargePointId: string, type: TicketType, description: string): Promise<void> {
+  try {
+    const [byPrimary, byRoles] = await Promise.all([
+      db().collection("users").where("role", "in", NOTIFY_ROLES).get(),
+      db().collection("users").where("roles", "array-contains-any", NOTIFY_ROLES).get(),
+    ]);
+    const uids = new Map<string, void>();
+    for (const d of [...byPrimary.docs, ...byRoles.docs]) uids.set(d.id, undefined);
+
+    const batch = db().batch();
+    for (const uid of uids.keys()) {
+      const ref = db().collection("notifications").doc();
+      batch.set(ref, {
+        uid,
+        title: `${type === "OFFLINE" ? "Charger offline" : type === "FAULT" ? "Charger fault" : "Ticket opened"}: ${chargePointId}`,
+        body: description,
+        href: "/tickets",
+        read: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  } catch (err) {
+    console.error("[tickets] failed to notify ticket recipients", err);
+  }
+}
+
+/** Looks up a per-site SLA override (Zones.slaHours in the CRM) via the charger's registered zoneId — falls back to the flat default when unset. */
+async function slaHoursFor(chargePointId: string): Promise<number> {
+  const reg = await db()
+    .collection("chargerRegistry")
+    .where("chargerId", "==", chargePointId)
+    .limit(1)
+    .get();
+  const zoneId = reg.empty ? null : (reg.docs[0]!.data().zoneId as string | null | undefined);
+  if (!zoneId) return SLA_HOURS;
+  const zoneSnap = await db().collection("zones").doc(zoneId).get();
+  const override = zoneSnap.data()?.slaHours as number | undefined;
+  return override && override > 0 ? override : SLA_HOURS;
+}
+
 /**
  * Opens a ticket unless one of the same type is already OPEN/IN_PROGRESS for
  * this charger — repeated faults on an already-ticketed charger shouldn't
@@ -40,6 +84,7 @@ export async function openTicketIfNeeded(
   if (!existing.empty) return;
 
   const now = Date.now();
+  const slaHours = await slaHoursFor(chargePointId);
   await db().collection(TICKETS).add({
     chargePointId,
     type,
@@ -47,10 +92,12 @@ export async function openTicketIfNeeded(
     description,
     assignedTo: null,
     openedAt: FieldValue.serverTimestamp(),
-    slaDueAt: new Date(now + SLA_HOURS * 60 * 60 * 1000),
+    slaDueAt: new Date(now + slaHours * 60 * 60 * 1000),
     resolvedAt: null,
     createdAt: FieldValue.serverTimestamp(),
   });
+
+  void notifyTicketOpened(chargePointId, type, description);
 }
 
 /**

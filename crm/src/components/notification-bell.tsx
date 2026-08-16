@@ -67,10 +67,11 @@ export function NotificationBell({ uid }: { uid: string }) {
                     <p className="mt-1 text-[11px] text-ink-400">{formatRelative(n.createdAt)}</p>
                   </div>
                 );
-                return n.leadId ? (
+                const href = n.leadId ? `/leads/${n.leadId}` : n.href;
+                return href ? (
                   <Link
                     key={n.id}
-                    href={`/leads/${n.leadId}`}
+                    href={href}
                     onClick={() => { if (!n.read) void markNotificationRead(n.id); setOpen(false); }}
                     className="block border-b border-ink-50 last:border-0"
                   >
