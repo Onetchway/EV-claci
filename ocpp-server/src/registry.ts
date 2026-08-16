@@ -22,6 +22,7 @@ import { accrueSiteRevenueShare } from "./revenue-share.js";
 import { subscriptionDiscountFor } from "./subscriptions.js";
 import { computeCost, resolveTariff } from "./tariff.js";
 import { debitWalletForSession } from "./wallet.js";
+import { dispatchWebhookSafe } from "./webhooks.js";
 
 export const CHARGE_POINTS = "chargePoints";
 export const CHARGE_SESSIONS = "chargeSessions";
@@ -233,6 +234,13 @@ async function billSession(
   }
 
   await accrueSiteRevenueShare(chargePointId, ref.id, totalCostInr);
+
+  dispatchWebhookSafe("session.ended", {
+    sessionId: ref.id,
+    chargePointId,
+    energyDeliveredWh: energyDeliveredWh ?? null,
+    totalCostInr,
+  });
 }
 
 export async function recordMeterValues(

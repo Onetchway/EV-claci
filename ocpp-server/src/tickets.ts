@@ -9,6 +9,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 
 import { db } from "./firebase.js";
+import { dispatchWebhookSafe } from "./webhooks.js";
 
 export const TICKETS = "tickets";
 
@@ -98,6 +99,7 @@ export async function openTicketIfNeeded(
   });
 
   void notifyTicketOpened(chargePointId, type, description);
+  dispatchWebhookSafe("ticket.opened", { chargePointId, type, description });
 }
 
 /**

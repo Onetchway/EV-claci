@@ -7,7 +7,7 @@ import {
   BarChart3, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
   Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, MapPin, Menu, Package, Percent, Repeat, Search, Settings, ShieldCheck,
-  Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
+  Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -85,6 +85,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/organizations", label: "Organisations (White Label)", icon: Building2, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
       { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
+      { href: "/developer", label: "Developer (API & Webhooks)", icon: Terminal, adminOnly: true },
       { href: "/trash", label: "Trash", icon: Trash2, adminOnly: true },
     ],
   },

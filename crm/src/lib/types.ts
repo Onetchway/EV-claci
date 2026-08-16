@@ -9,7 +9,7 @@ import type {
   ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
   TaskStatus, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
-  Workstream,
+  WebhookEvent, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -986,4 +986,39 @@ export interface AppSettings {
   };
   updatedAt?: TS;
   updatedBy?: Actor;
+}
+
+/**
+ * A read-only API key for external integrations under /api/v1/*. The raw
+ * key is shown once at creation and never stored — only a SHA-256 hash, so
+ * this collection is safe to read from the CRM even though it names every
+ * key (compare ocpiParties, which hides its bearer tokens entirely).
+ */
+export interface ApiKey {
+  id: string;
+  name: string;
+  keyHash: string;
+  /** First 8 chars of the raw key, kept for the admin to recognise which key is which without re-showing the secret. */
+  prefix: string;
+  active: boolean;
+  lastUsedAt?: TS | null;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+/**
+ * A developer-registered URL that gets a signed POST when one of `events`
+ * happens. Dispatched from ocpp-server (the only thing that knows about
+ * both events) — see ocpp-server/src/webhooks.ts. Fire-and-forget: a
+ * failed delivery is logged, not retried, in this phase.
+ */
+export interface WebhookSubscription {
+  id: string;
+  url: string;
+  /** Shown once at creation — used to HMAC-sign each delivery (X-Livanto-Signature) so the receiver can verify it came from here. */
+  secret: string;
+  events: WebhookEvent[];
+  active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
 }

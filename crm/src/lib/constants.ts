@@ -1366,3 +1366,6 @@ export const VENDOR_KIND_LABEL: Record<VendorKind, string> = {
   OTHER: "Other",
 };
 
+export const WEBHOOK_EVENTS = ["session.ended", "ticket.opened"] as const;
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
