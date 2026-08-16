@@ -60,5 +60,10 @@ export function ChargersMap({ pins }: { pins: MapPin[] }) {
     return () => { markers.forEach((m) => m.remove()); };
   }, [pins]);
 
-  return <div ref={containerRef} className="h-[360px] w-full rounded-xl" />;
+  // isolate + overflow-hidden pin Leaflet's own internal stacking (its
+  // zoom control and attribution sit at z-index 1000 by default) to this
+  // box specifically — without it, those elements can render on top of
+  // modals, dropdowns and cards elsewhere on the page instead of staying
+  // inside the map's own 360px frame.
+  return <div ref={containerRef} className="relative isolate h-[360px] w-full overflow-hidden rounded-xl" />;
 }
