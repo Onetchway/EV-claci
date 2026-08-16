@@ -19,6 +19,7 @@ import {
   energyWhFrom, type ConnectorStatus, type TransactionEventRequest,
 } from "./ocpp/types.js";
 import { computeCost, resolveTariff } from "./tariff.js";
+import { debitWalletForSession } from "./wallet.js";
 
 export const CHARGE_POINTS = "chargePoints";
 export const CHARGE_SESSIONS = "chargeSessions";
@@ -205,6 +206,15 @@ async function billSession(
     },
     { merge: true },
   );
+
+  const idToken = sessionData?.idToken as string | null | undefined;
+  const debited = await debitWalletForSession(idToken, cost.totalCostInr, ref.id);
+  if (debited) {
+    await ref.set(
+      { walletDebited: true, walletOwnerType: debited.ownerType, walletOwnerId: debited.ownerId, walletOwnerName: debited.ownerName },
+      { merge: true },
+    );
+  }
 }
 
 export async function recordMeterValues(

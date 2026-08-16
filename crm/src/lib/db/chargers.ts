@@ -68,6 +68,11 @@ export interface ChargeSession {
   gstPct?: number;
   gstInr?: number;
   totalCostInr?: number;
+  /** Set when the session's id token was traced to an EMSP user/corporate account and the cost was auto-debited from their wallet. */
+  walletDebited?: boolean;
+  walletOwnerType?: "EMSP_USER" | "CORPORATE_ACCOUNT";
+  walletOwnerId?: string;
+  walletOwnerName?: string;
 }
 
 function mapChargePoint(id: string, data: Record<string, unknown>): ChargePoint {

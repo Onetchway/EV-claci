@@ -509,7 +509,16 @@ export default function ChargersPage() {
                     <td className="td text-ink-600">{durationMinutes(s)}</td>
                     <td className="td text-right font-medium tabular-nums">{wh(s.energyDeliveredWh)}</td>
                     <td className="td text-right tabular-nums text-ink-600">
-                      {s.totalCostInr != null ? formatINR(s.totalCostInr) : s.status === "ENDED" ? "No tariff matched" : "—"}
+                      {s.totalCostInr != null ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span>{formatINR(s.totalCostInr)}</span>
+                          {s.walletDebited && (
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-emerald-600">
+                              Paid — {s.walletOwnerName ?? "wallet"}
+                            </span>
+                          )}
+                        </div>
+                      ) : s.status === "ENDED" ? "No tariff matched" : "—"}
                     </td>
                     {canManage && (
                       <td className="td text-right">

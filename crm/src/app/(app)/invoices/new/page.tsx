@@ -49,7 +49,7 @@ export default function NewInvoicePage() {
   const billedInRange = useMemo(() => {
     const endMs = new Date(periodEnd).getTime() + 24 * 60 * 60 * 1000 - 1;
     return (sessions ?? []).filter((s) => {
-      if (s.totalCostInr == null) return false;
+      if (s.totalCostInr == null || s.walletDebited) return false;
       const ended = toMillis(s.endedAt) ?? toMillis(s.lastUpdateAt);
       return ended != null && ended <= endMs;
     });
@@ -83,7 +83,10 @@ export default function NewInvoicePage() {
 
   return (
     <>
-      <PageHeader title="New invoice" description="Pick a date range, then check which billed sessions belong to this bill-to party." />
+      <PageHeader
+        title="New invoice"
+        description="Pick a date range, then check which billed sessions belong to this bill-to party. Sessions already auto-debited from a wallet (linked RFID tag) aren't listed here — they're already paid."
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
