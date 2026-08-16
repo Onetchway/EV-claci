@@ -93,15 +93,15 @@ export default function EarningsPage() {
                   <AreaChart data={trend} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
                     <defs>
                       <linearGradient id="earningsFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#1cb567" stopOpacity={0.25} />
-                        <stop offset="100%" stopColor="#1cb567" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#f0501f" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="#f0501f" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                     <XAxis dataKey="day" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => formatCompactINR(v)} />
                     <Tooltip formatter={(v: number) => formatINR(v)} />
-                    <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#1cb567" strokeWidth={2} fill="url(#earningsFill)" />
+                    <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#f0501f" strokeWidth={2} fill="url(#earningsFill)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

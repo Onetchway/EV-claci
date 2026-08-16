@@ -32,16 +32,16 @@ function ChargingStationArt() {
   return (
     <svg viewBox="0 0 640 360" className="w-full max-w-xl" aria-hidden>
       {/* skyline */}
-      <g opacity="0.35" fill="#0f9252">
+      <g opacity="0.35" fill="#d63d12">
         <rect x="20" y="180" width="46" height="140" rx="3" />
         <rect x="80" y="140" width="40" height="180" rx="3" />
         <rect x="540" y="160" width="42" height="160" rx="3" />
         <rect x="590" y="120" width="40" height="200" rx="3" />
       </g>
       {/* ground */}
-      <rect x="0" y="320" width="640" height="4" fill="#0d7444" opacity="0.25" />
+      <rect x="0" y="320" width="640" height="4" fill="#b02f0d" opacity="0.25" />
       {/* wind turbine */}
-      <g stroke="#0f9252" strokeWidth="3" opacity="0.5" fill="none">
+      <g stroke="#d63d12" strokeWidth="3" opacity="0.5" fill="none">
         <line x1="470" y1="320" x2="470" y2="160" />
         <g transform="translate(470,160)">
           <line x1="0" y1="0" x2="34" y2="-14" />
@@ -50,8 +50,8 @@ function ChargingStationArt() {
         </g>
       </g>
       {/* canopy */}
-      <rect x="120" y="70" width="360" height="18" rx="4" fill="#1cb567" />
-      <rect x="120" y="88" width="360" height="6" fill="#0f9252" />
+      <rect x="120" y="70" width="360" height="18" rx="4" fill="#f0501f" />
+      <rect x="120" y="88" width="360" height="6" fill="#d63d12" />
       <rect x="150" y="94" width="14" height="150" fill="#d5d9e2" />
       <rect x="436" y="94" width="14" height="150" fill="#d5d9e2" />
       <text x="300" y="83" textAnchor="middle" fontSize="15" fontWeight="700" fill="#ffffff">livanto green.</text>
@@ -60,7 +60,7 @@ function ChargingStationArt() {
       <g transform="translate(210,160)">
         <rect width="56" height="130" rx="10" fill="#ffffff" stroke="#b0f1c9" strokeWidth="2" />
         <rect x="10" y="16" width="36" height="26" rx="3" fill="#0d4c31" />
-        <circle cx="28" cy="70" r="9" fill="#1cb567" />
+        <circle cx="28" cy="70" r="9" fill="#f0501f" />
         <path d="M25 65 L31 65 L27 75 L33 75 L23 88 L26 76 L21 76 Z" fill="#fff" />
         <path d="M6 130 q22 26 44 0" stroke="#8590a8" strokeWidth="3" fill="none" />
       </g>
@@ -69,7 +69,7 @@ function ChargingStationArt() {
       <g transform="translate(370,160)">
         <rect width="56" height="130" rx="10" fill="#ffffff" stroke="#b0f1c9" strokeWidth="2" />
         <rect x="10" y="16" width="36" height="26" rx="3" fill="#0d4c31" />
-        <circle cx="28" cy="70" r="9" fill="#1cb567" />
+        <circle cx="28" cy="70" r="9" fill="#f0501f" />
         <path d="M25 65 L31 65 L27 75 L33 75 L23 88 L26 76 L21 76 Z" fill="#fff" />
         <path d="M6 130 q22 26 44 0" stroke="#8590a8" strokeWidth="3" fill="none" />
       </g>
@@ -84,7 +84,7 @@ function ChargingStationArt() {
         <circle cx="36" cy="82" r="6" fill="#8590a8" />
         <circle cx="144" cy="82" r="6" fill="#8590a8" />
         {/* charging cable to charger 2 */}
-        <path d="M170 55 q30 10 55 5" stroke="#1cb567" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M170 55 q30 10 55 5" stroke="#f0501f" strokeWidth="3" fill="none" strokeLinecap="round" />
       </g>
     </svg>
   );

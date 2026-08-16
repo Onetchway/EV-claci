@@ -5,17 +5,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Statiq-style vivid red-orange accent — replaces the previous green.
+        // Every primary button, active nav item, link and focus ring in the
+        // app draws from this token, so this one swap re-themes the whole
+        // CRM without touching individual components.
         brand: {
-          50: "#eefdf3",
-          100: "#d6f9e2",
-          200: "#b0f1c9",
-          300: "#7ce4a9",
-          400: "#41cf83",
-          500: "#1cb567",
-          600: "#0f9252",
-          700: "#0d7444",
-          800: "#0e5c39",
-          900: "#0d4c31",
+          50: "#fff5f0",
+          100: "#ffe4d6",
+          200: "#ffc4a3",
+          300: "#ff9d6b",
+          400: "#fb7343",
+          500: "#f0501f",
+          600: "#d63d12",
+          700: "#b02f0d",
+          800: "#8a260f",
+          900: "#6e2210",
         },
         ink: {
           50: "#f6f7f9",

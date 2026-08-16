@@ -17,7 +17,7 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-xl border border-ink-200 bg-white shadow-card;
+    @apply rounded-2xl border border-ink-200 bg-white shadow-card;
   }
 
   .card-pad {

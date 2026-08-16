@@ -341,7 +341,7 @@ export default function ChargerDetailPage() {
                       <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v} kWh`} />
                       <Tooltip formatter={(v: number) => `${v} kWh`} />
-                      <Bar dataKey="kwh" fill="#1cb567" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="kwh" fill="#f0501f" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

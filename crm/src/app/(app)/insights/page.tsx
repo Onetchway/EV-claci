@@ -301,7 +301,7 @@ export default function InsightsPage() {
                   <XAxis type="number" tickFormatter={(v) => formatCompactINR(v)} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="site" width={110} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => formatINR(v)} />
-                  <Bar dataKey="revenue" fill="#1cb567" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="revenue" fill="#f0501f" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

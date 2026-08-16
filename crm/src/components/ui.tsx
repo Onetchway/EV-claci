@@ -182,7 +182,11 @@ export function StatCard({
     <div className="card card-pad">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium uppercase tracking-wide text-ink-500">{label}</p>
-        {icon && <span className="text-ink-400">{icon}</span>}
+        {icon && (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+            {icon}
+          </span>
+        )}
       </div>
       <p className={cn("mt-2 text-2xl font-semibold tracking-tight", toneCls)}>{value}</p>
       {sub && <p className="mt-1 text-xs text-ink-500">{sub}</p>}
