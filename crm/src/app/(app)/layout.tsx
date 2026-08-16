@@ -101,6 +101,25 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+/**
+ * A recreated text wordmark, not the original logo file — no usable image
+ * asset was available to embed (only a pasted-in-chat render, not an
+ * uploaded file). Swap for an <img> once the real logo file is provided.
+ */
+function LivantoWordmark() {
+  return (
+    <div className="flex flex-col leading-[1.05]">
+      <span className="text-[15px] font-extrabold tracking-tight text-navy-900">livanto</span>
+      <span className="flex items-center gap-1 text-[15px] font-extrabold tracking-tight text-brand-600">
+        <svg viewBox="0 0 10 9" className="h-2.5 w-2.5 fill-brand-600" aria-hidden>
+          <polygon points="5,0 10,9 0,9" />
+        </svg>
+        green.
+      </span>
+    </div>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { loading, user, profile, role, roles, signOut, configured } = useAuth();
   const router = useRouter();
@@ -178,40 +197,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={org.logoUrl} alt="" className="h-9 w-9 rounded-lg object-contain" />
         ) : (
-          <span
-            className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-lg text-white",
-              !org?.primaryColorHex && "bg-brand-500",
-            )}
-            style={org?.primaryColorHex ? { backgroundColor: org.primaryColorHex } : undefined}
-          >
-            <Zap className="h-5 w-5" />
-          </span>
+          <LivantoWordmark />
         )}
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">{org?.name ?? "Livanto Green"}</p>
-          <p className="truncate text-[11px] text-navy-300">{org ? "EV Charging CRM" : "Franchise CRM"}</p>
-        </div>
+        {org && (
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-navy-900">{org.name}</p>
+            <p className="truncate text-[11px] text-ink-500">EV Charging CRM</p>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-2 scroll-thin">
-        <Suspense fallback={<div className="px-3 py-2 text-xs text-navy-300">Loading…</div>}>
+        <Suspense fallback={<div className="px-3 py-2 text-xs text-ink-500">Loading…</div>}>
           <NavList groups={groups} />
         </Suspense>
       </div>
 
-      <div className="border-t border-navy-800 p-3">
+      <div className="border-t border-ink-200 p-3">
         <div className="flex items-center gap-2.5">
           <Avatar name={profile?.name} size={34} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">{profile?.name}</p>
-            <p className="truncate text-[11px] text-navy-300">
+            <p className="truncate text-sm font-medium text-navy-900">{profile?.name}</p>
+            <p className="truncate text-[11px] text-ink-500">
               {role ? ROLE_LABEL[role] : ""}
             </p>
           </div>
           <button
             onClick={() => void signOut().then(() => router.replace("/login"))}
-            className="rounded-lg p-1.5 text-navy-300 hover:bg-navy-800 hover:text-white"
+            className="rounded-lg p-1.5 text-ink-500 hover:bg-ink-100 hover:text-navy-900"
             title="Sign out"
           >
             <LogOut className="h-4 w-4" />
@@ -223,17 +236,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-ink-50">
-      <aside className="hidden w-60 shrink-0 bg-navy-900 lg:block">
+      <aside className="hidden w-60 shrink-0 border-r border-ink-200 bg-white lg:block">
         <div className="sticky top-0 h-screen">{sidebar}</div>
       </aside>
 
       {navOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-navy-950/60" onClick={() => setNavOpen(false)} />
-          <aside className="relative h-full w-64 bg-navy-900">
+          <div className="absolute inset-0 bg-ink-950/50" onClick={() => setNavOpen(false)} />
+          <aside className="relative h-full w-64 bg-white">
             <button
               onClick={() => setNavOpen(false)}
-              className="absolute right-2 top-3 rounded-lg p-1.5 text-navy-300 hover:text-white"
+              className="absolute right-2 top-3 rounded-lg p-1.5 text-ink-500 hover:text-navy-900"
               aria-label="Close navigation"
             >
               <X className="h-5 w-5" />
@@ -332,12 +345,12 @@ function NavList({ groups }: { groups: { label: string; items: NavItem[] }[] }) 
   return (
     <>
       <div className="relative mb-3 px-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-navy-400" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-400" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search…"
-          className="w-full rounded-lg border border-navy-700 bg-navy-800 py-1.5 pl-8 pr-2 text-sm text-white placeholder:text-navy-400 focus:border-brand-500 focus:outline-none"
+          className="w-full rounded-lg border border-ink-200 bg-ink-50 py-1.5 pl-8 pr-2 text-sm text-navy-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none"
         />
       </div>
 
@@ -349,7 +362,7 @@ function NavList({ groups }: { groups: { label: string; items: NavItem[] }[] }) 
               <button
                 type="button"
                 onClick={() => toggle(group.label)}
-                className="flex w-full items-center justify-between px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-navy-400 hover:text-navy-200"
+                className="flex w-full items-center justify-between px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-400 hover:text-ink-600"
               >
                 {group.label}
                 <ChevronDown className={cn("h-3 w-3 transition-transform", isCollapsed && "-rotate-90")} />
@@ -370,7 +383,7 @@ function NavList({ groups }: { groups: { label: string; items: NavItem[] }[] }) 
                           "flex items-center gap-2.5 rounded-full px-3 py-2 text-sm transition",
                           active
                             ? "bg-brand-600 font-medium text-white"
-                            : "text-navy-200 hover:bg-navy-800 hover:text-white",
+                            : "text-ink-600 hover:bg-ink-100 hover:text-navy-900",
                         )}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
