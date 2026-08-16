@@ -108,6 +108,18 @@ function mapSession(id: string, data: Record<string, unknown>): ChargeSession {
   return { id, ...(data as Omit<ChargeSession, "id">) };
 }
 
+export function subscribeChargeSession(
+  id: string,
+  cb: (row: ChargeSession | null) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    doc(getDb(), CHARGE_SESSIONS, id),
+    (snap) => cb(snap.exists() ? mapSession(snap.id, snap.data()) : null),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export function subscribeChargePoints(
   cb: (rows: ChargePoint[]) => void,
   onError?: (e: Error) => void,

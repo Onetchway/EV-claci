@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Battery, Search, Square } from "lucide-react";
 
@@ -190,7 +191,9 @@ export default function SessionsPage() {
               <tbody className="divide-y divide-ink-100">
                 {filtered.map((s) => (
                   <tr key={s.id} className="hover:bg-ink-50">
-                    <td className="td font-medium">{s.chargePointId}</td>
+                    <td className="td font-medium">
+                      <Link href={`/sessions/${s.id}`} className="text-brand-700 hover:underline">{s.chargePointId}</Link>
+                    </td>
                     <td className="td">
                       <Badge className={s.status === "ACTIVE" ? "bg-sky-100 text-sky-800 ring-sky-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
                         {s.status}
