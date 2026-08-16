@@ -116,20 +116,21 @@ export async function mapSessions(): Promise<OcpiSession[]> {
 }
 
 /** Only sessions that both ended AND were successfully billed become a CDR — an unbilled session has no cost to report. */
+/** Reads the persisted `cdrs` collection (written once at billing time — see ocpp-server/src/registry.ts's billSession) rather than reconstructing CDRs live from chargeSessions on every request. */
 export async function mapCdrs(): Promise<OcpiCdr[]> {
-  const snap = await adminDb().collection("chargeSessions").where("status", "==", "ENDED").orderBy("lastUpdateAt", "desc").limit(200).get();
-  return snap.docs
-    .map((doc) => doc.data())
-    .filter((s) => s.totalCostInr != null)
-    .map((s, i): OcpiCdr => ({
+  const snap = await adminDb().collection("cdrs").orderBy("createdAt", "desc").limit(200).get();
+  return snap.docs.map((doc) => {
+    const c = doc.data();
+    return {
       country_code: OCPI_COUNTRY_CODE,
       party_id: OCPI_PARTY_ID,
-      id: `${s.chargePointId}__${s.transactionId ?? i}`,
-      start_date_time: toIso(s.startedAt),
-      end_date_time: toIso(s.endedAt),
-      total_energy: (s.energyDeliveredWh ?? 0) / 1000,
-      total_cost: { excl_vat: s.costBeforeGstInr ?? 0, incl_vat: s.totalCostInr ?? 0 },
-      currency: "INR",
-      last_updated: toIso(s.lastUpdateAt),
-    }));
+      id: doc.id,
+      start_date_time: toIso(c.startedAt),
+      end_date_time: toIso(c.endedAt),
+      total_energy: (c.energyDeliveredWh ?? 0) / 1000,
+      total_cost: { excl_vat: c.costBeforeGstInr ?? 0, incl_vat: c.totalCostInr ?? 0 },
+      currency: c.currency ?? "INR",
+      last_updated: toIso(c.createdAt),
+    };
+  });
 }

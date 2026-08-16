@@ -332,6 +332,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Persisted Charge Detail Records — written once by the OCPP server
+    // (Admin SDK) at billing time, read by the OCPI /cdrs endpoint.
+    match /cdrs/{cdrId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // Admin-entered charger metadata (label, vendor, site, generated
     // connection ID) — deliberately a separate collection from
     // chargePoints/chargeSessions above, which only the OCPP server ever

@@ -348,6 +348,31 @@ async function billSession(
 
   await accrueSiteRevenueShare(chargePointId, ref.id, totalCostInr);
 
+  // A persisted Charge Detail Record — previously OCPI's /cdrs endpoint
+  // reconstructed this on every request straight from chargeSessions; now
+  // it's a durable document written once at billing time, which is what a
+  // roaming CDR is supposed to be (an immutable settlement record, not a
+  // live-recomputed view).
+  await db().collection("cdrs").doc(ref.id).set(
+    {
+      sessionId: ref.id,
+      chargePointId,
+      transactionId: sessionData?.transactionId ?? null,
+      startedAt: sessionData?.startedAt ?? null,
+      endedAt: Timestamp.fromDate(endedAt),
+      energyDeliveredWh: energyDeliveredWh ?? null,
+      durationMinutes: Math.round(durationMinutes * 100) / 100,
+      tariffId: cost.tariffId,
+      costBeforeGstInr: cost.costBeforeGstInr,
+      gstPct: cost.gstPct,
+      gstInr: cost.gstInr,
+      totalCostInr,
+      currency: "INR",
+      createdAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
   dispatchWebhookSafe("session.ended", {
     sessionId: ref.id,
     chargePointId,
