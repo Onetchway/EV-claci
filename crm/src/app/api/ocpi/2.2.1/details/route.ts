@@ -14,6 +14,7 @@ export async function GET(req: Request) {
     { identifier: "tariffs", role: "SENDER", url: `${base}/api/ocpi/2.2.1/cpo/tariffs` },
     { identifier: "sessions", role: "SENDER", url: `${base}/api/ocpi/2.2.1/cpo/sessions` },
     { identifier: "cdrs", role: "SENDER", url: `${base}/api/ocpi/2.2.1/cpo/cdrs` },
+    { identifier: "commands", role: "RECEIVER", url: `${base}/api/ocpi/2.2.1/commands` },
   ];
   const body: OcpiResponse<{ version: string; endpoints: OcpiEndpoint[] }> = {
     data: { version: "2.2.1", endpoints },

@@ -52,7 +52,7 @@ export default function OcpiPage() {
     <>
       <PageHeader
         title="OCPI Roaming"
-        description="CPO-side OCPI 2.2.1 — publishes locations, tariffs, sessions and CDRs to registered roaming partners. Read/pull only in this phase; accepting remote-start Commands from a partner is a follow-up once this is proven with one real partner."
+        description="CPO-side OCPI 2.2.1 — publishes locations, tariffs, sessions and CDRs to registered roaming partners, and accepts START_SESSION/STOP_SESSION/UNLOCK_CONNECTOR commands from them (RESERVE_NOW isn't supported — reservations aren't a concept the OCPP layer has yet). Still no outbound push/webhooks."
         actions={canManage && <Button variant="primary" onClick={() => setInviteOpen(true)}><Plus className="h-4 w-4" /> Invite partner</Button>}
       />
 

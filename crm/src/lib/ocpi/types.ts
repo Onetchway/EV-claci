@@ -90,6 +90,39 @@ export interface OcpiSession {
   last_updated: string;
 }
 
+export type OcpiCommandType = "START_SESSION" | "STOP_SESSION" | "RESERVE_NOW" | "CANCEL_RESERVATION" | "UNLOCK_CONNECTOR";
+
+export interface OcpiCommandResponse {
+  result: "ACCEPTED" | "REJECTED" | "NOT_SUPPORTED" | "UNKNOWN_SESSION" | "UNKNOWN_LOCATION";
+  timeout: number;
+  message?: { language: string; text: string };
+}
+
+/** Posted async to the partner's response_url once the command actually resolves — collapsed into the same request/response cycle here rather than fired from background code (see commands route comment for why). */
+export interface OcpiCommandResult {
+  result: "ACCEPTED" | "FAILED" | "REJECTED" | "TIMEOUT";
+  message?: { language: string; text: string };
+}
+
+export interface OcpiStartSessionRequest {
+  response_url: string;
+  token: { uid: string; contract_id?: string };
+  location_id: string;
+  evse_uid?: string;
+}
+
+export interface OcpiStopSessionRequest {
+  response_url: string;
+  session_id: string;
+}
+
+export interface OcpiUnlockConnectorRequest {
+  response_url: string;
+  location_id: string;
+  evse_uid: string;
+  connector_id: string;
+}
+
 export interface OcpiCdr {
   country_code: string;
   party_id: string;
