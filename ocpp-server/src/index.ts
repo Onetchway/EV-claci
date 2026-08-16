@@ -27,6 +27,7 @@ import {
   isRegisteredAndActive, markOffline, registerConnection, unregisterConnection,
 } from "./registry.js";
 import { sweepStaleConnections, OFFLINE_SWEEP_MS } from "./tickets.js";
+import { sweepZoneLoads } from "./load-balancer.js";
 
 initFirebase();
 
@@ -200,3 +201,8 @@ httpServer.listen(PORT, () => {
 setInterval(() => {
   sweepStaleConnections().catch((err) => console.error("[sweep] stale-connection sweep failed:", err));
 }, OFFLINE_SWEEP_MS);
+
+const LOAD_BALANCE_SWEEP_MS = Number(process.env.LOAD_BALANCE_SWEEP_MS) || 60 * 1000;
+setInterval(() => {
+  sweepZoneLoads().catch((err) => console.error("[sweep] zone load-balance sweep failed:", err));
+}, LOAD_BALANCE_SWEEP_MS);

@@ -95,7 +95,7 @@ export default function ZonesPage() {
     <>
       <PageHeader
         title="Zones & Load Balancing"
-        description="Group chargers under a sanctioned load cap and see when a zone is approaching it. Monitoring only — this doesn't yet throttle a charger automatically; use Set Unavailable on /chargers if a zone needs manual intervention."
+        description="Group chargers under a sanctioned load cap. When a zone's occupied chargers exceed the cap, the OCPP server automatically throttles them (proportional SetChargingProfile limits, cleared once back under cap) — based on rated charger power while occupied, not a live meter reading. Use Set Unavailable on /chargers for anything beyond that."
         actions={canManage && <Button variant="primary" onClick={openNew}><Plus className="h-4 w-4" /> New zone</Button>}
       />
 
