@@ -6,9 +6,10 @@
  * collection for the humans working the ticket).
  */
 
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 import { db } from "./firebase.js";
+import { sendCommand } from "./ocpp/commands.js";
 import { dispatchWebhookSafe } from "./webhooks.js";
 
 export const TICKETS = "tickets";
@@ -65,6 +66,32 @@ async function slaHoursFor(chargePointId: string): Promise<number> {
   return override && override > 0 ? override : SLA_HOURS;
 }
 
+/** Cooldown between automatic recovery attempts on the same charger — never hammer a genuinely broken unit with repeated resets. */
+const AUTO_RECOVERY_COOLDOWN_MS = 30 * 60 * 1000;
+
+/**
+ * Attempts a single, non-disruptive recovery before ticketing a FAULT: a
+ * Reset(OnIdle) queues rather than interrupts, so it can't kill an active
+ * session on another connector of the same station. Best-effort — a
+ * charger that's genuinely unreachable just fails this silently and the
+ * ticket opens as normal. Returns whether an attempt was made, so the
+ * ticket description can say so.
+ */
+async function attemptAutoRecovery(chargePointId: string): Promise<boolean> {
+  const chargePointRef = db().collection("chargePoints").doc(chargePointId);
+  const snap = await chargePointRef.get();
+  const lastAttempt = snap.data()?.lastAutoRecoveryAt as Timestamp | undefined;
+  if (lastAttempt && Date.now() - lastAttempt.toMillis() < AUTO_RECOVERY_COOLDOWN_MS) return false;
+
+  await chargePointRef.set({ lastAutoRecoveryAt: FieldValue.serverTimestamp() }, { merge: true });
+  try {
+    await sendCommand(chargePointId, "Reset", { type: "OnIdle" }, 10_000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Opens a ticket unless one of the same type is already OPEN/IN_PROGRESS for
  * this charger — repeated faults on an already-ticketed charger shouldn't
@@ -84,13 +111,19 @@ export async function openTicketIfNeeded(
     .get();
   if (!existing.empty) return;
 
+  const recoveryAttempted = type === "FAULT" ? await attemptAutoRecovery(chargePointId) : false;
+  const fullDescription = recoveryAttempted
+    ? `${description} An automatic reset was attempted; opening this ticket in case it doesn't recover.`
+    : description;
+
   const now = Date.now();
   const slaHours = await slaHoursFor(chargePointId);
   await db().collection(TICKETS).add({
     chargePointId,
     type,
     status: "OPEN",
-    description,
+    description: fullDescription,
+    autoRecoveryAttempted: recoveryAttempted,
     assignedTo: null,
     openedAt: FieldValue.serverTimestamp(),
     slaDueAt: new Date(now + slaHours * 60 * 60 * 1000),
@@ -98,8 +131,8 @@ export async function openTicketIfNeeded(
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  void notifyTicketOpened(chargePointId, type, description);
-  dispatchWebhookSafe("ticket.opened", { chargePointId, type, description });
+  void notifyTicketOpened(chargePointId, type, fullDescription);
+  dispatchWebhookSafe("ticket.opened", { chargePointId, type, description: fullDescription });
 }
 
 /**

@@ -482,6 +482,8 @@ export interface Ticket {
   description: string;
   /** A finer fault taxonomy than `type` — set by whoever investigates, not auto-detected. */
   faultClass?: TicketFaultClass | null;
+  /** Set when ocpp-server tried a non-disruptive Reset(OnIdle) before opening this FAULT ticket — lets a technician know a basic recovery was already ruled out. */
+  autoRecoveryAttempted?: boolean;
   assignedTo?: Actor | null;
   openedAt: TS;
   slaDueAt?: TS;
