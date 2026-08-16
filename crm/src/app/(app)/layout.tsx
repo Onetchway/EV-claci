@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Battery, BookOpen, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileText,
+  BarChart3, Battery, BookOpen, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
   Gauge, Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, MapPin, Menu, Package, Percent, Receipt, Repeat, Search, Settings, ShieldCheck,
   Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
@@ -62,6 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/subscriptions", label: "Subscriptions", icon: Repeat },
       { href: "/ocpi", label: "OCPI Roaming", icon: Globe, adminOnly: true },
       { href: "/organizations", label: "White label CMS", icon: Building2, adminOnly: true },
+      { href: "/reports", label: "Reports", icon: FileSpreadsheet },
     ],
   },
   {
