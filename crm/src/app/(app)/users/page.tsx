@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Copy, KeyRound, Plus, ShieldCheck, UserPlus } from "lucide-react";
+import { Check, Copy, KeyRound, Plus, ShieldCheck, UserPlus } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -17,6 +17,7 @@ import {
 import { subscribeOrganizations } from "@/lib/db/organizations";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { PAGE_ACCESS, PAGE_LABEL } from "@/lib/page-access";
 import { canAssignRole, isAdmin, isSuperAdmin } from "@/lib/permissions";
 import type { AppUser, Organization } from "@/lib/types";
 import { formatCompactINR, formatDate } from "@/lib/utils";
@@ -142,6 +143,37 @@ export default function UsersPage() {
         <StatCard label="Admins" value={counts.admins} />
         <StatCard label="Agents" value={counts.agents} />
       </div>
+
+      <Card
+        title="Roles & access"
+        subtitle="Which CMS pages each role can view. SUPER_ADMIN always has access to everything. Pages not listed (Dashboard, Sales, Operations, most of Settings) are open to any signed-in user, gated only by their action buttons."
+        className="mb-4"
+      >
+        <div className="overflow-x-auto scroll-thin">
+          <table className="w-full">
+            <thead className="border-b border-ink-200">
+              <tr>
+                <th className="th sticky left-0 bg-white">Page</th>
+                {ROLES.filter((r) => r !== "SUPER_ADMIN").map((r) => (
+                  <th key={r} className="th text-center">{ROLE_LABEL[r]}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-100">
+              {Object.entries(PAGE_ACCESS).map(([path, allowed]) => (
+                <tr key={path} className="hover:bg-ink-50">
+                  <td className="td sticky left-0 bg-white font-medium">{PAGE_LABEL[path] ?? path}</td>
+                  {ROLES.filter((r) => r !== "SUPER_ADMIN").map((r) => (
+                    <td key={r} className="td text-center">
+                      {allowed.includes(r) && <Check className="mx-auto h-4 w-4 text-brand-600" />}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {loading ? (
         <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>

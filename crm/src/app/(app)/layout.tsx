@@ -13,10 +13,11 @@ import {
 import { useAuth } from "@/components/auth-provider";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
-import { Avatar, Button, Spinner } from "@/components/ui";
+import { Avatar, Button, EmptyState, Spinner } from "@/components/ui";
 import { useChargerCatalog } from "@/hooks/use-catalog";
 import { ROLE_LABEL } from "@/lib/constants";
 import { subscribeOrganization } from "@/lib/db/organizations";
+import { hasPageAccess } from "@/lib/page-access";
 import { isAdmin } from "@/lib/permissions";
 import type { Organization } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -99,7 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { loading, user, profile, role, signOut, configured } = useAuth();
+  const { loading, user, profile, role, roles, signOut, configured } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
@@ -161,7 +162,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((n) => !n.adminOnly || (role && isAdmin(role))),
+    items: g.items.filter((n) => (!n.adminOnly || (role && isAdmin(role))) && hasPageAccess(n.href, roles)),
   })).filter((g) => g.items.length > 0);
 
   const sidebar = (
@@ -183,28 +184,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">{org?.name ?? "Livanto Green"}</p>
-          <p className="truncate text-[11px] text-ink-400">{org ? "EV Charging CRM" : "Franchise CRM"}</p>
+          <p className="truncate text-[11px] text-navy-300">{org ? "EV Charging CRM" : "Franchise CRM"}</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-2 scroll-thin">
-        <Suspense fallback={<div className="px-3 py-2 text-xs text-ink-500">Loading…</div>}>
+        <Suspense fallback={<div className="px-3 py-2 text-xs text-navy-300">Loading…</div>}>
           <NavList groups={groups} />
         </Suspense>
       </div>
 
-      <div className="border-t border-ink-800 p-3">
+      <div className="border-t border-navy-800 p-3">
         <div className="flex items-center gap-2.5">
           <Avatar name={profile?.name} size={34} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white">{profile?.name}</p>
-            <p className="truncate text-[11px] text-ink-400">
+            <p className="truncate text-[11px] text-navy-300">
               {role ? ROLE_LABEL[role] : ""}
             </p>
           </div>
           <button
             onClick={() => void signOut().then(() => router.replace("/login"))}
-            className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-800 hover:text-white"
+            className="rounded-lg p-1.5 text-navy-300 hover:bg-navy-800 hover:text-white"
             title="Sign out"
           >
             <LogOut className="h-4 w-4" />
@@ -216,17 +217,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-ink-50">
-      <aside className="hidden w-60 shrink-0 bg-ink-900 lg:block">
+      <aside className="hidden w-60 shrink-0 bg-navy-900 lg:block">
         <div className="sticky top-0 h-screen">{sidebar}</div>
       </aside>
 
       {navOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-ink-950/50" onClick={() => setNavOpen(false)} />
-          <aside className="relative h-full w-64 bg-ink-900">
+          <div className="absolute inset-0 bg-navy-950/60" onClick={() => setNavOpen(false)} />
+          <aside className="relative h-full w-64 bg-navy-900">
             <button
               onClick={() => setNavOpen(false)}
-              className="absolute right-2 top-3 rounded-lg p-1.5 text-ink-400 hover:text-white"
+              className="absolute right-2 top-3 rounded-lg p-1.5 text-navy-300 hover:text-white"
               aria-label="Close navigation"
             >
               <X className="h-5 w-5" />
@@ -270,7 +271,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
+        <main className="min-w-0 flex-1 p-4 sm:p-6">
+          {hasPageAccess(pathname, roles) ? children : (
+            <EmptyState
+              icon={<ShieldCheck className="h-8 w-8 text-rose-500" />}
+              title="Restricted"
+              description="Your role doesn't have access to this page. Contact your administrator if you believe this is wrong."
+            />
+          )}
+        </main>
       </div>
     </div>
   );
@@ -317,12 +326,12 @@ function NavList({ groups }: { groups: { label: string; items: NavItem[] }[] }) 
   return (
     <>
       <div className="relative mb-3 px-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-500" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-navy-400" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search…"
-          className="w-full rounded-lg border border-ink-700 bg-ink-800 py-1.5 pl-8 pr-2 text-sm text-white placeholder:text-ink-500 focus:border-brand-500 focus:outline-none"
+          className="w-full rounded-lg border border-navy-700 bg-navy-800 py-1.5 pl-8 pr-2 text-sm text-white placeholder:text-navy-400 focus:border-brand-500 focus:outline-none"
         />
       </div>
 
@@ -334,7 +343,7 @@ function NavList({ groups }: { groups: { label: string; items: NavItem[] }[] }) 
               <button
                 type="button"
                 onClick={() => toggle(group.label)}
-                className="flex w-full items-center justify-between px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-500 hover:text-ink-300"
+                className="flex w-full items-center justify-between px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-navy-400 hover:text-navy-200"
               >
                 {group.label}
                 <ChevronDown className={cn("h-3 w-3 transition-transform", isCollapsed && "-rotate-90")} />
@@ -355,7 +364,7 @@ function NavList({ groups }: { groups: { label: string; items: NavItem[] }[] }) 
                           "flex items-center gap-2.5 rounded-full px-3 py-2 text-sm transition",
                           active
                             ? "bg-brand-600 font-medium text-white"
-                            : "text-ink-300 hover:bg-ink-800 hover:text-white",
+                            : "text-navy-200 hover:bg-navy-800 hover:text-white",
                         )}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
