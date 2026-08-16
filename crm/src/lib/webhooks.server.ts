@@ -1,21 +1,22 @@
-/**
- * Outbound webhook delivery. Reads subscriptions the CRM's Developer page
- * manages (webhookSubscriptions), HMAC-signs each delivery with the
- * subscription's own secret so the receiver can verify it came from here,
- * and fires them off in the background — never holds up ticket-opening or
- * session-billing. Each delivery gets up to 3 attempts with a short
- * backoff before being given up on; a slow or dead endpoint still can't
- * block anything, since dispatchWebhookSafe never awaits this.
- */
+import "server-only";
 
 import { createHmac } from "node:crypto";
 
-import { db } from "./firebase.js";
+import { adminDb } from "@/lib/firebase/admin";
+import type { WebhookEvent } from "@/lib/constants";
 
-export type WebhookEvent =
-  | "session.ended" | "ticket.opened" | "ticket.sla_breached"
-  | "charger.online" | "charger.offline"
-  | "payment.success" | "payment.failed";
+/**
+ * Outbound webhook delivery for events that originate in a CRM server
+ * route rather than the OCPP server (payment.success/failed) — mirrors
+ * ocpp-server/src/webhooks.ts's delivery + retry semantics so a receiver
+ * sees one consistent signing/retry contract regardless of which service
+ * dispatched an event. Fire-and-forget: never awaited by the caller.
+ */
+export function dispatchWebhookSafe(event: WebhookEvent, payload: Record<string, unknown>): void {
+  void dispatchWebhook(event, payload).catch((err) => {
+    console.error(`[webhooks] failed to dispatch ${event}`, err);
+  });
+}
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [1000, 4000];
@@ -24,14 +25,9 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function dispatchWebhookSafe(event: WebhookEvent, payload: Record<string, unknown>): void {
-  void dispatchWebhook(event, payload).catch((err) => {
-    console.error(`[webhooks] failed to dispatch ${event}`, err);
-  });
-}
-
 async function dispatchWebhook(event: WebhookEvent, payload: Record<string, unknown>): Promise<void> {
-  const snap = await db()
+  const db = adminDb();
+  const snap = await db
     .collection("webhookSubscriptions")
     .where("events", "array-contains", event)
     .where("active", "==", true)

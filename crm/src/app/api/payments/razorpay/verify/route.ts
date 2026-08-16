@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { adminDb } from "@/lib/firebase/admin";
+import { dispatchWebhookSafe } from "@/lib/webhooks.server";
 import { ApiError, errorResponse, requireCaller } from "../../../_lib/guard";
 
 export const runtime = "nodejs";
@@ -91,6 +92,13 @@ export async function POST(req: Request) {
         createdBy: { uid: caller.uid, name: caller.name, role: caller.role },
       });
       if (couponRef) tx.update(couponRef, { usedCount: couponUsedCount + 1 });
+    });
+
+    dispatchWebhookSafe("payment.success", {
+      ownerType: body.ownerType,
+      ownerId: body.ownerId,
+      amountInr: body.amountInr + bonusInr,
+      razorpayPaymentId: body.razorpayPaymentId,
     });
 
     return NextResponse.json({ ok: true, bonusInr });

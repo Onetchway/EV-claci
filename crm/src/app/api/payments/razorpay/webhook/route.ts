@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 
 import { adminDb } from "@/lib/firebase/admin";
+import { dispatchWebhookSafe } from "@/lib/webhooks.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,15 +48,23 @@ export async function POST(req: Request) {
   if (payload.event === "payment.failed") {
     const entity = (payload.payload as { payment?: { entity?: Record<string, unknown> } } | undefined)
       ?.payment?.entity ?? {};
+    const amountInr = typeof entity.amount === "number" ? entity.amount / 100 : 0;
     await adminDb().collection("failedPayments").add({
       razorpayOrderId: (entity.order_id as string | undefined) ?? null,
       razorpayPaymentId: (entity.id as string | undefined) ?? null,
-      amountInr: typeof entity.amount === "number" ? entity.amount / 100 : 0,
+      amountInr,
       errorCode: (entity.error_code as string | undefined) ?? null,
       errorDescription: (entity.error_description as string | undefined) ?? null,
       contact: (entity.contact as string | undefined) ?? null,
       email: (entity.email as string | undefined) ?? null,
       createdAt: FieldValue.serverTimestamp(),
+    });
+    dispatchWebhookSafe("payment.failed", {
+      razorpayOrderId: (entity.order_id as string | undefined) ?? null,
+      razorpayPaymentId: (entity.id as string | undefined) ?? null,
+      amountInr,
+      errorCode: (entity.error_code as string | undefined) ?? null,
+      errorDescription: (entity.error_description as string | undefined) ?? null,
     });
   }
 

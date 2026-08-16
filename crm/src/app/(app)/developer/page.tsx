@@ -71,7 +71,7 @@ export default function DeveloperPage() {
 
       <Card
         title="API keys"
-        subtitle="GET /api/v1/chargers and /api/v1/sessions — Authorization: Bearer <key>"
+        subtitle="GET /api/v1/{chargers,sessions,tariffs,invoices,tickets} — Authorization: Bearer <key> — rate limited to 60 req/min per key"
         actions={<Button size="sm" onClick={() => setKeyOpen(true)}><Plus className="h-4 w-4" /> New key</Button>}
         className="mb-4"
       >
@@ -122,7 +122,7 @@ export default function DeveloperPage() {
 
       <Card
         title="Webhooks"
-        subtitle="Signed POST on session.ended and ticket.opened — not retried on failure in this phase"
+        subtitle="Signed POST, HMAC-SHA256 in x-livanto-signature — retried up to 3 times with backoff on delivery failure"
         actions={<Button size="sm" onClick={() => setHookOpen(true)}><Plus className="h-4 w-4" /> New webhook</Button>}
       >
         {hooks === null ? (

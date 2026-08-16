@@ -115,6 +115,7 @@ export async function markOnline(
     },
     { merge: true },
   );
+  dispatchWebhookSafe("charger.online", { chargePointId });
 }
 
 export async function markOffline(chargePointId: string): Promise<void> {
@@ -122,6 +123,7 @@ export async function markOffline(chargePointId: string): Promise<void> {
     { status: "OFFLINE", disconnectedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() },
     { merge: true },
   );
+  dispatchWebhookSafe("charger.offline", { chargePointId });
 }
 
 export async function touchHeartbeat(chargePointId: string): Promise<void> {
