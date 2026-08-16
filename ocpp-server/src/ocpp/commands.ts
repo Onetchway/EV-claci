@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import type { WebSocket } from "ws";
 
 import { connections } from "../registry.js";
+import { logOcppMessage } from "../message-log.js";
 import { encodeCall } from "./rpc.js";
 
 interface PendingCall {
@@ -67,6 +68,7 @@ export function sendCommand(
     }, timeoutMs);
 
     pending.set(uniqueId, { chargePointId, action, resolve, reject, timer });
+    logOcppMessage(chargePointId, "OUT", "Call", action, uniqueId, payload);
     (conn.ws as WebSocket).send(encodeCall(uniqueId, action, payload));
   });
 }

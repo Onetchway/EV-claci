@@ -20,8 +20,8 @@ import {
   type ChargerRegistration,
 } from "@/lib/db/charger-registry";
 import {
-  subscribeChargePoint, subscribeDowntimeEventsForCharger, subscribeSessionsForChargePoint,
-  type ChargePoint, type ChargeSession, type DowntimeEvent,
+  subscribeChargePoint, subscribeDowntimeEventsForCharger, subscribeOcppMessagesForCharger, subscribeSessionsForChargePoint,
+  type ChargePoint, type ChargeSession, type DowntimeEvent, type OcppMessage,
 } from "@/lib/db/chargers";
 import { subscribeZones } from "@/lib/db/zones";
 import { canManageChargers } from "@/lib/permissions";
@@ -60,7 +60,8 @@ export default function ChargerDetailPage() {
   const [sessions, setSessions] = useState<ChargeSession[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [downtime, setDowntime] = useState<DowntimeEvent[]>([]);
-  const [tab, setTab] = useState<"usage" | "uptime">("usage");
+  const [messages, setMessages] = useState<OcppMessage[]>([]);
+  const [tab, setTab] = useState<"usage" | "uptime" | "logs">("usage");
   const [rangeDays, setRangeDays] = useState("7");
   const [uploading, setUploading] = useState(false);
 
@@ -81,6 +82,10 @@ export default function ChargerDetailPage() {
     since.setDate(since.getDate() - Number(rangeDays));
     return subscribeDowntimeEventsForCharger(reg.chargerId, since, setDowntime);
   }, [reg, rangeDays]);
+  useEffect(() => {
+    if (!reg) return;
+    return subscribeOcppMessagesForCharger(reg.chargerId, setMessages);
+  }, [reg]);
 
   const zoneName = useMemo(() => new Map(zones.map((z) => [z.id, z.name])), [zones]);
 
@@ -256,7 +261,7 @@ export default function ChargerDetailPage() {
           </Card>
 
           <Card
-            title={tab === "usage" ? "Charger usage" : "Charger uptime"}
+            title={tab === "usage" ? "Charger usage" : tab === "uptime" ? "Charger uptime" : "OCPP message log"}
             actions={(
               <div className="flex items-center gap-2">
                 <div className="flex rounded-lg bg-ink-100 p-0.5 text-sm">
@@ -274,12 +279,58 @@ export default function ChargerDetailPage() {
                   >
                     Uptime
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab("logs")}
+                    className={`rounded-md px-3 py-1 ${tab === "logs" ? "bg-white shadow-sm" : "text-ink-500"}`}
+                  >
+                    Logs
+                  </button>
                 </div>
-                <Select value={rangeDays} onChange={(e) => setRangeDays(e.target.value)} options={RANGE_OPTIONS} />
+                {tab !== "logs" && (
+                  <Select value={rangeDays} onChange={(e) => setRangeDays(e.target.value)} options={RANGE_OPTIONS} />
+                )}
               </div>
             )}
           >
-            {tab === "usage" ? (
+            {tab === "logs" ? (
+              messages.length === 0 ? (
+                <EmptyState title="No OCPP messages yet" description="Call/CallResult/CallError frames appear here as the charger exchanges them, newest first." />
+              ) : (
+                <div className="max-h-[32rem] overflow-x-auto overflow-y-auto scroll-thin">
+                  <table className="w-full">
+                    <thead className="sticky top-0 border-b border-ink-200 bg-white">
+                      <tr>
+                        <th className="th">Time</th>
+                        <th className="th">Dir</th>
+                        <th className="th">Type</th>
+                        <th className="th">Action</th>
+                        <th className="th">Payload</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink-100">
+                      {messages.map((m) => (
+                        <tr key={m.id}>
+                          <td className="td whitespace-nowrap text-ink-500">{formatDateTime(m.createdAt)}</td>
+                          <td className="td">
+                            <Badge className={m.direction === "IN" ? "bg-sky-100 text-sky-800 ring-sky-200" : "bg-violet-100 text-violet-800 ring-violet-200"}>
+                              {m.direction === "IN" ? "Charger → CSMS" : "CSMS → Charger"}
+                            </Badge>
+                          </td>
+                          <td className="td">
+                            <Badge className={m.messageType === "CallError" ? "bg-rose-100 text-rose-800 ring-rose-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
+                              {m.messageType}
+                            </Badge>
+                          </td>
+                          <td className="td text-ink-600">{m.action ?? "—"}</td>
+                          <td className="td max-w-md truncate font-mono text-xs text-ink-500" title={m.payload}>{m.payload}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : tab === "usage" ? (
               usageByDay.length === 0 ? (
                 <EmptyState icon={<Battery className="h-8 w-8" />} title="No sessions billed in this range" />
               ) : (

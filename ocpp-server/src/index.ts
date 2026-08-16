@@ -23,6 +23,7 @@ import { handleCall } from "./ocpp/handlers.js";
 import {
   encodeCallError, encodeCallResult, isCall, isCallResult, isCallError, parseFrame,
 } from "./ocpp/rpc.js";
+import { logOcppMessage } from "./message-log.js";
 import {
   isRegisteredAndActive, markOffline, recordOperationalStatus, registerConnection, unregisterConnection,
 } from "./registry.js";
@@ -185,15 +186,19 @@ function attachChargePoint(chargePointId: string, ws: WebSocket): void {
 
       if (isCall(frame)) {
         const [, uniqueId, action, payload] = frame;
+        logOcppMessage(chargePointId, "IN", "Call", action, uniqueId, payload);
         try {
           const result = await handleCall(chargePointId, action, payload);
-          ws.send(
-            result.ok
-              ? encodeCallResult(uniqueId, result.payload)
-              : encodeCallError(uniqueId, result.errorCode, result.errorDescription),
-          );
+          if (result.ok) {
+            logOcppMessage(chargePointId, "OUT", "CallResult", action, uniqueId, result.payload);
+            ws.send(encodeCallResult(uniqueId, result.payload));
+          } else {
+            logOcppMessage(chargePointId, "OUT", "CallError", action, uniqueId, { errorCode: result.errorCode, errorDescription: result.errorDescription });
+            ws.send(encodeCallError(uniqueId, result.errorCode, result.errorDescription));
+          }
         } catch (err) {
           console.error(`[ws] ${chargePointId} handler error for ${action}:`, err);
+          logOcppMessage(chargePointId, "OUT", "CallError", action, uniqueId, { errorCode: "InternalError", message: (err as Error).message });
           ws.send(encodeCallError(uniqueId, "InternalError", (err as Error).message));
         }
         return;
@@ -201,6 +206,7 @@ function attachChargePoint(chargePointId: string, ws: WebSocket): void {
 
       if (isCallResult(frame)) {
         const [, uniqueId, resultPayload] = frame;
+        logOcppMessage(chargePointId, "IN", "CallResult", null, uniqueId, resultPayload);
         if (!resolveCommand(uniqueId, resultPayload)) {
           console.log(`[ws] ${chargePointId} sent an unsolicited CallResult: ${raw.slice(0, 200)}`);
         }
@@ -208,6 +214,7 @@ function attachChargePoint(chargePointId: string, ws: WebSocket): void {
       }
       if (isCallError(frame)) {
         const [, uniqueId, errorCode, errorDescription] = frame;
+        logOcppMessage(chargePointId, "IN", "CallError", null, uniqueId, { errorCode, errorDescription });
         if (!rejectCommand(uniqueId, errorCode, errorDescription)) {
           console.log(`[ws] ${chargePointId} sent an unsolicited CallError: ${raw.slice(0, 200)}`);
         }

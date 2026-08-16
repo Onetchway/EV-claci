@@ -339,6 +339,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Raw OCPP protocol message log — written by the OCPP server (Admin
+    // SDK) as each Call/CallResult/CallError crosses the wire, read by the
+    // charger detail page's Logs panel. TTL-cleaned via expireAt.
+    match /ocppMessages/{messageId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // Admin-entered charger metadata (label, vendor, site, generated
     // connection ID) — deliberately a separate collection from
     // chargePoints/chargeSessions above, which only the OCPP server ever

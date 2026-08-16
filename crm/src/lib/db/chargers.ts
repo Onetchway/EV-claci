@@ -266,3 +266,38 @@ export function subscribeDowntimeEventsForCharger(
     (err) => onError?.(err as Error),
   );
 }
+
+/** One entry per Call/CallResult/CallError crossing the wire — written by the OCPP server, read-only here. TTL-cleaned via expireAt. */
+export interface OcppMessage {
+  id: string;
+  chargePointId: string;
+  direction: "IN" | "OUT";
+  messageType: "Call" | "CallResult" | "CallError";
+  action: string | null;
+  uniqueId: string;
+  payload: string;
+  createdAt: TS;
+}
+
+const OCPP_MESSAGES = "ocppMessages";
+
+function mapOcppMessage(id: string, data: Record<string, unknown>): OcppMessage {
+  return { id, ...(data as Omit<OcppMessage, "id">) };
+}
+
+export function subscribeOcppMessagesForCharger(
+  chargePointId: string,
+  cb: (rows: OcppMessage[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(
+      collection(getDb(), OCPP_MESSAGES),
+      where("chargePointId", "==", chargePointId),
+      orderBy("createdAt", "desc"),
+      fsLimit(200),
+    ),
+    (snap) => cb(snap.docs.map((d) => mapOcppMessage(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}

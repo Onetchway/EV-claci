@@ -381,6 +381,20 @@
       ]
     },
     {
+      "collectionGroup": "ocppMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chargePointId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "downtimeEvents",
       "queryScope": "COLLECTION",
       "fields": [
