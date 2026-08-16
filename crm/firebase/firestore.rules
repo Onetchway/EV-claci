@@ -405,6 +405,15 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
     }
 
+    // Site (host) revenue-share ledger — written by ocpp-server's Admin SDK
+    // at session-bill time; the CRM only ever reads and flips PENDING→PAID.
+    match /siteRevenueShares/{shareId} {
+      allow read: if signedIn();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE']
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt']);
+      allow create, delete: if false;
+    }
+
     // OCPI roaming partners. Contains partner bearer tokens, so this is
     // deliberately NOT readable by ordinary signed-in users (unlike every
     // other collection above) — only admins, and only the server-side OCPI

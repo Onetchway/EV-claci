@@ -24,7 +24,7 @@ export function subscribeZones(
   );
 }
 
-export type ZoneDraft = Pick<Zone, "name" | "maxLoadKw" | "siteType" | "address" | "discomName" | "slaHours">;
+export type ZoneDraft = Pick<Zone, "name" | "maxLoadKw" | "siteType" | "address" | "discomName" | "slaHours" | "revenueSharePct">;
 
 export async function createZone(draft: ZoneDraft, actor: Actor): Promise<string> {
   const ref = await addDoc(collection(getDb(), ZONES), {

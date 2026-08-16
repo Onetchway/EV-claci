@@ -18,6 +18,7 @@ import { db } from "./firebase.js";
 import {
   energyWhFrom, type ConnectorStatus, type TransactionEventRequest,
 } from "./ocpp/types.js";
+import { accrueSiteRevenueShare } from "./revenue-share.js";
 import { computeCost, resolveTariff } from "./tariff.js";
 import { debitWalletForSession } from "./wallet.js";
 
@@ -215,6 +216,8 @@ async function billSession(
       { merge: true },
     );
   }
+
+  await accrueSiteRevenueShare(chargePointId, ref.id, cost.totalCostInr);
 }
 
 export async function recordMeterValues(

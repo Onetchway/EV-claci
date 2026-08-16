@@ -31,6 +31,7 @@ export default function ZonesPage() {
   const [address, setAddress] = useState("");
   const [discomName, setDiscomName] = useState("");
   const [slaHours, setSlaHours] = useState("");
+  const [revenueSharePct, setRevenueSharePct] = useState("");
 
   useEffect(() => subscribeZones(setZones), []);
   useEffect(() => subscribeChargerRegistry(setChargers), []);
@@ -60,6 +61,7 @@ export default function ZonesPage() {
     setAddress("");
     setDiscomName("");
     setSlaHours("");
+    setRevenueSharePct("");
     setModalOpen(true);
   }
 
@@ -71,6 +73,7 @@ export default function ZonesPage() {
     setAddress(z.address ?? "");
     setDiscomName(z.discomName ?? "");
     setSlaHours(z.slaHours != null ? String(z.slaHours) : "");
+    setRevenueSharePct(z.revenueSharePct != null ? String(z.revenueSharePct) : "");
     setModalOpen(true);
   }
 
@@ -83,6 +86,7 @@ export default function ZonesPage() {
       address: address.trim() || undefined,
       discomName: discomName.trim() || undefined,
       slaHours: slaHours.trim() ? Number(slaHours) : undefined,
+      revenueSharePct: revenueSharePct.trim() ? Number(revenueSharePct) : undefined,
     };
     await run(async () => {
       if (editing) await updateZone(editing.id, draft);
@@ -183,6 +187,16 @@ export default function ZonesPage() {
               value={slaHours}
               onChange={(e) => setSlaHours(e.target.value)}
               placeholder="Leave blank to use the platform default"
+            />
+          </Field>
+          <Field label="Revenue share to site owner (%)" hint="Accrues automatically per session on /settlements — e.g. an RWA hosting this charger. Leave blank for no share.">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={revenueSharePct}
+              onChange={(e) => setRevenueSharePct(e.target.value)}
+              placeholder="e.g. 15"
             />
           </Field>
         </div>

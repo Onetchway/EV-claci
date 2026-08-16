@@ -64,12 +64,12 @@ function specificity(t: TariffDoc): number {
   return SCOPE_SPECIFICITY[t.scope] + (t.timeWindow ? 1 : 0);
 }
 
-interface ChargerContext {
+export interface ChargerContext {
   zoneId: string | null;
   state: string | null;
 }
 
-async function loadChargerContext(chargerId: string): Promise<ChargerContext> {
+export async function loadChargerContext(chargerId: string): Promise<ChargerContext> {
   const snap = await db().collection("chargerRegistry").where("chargerId", "==", chargerId).limit(1).get();
   if (snap.empty) return { zoneId: null, state: null };
   const data = snap.docs[0]!.data();

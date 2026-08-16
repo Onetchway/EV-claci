@@ -72,6 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/emsp-users", label: "User Management", icon: UserCircle },
       { href: "/fleets", label: "Fleet Management", icon: Truck },
       { href: "/invoices", label: "Invoicing", icon: FileText },
+      { href: "/settlements", label: "Settlements", icon: IndianRupee },
       { href: "/ocpi", label: "OCPI Roaming", icon: Globe, adminOnly: true },
     ],
   },

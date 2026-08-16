@@ -552,8 +552,32 @@ export interface Zone {
   discomName?: string;
   /** Overrides the OCPP server's flat default fault-ticket SLA (FAULT_SLA_HOURS) for chargers in this zone. */
   slaHours?: number;
+  /** % of each session's total (post-GST) revenue owed to this site's host/owner — e.g. an RWA hosting the charger. Unset or 0 = no revenue share, nothing accrues. */
+  revenueSharePct?: number;
   createdAt: TS;
   createdBy?: Actor | null;
+}
+
+export type RevenueShareStatus = "PENDING" | "PAID";
+
+/**
+ * One session's accrued payout owed to a site host, written by ocpp-server
+ * at the same time a session is billed (see billSession() in registry.ts).
+ * This is the ledger Settlement works off of — CRM never computes the
+ * amount itself, only reviews and marks these paid.
+ */
+export interface SiteRevenueShare {
+  id: string;
+  zoneId: string;
+  zoneName: string;
+  sessionId: string;
+  chargePointId: string;
+  grossAmountInr: number;
+  sharePct: number;
+  shareAmountInr: number;
+  status: RevenueShareStatus;
+  createdAt: TS;
+  paidAt?: TS | null;
 }
 
 /** A corporate customer paying for employee/fleet charging under one account. */
