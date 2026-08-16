@@ -131,6 +131,7 @@ export default function ChargersPage() {
   const [justRegisteredId, setJustRegisteredId] = useState<string | null>(null);
   const [justRegisteredToken, setJustRegisteredToken] = useState<string | undefined>(undefined);
   const [editingRegId, setEditingRegId] = useState<string | null>(null);
+  const [customChargerId, setCustomChargerId] = useState("");
   const [viewingId, setViewingId] = useState<string | null>(null);
 
   const [startingFor, setStartingFor] = useState<string | null>(null);
@@ -318,10 +319,12 @@ export default function ChargersPage() {
         const { chargerId, connectionToken } = await registerCharger(
           { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined },
           actor,
+          customChargerId.trim() || undefined,
         );
         setJustRegisteredId(chargerId);
         setJustRegisteredToken(connectionToken);
         setDraft(blankDraft);
+        setCustomChargerId("");
       }
     } catch (e) {
       setError((e as Error).message);
@@ -355,6 +358,7 @@ export default function ChargersPage() {
     setEditingRegId(null);
     setDraft(blankDraft);
     setDraftLeadType("");
+    setCustomChargerId("");
   }
 
   const viewingReg = registry.find((r) => r.id === viewingId) ?? null;
@@ -1005,6 +1009,19 @@ export default function ChargersPage() {
                 placeholder="e.g. Site name / address"
               />
             </Field>
+            {!editingRegId && (
+              <Field
+                label="Charger ID (optional)"
+                hint="Leave blank to auto-generate. Set this to exactly match a physical charger's or test simulator's fixed Central System ID — case-sensitive, letters/numbers/hyphens/underscores only."
+                className="sm:col-span-2"
+              >
+                <Input
+                  value={customChargerId}
+                  onChange={(e) => setCustomChargerId(e.target.value)}
+                  placeholder="e.g. PPL-79629"
+                />
+              </Field>
+            )}
             <Field label="State" className="sm:col-span-2">
               <Select
                 value={draft.state ?? ""}

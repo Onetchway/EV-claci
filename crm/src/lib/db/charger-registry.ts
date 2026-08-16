@@ -13,7 +13,8 @@
  */
 
 import {
-  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, Timestamp, updateDoc,
+  addDoc, collection, deleteDoc, doc, getDocs, limit as fsLimit, onSnapshot, orderBy, query, serverTimestamp,
+  Timestamp, updateDoc, where,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 
@@ -130,6 +131,11 @@ function slugify(label: string): string {
     .slice(0, 40) || "charger";
 }
 
+/** Case preserved deliberately — a hardware charger's or simulator's Central System path is often case-sensitive, unlike the auto-generated slug below. */
+function sanitizeCustomChargerId(id: string): string {
+  return id.trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 60);
+}
+
 /** Short, human-glanceable, and collision-resistant without a Firestore read. */
 function uniqueSuffix(): string {
   return Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 5);
@@ -169,8 +175,28 @@ function generateConnectionToken(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }
 
-export async function registerCharger(draft: ChargerRegistrationDraft, actor: Actor): Promise<{ chargerId: string; connectionToken: string }> {
-  const chargerId = `${slugify(draft.label)}-${uniqueSuffix()}`;
+/**
+ * customChargerId lets an admin pin the exact ID a physical charger or a
+ * test simulator already has baked into its own config, instead of always
+ * getting a random auto-generated one the hardware can never be made to
+ * match. Must be globally unique; the caller sees a thrown Error if not.
+ */
+export async function registerCharger(
+  draft: ChargerRegistrationDraft,
+  actor: Actor,
+  customChargerId?: string,
+): Promise<{ chargerId: string; connectionToken: string }> {
+  let chargerId: string;
+  if (customChargerId?.trim()) {
+    chargerId = sanitizeCustomChargerId(customChargerId);
+    if (!chargerId) throw new Error("Charger ID must contain at least one letter, number, hyphen or underscore.");
+    const existing = await getDocs(
+      query(collection(getDb(), CHARGER_REGISTRY), where("chargerId", "==", chargerId), fsLimit(1)),
+    );
+    if (!existing.empty) throw new Error(`Charger ID "${chargerId}" is already registered.`);
+  } else {
+    chargerId = `${slugify(draft.label)}-${uniqueSuffix()}`;
+  }
   const connectionToken = generateConnectionToken();
   await addDoc(collection(getDb(), CHARGER_REGISTRY), {
     ...draftDatesToTimestamps(draft),
