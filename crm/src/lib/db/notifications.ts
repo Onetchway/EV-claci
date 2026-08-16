@@ -161,6 +161,28 @@ export function notifyMention(opts: {
   });
 }
 
+export function notifyComplaintTag(opts: {
+  toUid: string;
+  toEmail: string;
+  taggedByName: string;
+  subject: string;
+}): void {
+  queueEmailSafe({
+    to: [opts.toEmail],
+    subject: `${opts.taggedByName} tagged you on a complaint: ${opts.subject}`,
+    html: wrap(
+      `<p><strong>${opts.taggedByName}</strong> tagged you on a complaint:</p>` +
+      `<p style="padding:10px 14px;background:#f8fafc;border-left:3px solid #0ea5e9;border-radius:4px">${opts.subject}</p>` +
+      `<p><a href="${APP_URL}/complaints" style="color:#0ea5e9">Open Complaints →</a></p>`,
+    ),
+  });
+  createNotificationSafe({
+    toUid: opts.toUid,
+    title: `${opts.taggedByName} tagged you on a complaint`,
+    body: opts.subject,
+  });
+}
+
 export function notifyStageOrStatus(opts: {
   toEmail: string;
   agentName: string;

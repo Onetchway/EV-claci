@@ -517,11 +517,16 @@ export interface Complaint {
   /** Free text if the complainant isn't a registered EMSP user (e.g. phoned in). */
   customerName?: string;
   customerPhone?: string;
-  /** Set when the complainant is a registered driver — links back to their wallet/session history. */
+  customerEmail?: string;
+  /** Set when the complainant is a registered driver — matched by phone/email against emspUsers at log time — links back to their wallet/session history. */
   emspUserId?: string | null;
   relatedChargerId?: string | null;
+  /** Denormalized from the charger's zone at log time, so complaints can be filtered/reported on by city without a join. */
+  city?: string | null;
   relatedSessionId?: string | null;
   assignedTo?: Actor | null;
+  /** Staff tagged for visibility/help beyond the single assignee — each gets an email notification when tagged. */
+  taggedTo?: Actor[];
   resolutionNotes?: string;
   resolvedAt?: TS | null;
   createdAt: TS;
