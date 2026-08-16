@@ -642,6 +642,7 @@ export default function ChargersPage() {
                   <th className="th">Status</th>
                   <th className="th">Started</th>
                   <th className="th">Duration</th>
+                  <th className="th">User</th>
                   <th className="th">Vehicle</th>
                   <th className="th text-right">Energy delivered</th>
                   <th className="th text-right">Cost</th>
@@ -659,6 +660,7 @@ export default function ChargersPage() {
                     </td>
                     <td className="td text-ink-600">{formatDateTime(s.startedAt)}</td>
                     <td className="td text-ink-600">{durationMinutes(s)}</td>
+                    <td className="td text-ink-600">{s.walletOwnerName ?? "—"}</td>
                     <td className="td text-ink-600">{s.vehicleRegNumber ?? "—"}</td>
                     <td className="td text-right font-medium tabular-nums">{wh(s.energyDeliveredWh)}</td>
                     <td className="td text-right tabular-nums text-ink-600">

@@ -241,6 +241,36 @@ export async function recordTransactionEvent(
   }
 }
 
+/**
+ * Traces an id token → its rfidTokens doc → the EMSP user it's assigned to
+ * (if any), independent of whether a debit actually happens — a durable
+ * "who charged" reference on every session, not just ones that got billed
+ * to a wallet. debitWalletForSession resolves the same chain again for the
+ * actual debit; kept separate so a ₹0 or unbilled session still records
+ * who it was, which billing (only triggered by a real debit) can't.
+ */
+async function lookupWalletOwnerForIdToken(
+  idToken: string | null | undefined,
+): Promise<{ emspUserId: string; ownerType: "EMSP_USER" | "CORPORATE_ACCOUNT"; ownerId: string; ownerName: string } | null> {
+  if (!idToken) return null;
+  const tokenSnap = await db().collection("rfidTokens").where("idToken", "==", idToken).limit(1).get();
+  if (tokenSnap.empty) return null;
+  const tokenId = tokenSnap.docs[0]!.id;
+  const userSnap = await db().collection("emspUsers").where("rfidTokenId", "==", tokenId).limit(1).get();
+  if (userSnap.empty) return null;
+  const userDoc = userSnap.docs[0]!;
+  const user = userDoc.data();
+  const corporateAccountId = user.corporateAccountId as string | null | undefined;
+  const ownerType: "EMSP_USER" | "CORPORATE_ACCOUNT" = corporateAccountId ? "CORPORATE_ACCOUNT" : "EMSP_USER";
+  const ownerId = corporateAccountId ?? userDoc.id;
+  let ownerName = (user.name as string | undefined) ?? "Unknown";
+  if (ownerType === "CORPORATE_ACCOUNT") {
+    const accSnap = await db().collection("corporateAccounts").doc(ownerId).get();
+    ownerName = (accSnap.data()?.name as string | undefined) ?? ownerName;
+  }
+  return { emspUserId: userDoc.id, ownerType, ownerId, ownerName };
+}
+
 /** Traces an id token → its rfidTokens doc → the vehicle it's assigned to (if any), so a session can be attributed to a specific fleet vehicle. */
 async function lookupVehicleForIdToken(
   idToken: string | null | undefined,
@@ -283,6 +313,7 @@ async function billSession(
     ? Math.round(cost.totalCostInr * (1 - discountPct / 100) * 100) / 100
     : cost.totalCostInr;
   const vehicle = await lookupVehicleForIdToken(idToken);
+  const walletOwner = await lookupWalletOwnerForIdToken(idToken);
 
   await ref.set(
     {
@@ -297,6 +328,12 @@ async function billSession(
       durationMinutes: Math.round(durationMinutes * 100) / 100,
       ...(discountPct && { subscriptionDiscountPct: discountPct }),
       ...(vehicle && { vehicleId: vehicle.id, vehicleRegNumber: vehicle.regNumber, vehicleLabel: vehicle.carLabel }),
+      ...(walletOwner && {
+        emspUserId: walletOwner.emspUserId,
+        walletOwnerType: walletOwner.ownerType,
+        walletOwnerId: walletOwner.ownerId,
+        walletOwnerName: walletOwner.ownerName,
+      }),
     },
     { merge: true },
   );

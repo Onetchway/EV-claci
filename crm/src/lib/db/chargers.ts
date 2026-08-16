@@ -78,7 +78,9 @@ export interface ChargeSession {
   parkingFeeInr?: number;
   idleFeeInr?: number;
   totalCostInr?: number;
-  /** Set when the session's id token was traced to an EMSP user/corporate account and the cost was auto-debited from their wallet. */
+  /** Set whenever the session's id token traces to an EMSP user — a durable "who charged" reference, independent of walletDebited (also set for a ₹0 or otherwise-unbilled session, which never triggers a debit). */
+  emspUserId?: string;
+  /** True only when the cost was actually auto-debited from a wallet. */
   walletDebited?: boolean;
   walletOwnerType?: "EMSP_USER" | "CORPORATE_ACCOUNT";
   walletOwnerId?: string;
