@@ -14,10 +14,11 @@ import { agentPerformance } from "@/lib/analytics";
 import {
   INDIAN_STATES, ROLES, ROLE_HINT, ROLE_LABEL, ROLE_RANK, type Role,
 } from "@/lib/constants";
+import { subscribeOrganizations } from "@/lib/db/organizations";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { canAssignRole, isAdmin, isSuperAdmin } from "@/lib/permissions";
-import type { AppUser } from "@/lib/types";
+import type { AppUser, Organization } from "@/lib/types";
 import { formatCompactINR, formatDate } from "@/lib/utils";
 
 const ROLE_STYLE: Record<Role, string> = {
@@ -55,6 +56,7 @@ export default function UsersPage() {
   const { busy, run } = useAsyncAction();
 
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AppUser | null>(null);
@@ -70,6 +72,10 @@ export default function UsersPage() {
   useEffect(() => {
     if (!role || !isAdmin(role)) return;
     return subscribeUsers((rows) => { setUsers(rows); setLoading(false); }, () => setLoading(false));
+  }, [role]);
+  useEffect(() => {
+    if (!role || !isSuperAdmin(role)) return;
+    return subscribeOrganizations(setOrgs);
   }, [role]);
 
   const viewer = useViewer();
@@ -301,6 +307,22 @@ export default function UsersPage() {
                 options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
               />
             </Field>
+
+            {isSuperAdmin(viewer.role) && (
+              <Field label="Organisation (white label)" hint="No organisation = Livanto's own default. Assigning one scopes this person's branding only — data isolation between organisations isn't built yet.">
+                <Select
+                  placeholder="Default (Livanto)"
+                  value={editing.orgId ?? ""}
+                  onChange={(e) =>
+                    void run(async () => {
+                      await patchUser(editing.uid, { orgId: e.target.value || null });
+                      setEditing({ ...editing, orgId: e.target.value || null });
+                    }, "Saved.")
+                  }
+                  options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+                />
+              </Field>
+            )}
 
             <div className="flex flex-wrap gap-2 border-t border-ink-200 pt-4">
               <Button

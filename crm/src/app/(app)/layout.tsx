@@ -16,7 +16,9 @@ import { NotificationBell } from "@/components/notification-bell";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { useChargerCatalog } from "@/hooks/use-catalog";
 import { ROLE_LABEL } from "@/lib/constants";
+import { subscribeOrganization } from "@/lib/db/organizations";
 import { isAdmin } from "@/lib/permissions";
+import type { Organization } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -77,6 +79,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Settings",
     items: [
       { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
+      { href: "/organizations", label: "Organisations (White Label)", icon: Building2, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
       { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
       { href: "/trash", label: "Trash", icon: Trash2, adminOnly: true },
@@ -89,10 +92,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
+  const [org, setOrg] = useState<Organization | null>(null);
 
   // Keeps the pricing engine's custom-charger registry in sync app-wide, not
   // just while the Catalogue page happens to be mounted.
   useChargerCatalog();
+
+  useEffect(() => {
+    if (!profile?.orgId) { setOrg(null); return; }
+    return subscribeOrganization(profile.orgId, setOrg);
+  }, [profile?.orgId]);
 
   useEffect(() => {
     if (!loading && configured && !user) router.replace("/login");
@@ -147,12 +156,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <nav className="flex h-full flex-col">
       <div className="flex items-center gap-2 px-4 py-4">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-white">
-          <Zap className="h-5 w-5" />
-        </span>
+        {org?.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={org.logoUrl} alt="" className="h-9 w-9 rounded-lg object-contain" />
+        ) : (
+          <span
+            className={cn(
+              "inline-flex h-9 w-9 items-center justify-center rounded-lg text-white",
+              !org?.primaryColorHex && "bg-brand-500",
+            )}
+            style={org?.primaryColorHex ? { backgroundColor: org.primaryColorHex } : undefined}
+          >
+            <Zap className="h-5 w-5" />
+          </span>
+        )}
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">Livanto Green</p>
-          <p className="truncate text-[11px] text-ink-400">Franchise CRM</p>
+          <p className="truncate text-sm font-semibold text-white">{org?.name ?? "Livanto Green"}</p>
+          <p className="truncate text-[11px] text-ink-400">{org ? "EV Charging CRM" : "Franchise CRM"}</p>
         </div>
       </div>
 

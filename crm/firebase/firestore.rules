@@ -94,6 +94,16 @@ service cloud.firestore {
       return canWriteLeads() && (isAdmin() || role() == 'SALES_MANAGER' || leadOwnerId(leadId) == uid());
     }
 
+    // ------------------------------------------------------------- organizations
+
+    // White-label tenant registry (branding only — see types.ts's Organization
+    // doc comment). Restricted to super admins: this is a tenant-level
+    // business decision, not a day-to-day operational one.
+    match /organizations/{orgId} {
+      allow read: if signedIn();
+      allow write: if isSuperAdmin();
+    }
+
     // ------------------------------------------------------------------ users
 
     match /users/{userId} {

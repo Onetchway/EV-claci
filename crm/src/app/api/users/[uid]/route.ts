@@ -17,6 +17,8 @@ const PatchUser = z.object({
   active: z.boolean().optional(),
   /** Set a new password for the user. */
   password: z.string().min(8).max(72).optional(),
+  /** Which white-label tenant this team member belongs to. Null clears it back to the default organisation. */
+  orgId: z.string().max(128).nullable().optional(),
 });
 
 function assertCanAssign(callerRole: Role, target: Role) {
@@ -62,9 +64,12 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     if (body.password && caller.role !== "SUPER_ADMIN" && ROLE_RANK[current.role] >= ROLE_RANK.ADMIN) {
       throw new ApiError("Only a super admin can reset an admin's password.", 403);
     }
+    if (body.orgId !== undefined && caller.role !== "SUPER_ADMIN") {
+      throw new ApiError("Only a super admin can assign a team member's organisation.", 403);
+    }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "region", "managerId", "active"] as const) {
+    for (const key of ["name", "phone", "region", "managerId", "active", "orgId"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

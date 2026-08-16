@@ -35,9 +35,32 @@ export interface AppUser {
   region?: string | null;
   active: boolean;
   photoURL?: string | null;
+  /** No orgId = the default (Livanto's own) organisation. Set only for a white-label tenant's team members. */
+  orgId?: string | null;
   createdAt: TS;
   createdBy?: string | null;
   lastLoginAt?: TS;
+}
+
+/**
+ * A white-label tenant — the foundation for reselling this CRM under
+ * another company's branding. Deliberately additive-only for now: nothing
+ * else in the schema is scoped by orgId yet (no data isolation between
+ * organisations), so every existing lead/charger/etc. is implicitly
+ * shared/visible regardless of which org a user belongs to. Real
+ * multi-tenant data isolation — every collection scoped and rule-enforced
+ * per orgId — is a separate, larger migration, not done here.
+ */
+export interface Organization {
+  id: string;
+  name: string;
+  logoUrl?: string;
+  primaryColorHex?: string;
+  /** Stored for future DNS/routing setup — not yet actively used to route traffic. */
+  customDomain?: string;
+  active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
 }
 
 /** Bank funding, tracked alongside the sales pipeline rather than inside it. */
