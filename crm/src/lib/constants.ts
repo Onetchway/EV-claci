@@ -933,7 +933,9 @@ export const TARIFF_PRICING_TYPE_LABEL: Record<TariffPricingType, string> = {
   PER_SESSION: "Flat per session",
 };
 
-export const TARIFF_SCOPES = ["ALL_CHARGERS", "STATE", "CITY", "ZONE", "FLEET", "SPECIFIC_CHARGERS", "SPECIFIC_CONNECTORS"] as const;
+export const TARIFF_SCOPES = [
+  "ALL_CHARGERS", "STATE", "CITY", "ZONE", "FLEET", "USER", "CORPORATE", "SPECIFIC_CHARGERS", "SPECIFIC_CONNECTORS",
+] as const;
 export type TariffScope = (typeof TARIFF_SCOPES)[number];
 
 export const TARIFF_SCOPE_LABEL: Record<TariffScope, string> = {
@@ -942,6 +944,8 @@ export const TARIFF_SCOPE_LABEL: Record<TariffScope, string> = {
   CITY: "City-wise",
   ZONE: "Site / zone-wise",
   FLEET: "Fleet-wise",
+  USER: "Specific user",
+  CORPORATE: "Corporate account-wise",
   SPECIFIC_CHARGERS: "Specific chargers",
   SPECIFIC_CONNECTORS: "Specific connectors",
 };

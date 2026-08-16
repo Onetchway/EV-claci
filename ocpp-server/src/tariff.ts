@@ -13,7 +13,9 @@
 import { db } from "./firebase.js";
 
 export type TariffPricingType = "PER_KWH" | "PER_MINUTE" | "PER_SESSION";
-export type TariffScope = "ALL_CHARGERS" | "STATE" | "CITY" | "ZONE" | "FLEET" | "SPECIFIC_CHARGERS" | "SPECIFIC_CONNECTORS";
+export type TariffScope =
+  | "ALL_CHARGERS" | "STATE" | "CITY" | "ZONE" | "FLEET" | "USER" | "CORPORATE"
+  | "SPECIFIC_CHARGERS" | "SPECIFIC_CONNECTORS";
 
 export interface TariffTimeWindow {
   daysOfWeek: number[];
@@ -32,6 +34,10 @@ export interface TariffDoc {
   states: string[];
   /** Only used when scope === "FLEET" — matches the vehicle's fleetId (traced via the session's id token → its RFID card → the vehicle it's assigned to). */
   fleetIds: string[];
+  /** Only used when scope === "USER" — matches the session's id token → its RFID card → the EMSP user it's assigned to. */
+  emspUserIds: string[];
+  /** Only used when scope === "CORPORATE" — matches that EMSP user's corporateAccountId. */
+  corporateAccountIds: string[];
   pricingType: TariffPricingType;
   rate: number;
   gstPct: number;
@@ -64,8 +70,10 @@ function matchesTimeWindow(tw: TariffTimeWindow, at: Date): boolean {
 
 /** Higher = more specific; used to pick the best match when several tariffs apply. */
 const SCOPE_SPECIFICITY: Record<TariffScope, number> = {
-  SPECIFIC_CONNECTORS: 6,
-  SPECIFIC_CHARGERS: 5,
+  SPECIFIC_CONNECTORS: 8,
+  SPECIFIC_CHARGERS: 7,
+  USER: 6,
+  CORPORATE: 5,
   FLEET: 4,
   ZONE: 3,
   CITY: 2,
@@ -95,15 +103,29 @@ export async function loadChargerContext(chargerId: string): Promise<ChargerCont
   return { zoneId, state: (data.state as string | undefined) ?? null, city };
 }
 
-/** Traces an id token → its rfidTokens doc → the vehicle it's assigned to → that vehicle's fleetId, for FLEET-scoped tariffs. */
-async function loadFleetIdForIdToken(idToken: string | null | undefined): Promise<string | null> {
-  if (!idToken) return null;
+interface UserContext {
+  fleetId: string | null;
+  emspUserId: string | null;
+  corporateAccountId: string | null;
+}
+
+/** Traces an id token → its rfidTokens doc → whichever of a vehicle (FLEET), a driver's EMSP user (USER), or that user's corporate account (CORPORATE) the card is assigned to. */
+async function loadUserContextForIdToken(idToken: string | null | undefined): Promise<UserContext> {
+  const empty: UserContext = { fleetId: null, emspUserId: null, corporateAccountId: null };
+  if (!idToken) return empty;
   const tokenSnap = await db().collection("rfidTokens").where("idToken", "==", idToken).limit(1).get();
-  if (tokenSnap.empty) return null;
+  if (tokenSnap.empty) return empty;
   const tokenId = tokenSnap.docs[0]!.id;
-  const vehicleSnap = await db().collection("vehicles").where("rfidTokenId", "==", tokenId).limit(1).get();
-  if (vehicleSnap.empty) return null;
-  return (vehicleSnap.docs[0]!.data().fleetId as string | undefined) ?? null;
+
+  const [vehicleSnap, userSnap] = await Promise.all([
+    db().collection("vehicles").where("rfidTokenId", "==", tokenId).limit(1).get(),
+    db().collection("emspUsers").where("rfidTokenId", "==", tokenId).limit(1).get(),
+  ]);
+
+  const fleetId = vehicleSnap.empty ? null : ((vehicleSnap.docs[0]!.data().fleetId as string | undefined) ?? null);
+  const emspUserId = userSnap.empty ? null : userSnap.docs[0]!.id;
+  const corporateAccountId = userSnap.empty ? null : ((userSnap.docs[0]!.data().corporateAccountId as string | undefined) ?? null);
+  return { fleetId, emspUserId, corporateAccountId };
 }
 
 export async function resolveTariff(
@@ -112,10 +134,10 @@ export async function resolveTariff(
   connectorId?: number | null,
   idToken?: string | null,
 ): Promise<TariffDoc | null> {
-  const [snap, ctx, fleetId] = await Promise.all([
+  const [snap, ctx, userCtx] = await Promise.all([
     db().collection("tariffs").where("active", "==", true).get(),
     loadChargerContext(chargerId),
-    loadFleetIdForIdToken(idToken),
+    loadUserContextForIdToken(idToken),
   ]);
 
   const connectorKey = connectorId != null ? `${chargerId}#${connectorId}` : null;
@@ -125,7 +147,9 @@ export async function resolveTariff(
     const t = { id: doc.id, ...doc.data() } as TariffDoc;
     if (t.scope === "SPECIFIC_CONNECTORS" && (!connectorKey || !(t.connectorKeys ?? []).includes(connectorKey))) continue;
     if (t.scope === "SPECIFIC_CHARGERS" && !t.chargerIds.includes(chargerId)) continue;
-    if (t.scope === "FLEET" && (!fleetId || !(t.fleetIds ?? []).includes(fleetId))) continue;
+    if (t.scope === "USER" && (!userCtx.emspUserId || !(t.emspUserIds ?? []).includes(userCtx.emspUserId))) continue;
+    if (t.scope === "CORPORATE" && (!userCtx.corporateAccountId || !(t.corporateAccountIds ?? []).includes(userCtx.corporateAccountId))) continue;
+    if (t.scope === "FLEET" && (!userCtx.fleetId || !(t.fleetIds ?? []).includes(userCtx.fleetId))) continue;
     if (t.scope === "ZONE" && (!ctx.zoneId || !t.zoneIds.includes(ctx.zoneId))) continue;
     if (t.scope === "CITY" && (!ctx.city || !(t.cities ?? []).includes(ctx.city))) continue;
     if (t.scope === "STATE" && (!ctx.state || !t.states.includes(ctx.state))) continue;

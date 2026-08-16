@@ -541,6 +541,10 @@ export interface Tariff {
   states: string[];
   /** Only used when scope === "FLEET" — matches the vehicle's fleetId (traced via the session's id token → its RFID card → the vehicle it's assigned to). */
   fleetIds: string[];
+  /** Only used when scope === "USER" — matches the session's id token → its RFID card → the EMSP user it's assigned to. */
+  emspUserIds: string[];
+  /** Only used when scope === "CORPORATE" — matches that EMSP user's corporateAccountId. */
+  corporateAccountIds: string[];
   pricingType: TariffPricingType;
   /** ₹ per kWh / per minute / flat per session, excl. GST. */
   rate: number;
