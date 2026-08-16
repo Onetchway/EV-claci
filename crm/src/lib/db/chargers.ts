@@ -87,6 +87,12 @@ export interface ChargeSession {
   walletOwnerName?: string;
   /** Set when an active subscription discounted this session's totalCostInr — the % already applied, for display. */
   subscriptionDiscountPct?: number;
+  /** Set once a manual discount is applied (see /api/sessions/discount) — the pre-discount totalCostInr, preserved for audit. */
+  originalCostInr?: number;
+  manualDiscountInr?: number;
+  manualDiscountReason?: string;
+  manualDiscountBy?: { uid: string; name: string; role: string };
+  manualDiscountAt?: TS;
   /** Stamped at billing time, in minutes — a stored duration rather than one recomputed client-side from startedAt/endedAt each render. */
   durationMinutes?: number;
   /** Traced from the session's id token to the vehicle whose RFID card it is, if assigned (see fleets → vehicles). */

@@ -28,7 +28,8 @@ import { addRfidToken, deleteRfidToken, setRfidTokenStatus, subscribeRfidTokens 
 import { subscribeTickets } from "@/lib/db/tickets";
 import { subscribeZones } from "@/lib/db/zones";
 import { INDIAN_STATES, LEAD_TYPE_LABEL, LEAD_TYPES, type LeadType } from "@/lib/constants";
-import { canManageChargers, canManageRfid } from "@/lib/permissions";
+import { canManageChargers, canManageRfid, canVerifyPayment } from "@/lib/permissions";
+import { applySessionDiscount } from "@/lib/sessions-client";
 import type { Lead, RfidToken, Ticket, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
 
@@ -116,6 +117,8 @@ export default function ChargersPage() {
   const viewer = useViewer();
   const { settings } = useSettings();
   const canManage = canManageChargers(viewer);
+  const canFinance = canVerifyPayment(viewer);
+  const [discountBusy, setDiscountBusy] = useState<string | null>(null);
 
   const [points, setPoints] = useState<ChargePoint[]>([]);
   const [sessions, setSessions] = useState<ChargeSession[]>([]);
@@ -209,6 +212,31 @@ export default function ChargersPage() {
       push((e as Error).message, "error");
     } finally {
       setCommandBusy(null);
+    }
+  }
+
+  async function issueSessionDiscount(s: ChargeSession) {
+    const cost = s.totalCostInr ?? 0;
+    const amountStr = window.prompt(`Discount how much (₹) off this ${formatINR(cost)} session? Up to the full amount.`, "");
+    if (amountStr == null) return;
+    const amount = Number(amountStr);
+    if (!amount || amount <= 0 || amount > cost) {
+      push("Enter a valid amount up to the session's current total.", "error");
+      return;
+    }
+    const reason = window.prompt("Reason for this discount (shown in the audit trail):", "");
+    if (!reason?.trim()) {
+      push("A reason is required.", "error");
+      return;
+    }
+    setDiscountBusy(s.id);
+    try {
+      await applySessionDiscount(s.id, amount, reason.trim());
+      push("Discount applied.", "success");
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setDiscountBusy(null);
     }
   }
 
@@ -692,7 +720,7 @@ export default function ChargersPage() {
                   <th className="th">Vehicle</th>
                   <th className="th text-right">Energy delivered</th>
                   <th className="th text-right">Cost</th>
-                  {canManage && <th className="th text-right">Actions</th>}
+                  {(canManage || canFinance) && <th className="th text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
@@ -718,12 +746,26 @@ export default function ChargersPage() {
                               Paid — {s.walletOwnerName ?? "wallet"}
                             </span>
                           )}
+                          {s.manualDiscountInr != null && (
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-amber-600">
+                              -{formatINR(s.manualDiscountInr)} discount
+                            </span>
+                          )}
                         </div>
                       ) : s.status === "ENDED" ? "No tariff matched" : "—"}
                     </td>
-                    {canManage && (
+                    {(canManage || canFinance) && (
                       <td className="td text-right">
-                        {s.status === "ACTIVE" && (
+                        {canFinance && s.totalCostInr != null && (
+                          <Button
+                            size="sm"
+                            loading={discountBusy === s.id}
+                            onClick={() => void issueSessionDiscount(s)}
+                          >
+                            Discount
+                          </Button>
+                        )}
+                        {canManage && s.status === "ACTIVE" && (
                           <Button
                             size="sm"
                             disabled={commandBusy === s.chargePointId + "Remote stop"}
