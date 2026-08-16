@@ -9,12 +9,13 @@ import {
   Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, useAsyncAction,
 } from "@/components/ui";
 import {
-  assignVehicleDriver, createDriver, createVehicle, deleteDriver, deleteVehicle,
+  assignVehicleDriver, assignVehicleRfidToken, createDriver, createVehicle, deleteDriver, deleteVehicle,
   subscribeDrivers, subscribeFleets, subscribeVehicles,
 } from "@/lib/db/fleets";
 import { EV_CAR_CATALOG, findCar, OTHER_CAR_ID } from "@/lib/ev-cars";
+import { subscribeRfidTokens } from "@/lib/db/rfid";
 import { canManageFleets } from "@/lib/permissions";
-import type { Driver, Fleet, Vehicle } from "@/lib/types";
+import type { Driver, Fleet, RfidToken, Vehicle } from "@/lib/types";
 
 export default function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +27,7 @@ export default function FleetDetailPage() {
   const [fleets, setFleets] = useState<Fleet[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [rfidTokens, setRfidTokens] = useState<RfidToken[]>([]);
 
   const [vOpen, setVOpen] = useState(false);
   const [vReg, setVReg] = useState("");
@@ -41,6 +43,7 @@ export default function FleetDetailPage() {
   useEffect(() => subscribeFleets(setFleets), []);
   useEffect(() => subscribeVehicles(id, setVehicles), [id]);
   useEffect(() => subscribeDrivers(id, setDrivers), [id]);
+  useEffect(() => subscribeRfidTokens(setRfidTokens), []);
 
   const fleet = fleets.find((f) => f.id === id);
   const driverName = useMemo(() => new Map(drivers.map((d) => [d.id, d.name])), [drivers]);
@@ -80,7 +83,7 @@ export default function FleetDetailPage() {
             <div className="overflow-x-auto scroll-thin">
               <table className="w-full">
                 <thead className="border-b border-ink-200">
-                  <tr><th className="th">Reg. no.</th><th className="th">Car</th><th className="th">Battery</th><th className="th">Driver</th>{canManage && <th className="th text-right">Actions</th>}</tr>
+                  <tr><th className="th">Reg. no.</th><th className="th">Car</th><th className="th">Battery</th><th className="th">Driver</th><th className="th">RFID card</th>{canManage && <th className="th text-right">Actions</th>}</tr>
                 </thead>
                 <tbody className="divide-y divide-ink-100">
                   {vehicles.map((v) => (
@@ -97,6 +100,16 @@ export default function FleetDetailPage() {
                             placeholder="Unassigned"
                           />
                         ) : (v.assignedDriverId ? driverName.get(v.assignedDriverId) ?? "—" : "—")}
+                      </td>
+                      <td className="td">
+                        {canManage ? (
+                          <Select
+                            value={v.rfidTokenId ?? ""}
+                            onChange={(e) => void run(() => assignVehicleRfidToken(v.id, e.target.value || null))}
+                            options={rfidTokens.map((t) => ({ value: t.id, label: `${t.label} (${t.idToken})` }))}
+                            placeholder="Unassigned"
+                          />
+                        ) : (v.rfidTokenId ? rfidTokens.find((t) => t.id === v.rfidTokenId)?.label ?? "—" : "—")}
                       </td>
                       {canManage && (
                         <td className="td text-right">

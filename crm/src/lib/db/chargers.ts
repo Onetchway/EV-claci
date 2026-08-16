@@ -83,6 +83,12 @@ export interface ChargeSession {
   walletOwnerName?: string;
   /** Set when an active subscription discounted this session's totalCostInr — the % already applied, for display. */
   subscriptionDiscountPct?: number;
+  /** Stamped at billing time, in minutes — a stored duration rather than one recomputed client-side from startedAt/endedAt each render. */
+  durationMinutes?: number;
+  /** Traced from the session's id token to the vehicle whose RFID card it is, if assigned (see fleets → vehicles). */
+  vehicleId?: string | null;
+  vehicleRegNumber?: string | null;
+  vehicleLabel?: string | null;
 }
 
 function mapChargePoint(id: string, data: Record<string, unknown>): ChargePoint {

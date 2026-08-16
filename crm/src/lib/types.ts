@@ -797,6 +797,8 @@ export interface Vehicle {
   carLabel: string;
   batteryKwh?: number;
   assignedDriverId?: string | null;
+  /** The RFID card that lives in this vehicle — lets the OCPP server attribute a charging session back to a specific vehicle. */
+  rfidTokenId?: string | null;
   createdAt: TS;
   createdBy?: Actor | null;
 }

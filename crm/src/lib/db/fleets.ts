@@ -90,6 +90,11 @@ export async function assignVehicleDriver(vehicleId: string, driverId: string | 
   await updateDoc(doc(getDb(), VEHICLES, vehicleId), { assignedDriverId: driverId });
 }
 
+/** Assigns the RFID card that lives in a vehicle, so the OCPP server can attribute charging sessions back to it. */
+export async function assignVehicleRfidToken(vehicleId: string, rfidTokenId: string | null): Promise<void> {
+  await updateDoc(doc(getDb(), VEHICLES, vehicleId), { rfidTokenId });
+}
+
 export async function deleteFleet(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), FLEETS, id));
 }

@@ -227,6 +227,20 @@ export async function recordTransactionEvent(
   }
 }
 
+/** Traces an id token → its rfidTokens doc → the vehicle it's assigned to (if any), so a session can be attributed to a specific fleet vehicle. */
+async function lookupVehicleForIdToken(
+  idToken: string | null | undefined,
+): Promise<{ id: string; regNumber: string; carLabel: string } | null> {
+  if (!idToken) return null;
+  const tokenSnap = await db().collection("rfidTokens").where("idToken", "==", idToken).limit(1).get();
+  if (tokenSnap.empty) return null;
+  const tokenId = tokenSnap.docs[0]!.id;
+  const vehicleSnap = await db().collection("vehicles").where("rfidTokenId", "==", tokenId).limit(1).get();
+  if (vehicleSnap.empty) return null;
+  const v = vehicleSnap.docs[0]!.data();
+  return { id: vehicleSnap.docs[0]!.id, regNumber: v.regNumber as string, carLabel: v.carLabel as string };
+}
+
 /**
  * Bills a just-ended session against whatever tariff currently applies.
  * A session with no matching active tariff is left unbilled (no cost
@@ -254,6 +268,7 @@ async function billSession(
   const totalCostInr = discountPct
     ? Math.round(cost.totalCostInr * (1 - discountPct / 100) * 100) / 100
     : cost.totalCostInr;
+  const vehicle = await lookupVehicleForIdToken(idToken);
 
   await ref.set(
     {
@@ -265,7 +280,9 @@ async function billSession(
       parkingFeeInr: cost.parkingFeeInr,
       idleFeeInr: cost.idleFeeInr,
       totalCostInr,
+      durationMinutes: Math.round(durationMinutes * 100) / 100,
       ...(discountPct && { subscriptionDiscountPct: discountPct }),
+      ...(vehicle && { vehicleId: vehicle.id, vehicleRegNumber: vehicle.regNumber, vehicleLabel: vehicle.carLabel }),
     },
     { merge: true },
   );
