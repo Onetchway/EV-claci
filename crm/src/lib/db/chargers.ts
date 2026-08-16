@@ -41,6 +41,8 @@ export interface ChargePoint {
   firmwareStatus?: string | null;
   firmwareStatusAt?: TS;
   connectors?: Record<string, ConnectorState>;
+  /** Charger-level (not per-connector) availability, set from a ChangeAvailability command's Accepted result. */
+  operationalStatus?: "OPERATIVE" | "INOPERATIVE";
   connectedAt?: TS;
   disconnectedAt?: TS;
   lastSeenAt?: TS;

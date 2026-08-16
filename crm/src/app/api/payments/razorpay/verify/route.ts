@@ -71,6 +71,10 @@ export async function POST(req: Request) {
         if (coupon.maxUses && couponUsedCount >= coupon.maxUses) {
           throw new ApiError("This coupon has reached its redemption limit.", 400);
         }
+        const restrictedOwnerId = coupon.restrictedToOwnerId as string | null | undefined;
+        if (restrictedOwnerId && restrictedOwnerId !== body.ownerId) {
+          throw new ApiError("This coupon isn't valid for this account.", 400);
+        }
         bonusInr = coupon.type === "PERCENT"
           ? Math.round(body.amountInr * ((coupon.value as number) / 100) * 100) / 100
           : (coupon.value as number);

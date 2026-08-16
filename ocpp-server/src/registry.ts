@@ -118,6 +118,18 @@ export async function markOnline(
   dispatchWebhookSafe("charger.online", { chargePointId });
 }
 
+/**
+ * Charger-level (not per-connector) operational status — set from a
+ * ChangeAvailability command's own Accepted result, since OCPP 2.0.1
+ * doesn't otherwise push a whole-station availability notification back.
+ */
+export async function recordOperationalStatus(chargePointId: string, operationalStatus: "OPERATIVE" | "INOPERATIVE"): Promise<void> {
+  await db().collection(CHARGE_POINTS).doc(chargePointId).set(
+    { operationalStatus, updatedAt: FieldValue.serverTimestamp() },
+    { merge: true },
+  );
+}
+
 export async function markOffline(chargePointId: string): Promise<void> {
   await db().collection(CHARGE_POINTS).doc(chargePointId).set(
     { status: "OFFLINE", disconnectedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() },

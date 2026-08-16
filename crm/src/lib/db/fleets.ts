@@ -95,6 +95,10 @@ export async function assignVehicleRfidToken(vehicleId: string, rfidTokenId: str
   await updateDoc(doc(getDb(), VEHICLES, vehicleId), { rfidTokenId });
 }
 
+export async function updateFleet(id: string, patch: { name: string; corporateAccountId?: string | null }): Promise<void> {
+  await updateDoc(doc(getDb(), FLEETS, id), { ...patch });
+}
+
 export async function deleteFleet(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), FLEETS, id));
 }

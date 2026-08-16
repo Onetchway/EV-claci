@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -7,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { useViewer } from "@/components/auth-provider";
+import type { MapPin as MapPinType } from "@/components/chargers-map";
 import {
   Badge, Button, Card, EmptyState, Input, PageHeader, Spinner,
 } from "@/components/ui";
@@ -18,6 +20,11 @@ import { subscribeZones } from "@/lib/db/zones";
 import { canManageChargers } from "@/lib/permissions";
 import type { Zone } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const ChargersMap = dynamic(() => import("@/components/chargers-map").then((m) => m.ChargersMap), {
+  ssr: false,
+  loading: () => <div className="flex h-[280px] items-center justify-center rounded-xl bg-ink-50 text-ink-400"><Spinner /></div>,
+});
 
 export default function StationsPage() {
   const viewer = useViewer();
@@ -39,6 +46,19 @@ export default function StationsPage() {
   }, [zones, selectedId]);
 
   const pointByChargerId = useMemo(() => new Map(points.map((p) => [p.chargePointId ?? p.id, p])), [points]);
+
+  const mapPins: MapPinType[] = useMemo(
+    () => chargers
+      .filter((c) => c.active && c.lat != null && c.lng != null)
+      .map((c) => ({
+        id: c.chargerId,
+        label: c.label,
+        lat: c.lat!,
+        lng: c.lng!,
+        online: pointByChargerId.get(c.chargerId)?.status === "ONLINE",
+      })),
+    [chargers, pointByChargerId],
+  );
 
   const chargerCountByZone = useMemo(() => {
     const map = new Map<string, number>();
@@ -71,6 +91,16 @@ export default function StationsPage() {
         description="Every site (RWA, hotel, corporate campus, etc.) and the chargers installed there — site details, revenue share and bank details in one place. Per-charger setup and remote commands still happen on Charger Dashboard."
         actions={canManage && <Button variant="primary" onClick={() => { setSelectedId(null); setModalOpen(true); }}><Plus className="h-4 w-4" /> New station</Button>}
       />
+
+      {mapPins.length > 0 && (
+        <Card
+          title="Map"
+          subtitle={`${mapPins.length} charger${mapPins.length === 1 ? "" : "s"} with a location set`}
+          className="mb-4"
+        >
+          <ChargersMap pins={mapPins} />
+        </Card>
+      )}
 
       {zones === null ? (
         <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>

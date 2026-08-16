@@ -782,6 +782,10 @@ export interface Coupon {
   maxUses?: number;
   usedCount: number;
   expiresAt?: TS | null;
+  /** Restricts redemption to one specific wallet owner ("client-wise") — a targeted promo code rather than a public one. Absent means anyone can redeem it. There's no zone/city/state restriction: a wallet top-up isn't tied to a physical charging location, so no signal exists at redemption time to enforce one honestly. */
+  restrictedToOwnerType?: "EMSP_USER" | "CORPORATE_ACCOUNT" | null;
+  restrictedToOwnerId?: string | null;
+  restrictedToOwnerName?: string | null;
   createdAt: TS;
   createdBy?: Actor | null;
 }

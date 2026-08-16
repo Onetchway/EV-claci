@@ -32,7 +32,7 @@ export function subscribeCoupons(
   );
 }
 
-export type CouponDraft = Pick<Coupon, "code" | "type" | "value" | "maxUses"> & { expiresAt?: Date };
+export type CouponDraft = Pick<Coupon, "code" | "type" | "value" | "maxUses" | "restrictedToOwnerType" | "restrictedToOwnerId" | "restrictedToOwnerName"> & { expiresAt?: Date };
 
 export async function createCoupon(draft: CouponDraft, actor: Actor): Promise<string> {
   const ref = await addDoc(collection(getDb(), COUPONS), {
@@ -44,6 +44,10 @@ export async function createCoupon(draft: CouponDraft, actor: Actor): Promise<st
     createdBy: actor,
   });
   return ref.id;
+}
+
+export async function updateCoupon(id: string, draft: CouponDraft): Promise<void> {
+  await updateDoc(doc(getDb(), COUPONS, id), { ...draft, code: draft.code.trim().toUpperCase() });
 }
 
 export async function setCouponActive(id: string, active: boolean): Promise<void> {

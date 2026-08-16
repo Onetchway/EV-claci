@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Percent, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Pencil, Percent, Plus, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
 import {
-  createCoupon, deleteCoupon, setCouponActive, subscribeCoupons, type CouponDraft,
+  createCoupon, deleteCoupon, setCouponActive, subscribeCoupons, updateCoupon, type CouponDraft,
 } from "@/lib/db/coupons";
+import { subscribeCorporateAccounts, subscribeEmspUsers } from "@/lib/db/emsp-users";
 import { canManageSettlements } from "@/lib/permissions";
-import type { Coupon, CouponType } from "@/lib/types";
+import type { Coupon, CorporateAccount, CouponType, EmspUser } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
 export default function CouponsPage() {
@@ -21,33 +22,61 @@ export default function CouponsPage() {
   const { run, busy } = useAsyncAction();
 
   const [coupons, setCoupons] = useState<Coupon[] | null>(null);
+  const [emspUsers, setEmspUsers] = useState<EmspUser[]>([]);
+  const [corporateAccounts, setCorporateAccounts] = useState<CorporateAccount[]>([]);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [type, setType] = useState<CouponType>("PERCENT");
   const [value, setValue] = useState("");
   const [maxUses, setMaxUses] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [restrictKey, setRestrictKey] = useState("");
 
   useEffect(() => subscribeCoupons(setCoupons), []);
+  useEffect(() => subscribeEmspUsers(setEmspUsers), []);
+  useEffect(() => subscribeCorporateAccounts(setCorporateAccounts), []);
+
+  const restrictOptions = useMemo(() => [
+    ...emspUsers.map((u) => ({ value: `EMSP_USER:${u.id}`, label: `${u.name} (user)` })),
+    ...corporateAccounts.map((a) => ({ value: `CORPORATE_ACCOUNT:${a.id}`, label: `${a.name} (corporate)` })),
+  ], [emspUsers, corporateAccounts]);
 
   function openNew() {
-    setCode(""); setType("PERCENT"); setValue(""); setMaxUses(""); setExpiresAt("");
+    setEditingId(null);
+    setCode(""); setType("PERCENT"); setValue(""); setMaxUses(""); setExpiresAt(""); setRestrictKey("");
+    setOpen(true);
+  }
+
+  function openEdit(c: Coupon) {
+    setEditingId(c.id);
+    setCode(c.code); setType(c.type); setValue(String(c.value)); setMaxUses(c.maxUses ? String(c.maxUses) : "");
+    setExpiresAt("");
+    setRestrictKey(c.restrictedToOwnerType && c.restrictedToOwnerId ? `${c.restrictedToOwnerType}:${c.restrictedToOwnerId}` : "");
     setOpen(true);
   }
 
   async function submit() {
     if (!actor || !code.trim() || !Number(value)) return;
+    const [restrictType, restrictId] = restrictKey ? restrictKey.split(":") : [undefined, undefined];
+    const restrictName = restrictKey
+      ? restrictOptions.find((o) => o.value === restrictKey)?.label.replace(/ \((user|corporate)\)$/, "")
+      : undefined;
     const draft: CouponDraft = {
       code: code.trim(),
       type,
       value: Number(value),
       maxUses: maxUses.trim() ? Number(maxUses) : undefined,
       expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      restrictedToOwnerType: (restrictType as CouponDraft["restrictedToOwnerType"]) ?? null,
+      restrictedToOwnerId: restrictId ?? null,
+      restrictedToOwnerName: restrictName ?? null,
     };
     await run(async () => {
-      await createCoupon(draft, actor);
+      if (editingId) await updateCoupon(editingId, draft);
+      else await createCoupon(draft, actor);
       setOpen(false);
-    }, "Coupon created.");
+    }, editingId ? "Coupon updated." : "Coupon created.");
   }
 
   return (
@@ -73,7 +102,7 @@ export default function CouponsPage() {
               <thead className="border-b border-ink-200">
                 <tr>
                   <th className="th">Code</th><th className="th">Bonus</th><th className="th">Uses</th>
-                  <th className="th">Expires</th><th className="th">Status</th>
+                  <th className="th">Restricted to</th><th className="th">Expires</th><th className="th">Status</th>
                   {canManage && <th className="th text-right">Actions</th>}
                 </tr>
               </thead>
@@ -83,6 +112,7 @@ export default function CouponsPage() {
                     <td className="td font-mono font-medium">{c.code}</td>
                     <td className="td text-ink-600">{c.type === "PERCENT" ? `${c.value}%` : formatINR(c.value)}</td>
                     <td className="td text-ink-600">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
+                    <td className="td text-ink-600">{c.restrictedToOwnerName ?? "Anyone"}</td>
                     <td className="td text-ink-600">{c.expiresAt ? formatDate(c.expiresAt) : "No expiry"}</td>
                     <td className="td">
                       <Badge className={c.active ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-ink-100 text-ink-500 ring-ink-200"}>
@@ -92,6 +122,7 @@ export default function CouponsPage() {
                     {canManage && (
                       <td className="td text-right">
                         <div className="flex justify-end gap-1.5">
+                          <Button size="sm" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
                           <Button size="sm" onClick={() => void run(() => setCouponActive(c.id, !c.active))}>
                             {c.active ? "Disable" : "Enable"}
                           </Button>
@@ -118,11 +149,13 @@ export default function CouponsPage() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title="New coupon"
+        title={editingId ? "Edit coupon" : "New coupon"}
         footer={(
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button variant="primary" loading={busy} disabled={!code.trim() || !Number(value)} onClick={() => void submit()}>Create</Button>
+            <Button variant="primary" loading={busy} disabled={!code.trim() || !Number(value)} onClick={() => void submit()}>
+              {editingId ? "Save" : "Create"}
+            </Button>
           </>
         )}
       >
@@ -145,6 +178,14 @@ export default function CouponsPage() {
           </Field>
           <Field label="Expires" hint="Leave blank for no expiry.">
             <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+          </Field>
+          <Field label="Restrict to a client (client-wise)" hint="A wallet top-up isn't tied to a zone/city/state, so only a specific user or corporate account can be enforced — not a location.">
+            <Select
+              value={restrictKey}
+              onChange={(e) => setRestrictKey(e.target.value)}
+              options={restrictOptions}
+              placeholder="Anyone can redeem"
+            />
           </Field>
         </div>
       </Modal>

@@ -24,7 +24,7 @@ import {
   encodeCallError, encodeCallResult, isCall, isCallResult, isCallError, parseFrame,
 } from "./ocpp/rpc.js";
 import {
-  isRegisteredAndActive, markOffline, registerConnection, unregisterConnection,
+  isRegisteredAndActive, markOffline, recordOperationalStatus, registerConnection, unregisterConnection,
 } from "./registry.js";
 import { sweepStaleConnections, sweepSlaBreaches, OFFLINE_SWEEP_MS } from "./tickets.js";
 import { sweepZoneLoads } from "./load-balancer.js";
@@ -64,6 +64,14 @@ async function handleCommandRequest(req: IncomingMessage, res: ServerResponse, c
       return;
     }
     const result = await sendCommand(chargerId, body.action as CommandAction, body.payload ?? {});
+    if (body.action === "ChangeAvailability") {
+      const payload = (body.payload ?? {}) as { evse?: unknown; operationalStatus?: string };
+      const resultData = result as { status?: string };
+      if (!payload.evse && resultData?.status === "Accepted" && payload.operationalStatus) {
+        const status = payload.operationalStatus === "Inoperative" ? "INOPERATIVE" : "OPERATIVE";
+        await recordOperationalStatus(chargerId, status).catch(() => undefined);
+      }
+    }
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ ok: true, result }));
   } catch (err) {

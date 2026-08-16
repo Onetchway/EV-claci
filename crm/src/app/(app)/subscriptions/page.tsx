@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Repeat, Trash2 } from "lucide-react";
+import { Pencil, Plus, Repeat, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -10,7 +10,7 @@ import {
 import { subscribeEmspUsers } from "@/lib/db/emsp-users";
 import {
   cancelSubscription, createPlan, deletePlan, setPlanActive, subscribeAllSubscriptions, subscribePlans,
-  subscribeUserToPlan, type PlanDraft,
+  subscribeUserToPlan, updatePlan, type PlanDraft,
 } from "@/lib/db/subscriptions";
 import { canManageEmspUsers } from "@/lib/permissions";
 import type { EmspUser, SubscriptionPlan, UserSubscription } from "@/lib/types";
@@ -28,6 +28,7 @@ export default function SubscriptionsPage() {
   const [users, setUsers] = useState<EmspUser[]>([]);
 
   const [planOpen, setPlanOpen] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [pName, setPName] = useState("");
   const [pPrice, setPPrice] = useState("");
   const [pDiscount, setPDiscount] = useState("");
@@ -48,9 +49,16 @@ export default function SubscriptionsPage() {
     if (!actor || !pName.trim() || !Number(pPrice)) return;
     const draft: PlanDraft = { name: pName.trim(), monthlyPriceInr: Number(pPrice), discountPct: Number(pDiscount) || 0 };
     await run(async () => {
-      await createPlan(draft, actor);
-      setPName(""); setPPrice(""); setPDiscount(""); setPlanOpen(false);
-    }, "Plan created.");
+      if (editingPlanId) await updatePlan(editingPlanId, draft);
+      else await createPlan(draft, actor);
+      setPName(""); setPPrice(""); setPDiscount(""); setPlanOpen(false); setEditingPlanId(null);
+    }, editingPlanId ? "Plan updated." : "Plan created.");
+  }
+
+  function openEditPlan(p: SubscriptionPlan) {
+    setEditingPlanId(p.id);
+    setPName(p.name); setPPrice(String(p.monthlyPriceInr)); setPDiscount(String(p.discountPct));
+    setPlanOpen(true);
   }
 
   async function submitSubscribe() {
@@ -76,7 +84,7 @@ export default function SubscriptionsPage() {
         description="Monthly plans an EMSP user can be put on: the first month debits their wallet immediately, and every session while an active subscription is in effect gets the plan's discount applied automatically. Renews itself by re-debiting the wallet every 30 days (allowed to go negative, same as session billing) until cancelled."
         actions={canManage && (
           <>
-            <Button onClick={() => setPlanOpen(true)}><Plus className="h-4 w-4" /> New plan</Button>
+            <Button onClick={() => { setEditingPlanId(null); setPName(""); setPPrice(""); setPDiscount(""); setPlanOpen(true); }}><Plus className="h-4 w-4" /> New plan</Button>
             <Button variant="primary" onClick={() => setSubOpen(true)} disabled={!plans?.length}>
               <Repeat className="h-4 w-4" /> Subscribe a user
             </Button>
@@ -109,6 +117,7 @@ export default function SubscriptionsPage() {
                     {canManage && (
                       <td className="td text-right">
                         <div className="flex justify-end gap-1.5">
+                          <Button size="sm" onClick={() => openEditPlan(p)}><Pencil className="h-3.5 w-3.5" /></Button>
                           <Button size="sm" onClick={() => void run(() => setPlanActive(p.id, !p.active))}>
                             {p.active ? "Disable" : "Enable"}
                           </Button>
@@ -173,11 +182,13 @@ export default function SubscriptionsPage() {
       <Modal
         open={planOpen}
         onClose={() => setPlanOpen(false)}
-        title="New plan"
+        title={editingPlanId ? "Edit plan" : "New plan"}
         footer={(
           <>
             <Button variant="ghost" onClick={() => setPlanOpen(false)}>Cancel</Button>
-            <Button variant="primary" loading={busy} disabled={!pName.trim() || !Number(pPrice)} onClick={() => void submitPlan()}>Create</Button>
+            <Button variant="primary" loading={busy} disabled={!pName.trim() || !Number(pPrice)} onClick={() => void submitPlan()}>
+              {editingPlanId ? "Save" : "Create"}
+            </Button>
           </>
         )}
       >

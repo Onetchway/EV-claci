@@ -48,6 +48,10 @@ export async function createPlan(draft: PlanDraft, actor: Actor): Promise<string
   return ref.id;
 }
 
+export async function updatePlan(id: string, draft: PlanDraft): Promise<void> {
+  await updateDoc(doc(getDb(), SUBSCRIPTION_PLANS, id), { ...draft });
+}
+
 export async function setPlanActive(id: string, active: boolean): Promise<void> {
   await updateDoc(doc(getDb(), SUBSCRIPTION_PLANS, id), { active });
 }

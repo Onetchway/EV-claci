@@ -1,15 +1,13 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Battery, Copy, FileText, Lock, MapPin as MapPinIcon, Plus, Power, PowerOff, QrCode, RotateCcw,
+  Battery, Copy, FileText, Lock, MapPin as MapPinIcon, Pencil, Plus, Power, PowerOff, QrCode, RotateCcw,
   Settings2, Square, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
-import type { MapPin } from "@/components/chargers-map";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard,
   useAsyncAction, useToast,
@@ -32,11 +30,6 @@ import { INDIAN_STATES, LEAD_TYPE_LABEL, LEAD_TYPES, type LeadType } from "@/lib
 import { canManageChargers, canManageRfid } from "@/lib/permissions";
 import type { Lead, RfidToken, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
-
-const ChargersMap = dynamic(() => import("@/components/chargers-map").then((m) => m.ChargersMap), {
-  ssr: false,
-  loading: () => <div className="flex h-[360px] items-center justify-center rounded-xl bg-ink-50 text-ink-400"><Spinner /></div>,
-});
 
 const CONNECTOR_COLOR: Record<ConnectorStatus, string> = {
   Available: "bg-emerald-100 text-emerald-800 ring-emerald-200",
@@ -144,6 +137,7 @@ export default function ChargersPage() {
   const [leadOptions, setLeadOptions] = useState<Lead[]>([]);
   const [registering, setRegistering] = useState(false);
   const [justRegisteredId, setJustRegisteredId] = useState<string | null>(null);
+  const [editingRegId, setEditingRegId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
 
   const [startingFor, setStartingFor] = useState<string | null>(null);
@@ -294,19 +288,6 @@ export default function ChargersPage() {
     return rows;
   }, [registry, siteFilter, chargerSearch, zoneName]);
 
-  const mapPins: MapPin[] = useMemo(
-    () => registry
-      .filter((r) => r.active && r.lat != null && r.lng != null)
-      .map((r) => ({
-        id: r.chargerId,
-        label: r.label,
-        lat: r.lat!,
-        lng: r.lng!,
-        online: pointByChargerId.get(r.chargerId)?.status === "ONLINE",
-      })),
-    [registry, pointByChargerId],
-  );
-
   const stats = useMemo(() => {
     const online = points.filter((p) => p.status === "ONLINE").length;
     const active = sessions.filter((s) => s.status === "ACTIVE").length;
@@ -318,12 +299,18 @@ export default function ChargersPage() {
     if (!actor || !draft.label.trim() || !draft.location.trim()) return;
     setRegistering(true);
     try {
-      const chargerId = await registerCharger(
-        { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined },
-        actor,
-      );
-      setJustRegisteredId(chargerId);
-      setDraft(blankDraft);
+      if (editingRegId) {
+        await updateChargerRegistration(editingRegId, { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined });
+        push("Charger updated.", "success");
+        closeAddModal();
+      } else {
+        const chargerId = await registerCharger(
+          { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined },
+          actor,
+        );
+        setJustRegisteredId(chargerId);
+        setDraft(blankDraft);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -331,9 +318,24 @@ export default function ChargersPage() {
     }
   }
 
+  function openEditReg(r: ChargerRegistration) {
+    setEditingRegId(r.id);
+    const tsToDate = (ts: unknown) => (ts as { toDate?: () => Date } | null | undefined)?.toDate?.() ?? null;
+    setDraft({
+      label: r.label, location: r.location, state: r.state ?? "", chargerPowerType: r.chargerPowerType,
+      vendor: r.vendor, vendorOther: r.vendorOther ?? "", model: r.model ?? "", serialNumber: r.serialNumber ?? "",
+      hardwareVersion: r.hardwareVersion ?? "", simImei: r.simImei ?? "",
+      installationDate: tsToDate(r.installationDate), warrantyStart: tsToDate(r.warrantyStart), warrantyEnd: tsToDate(r.warrantyEnd),
+      connectorType: r.connectorType, powerKw: r.powerKw, connectors: r.connectors, notes: r.notes ?? "",
+      zoneId: r.zoneId ?? null, lat: r.lat ?? null, lng: r.lng ?? null, leadId: r.leadId ?? null, leadCode: r.leadCode ?? null,
+    });
+    setAddOpen(true);
+  }
+
   function closeAddModal() {
     setAddOpen(false);
     setJustRegisteredId(null);
+    setEditingRegId(null);
     setDraft(blankDraft);
     setDraftLeadType("");
   }
@@ -363,17 +365,6 @@ export default function ChargersPage() {
         </div>
       )}
 
-      <Card
-        title="Map"
-        subtitle={mapPins.length > 0 ? `${mapPins.length} charger${mapPins.length === 1 ? "" : "s"} with a location set` : "No chargers have a location yet — set one from the Locate action below."}
-        className="mb-4"
-      >
-        {mapPins.length > 0 ? <ChargersMap pins={mapPins} /> : (
-          <div className="flex h-[200px] items-center justify-center rounded-xl bg-ink-50 text-sm text-ink-400">
-            <MapPinIcon className="mr-2 h-4 w-4" /> No charger locations set
-          </div>
-        )}
-      </Card>
 
       <Card
         title="Registered chargers"
@@ -460,6 +451,16 @@ export default function ChargersPage() {
                           {canManage && (
                             <button
                               type="button"
+                              onClick={() => openEditReg(r)}
+                              className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
+                              title="Edit charger details"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                          {canManage && (
+                            <button
+                              type="button"
                               onClick={() => openLocate(r)}
                               className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
                               title="Set zone & map location"
@@ -518,12 +519,17 @@ export default function ChargersPage() {
                   <p className="truncate text-sm font-semibold text-ink-900">{p.chargePointId}</p>
                   <p className="truncate text-xs text-ink-500">{p.vendorName || "Unknown vendor"} {p.model ? `· ${p.model}` : ""}</p>
                 </div>
-                <Badge className={p.status === "ONLINE" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
-                  <span className="flex items-center gap-1">
-                    {p.status === "ONLINE" ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-                    {p.status}
-                  </span>
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge className={p.status === "ONLINE" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
+                    <span className="flex items-center gap-1">
+                      {p.status === "ONLINE" ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                      {p.status}
+                    </span>
+                  </Badge>
+                  {p.operationalStatus === "INOPERATIVE" && (
+                    <Badge className="bg-amber-100 text-amber-800 ring-amber-200">Unavailable</Badge>
+                  )}
+                </div>
               </div>
 
               {p.connectors && Object.keys(p.connectors).length > 0 ? (
@@ -579,11 +585,13 @@ export default function ChargersPage() {
                   </Button>
                   <Button
                     size="sm"
-                    disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Set unavailable"}
-                    onClick={() => void runCommand(p.chargePointId, "Set unavailable", () =>
-                      sendChargerCommand(p.chargePointId, "ChangeAvailability", { operationalStatus: "Inoperative" }))}
+                    disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Set availability"}
+                    onClick={() => void runCommand(p.chargePointId, "Set availability", () =>
+                      sendChargerCommand(p.chargePointId, "ChangeAvailability", {
+                        operationalStatus: p.operationalStatus === "INOPERATIVE" ? "Operative" : "Inoperative",
+                      }))}
                   >
-                    Set unavailable
+                    {p.operationalStatus === "INOPERATIVE" ? "Set available" : "Set unavailable"}
                   </Button>
                   <Button
                     size="sm"
@@ -889,8 +897,8 @@ export default function ChargersPage() {
       <Modal
         open={addOpen}
         onClose={closeAddModal}
-        title={justRegisteredId ? "Charger registered" : "Add charger"}
-        description={justRegisteredId ? undefined : "Generates a unique charger ID, connection URL and QR code — nothing needs to be typed into the charger's own settings until you're ready."}
+        title={justRegisteredId ? "Charger registered" : editingRegId ? "Edit charger" : "Add charger"}
+        description={justRegisteredId ? undefined : editingRegId ? undefined : "Generates a unique charger ID, connection URL and QR code — nothing needs to be typed into the charger's own settings until you're ready."}
         footer={justRegisteredId ? (
           <Button onClick={closeAddModal}>Done</Button>
         ) : (
@@ -901,7 +909,7 @@ export default function ChargersPage() {
               loading={registering}
               disabled={!draft.label.trim() || !draft.location.trim() || draft.lat == null || draft.lng == null}
             >
-              Register
+              {editingRegId ? "Save" : "Register"}
             </Button>
           </>
         )}
@@ -967,6 +975,27 @@ export default function ChargersPage() {
               <Input
                 value={draft.model ?? ""}
                 onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))}
+                placeholder="Optional"
+              />
+            </Field>
+            <Field label="Serial number">
+              <Input
+                value={draft.serialNumber ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, serialNumber: e.target.value }))}
+                placeholder="Optional — off the OEM spec sheet"
+              />
+            </Field>
+            <Field label="Hardware version" hint="Manually recorded — OCPP doesn't report this on the wire.">
+              <Input
+                value={draft.hardwareVersion ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, hardwareVersion: e.target.value }))}
+                placeholder="Optional"
+              />
+            </Field>
+            <Field label="SIM / IMEI">
+              <Input
+                value={draft.simImei ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, simImei: e.target.value }))}
                 placeholder="Optional"
               />
             </Field>
@@ -1072,6 +1101,27 @@ export default function ChargersPage() {
                 options={leadOptions.map((l) => ({ value: l.id, label: `${l.code} — ${l.client.name}` }))}
                 placeholder={draftLeadType ? "Choose a lead" : "Pick a lead type first"}
                 disabled={!draftLeadType}
+              />
+            </Field>
+            <Field label="Installation date">
+              <Input
+                type="date"
+                value={draft.installationDate ? draft.installationDate.toISOString().slice(0, 10) : ""}
+                onChange={(e) => setDraft((d) => ({ ...d, installationDate: e.target.value ? new Date(e.target.value) : null }))}
+              />
+            </Field>
+            <Field label="Warranty start">
+              <Input
+                type="date"
+                value={draft.warrantyStart ? draft.warrantyStart.toISOString().slice(0, 10) : ""}
+                onChange={(e) => setDraft((d) => ({ ...d, warrantyStart: e.target.value ? new Date(e.target.value) : null }))}
+              />
+            </Field>
+            <Field label="Warranty end">
+              <Input
+                type="date"
+                value={draft.warrantyEnd ? draft.warrantyEnd.toISOString().slice(0, 10) : ""}
+                onChange={(e) => setDraft((d) => ({ ...d, warrantyEnd: e.target.value ? new Date(e.target.value) : null }))}
               />
             </Field>
             <Field label="Notes" className="sm:col-span-2">

@@ -13,7 +13,7 @@
  */
 
 import {
-  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
+  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, Timestamp, updateDoc,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -54,6 +54,15 @@ export interface ChargerRegistration {
   /** Free-text OEM name, used (and shown instead of `vendor`) when vendor === "Other". */
   vendorOther?: string;
   model?: string;
+  /** Manually recorded at registration — the live chargePoints record also gets a serialNumber from the charger's own BootNotification once connected; this is the pre-registration value from the OEM spec sheet. */
+  serialNumber?: string;
+  /** Manually recorded — OCPP 2.0.1's BootNotification payload has no hardware-version field, so this can never be auto-populated from the wire. */
+  hardwareVersion?: string;
+  /** SIM ICCID or modem IMEI, off the OEM spec sheet — informational, not used for connectivity. */
+  simImei?: string;
+  installationDate?: TS | null;
+  warrantyStart?: TS | null;
+  warrantyEnd?: TS | null;
   /** Connector 1's type/power — kept for single-gun chargers (the common case) and as a fallback. */
   connectorType?: ConnectorTypeName;
   powerKw?: number;
@@ -77,7 +86,23 @@ export function oemLabel(r: Pick<ChargerRegistration, "vendor" | "vendorOther">)
   return r.vendor === "Other" && r.vendorOther?.trim() ? r.vendorOther : r.vendor;
 }
 
-export type ChargerRegistrationDraft = Omit<ChargerRegistration, "id" | "chargerId" | "active" | "createdAt" | "createdBy">;
+export type ChargerRegistrationDraft = Omit<
+  ChargerRegistration,
+  "id" | "chargerId" | "active" | "createdAt" | "createdBy" | "installationDate" | "warrantyStart" | "warrantyEnd"
+> & {
+  installationDate?: Date | null;
+  warrantyStart?: Date | null;
+  warrantyEnd?: Date | null;
+};
+
+/** Converts any of the three date fields present on the object from a plain Date to a Timestamp — omitted keys are left out entirely, so a partial update (e.g. just moving a pin) never blanks out warranty dates it wasn't given. */
+function draftDatesToTimestamps<T extends Partial<ChargerRegistrationDraft>>(draft: T): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...draft };
+  if ("installationDate" in draft) out.installationDate = draft.installationDate ? Timestamp.fromDate(draft.installationDate) : null;
+  if ("warrantyStart" in draft) out.warrantyStart = draft.warrantyStart ? Timestamp.fromDate(draft.warrantyStart) : null;
+  if ("warrantyEnd" in draft) out.warrantyEnd = draft.warrantyEnd ? Timestamp.fromDate(draft.warrantyEnd) : null;
+  return out;
+}
 
 function slugify(label: string): string {
   return label
@@ -113,7 +138,7 @@ export function subscribeChargerRegistry(
 export async function registerCharger(draft: ChargerRegistrationDraft, actor: Actor): Promise<string> {
   const chargerId = `${slugify(draft.label)}-${uniqueSuffix()}`;
   await addDoc(collection(getDb(), CHARGER_REGISTRY), {
-    ...draft,
+    ...draftDatesToTimestamps(draft),
     chargerId,
     active: true,
     createdAt: serverTimestamp(),
@@ -124,12 +149,9 @@ export async function registerCharger(draft: ChargerRegistrationDraft, actor: Ac
 
 export async function updateChargerRegistration(
   id: string,
-  patch: Partial<Pick<ChargerRegistration,
-    "label" | "location" | "state" | "chargerPowerType" | "vendor" | "vendorOther" | "model" | "connectorType" |
-    "powerKw" | "connectors" | "notes" | "zoneId" | "lat" | "lng" | "leadId" | "leadCode"
-  >>,
+  patch: Partial<ChargerRegistrationDraft>,
 ): Promise<void> {
-  await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), { ...patch });
+  await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), draftDatesToTimestamps(patch));
 }
 
 /**
