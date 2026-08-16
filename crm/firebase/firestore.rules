@@ -441,6 +441,12 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
     }
 
+    // Written only by the Razorpay webhook route (Admin SDK) on payment.failed.
+    match /failedPayments/{paymentId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+      allow write: if false;
+    }
+
     // Site (host) revenue-share ledger — written by ocpp-server's Admin SDK
     // at session-bill time; the CRM only ever reads and flips PENDING→PAID.
     match /siteRevenueShares/{shareId} {

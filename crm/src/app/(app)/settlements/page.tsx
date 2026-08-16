@@ -1,17 +1,18 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { Banknote, CheckCircle2, Plus, Trash2, Zap } from "lucide-react";
+import { AlertOctagon, Banknote, CheckCircle2, Plus, Trash2, Zap } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard, useAsyncAction,
 } from "@/components/ui";
 import { createElectricityBill, deleteElectricityBill, subscribeElectricityBills, type ElectricityBillDraft } from "@/lib/db/electricity-bills";
+import { subscribeFailedPayments } from "@/lib/db/failed-payments";
 import { markRevenueSharePaid, subscribeSiteRevenueShares } from "@/lib/db/settlements";
 import { subscribeZones } from "@/lib/db/zones";
 import { canManageSettlements } from "@/lib/permissions";
-import type { ElectricityBill, SiteRevenueShare, Zone } from "@/lib/types";
+import type { ElectricityBill, FailedPayment, SiteRevenueShare, Zone } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 export default function SettlementsPage() {
@@ -24,6 +25,7 @@ export default function SettlementsPage() {
   const [zoneFilter, setZoneFilter] = useState("");
   const [allZones, setAllZones] = useState<Zone[]>([]);
   const [bills, setBills] = useState<ElectricityBill[] | null>(null);
+  const [failedPayments, setFailedPayments] = useState<FailedPayment[] | null>(null);
 
   const [billOpen, setBillOpen] = useState(false);
   const [billZoneId, setBillZoneId] = useState("");
@@ -36,6 +38,7 @@ export default function SettlementsPage() {
   useEffect(() => subscribeSiteRevenueShares(setRows), []);
   useEffect(() => subscribeZones(setAllZones), []);
   useEffect(() => subscribeElectricityBills(setBills), []);
+  useEffect(() => (canManage ? subscribeFailedPayments(setFailedPayments) : undefined), [canManage]);
 
   const zones = useMemo(() => {
     const map = new Map<string, string>();
@@ -202,6 +205,38 @@ export default function SettlementsPage() {
           </div>
         )}
       </Card>
+
+      {canManage && (
+        <Card
+          title="Failed payments"
+          subtitle="Checkout attempts that never completed — from Razorpay's payment.failed webhook. Attempted-but-lost revenue, not a wallet transaction."
+          className="mt-4"
+        >
+          {failedPayments === null ? (
+            <div className="flex justify-center py-8 text-ink-400"><Spinner className="h-6 w-6" /></div>
+          ) : failedPayments.length === 0 ? (
+            <EmptyState icon={<AlertOctagon className="h-8 w-8" />} title="No failed payments logged" />
+          ) : (
+            <div className="overflow-x-auto scroll-thin">
+              <table className="w-full">
+                <thead className="border-b border-ink-200">
+                  <tr><th className="th">When</th><th className="th text-right">Amount</th><th className="th">Reason</th><th className="th">Contact</th></tr>
+                </thead>
+                <tbody className="divide-y divide-ink-100">
+                  {failedPayments.map((p) => (
+                    <tr key={p.id} className="hover:bg-ink-50">
+                      <td className="td text-ink-600">{formatDateTime(p.createdAt)}</td>
+                      <td className="td text-right tabular-nums">{formatINR(p.amountInr)}</td>
+                      <td className="td text-ink-600">{p.errorDescription || p.errorCode || "—"}</td>
+                      <td className="td text-ink-600">{p.contact || p.email || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Modal
         open={billOpen}

@@ -30,10 +30,20 @@ export default function EmspUserProfilePage() {
   const [refundingId, setRefundingId] = useState<string | null>(null);
 
   async function issueRefund(t: WalletTransaction) {
-    if (!window.confirm(`Refund ${formatINR(t.amountInr)} to Razorpay and claw it back from the wallet?`)) return;
+    const remaining = Math.round(((t.amountInr) - (t.refundedAmountInr ?? 0)) * 100) / 100;
+    const input = window.prompt(
+      `Refund how much (₹) to Razorpay and claw back from the wallet? Up to ${formatINR(remaining)}.`,
+      String(remaining),
+    );
+    if (input == null) return;
+    const amountInr = Number(input);
+    if (!amountInr || amountInr <= 0 || amountInr > remaining) {
+      push("Enter a valid amount up to the remaining refundable balance.", "error");
+      return;
+    }
     setRefundingId(t.id);
     try {
-      await refundTopup(t.id);
+      await refundTopup(t.id, amountInr);
       push("Refund issued.", "success");
     } catch (e) {
       push((e as Error).message, "error");

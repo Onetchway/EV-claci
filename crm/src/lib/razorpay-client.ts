@@ -31,8 +31,13 @@ function loadCheckoutScript(): Promise<void> {
   return scriptPromise;
 }
 
-export async function refundTopup(walletTransactionId: string): Promise<{ ok: true; refundId: string }> {
-  return authedFetch("/api/payments/razorpay/refund", { walletTransactionId }) as Promise<{ ok: true; refundId: string }>;
+export async function refundTopup(
+  walletTransactionId: string,
+  amountInr?: number,
+): Promise<{ ok: true; refundId: string; refundedInr: number; fullyRefunded: boolean }> {
+  return authedFetch("/api/payments/razorpay/refund", { walletTransactionId, amountInr }) as Promise<
+    { ok: true; refundId: string; refundedInr: number; fullyRefunded: boolean }
+  >;
 }
 
 async function authedFetch(path: string, body: unknown) {

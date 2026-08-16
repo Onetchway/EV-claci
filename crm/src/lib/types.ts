@@ -643,6 +643,19 @@ export interface SiteRevenueShare {
   paidAt?: TS | null;
 }
 
+/** Logged from the Razorpay `payment.failed` webhook — a checkout attempt that never became a wallet top-up, so it's otherwise invisible. */
+export interface FailedPayment {
+  id: string;
+  razorpayOrderId?: string | null;
+  razorpayPaymentId?: string | null;
+  amountInr: number;
+  errorCode?: string | null;
+  errorDescription?: string | null;
+  contact?: string | null;
+  email?: string | null;
+  createdAt: TS;
+}
+
 /**
  * A manually-entered DISCOM electricity bill for a site, for the Station
  * Profit figure on Business Insights — there's no meter/utility
@@ -743,8 +756,10 @@ export interface WalletTransaction {
   couponBonusInr?: number;
   /** Free-text context for a DEBIT that isn't a charging session — e.g. a subscription renewal. */
   note?: string;
-  /** Set on a TOPUP once it's been refunded — the refund itself is a separate REFUND row referencing this one via refundOfId. */
+  /** Set on a TOPUP once its full amount has been refunded (possibly across multiple partial refunds) — each refund itself is a separate REFUND row referencing this one via refundOfId. */
   refunded?: boolean;
+  /** Cumulative amount refunded so far on a TOPUP — supports partial + repeated refunds up to amountInr. */
+  refundedAmountInr?: number;
   /** Set on a REFUND row — the id of the TOPUP it refunds. */
   refundOfId?: string;
   razorpayRefundId?: string;
