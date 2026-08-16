@@ -3,7 +3,7 @@
 /** Driver-facing (EMSP) users and the corporate accounts some of them bill to. */
 
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, getDoc, limit as fsLimit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -139,6 +139,18 @@ export function subscribeWalletTransactions(
       });
       cb(rows);
     },
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Cross-customer ledger — every wallet top-up/debit/refund, newest first, for the Payment Transactions page. Not owner-scoped, unlike subscribeWalletTransactions. */
+export function subscribeAllWalletTransactions(
+  cb: (rows: WalletTransaction[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), WALLET_TRANSACTIONS), orderBy("createdAt", "desc"), fsLimit(500)),
+    (snap) => cb(snap.docs.map((d) => mapTransaction(d.id, d.data()))),
     (err) => onError?.(err as Error),
   );
 }
