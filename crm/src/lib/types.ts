@@ -609,6 +609,41 @@ export interface EmspUser {
   createdBy?: Actor | null;
 }
 
+/** A staff-created plan an EMSP user can be put on — a monthly wallet debit in exchange for a session discount. */
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  monthlyPriceInr: number;
+  /** % off every wallet-billed session's total while an active subscription to this plan is in effect. */
+  discountPct: number;
+  active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+export type UserSubscriptionStatus = "ACTIVE" | "CANCELLED";
+
+/**
+ * One EMSP user's subscription to a plan. Renewal is automatic (ocpp-server
+ * sweeps past-due renewsAt dates and re-debits the wallet, same postpaid
+ * philosophy as session billing — see sweepSubscriptionRenewals) unless
+ * cancelled first.
+ */
+export interface UserSubscription {
+  id: string;
+  emspUserId: string;
+  emspUserName: string;
+  planId: string;
+  planName: string;
+  monthlyPriceInr: number;
+  discountPct: number;
+  status: UserSubscriptionStatus;
+  startedAt: TS;
+  renewsAt: TS;
+  cancelledAt?: TS | null;
+  createdBy?: Actor | null;
+}
+
 export type WalletOwnerType = "EMSP_USER" | "CORPORATE_ACCOUNT";
 
 /** A logged top-up or debit against an EmspUser's or CorporateAccount's wallet balance. */
@@ -626,6 +661,8 @@ export interface WalletTransaction {
   couponCode?: string;
   /** Bonus credited on top of amountInr from the coupon — amountInr already includes it, this is just for display. */
   couponBonusInr?: number;
+  /** Free-text context for a DEBIT that isn't a charging session — e.g. a subscription renewal. */
+  note?: string;
   createdAt: TS;
   createdBy?: Actor | null;
 }

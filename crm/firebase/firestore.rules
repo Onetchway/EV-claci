@@ -405,6 +405,19 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
     }
 
+    match /subscriptionPlans/{planId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
+    // Subscribing debits the user's wallet client-side (same emspUsers write
+    // path as a top-up), then writes this record — no Admin SDK step needed
+    // since it's staff-initiated, not a self-service checkout.
+    match /userSubscriptions/{subId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
     // Wallet top-up promo codes. Redemption (usedCount increments) only ever
     // happens via the Admin SDK in /api/payments/razorpay/verify, so client
     // writes here are just the admin-authoring side (create/enable/disable/delete).

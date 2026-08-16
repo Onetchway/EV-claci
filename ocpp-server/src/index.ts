@@ -28,6 +28,7 @@ import {
 } from "./registry.js";
 import { sweepStaleConnections, OFFLINE_SWEEP_MS } from "./tickets.js";
 import { sweepZoneLoads } from "./load-balancer.js";
+import { sweepSubscriptionRenewals } from "./subscriptions.js";
 
 initFirebase();
 
@@ -206,3 +207,8 @@ const LOAD_BALANCE_SWEEP_MS = Number(process.env.LOAD_BALANCE_SWEEP_MS) || 60 * 
 setInterval(() => {
   sweepZoneLoads().catch((err) => console.error("[sweep] zone load-balance sweep failed:", err));
 }, LOAD_BALANCE_SWEEP_MS);
+
+const SUBSCRIPTION_RENEWAL_SWEEP_MS = Number(process.env.SUBSCRIPTION_RENEWAL_SWEEP_MS) || 60 * 60 * 1000;
+setInterval(() => {
+  sweepSubscriptionRenewals().catch((err) => console.error("[sweep] subscription renewal sweep failed:", err));
+}, SUBSCRIPTION_RENEWAL_SWEEP_MS);

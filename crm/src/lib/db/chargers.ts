@@ -73,6 +73,8 @@ export interface ChargeSession {
   walletOwnerType?: "EMSP_USER" | "CORPORATE_ACCOUNT";
   walletOwnerId?: string;
   walletOwnerName?: string;
+  /** Set when an active subscription discounted this session's totalCostInr — the % already applied, for display. */
+  subscriptionDiscountPct?: number;
 }
 
 function mapChargePoint(id: string, data: Record<string, unknown>): ChargePoint {

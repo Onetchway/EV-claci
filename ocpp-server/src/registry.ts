@@ -19,6 +19,7 @@ import {
   energyWhFrom, type ConnectorStatus, type TransactionEventRequest,
 } from "./ocpp/types.js";
 import { accrueSiteRevenueShare } from "./revenue-share.js";
+import { subscriptionDiscountFor } from "./subscriptions.js";
 import { computeCost, resolveTariff } from "./tariff.js";
 import { debitWalletForSession } from "./wallet.js";
 
@@ -196,6 +197,12 @@ async function billSession(
   if (!tariff) return;
 
   const cost = computeCost(tariff, energyDeliveredWh ?? null, durationMinutes);
+  const idToken = sessionData?.idToken as string | null | undefined;
+  const discountPct = await subscriptionDiscountFor(idToken);
+  const totalCostInr = discountPct
+    ? Math.round(cost.totalCostInr * (1 - discountPct / 100) * 100) / 100
+    : cost.totalCostInr;
+
   await ref.set(
     {
       tariffId: cost.tariffId,
@@ -203,13 +210,13 @@ async function billSession(
       costBeforeGstInr: cost.costBeforeGstInr,
       gstPct: cost.gstPct,
       gstInr: cost.gstInr,
-      totalCostInr: cost.totalCostInr,
+      totalCostInr,
+      ...(discountPct && { subscriptionDiscountPct: discountPct }),
     },
     { merge: true },
   );
 
-  const idToken = sessionData?.idToken as string | null | undefined;
-  const debited = await debitWalletForSession(idToken, cost.totalCostInr, ref.id);
+  const debited = await debitWalletForSession(idToken, totalCostInr, ref.id);
   if (debited) {
     await ref.set(
       { walletDebited: true, walletOwnerType: debited.ownerType, walletOwnerId: debited.ownerId, walletOwnerName: debited.ownerName },
@@ -217,7 +224,7 @@ async function billSession(
     );
   }
 
-  await accrueSiteRevenueShare(chargePointId, ref.id, cost.totalCostInr);
+  await accrueSiteRevenueShare(chargePointId, ref.id, totalCostInr);
 }
 
 export async function recordMeterValues(
