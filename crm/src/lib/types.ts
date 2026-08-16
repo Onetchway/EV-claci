@@ -574,6 +574,12 @@ export interface Zone {
   revenueShareType?: RevenueShareType;
   /** % (0-100) if type is PERCENT, flat ₹ per session if type is FIXED. */
   revenueShareValue?: number;
+  /** Guaranteed minimum ₹ the site host receives per calendar month — if accrued PERCENT/FIXED shares fall short, a top-up entry closes the gap (the "hybrid" model: whichever of % share or the guarantee is higher). */
+  revenueShareMinGuaranteeInr?: number;
+  /** Which calendar month (YYYY-MM) the guarantee sweep last topped up, so it never double-tops-up the same month. */
+  revenueShareGuaranteeMonth?: string;
+  /** Other parties who also get a cut of the same session (e.g. a CPO partner, an equipment financier) — on top of the primary site-host share above. */
+  additionalRevenueShares?: AdditionalRevenueShare[];
   /** Where a settlement payout to this site actually goes — shown on Settlements, never validated against a real bank. */
   bankAccountNumber?: string;
   bankIfscCode?: string;
@@ -586,18 +592,33 @@ export interface Zone {
 export type RevenueShareType = "PERCENT" | "FIXED";
 export type RevenueShareStatus = "PENDING" | "PAID";
 
+export interface AdditionalRevenueShare {
+  /** Who this cut goes to — e.g. "CPO partner", "Equipment financier". Free text, shown on Settlements to tell recipients apart. */
+  name: string;
+  type: RevenueShareType;
+  value: number;
+}
+
+export type RevenueShareKind = "SESSION" | "GUARANTEE_TOPUP";
+
 /**
- * One session's accrued payout owed to a site host, written by ocpp-server
- * at the same time a session is billed (see billSession() in registry.ts).
- * This is the ledger Settlement works off of — CRM never computes the
- * amount itself, only reviews and marks these paid.
+ * One accrued payout owed to a site host or another revenue-share
+ * recipient — written by ocpp-server at the same time a session is billed
+ * (see billSession() in registry.ts) for kind "SESSION", or by the
+ * monthly guarantee sweep for kind "GUARANTEE_TOPUP". This is the ledger
+ * Settlement works off of — CRM never computes the amount itself, only
+ * reviews and marks these paid.
  */
 export interface SiteRevenueShare {
   id: string;
   zoneId: string;
   zoneName: string;
-  sessionId: string;
-  chargePointId: string;
+  /** Which recipient this entry is for — "Site host" for the primary revenueShareType/Value, or an additionalRevenueShares entry's name. */
+  recipientName: string;
+  kind: RevenueShareKind;
+  /** Absent for a GUARANTEE_TOPUP entry (it isn't tied to one session). */
+  sessionId?: string;
+  chargePointId?: string;
   grossAmountInr: number;
   shareType: RevenueShareType;
   /** The rate that produced shareAmountInr — a % if shareType is PERCENT, the flat ₹ amount itself if FIXED. */

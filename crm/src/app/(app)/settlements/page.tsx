@@ -114,6 +114,7 @@ export default function SettlementsPage() {
               <thead className="border-b border-ink-200">
                 <tr>
                   <th className="th">Site</th>
+                  <th className="th">Recipient</th>
                   <th className="th">Charger</th>
                   <th className="th">When</th>
                   <th className="th text-right">Session total</th>
@@ -127,7 +128,11 @@ export default function SettlementsPage() {
                 {filtered.map((r) => (
                   <tr key={r.id} className="hover:bg-ink-50">
                     <td className="td font-medium">{r.zoneName}</td>
-                    <td className="td text-ink-600">{r.chargePointId}</td>
+                    <td className="td text-ink-600">
+                      {r.recipientName ?? "Site host"}
+                      {r.kind === "GUARANTEE_TOPUP" && <Badge className="ml-1.5 bg-indigo-100 text-indigo-800 ring-indigo-200">Guarantee top-up</Badge>}
+                    </td>
+                    <td className="td text-ink-600">{r.chargePointId ?? "—"}</td>
                     <td className="td text-ink-600">{formatDateTime(r.createdAt)}</td>
                     <td className="td text-right tabular-nums text-ink-600">{formatINR(r.grossAmountInr)}</td>
                     <td className="td text-right tabular-nums text-ink-600">{r.shareType === "PERCENT" ? `${r.shareRate}%` : formatINR(r.shareRate)}</td>

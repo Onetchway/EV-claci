@@ -3,6 +3,7 @@
 /** Shared site/zone editor — used by /zones (load balancing dashboard) and /stations (station management). */
 
 import { useEffect, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
 import {
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui";
 import { INDIAN_STATES, SITE_TYPE_LABEL, SITE_TYPES, type SiteType } from "@/lib/constants";
 import { createZone, updateZone, type ZoneDraft } from "@/lib/db/zones";
-import type { RevenueShareType, Zone } from "@/lib/types";
+import type { AdditionalRevenueShare, RevenueShareType, Zone } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TABS = ["Details", "Revenue share", "Bank details"] as const;
@@ -42,6 +43,8 @@ export function ZoneEditModal({
   const [slaHours, setSlaHours] = useState("");
   const [revenueShareType, setRevenueShareType] = useState<RevenueShareType | "">("");
   const [revenueShareValue, setRevenueShareValue] = useState("");
+  const [revenueShareMinGuaranteeInr, setRevenueShareMinGuaranteeInr] = useState("");
+  const [additionalRevenueShares, setAdditionalRevenueShares] = useState<AdditionalRevenueShare[]>([]);
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [bankIfscCode, setBankIfscCode] = useState("");
   const [bankAccountName, setBankAccountName] = useState("");
@@ -64,6 +67,8 @@ export function ZoneEditModal({
       setSlaHours(editing.slaHours != null ? String(editing.slaHours) : "");
       setRevenueShareType(editing.revenueShareType ?? "");
       setRevenueShareValue(editing.revenueShareValue != null ? String(editing.revenueShareValue) : "");
+      setRevenueShareMinGuaranteeInr(editing.revenueShareMinGuaranteeInr != null ? String(editing.revenueShareMinGuaranteeInr) : "");
+      setAdditionalRevenueShares(editing.additionalRevenueShares ?? []);
       setBankAccountNumber(editing.bankAccountNumber ?? "");
       setBankIfscCode(editing.bankIfscCode ?? "");
       setBankAccountName(editing.bankAccountName ?? "");
@@ -71,7 +76,7 @@ export function ZoneEditModal({
     } else {
       setName(""); setMaxLoadKw(0); setSiteType(""); setAddress(""); setCity(""); setPincode(""); setState("");
       setPocName(""); setPocPhone(""); setDiscomName(""); setSlaHours("");
-      setRevenueShareType(""); setRevenueShareValue("");
+      setRevenueShareType(""); setRevenueShareValue(""); setRevenueShareMinGuaranteeInr(""); setAdditionalRevenueShares([]);
       setBankAccountNumber(""); setBankIfscCode(""); setBankAccountName(""); setBankName("");
     }
   }, [open, editing]);
@@ -92,6 +97,8 @@ export function ZoneEditModal({
       slaHours: slaHours.trim() ? Number(slaHours) : undefined,
       revenueShareType: revenueShareType || undefined,
       revenueShareValue: revenueShareType && revenueShareValue.trim() ? Number(revenueShareValue) : undefined,
+      revenueShareMinGuaranteeInr: revenueShareMinGuaranteeInr.trim() ? Number(revenueShareMinGuaranteeInr) : undefined,
+      additionalRevenueShares: additionalRevenueShares.filter((r) => r.name.trim() && r.value > 0),
       bankAccountNumber: bankAccountNumber.trim() || undefined,
       bankIfscCode: bankIfscCode.trim() || undefined,
       bankAccountName: bankAccountName.trim() || undefined,
@@ -203,6 +210,54 @@ export function ZoneEditModal({
             </Field>
           )}
           <p className="text-xs text-ink-500">Accrues automatically per session on /settlements — e.g. an RWA hosting this charger.</p>
+
+          <div className="border-t border-ink-100 pt-4">
+            <Field label="Guaranteed minimum (₹/month)" hint="Hybrid model: if the site host's accrued share falls short of this in a calendar month, a top-up entry closes the gap automatically. Leave blank for no guarantee.">
+              <Input type="number" min={0} value={revenueShareMinGuaranteeInr} onChange={(e) => setRevenueShareMinGuaranteeInr(e.target.value)} placeholder="e.g. 10000" />
+            </Field>
+          </div>
+
+          <div className="border-t border-ink-100 pt-4">
+            <div className="flex items-center justify-between">
+              <p className="label">Other parties sharing this session</p>
+              <Button
+                size="sm"
+                onClick={() => setAdditionalRevenueShares((prev) => [...prev, { name: "", type: "PERCENT", value: 0 }])}
+              >
+                <Plus className="h-3.5 w-3.5" /> Add
+              </Button>
+            </div>
+            <p className="mt-1 text-xs text-ink-500">e.g. a CPO partner or equipment financier also splitting the same session, on top of the site host's cut above.</p>
+            {additionalRevenueShares.length > 0 && (
+              <div className="mt-2 grid gap-2">
+                {additionalRevenueShares.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      value={r.name}
+                      onChange={(e) => setAdditionalRevenueShares((prev) => prev.map((row, ri) => (ri === i ? { ...row, name: e.target.value } : row)))}
+                      placeholder="e.g. CPO partner"
+                    />
+                    <Select
+                      value={r.type}
+                      onChange={(e) => setAdditionalRevenueShares((prev) => prev.map((row, ri) => (ri === i ? { ...row, type: e.target.value as RevenueShareType } : row)))}
+                      options={[{ value: "PERCENT", label: "%" }, { value: "FIXED", label: "₹ flat" }]}
+                    />
+                    <Input
+                      className="w-24"
+                      type="number"
+                      min={0}
+                      value={r.value}
+                      onChange={(e) => setAdditionalRevenueShares((prev) => prev.map((row, ri) => (ri === i ? { ...row, value: Number(e.target.value) || 0 } : row)))}
+                    />
+                    <Button size="sm" onClick={() => setAdditionalRevenueShares((prev) => prev.filter((_, ri) => ri !== i))}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

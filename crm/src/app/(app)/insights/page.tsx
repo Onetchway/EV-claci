@@ -102,26 +102,49 @@ export default function InsightsPage() {
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }, [registry]);
 
+  /**
+   * A session with multiple revenue-share recipients (site host + partner,
+   * say) now produces one siteRevenueShares entry per recipient, all
+   * carrying the same grossAmountInr — summing grossAmountInr across every
+   * entry would multiply a session's revenue by however many parties split
+   * it. Dedupe to one gross figure per session first; shareOwed below still
+   * sums every entry, since that's genuinely the total paid out across
+   * every recipient.
+   */
+  const grossBySession = useMemo(() => {
+    const map = new Map<string, { zoneId: string; zoneName: string; grossAmountInr: number }>();
+    for (const s of shares) {
+      if (s.kind !== "SESSION" || !s.sessionId) continue;
+      if (!map.has(s.sessionId)) map.set(s.sessionId, { zoneId: s.zoneId, zoneName: s.zoneName, grossAmountInr: s.grossAmountInr });
+    }
+    return [...map.values()];
+  }, [shares]);
+
   const siteRevenue = useMemo(() => {
     const byZone = new Map<string, number>();
-    for (const s of shares) byZone.set(s.zoneName, (byZone.get(s.zoneName) ?? 0) + s.grossAmountInr);
+    for (const g of grossBySession) byZone.set(g.zoneName, (byZone.get(g.zoneName) ?? 0) + g.grossAmountInr);
     return [...byZone.entries()]
       .map(([site, revenue]) => ({ site, revenue }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 8);
-  }, [shares]);
+  }, [grossBySession]);
 
   /**
-   * All-time per-site P&L: gross session revenue minus what's owed to the
-   * host minus logged electricity bills. Electricity is manual bookkeeping
-   * input (no meter integration), so a site with no bills logged shows "—"
-   * rather than a profit figure that's silently ignoring a real cost.
+   * All-time per-site P&L: gross session revenue minus what's owed across
+   * every revenue-share recipient minus logged electricity bills.
+   * Electricity is manual bookkeeping input (no meter integration), so a
+   * site with no bills logged shows "—" rather than a profit figure that's
+   * silently ignoring a real cost.
    */
   const stationProfit = useMemo(() => {
     const byZone = new Map<string, { zoneName: string; revenue: number; shareOwed: number; electricity: number; hasBills: boolean }>();
+    for (const g of grossBySession) {
+      const entry = byZone.get(g.zoneId) ?? { zoneName: g.zoneName, revenue: 0, shareOwed: 0, electricity: 0, hasBills: false };
+      entry.revenue += g.grossAmountInr;
+      byZone.set(g.zoneId, entry);
+    }
     for (const s of shares) {
       const entry = byZone.get(s.zoneId) ?? { zoneName: s.zoneName, revenue: 0, shareOwed: 0, electricity: 0, hasBills: false };
-      entry.revenue += s.grossAmountInr;
       entry.shareOwed += s.shareAmountInr;
       byZone.set(s.zoneId, entry);
     }
@@ -134,7 +157,7 @@ export default function InsightsPage() {
     return [...byZone.entries()]
       .map(([zoneId, e]) => ({ zoneId, ...e, profit: e.revenue - e.shareOwed - e.electricity }))
       .sort((a, b) => b.revenue - a.revenue);
-  }, [shares, bills]);
+  }, [grossBySession, shares, bills]);
 
   return (
     <>

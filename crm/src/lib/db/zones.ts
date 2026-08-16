@@ -26,7 +26,8 @@ export function subscribeZones(
 
 export type ZoneDraft = Pick<Zone,
   "name" | "maxLoadKw" | "siteType" | "address" | "city" | "pincode" | "state" | "pocName" | "pocPhone" |
-  "discomName" | "slaHours" | "revenueShareType" | "revenueShareValue" |
+  "discomName" | "slaHours" | "revenueShareType" | "revenueShareValue" | "revenueShareMinGuaranteeInr" |
+  "additionalRevenueShares" |
   "bankAccountNumber" | "bankIfscCode" | "bankAccountName" | "bankName"
 >;
 

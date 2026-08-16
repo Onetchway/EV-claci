@@ -29,6 +29,7 @@ import {
 import { sweepStaleConnections, sweepSlaBreaches, OFFLINE_SWEEP_MS } from "./tickets.js";
 import { sweepZoneLoads } from "./load-balancer.js";
 import { sweepSubscriptionRenewals } from "./subscriptions.js";
+import { sweepRevenueGuarantees } from "./revenue-guarantee.js";
 
 initFirebase();
 
@@ -217,3 +218,8 @@ const SLA_BREACH_SWEEP_MS = Number(process.env.SLA_BREACH_SWEEP_MS) || 15 * 60 *
 setInterval(() => {
   sweepSlaBreaches().catch((err) => console.error("[sweep] SLA breach sweep failed:", err));
 }, SLA_BREACH_SWEEP_MS);
+
+const REVENUE_GUARANTEE_SWEEP_MS = Number(process.env.REVENUE_GUARANTEE_SWEEP_MS) || 6 * 60 * 60 * 1000;
+setInterval(() => {
+  sweepRevenueGuarantees().catch((err) => console.error("[sweep] revenue guarantee sweep failed:", err));
+}, REVENUE_GUARANTEE_SWEEP_MS);
