@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/chargers", label: "Charger Dashboard", icon: Zap },
       { href: "/tickets", label: "Ticket Management", icon: Ticket },
       { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
+      { href: "/stations", label: "Station Management", icon: Building2 },
       { href: "/zones", label: "Zones & Load Balancing", icon: MapPin },
       { href: "/earnings", label: "Earnings & Statistics", icon: TrendingUp },
       { href: "/insights", label: "Business Insights", icon: Gauge },
