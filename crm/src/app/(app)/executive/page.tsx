@@ -25,7 +25,7 @@ import type { Project } from "@/lib/types";
 import { formatCompactINR, toDate } from "@/lib/utils";
 
 type Range = "30" | "90" | "365" | "ALL";
-const CHART_COLORS = ["#f0501f", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6", "#ec4899"];
+const CHART_COLORS = ["#1fae54", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6", "#ec4899"];
 
 export default function ExecutiveDashboardPage() {
   const viewer = useViewer();
@@ -121,7 +121,7 @@ export default function ExecutiveDashboardPage() {
                     <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => formatCompactINR(v)} />
                     <Tooltip formatter={(v: number) => formatCompactINR(v)} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Line type="monotone" dataKey="value" name="Won value" stroke="#f0501f" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="value" name="Won value" stroke="#1fae54" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

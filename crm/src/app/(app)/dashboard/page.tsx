@@ -28,7 +28,7 @@ import { scoreLead } from "@/lib/scoring";
 import type { FollowupTask } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
-const CHART_COLORS = ["#f0501f", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6", "#ec4899"];
+const CHART_COLORS = ["#1fae54", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6", "#ec4899"];
 
 export default function DashboardPage() {
   const { profile, role } = useAuth();
@@ -274,7 +274,7 @@ export default function DashboardPage() {
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Line type="monotone" dataKey="created" name="Created" stroke="#0ea5e9" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="won" name="Won" stroke="#f0501f" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="won" name="Won" stroke="#1fae54" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -390,7 +390,7 @@ export default function DashboardPage() {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip formatter={(v: number) => [v, "Units"]} />
-                  <Bar dataKey="units" fill="#f0501f" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="units" fill="#1fae54" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

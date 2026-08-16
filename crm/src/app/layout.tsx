@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 
 import { AuthProvider } from "@/components/auth-provider";
@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   title: "Livanto Green CRM — EV Charging Franchise",
   description:
     "Lead-to-handover CRM for EV charging franchise sales: pipeline, KYC, staged payments and audit trail.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

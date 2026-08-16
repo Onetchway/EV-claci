@@ -88,7 +88,7 @@ export default function OrganizationsPage() {
                 ) : (
                   <span
                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white"
-                    style={{ backgroundColor: o.primaryColorHex || "#f0501f" }}
+                    style={{ backgroundColor: o.primaryColorHex || "#1fae54" }}
                   >
                     <Building2 className="h-4 w-4" />
                   </span>
@@ -137,8 +137,8 @@ export default function OrganizationsPage() {
           <Field label="Logo URL" hint="Shown in the sidebar in place of the Livanto logo for this org's team members.">
             <Input value={draft.logoUrl ?? ""} onChange={(e) => setDraft((d) => ({ ...d, logoUrl: e.target.value }))} placeholder="https://…" />
           </Field>
-          <Field label="Primary colour" hint="Hex, e.g. #f0501f. Used for the sidebar icon background.">
-            <Input value={draft.primaryColorHex ?? ""} onChange={(e) => setDraft((d) => ({ ...d, primaryColorHex: e.target.value }))} placeholder="#f0501f" />
+          <Field label="Primary colour" hint="Hex, e.g. #1fae54. Used for the sidebar icon background.">
+            <Input value={draft.primaryColorHex ?? ""} onChange={(e) => setDraft((d) => ({ ...d, primaryColorHex: e.target.value }))} placeholder="#1fae54" />
           </Field>
           <Field label="Custom domain" hint="Stored for reference — DNS/SSL routing to this domain isn't set up yet.">
             <Input value={draft.customDomain ?? ""} onChange={(e) => setDraft((d) => ({ ...d, customDomain: e.target.value }))} placeholder="app.acme-ev.com" />

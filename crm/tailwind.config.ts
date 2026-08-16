@@ -5,21 +5,37 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Statiq-style vivid red-orange accent — replaces the previous green.
-        // Every primary button, active nav item, link and focus ring in the
-        // app draws from this token, so this one swap re-themes the whole
-        // CRM without touching individual components.
+        // Livanto Green's own logo colors: green accent, navy headers/sidebar
+        // — not a competitor's palette. Every primary button, active nav
+        // item, link and focus ring draws from brand-*, so this token is the
+        // one place that re-themes the whole CRM at once.
         brand: {
-          50: "#fff5f0",
-          100: "#ffe4d6",
-          200: "#ffc4a3",
-          300: "#ff9d6b",
-          400: "#fb7343",
-          500: "#f0501f",
-          600: "#d63d12",
-          700: "#b02f0d",
-          800: "#8a260f",
-          900: "#6e2210",
+          50: "#eefdf3",
+          100: "#d3f8e0",
+          200: "#a3efc1",
+          300: "#6de29c",
+          400: "#3ecb74",
+          500: "#1fae54",
+          600: "#148a3f",
+          700: "#0f6e33",
+          800: "#10572b",
+          900: "#0f4725",
+        },
+        // The dark navy from the "livanto" wordmark — used for the sidebar
+        // and headings, distinct from the neutral ink-* grays so it reads as
+        // an intentional brand color rather than just "dark text."
+        navy: {
+          50: "#eef1f7",
+          100: "#d7deec",
+          200: "#adbcd9",
+          300: "#7f95bf",
+          400: "#51699c",
+          500: "#33477a",
+          600: "#263660",
+          700: "#1c2a4c",
+          800: "#17233f",
+          900: "#101830",
+          950: "#0a0f1f",
         },
         ink: {
           50: "#f6f7f9",
