@@ -32,6 +32,7 @@ const pending = new Map<string, PendingCall>();
 export const COMMAND_ACTIONS = [
   "RequestStartTransaction", "RequestStopTransaction", "Reset", "UnlockConnector", "ChangeAvailability",
   "SetChargingProfile", "ClearChargingProfile", "UpdateFirmware", "ClearCache",
+  "GetVariables", "SetVariables", "GetLog",
 ] as const;
 export type CommandAction = (typeof COMMAND_ACTIONS)[number];
 

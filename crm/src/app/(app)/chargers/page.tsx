@@ -3,8 +3,8 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Battery, Copy, Lock, MapPin as MapPinIcon, Plus, Power, PowerOff, QrCode, RotateCcw,
-  Square, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
+  Battery, Copy, FileText, Lock, MapPin as MapPinIcon, Plus, Power, PowerOff, QrCode, RotateCcw,
+  Settings2, Square, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -153,6 +153,15 @@ export default function ChargersPage() {
   const [firmwareUrl, setFirmwareUrl] = useState("");
   const [commandBusy, setCommandBusy] = useState<string | null>(null);
 
+  const [varsFor, setVarsFor] = useState<string | null>(null);
+  const [varsMode, setVarsMode] = useState<"GET" | "SET">("GET");
+  const [varComponent, setVarComponent] = useState("");
+  const [varName, setVarName] = useState("");
+  const [varValue, setVarValue] = useState("");
+  const [varResult, setVarResult] = useState<string | null>(null);
+  const [logFor, setLogFor] = useState<string | null>(null);
+  const [logUrl, setLogUrl] = useState("");
+
   const [newTokenId, setNewTokenId] = useState("");
   const [newTokenLabel, setNewTokenLabel] = useState("");
 
@@ -221,6 +230,44 @@ export default function ChargersPage() {
     }));
     setFirmwareFor(null);
     setFirmwareUrl("");
+  }
+
+  async function submitVariable() {
+    if (!varsFor || !varComponent.trim() || !varName.trim()) return;
+    if (varsMode === "SET") {
+      await runCommand(varsFor, "Set variable", () => sendChargerCommand(varsFor, "SetVariables", {
+        setVariableData: [{
+          component: { name: varComponent.trim() },
+          variable: { name: varName.trim() },
+          attributeValue: varValue,
+        }],
+      }));
+      setVarsFor(null);
+      setVarComponent(""); setVarName(""); setVarValue("");
+    } else {
+      setCommandBusy(varsFor + "Get variable");
+      try {
+        const result = await sendChargerCommand(varsFor, "GetVariables", {
+          getVariableData: [{ component: { name: varComponent.trim() }, variable: { name: varName.trim() } }],
+        });
+        setVarResult(JSON.stringify(result, null, 2));
+      } catch (e) {
+        push((e as Error).message, "error");
+      } finally {
+        setCommandBusy(null);
+      }
+    }
+  }
+
+  async function submitDiagnostics() {
+    if (!logFor || !logUrl.trim()) return;
+    await runCommand(logFor, "Request diagnostics", () => sendChargerCommand(logFor, "GetLog", {
+      logType: "DiagnosticsLog",
+      requestId: Date.now(),
+      log: { remoteLocation: logUrl.trim() },
+    }));
+    setLogFor(null);
+    setLogUrl("");
   }
 
   async function addToken() {
@@ -552,6 +599,22 @@ export default function ChargersPage() {
                   >
                     Clear cache
                   </Button>
+                  <Button
+                    size="sm"
+                    disabled={p.status !== "ONLINE"}
+                    onClick={() => {
+                      setVarsFor(p.chargePointId); setVarsMode("GET"); setVarComponent(""); setVarName(""); setVarValue(""); setVarResult(null);
+                    }}
+                  >
+                    <Settings2 className="h-3.5 w-3.5" /> Variables
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Request diagnostics"}
+                    onClick={() => setLogFor(p.chargePointId)}
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Diagnostics
+                  </Button>
                 </div>
               )}
             </div>
@@ -750,6 +813,76 @@ export default function ChargersPage() {
       >
         <Field label="Firmware file URL" required>
           <Input value={firmwareUrl} onChange={(e) => setFirmwareUrl(e.target.value)} placeholder="https://…" />
+        </Field>
+      </Modal>
+
+      <Modal
+        open={!!varsFor}
+        onClose={() => setVarsFor(null)}
+        title={`Variables — ${varsFor ?? ""}`}
+        description="Reads or writes an OCPP 2.0.1 Component/Variable (§ GetVariables / SetVariables) — e.g. component OCPPCommCtrlr, variable HeartbeatInterval."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setVarsFor(null)}>Close</Button>
+            <Button
+              variant="primary"
+              disabled={!varComponent.trim() || !varName.trim() || (varsMode === "SET" && !varValue.trim())}
+              loading={!!varsFor && commandBusy === varsFor + "Get variable"}
+              onClick={() => void submitVariable()}
+            >
+              {varsMode === "GET" ? "Get" : "Set"}
+            </Button>
+          </>
+        )}
+      >
+        <div className="space-y-4">
+          <Select
+            value={varsMode}
+            onChange={(e) => { setVarsMode(e.target.value as "GET" | "SET"); setVarResult(null); }}
+            options={[{ value: "GET", label: "Get variable" }, { value: "SET", label: "Set variable" }]}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Component name" required>
+              <Input value={varComponent} onChange={(e) => setVarComponent(e.target.value)} placeholder="e.g. OCPPCommCtrlr" />
+            </Field>
+            <Field label="Variable name" required>
+              <Input value={varName} onChange={(e) => setVarName(e.target.value)} placeholder="e.g. HeartbeatInterval" />
+            </Field>
+          </div>
+          {varsMode === "SET" && (
+            <Field label="New value" required>
+              <Input value={varValue} onChange={(e) => setVarValue(e.target.value)} />
+            </Field>
+          )}
+          {varResult && (
+            <Field label="Result">
+              <pre className="max-h-40 overflow-auto rounded-lg bg-ink-50 p-2 text-xs">{varResult}</pre>
+            </Field>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!logFor}
+        onClose={() => setLogFor(null)}
+        title={`Request diagnostics — ${logFor ?? ""}`}
+        description="Sends GetLog (§ OCPP 2.0.1) asking the charger to upload its diagnostics log to a remote location you control. Progress is reported via LogStatusNotification."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setLogFor(null)}>Cancel</Button>
+            <Button
+              variant="primary"
+              disabled={!logUrl.trim()}
+              loading={!!logFor && commandBusy === logFor + "Request diagnostics"}
+              onClick={() => void submitDiagnostics()}
+            >
+              Send
+            </Button>
+          </>
+        )}
+      >
+        <Field label="Upload URL (where the charger should send the log)" required>
+          <Input value={logUrl} onChange={(e) => setLogUrl(e.target.value)} placeholder="https://…" />
         </Field>
       </Modal>
 
