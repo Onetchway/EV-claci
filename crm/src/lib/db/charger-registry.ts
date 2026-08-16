@@ -151,6 +151,18 @@ export function subscribeChargerRegistry(
   );
 }
 
+export function subscribeChargerRegistration(
+  id: string,
+  cb: (row: ChargerRegistration | null) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    doc(getDb(), CHARGER_REGISTRY, id),
+    (snap) => cb(snap.exists() ? mapDoc(snap.id, snap.data()) : null),
+    (err) => onError?.(err as Error),
+  );
+}
+
 /** Returns the generated chargerId — the caller needs it immediately to render the QR/URL. */
 /** A per-charger shared secret for the connection-auth token — not cryptographically sensitive enough to need a server round-trip, just needs to be unguessable. */
 function generateConnectionToken(): string {

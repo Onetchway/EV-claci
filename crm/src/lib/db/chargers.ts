@@ -248,3 +248,21 @@ export function subscribeDowntimeEventsSince(
     (err) => onError?.(err as Error),
   );
 }
+
+export function subscribeDowntimeEventsForCharger(
+  chargePointId: string,
+  since: Date,
+  cb: (rows: DowntimeEvent[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(
+      collection(getDb(), DOWNTIME_EVENTS),
+      where("chargePointId", "==", chargePointId),
+      where("recoveredAt", ">=", since),
+      orderBy("recoveredAt", "desc"),
+    ),
+    (snap) => cb(snap.docs.map((d) => mapDowntimeEvent(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}

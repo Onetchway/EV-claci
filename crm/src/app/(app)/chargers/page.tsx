@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Battery, Copy, FileText, Lock, MapPin as MapPinIcon, Pencil, Plus, Power, PowerOff, QrCode, RotateCcw,
-  Settings2, Square, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
+  Battery, Copy, ExternalLink, FileText, Lock, MapPin as MapPinIcon, Pencil, Plus, Power, PowerOff, QrCode,
+  RotateCcw, Settings2, Square, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -523,6 +524,13 @@ export default function ChargersPage() {
                       </td>
                       <td className="td text-right">
                         <div className="flex justify-end gap-1">
+                          <Link
+                            href={`/chargers/${r.id}`}
+                            className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
+                            title="View charger details"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
                           <button
                             type="button"
                             onClick={() => setViewingId(r.id)}
