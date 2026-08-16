@@ -10,13 +10,14 @@ import {
 } from "@/components/ui";
 import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
 import { createTariff, deleteTariff, subscribeTariffs, updateTariff, setTariffActive, type TariffDraft } from "@/lib/db/tariffs";
+import { subscribeFleets } from "@/lib/db/fleets";
 import { subscribeZones } from "@/lib/db/zones";
 import {
   INDIAN_STATES, TARIFF_PRICING_TYPE_LABEL, TARIFF_PRICING_TYPES, TARIFF_SCOPE_LABEL,
   TARIFF_SCOPES, WEEKDAY_LABEL,
 } from "@/lib/constants";
 import { canManageTariffs } from "@/lib/permissions";
-import type { Tariff, Zone } from "@/lib/types";
+import type { Fleet, Tariff, Zone } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 const blankDraft: TariffDraft = {
@@ -27,6 +28,7 @@ const blankDraft: TariffDraft = {
   zoneIds: [],
   cities: [],
   states: [],
+  fleetIds: [],
   pricingType: "PER_KWH",
   rate: 0,
   gstPct: 18,
@@ -62,6 +64,7 @@ export default function TariffsPage() {
   const [rows, setRows] = useState<Tariff[] | null>(null);
   const [chargers, setChargers] = useState<ChargerRegistration[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
+  const [fleets, setFleets] = useState<Fleet[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<TariffDraft>(blankDraft);
@@ -70,8 +73,10 @@ export default function TariffsPage() {
   useEffect(() => subscribeTariffs(setRows), []);
   useEffect(() => subscribeChargerRegistry(setChargers), []);
   useEffect(() => subscribeZones(setZones), []);
+  useEffect(() => subscribeFleets(setFleets), []);
 
   const zoneLabel = useMemo(() => new Map(zones.map((z) => [z.id, z.name])), [zones]);
+  const fleetLabel = useMemo(() => new Map(fleets.map((f) => [f.id, f.name])), [fleets]);
   const chargerLabel = useMemo(
     () => new Map(chargers.map((c) => [c.chargerId, c.zoneId && zoneLabel.get(c.zoneId) ? `${c.label} (${zoneLabel.get(c.zoneId)})` : c.label])),
     [chargers, zoneLabel],
@@ -110,6 +115,7 @@ export default function TariffsPage() {
     if (t.scope === "SPECIFIC_CHARGERS") return t.chargerIds.length ? t.chargerIds.map((id) => chargerLabel.get(id) ?? id).join(", ") : "—";
     if (t.scope === "ZONE") return t.zoneIds.length ? t.zoneIds.map((id) => zoneLabel.get(id) ?? id).join(", ") : "—";
     if (t.scope === "CITY") return t.cities.length ? t.cities.join(", ") : "—";
+    if (t.scope === "FLEET") return (t.fleetIds ?? []).length ? t.fleetIds.map((id) => fleetLabel.get(id) ?? id).join(", ") : "—";
     return t.states.length ? t.states.join(", ") : "—";
   }
 
@@ -124,7 +130,7 @@ export default function TariffsPage() {
     setEditingId(t.id);
     setDraft({
       name: t.name, scope: t.scope, chargerIds: t.chargerIds, connectorKeys: t.connectorKeys ?? [],
-      zoneIds: t.zoneIds, cities: t.cities ?? [], states: t.states,
+      zoneIds: t.zoneIds, cities: t.cities ?? [], states: t.states, fleetIds: t.fleetIds ?? [],
       pricingType: t.pricingType, rate: t.rate, gstPct: t.gstPct, platformFeeInr: t.platformFeeInr,
       parkingFeeInr: t.parkingFeeInr ?? 0, idleFeeInrPerMin: t.idleFeeInrPerMin ?? 0, idleGraceMinutes: t.idleGraceMinutes ?? 0,
       timeWindow: t.timeWindow ?? null, priority: t.priority, active: t.active,
@@ -307,6 +313,26 @@ export default function TariffsPage() {
                     onChange={(v) => setDraft((d) => ({
                       ...d,
                       zoneIds: v ? [...d.zoneIds, z.id] : d.zoneIds.filter((x) => x !== z.id),
+                    }))}
+                  />
+                ))}
+              </div>
+            </Field>
+          )}
+
+          {draft.scope === "FLEET" && (
+            <Field label="Fleets" hint="Matches a session traced (via its id token → RFID card → vehicle) to a vehicle belonging to one of these fleets. See Fleets to assign a vehicle's RFID card.">
+              <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2">
+                {fleets.length === 0 ? (
+                  <p className="text-xs text-ink-500">No fleets created yet.</p>
+                ) : fleets.map((f) => (
+                  <Checkbox
+                    key={f.id}
+                    label={f.name}
+                    checked={draft.fleetIds.includes(f.id)}
+                    onChange={(v) => setDraft((d) => ({
+                      ...d,
+                      fleetIds: v ? [...d.fleetIds, f.id] : d.fleetIds.filter((x) => x !== f.id),
                     }))}
                   />
                 ))}

@@ -13,7 +13,7 @@
 import { db } from "./firebase.js";
 
 export type TariffPricingType = "PER_KWH" | "PER_MINUTE" | "PER_SESSION";
-export type TariffScope = "ALL_CHARGERS" | "STATE" | "CITY" | "ZONE" | "SPECIFIC_CHARGERS" | "SPECIFIC_CONNECTORS";
+export type TariffScope = "ALL_CHARGERS" | "STATE" | "CITY" | "ZONE" | "FLEET" | "SPECIFIC_CHARGERS" | "SPECIFIC_CONNECTORS";
 
 export interface TariffTimeWindow {
   daysOfWeek: number[];
@@ -30,6 +30,8 @@ export interface TariffDoc {
   zoneIds: string[];
   cities: string[];
   states: string[];
+  /** Only used when scope === "FLEET" — matches the vehicle's fleetId (traced via the session's id token → its RFID card → the vehicle it's assigned to). */
+  fleetIds: string[];
   pricingType: TariffPricingType;
   rate: number;
   gstPct: number;
@@ -62,8 +64,9 @@ function matchesTimeWindow(tw: TariffTimeWindow, at: Date): boolean {
 
 /** Higher = more specific; used to pick the best match when several tariffs apply. */
 const SCOPE_SPECIFICITY: Record<TariffScope, number> = {
-  SPECIFIC_CONNECTORS: 5,
-  SPECIFIC_CHARGERS: 4,
+  SPECIFIC_CONNECTORS: 6,
+  SPECIFIC_CHARGERS: 5,
+  FLEET: 4,
   ZONE: 3,
   CITY: 2,
   STATE: 1,
@@ -92,14 +95,27 @@ export async function loadChargerContext(chargerId: string): Promise<ChargerCont
   return { zoneId, state: (data.state as string | undefined) ?? null, city };
 }
 
+/** Traces an id token → its rfidTokens doc → the vehicle it's assigned to → that vehicle's fleetId, for FLEET-scoped tariffs. */
+async function loadFleetIdForIdToken(idToken: string | null | undefined): Promise<string | null> {
+  if (!idToken) return null;
+  const tokenSnap = await db().collection("rfidTokens").where("idToken", "==", idToken).limit(1).get();
+  if (tokenSnap.empty) return null;
+  const tokenId = tokenSnap.docs[0]!.id;
+  const vehicleSnap = await db().collection("vehicles").where("rfidTokenId", "==", tokenId).limit(1).get();
+  if (vehicleSnap.empty) return null;
+  return (vehicleSnap.docs[0]!.data().fleetId as string | undefined) ?? null;
+}
+
 export async function resolveTariff(
   chargerId: string,
   at: Date,
   connectorId?: number | null,
+  idToken?: string | null,
 ): Promise<TariffDoc | null> {
-  const [snap, ctx] = await Promise.all([
+  const [snap, ctx, fleetId] = await Promise.all([
     db().collection("tariffs").where("active", "==", true).get(),
     loadChargerContext(chargerId),
+    loadFleetIdForIdToken(idToken),
   ]);
 
   const connectorKey = connectorId != null ? `${chargerId}#${connectorId}` : null;
@@ -109,6 +125,7 @@ export async function resolveTariff(
     const t = { id: doc.id, ...doc.data() } as TariffDoc;
     if (t.scope === "SPECIFIC_CONNECTORS" && (!connectorKey || !(t.connectorKeys ?? []).includes(connectorKey))) continue;
     if (t.scope === "SPECIFIC_CHARGERS" && !t.chargerIds.includes(chargerId)) continue;
+    if (t.scope === "FLEET" && (!fleetId || !(t.fleetIds ?? []).includes(fleetId))) continue;
     if (t.scope === "ZONE" && (!ctx.zoneId || !t.zoneIds.includes(ctx.zoneId))) continue;
     if (t.scope === "CITY" && (!ctx.city || !(t.cities ?? []).includes(ctx.city))) continue;
     if (t.scope === "STATE" && (!ctx.state || !t.states.includes(ctx.state))) continue;

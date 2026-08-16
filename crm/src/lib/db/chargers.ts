@@ -176,6 +176,23 @@ export function subscribeSessionsForWalletOwner(
   );
 }
 
+/** Sessions attributed to any of the given vehicles (via vehicleId — see billSession's RFID-card lookup). Firestore's "in" caps at 10 values, so only the first 10 vehicles are queried; fine for the fleet-usage report this feeds. */
+export function subscribeSessionsForVehicles(
+  vehicleIds: string[],
+  cb: (rows: ChargeSession[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  if (vehicleIds.length === 0) {
+    cb([]);
+    return () => undefined;
+  }
+  return onSnapshot(
+    query(collection(getDb(), CHARGE_SESSIONS), where("vehicleId", "in", vehicleIds.slice(0, 10))),
+    (snap) => cb(snap.docs.map((d) => mapSession(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export function subscribeSessionsForChargePoint(
   chargePointId: string,
   cb: (rows: ChargeSession[]) => void,

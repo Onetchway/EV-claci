@@ -8,6 +8,7 @@ import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, useAsyncAction,
 } from "@/components/ui";
+import { subscribeSessionsForVehicles, type ChargeSession } from "@/lib/db/chargers";
 import {
   assignVehicleDriver, assignVehicleRfidToken, createDriver, createVehicle, deleteDriver, deleteVehicle,
   subscribeDrivers, subscribeFleets, subscribeVehicles,
@@ -16,6 +17,7 @@ import { EV_CAR_CATALOG, findCar, OTHER_CAR_ID } from "@/lib/ev-cars";
 import { subscribeRfidTokens } from "@/lib/db/rfid";
 import { canManageFleets } from "@/lib/permissions";
 import type { Driver, Fleet, RfidToken, Vehicle } from "@/lib/types";
+import { formatCompactINR } from "@/lib/utils";
 
 export default function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +30,7 @@ export default function FleetDetailPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [rfidTokens, setRfidTokens] = useState<RfidToken[]>([]);
+  const [vehicleSessions, setVehicleSessions] = useState<ChargeSession[]>([]);
 
   const [vOpen, setVOpen] = useState(false);
   const [vReg, setVReg] = useState("");
@@ -44,6 +47,23 @@ export default function FleetDetailPage() {
   useEffect(() => subscribeVehicles(id, setVehicles), [id]);
   useEffect(() => subscribeDrivers(id, setDrivers), [id]);
   useEffect(() => subscribeRfidTokens(setRfidTokens), []);
+  useEffect(
+    () => subscribeSessionsForVehicles(vehicles.map((v) => v.id), setVehicleSessions),
+    [vehicles],
+  );
+
+  const usageByVehicle = useMemo(() => {
+    const map = new Map<string, { sessions: number; energyWh: number; costInr: number }>();
+    for (const s of vehicleSessions) {
+      if (!s.vehicleId) continue;
+      const entry = map.get(s.vehicleId) ?? { sessions: 0, energyWh: 0, costInr: 0 };
+      entry.sessions += 1;
+      entry.energyWh += s.energyDeliveredWh ?? 0;
+      entry.costInr += s.totalCostInr ?? 0;
+      map.set(s.vehicleId, entry);
+    }
+    return map;
+  }, [vehicleSessions]);
 
   const fleet = fleets.find((f) => f.id === id);
   const driverName = useMemo(() => new Map(drivers.map((d) => [d.id, d.name])), [drivers]);
@@ -83,10 +103,17 @@ export default function FleetDetailPage() {
             <div className="overflow-x-auto scroll-thin">
               <table className="w-full">
                 <thead className="border-b border-ink-200">
-                  <tr><th className="th">Reg. no.</th><th className="th">Car</th><th className="th">Battery</th><th className="th">Driver</th><th className="th">RFID card</th>{canManage && <th className="th text-right">Actions</th>}</tr>
+                  <tr>
+                    <th className="th">Reg. no.</th><th className="th">Car</th><th className="th">Battery</th>
+                    <th className="th">Driver</th><th className="th">RFID card</th>
+                    <th className="th text-right">Sessions</th><th className="th text-right">Energy</th><th className="th text-right">Spend</th>
+                    {canManage && <th className="th text-right">Actions</th>}
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-ink-100">
-                  {vehicles.map((v) => (
+                  {vehicles.map((v) => {
+                    const usage = usageByVehicle.get(v.id);
+                    return (
                     <tr key={v.id} className="hover:bg-ink-50">
                       <td className="td font-medium">{v.regNumber}</td>
                       <td className="td text-ink-600">{v.carLabel}</td>
@@ -111,6 +138,9 @@ export default function FleetDetailPage() {
                           />
                         ) : (v.rfidTokenId ? rfidTokens.find((t) => t.id === v.rfidTokenId)?.label ?? "—" : "—")}
                       </td>
+                      <td className="td text-right tabular-nums">{usage?.sessions ?? 0}</td>
+                      <td className="td text-right tabular-nums">{usage ? `${(usage.energyWh / 1000).toFixed(1)} kWh` : "—"}</td>
+                      <td className="td text-right tabular-nums">{usage ? formatCompactINR(usage.costInr) : "—"}</td>
                       {canManage && (
                         <td className="td text-right">
                           <Button
@@ -125,7 +155,8 @@ export default function FleetDetailPage() {
                         </td>
                       )}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

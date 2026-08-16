@@ -258,12 +258,12 @@ async function billSession(
   const durationMinutes = startedAt ? Math.max(0, (endedAt.getTime() - startedAt.getTime()) / 60000) : 0;
   const idleMinutes = (sessionData?.idleMinutes as number | undefined) ?? 0;
   const connectorId = sessionData?.connectorId as number | null | undefined;
+  const idToken = sessionData?.idToken as string | null | undefined;
 
-  const tariff = await resolveTariff(chargePointId, endedAt, connectorId);
+  const tariff = await resolveTariff(chargePointId, endedAt, connectorId, idToken);
   if (!tariff) return;
 
   const cost = computeCost(tariff, energyDeliveredWh ?? null, durationMinutes, idleMinutes);
-  const idToken = sessionData?.idToken as string | null | undefined;
   const discountPct = await subscriptionDiscountFor(idToken);
   const totalCostInr = discountPct
     ? Math.round(cost.totalCostInr * (1 - discountPct / 100) * 100) / 100

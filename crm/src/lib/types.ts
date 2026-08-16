@@ -539,6 +539,8 @@ export interface Tariff {
   cities: string[];
   /** Only used when scope === "STATE". */
   states: string[];
+  /** Only used when scope === "FLEET" — matches the vehicle's fleetId (traced via the session's id token → its RFID card → the vehicle it's assigned to). */
+  fleetIds: string[];
   pricingType: TariffPricingType;
   /** ₹ per kWh / per minute / flat per session, excl. GST. */
   rate: number;
