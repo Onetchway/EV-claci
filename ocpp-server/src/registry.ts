@@ -62,6 +62,14 @@ export function isConnected(chargePointId: string): boolean {
   return connections.has(chargePointId);
 }
 
+/** Records the charger's own progress reports (Downloading/Downloaded/Installing/Installed/etc.) after an UpdateFirmware command was sent. */
+export async function recordFirmwareStatus(chargePointId: string, status: string): Promise<void> {
+  await db().collection(CHARGE_POINTS).doc(chargePointId).set(
+    { firmwareStatus: status, firmwareStatusAt: FieldValue.serverTimestamp() },
+    { merge: true },
+  );
+}
+
 export async function markOnline(
   chargePointId: string,
   boot: { vendorName?: string; model?: string; serialNumber?: string; firmwareVersion?: string; reason?: string },

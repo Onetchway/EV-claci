@@ -5,7 +5,8 @@
 import { getFirebaseAuth } from "./firebase/client";
 
 export type ChargerCommandAction =
-  | "RequestStartTransaction" | "RequestStopTransaction" | "Reset" | "UnlockConnector" | "ChangeAvailability";
+  | "RequestStartTransaction" | "RequestStopTransaction" | "Reset" | "UnlockConnector" | "ChangeAvailability"
+  | "UpdateFirmware";
 
 export async function sendChargerCommand(
   chargerId: string,

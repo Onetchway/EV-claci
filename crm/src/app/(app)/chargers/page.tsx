@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import {
   Battery, Copy, Lock, MapPin as MapPinIcon, Plus, Power, PowerOff, QrCode, RotateCcw,
-  Square, Trash2, Wifi, WifiOff, X, Zap,
+  Square, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -147,6 +147,8 @@ export default function ChargersPage() {
   const [startingFor, setStartingFor] = useState<string | null>(null);
   const [startIdToken, setStartIdToken] = useState("");
   const [startEvseId, setStartEvseId] = useState("1");
+  const [firmwareFor, setFirmwareFor] = useState<string | null>(null);
+  const [firmwareUrl, setFirmwareUrl] = useState("");
   const [commandBusy, setCommandBusy] = useState<string | null>(null);
 
   const [newTokenId, setNewTokenId] = useState("");
@@ -207,6 +209,16 @@ export default function ChargersPage() {
     }));
     setStartingFor(null);
     setStartIdToken("");
+  }
+
+  async function submitFirmwareUpdate() {
+    if (!firmwareFor || !firmwareUrl.trim()) return;
+    await runCommand(firmwareFor, "Update firmware", () => sendChargerCommand(firmwareFor, "UpdateFirmware", {
+      requestId: Date.now(),
+      firmware: { location: firmwareUrl.trim(), retrieveDateTime: new Date().toISOString() },
+    }));
+    setFirmwareFor(null);
+    setFirmwareUrl("");
   }
 
   async function addToken() {
@@ -459,6 +471,10 @@ export default function ChargersPage() {
               <p className="mt-3 border-t border-ink-100 pt-2 text-xs text-ink-500">
                 Last seen {formatDateTime(p.lastSeenAt)}
               </p>
+              <p className="text-xs text-ink-500">
+                Firmware {p.firmwareVersion || "unknown"}
+                {p.firmwareStatus && ` · ${p.firmwareStatus}${p.firmwareStatusAt ? ` (${formatDateTime(p.firmwareStatusAt)})` : ""}`}
+              </p>
 
               {canManage && (
                 <div className="mt-3 flex flex-wrap gap-1.5 border-t border-ink-100 pt-2">
@@ -484,6 +500,13 @@ export default function ChargersPage() {
                       sendChargerCommand(p.chargePointId, "ChangeAvailability", { operationalStatus: "Inoperative" }))}
                   >
                     Set unavailable
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Update firmware"}
+                    onClick={() => setFirmwareFor(p.chargePointId)}
+                  >
+                    <UploadCloud className="h-3.5 w-3.5" /> Update firmware
                   </Button>
                 </div>
               )}
@@ -658,6 +681,30 @@ export default function ChargersPage() {
             <Input type="number" min={1} value={startEvseId} onChange={(e) => setStartEvseId(e.target.value)} />
           </Field>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!firmwareFor}
+        onClose={() => setFirmwareFor(null)}
+        title={`Update firmware — ${firmwareFor ?? ""}`}
+        description="Sends UpdateFirmware with an immediate retrieve time. The charger reports progress via FirmwareStatusNotification, shown on its card once received."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setFirmwareFor(null)}>Cancel</Button>
+            <Button
+              variant="primary"
+              disabled={!firmwareUrl.trim()}
+              loading={!!firmwareFor && commandBusy === firmwareFor + "Update firmware"}
+              onClick={() => void submitFirmwareUpdate()}
+            >
+              Send
+            </Button>
+          </>
+        )}
+      >
+        <Field label="Firmware file URL" required>
+          <Input value={firmwareUrl} onChange={(e) => setFirmwareUrl(e.target.value)} placeholder="https://…" />
+        </Field>
       </Modal>
 
       <Modal

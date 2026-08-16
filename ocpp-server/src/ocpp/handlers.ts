@@ -6,7 +6,7 @@
  */
 
 import {
-  markOnline, recordMeterValues, recordTransactionEvent, touchHeartbeat, updateConnectorStatus,
+  markOnline, recordFirmwareStatus, recordMeterValues, recordTransactionEvent, touchHeartbeat, updateConnectorStatus,
 } from "../registry.js";
 import { checkIdToken, checkMonthlyCap } from "../rfid.js";
 import { openTicketIfNeeded } from "../tickets.js";
@@ -90,6 +90,12 @@ export async function handleCall(
     case "MeterValues": {
       const req = payload as MeterValuesRequest;
       await recordMeterValues(chargePointId, req.evseId, energyWhFrom(req.meterValue));
+      return ok({});
+    }
+
+    case "FirmwareStatusNotification": {
+      const req = payload as { status: string };
+      await recordFirmwareStatus(chargePointId, req.status);
       return ok({});
     }
 

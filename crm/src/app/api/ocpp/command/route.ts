@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 const Body = z.object({
   chargerId: z.string().min(1),
-  action: z.enum(["RequestStartTransaction", "RequestStopTransaction", "Reset", "UnlockConnector", "ChangeAvailability"]),
+  action: z.enum(["RequestStartTransaction", "RequestStopTransaction", "Reset", "UnlockConnector", "ChangeAvailability", "UpdateFirmware"]),
   payload: z.record(z.unknown()).optional().default({}),
 });
 

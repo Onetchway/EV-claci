@@ -36,6 +36,9 @@ export interface ChargePoint {
   serialNumber?: string | null;
   firmwareVersion?: string | null;
   lastBootReason?: string | null;
+  /** Latest FirmwareStatusNotification reported after an UpdateFirmware command — e.g. Downloading/Downloaded/Installing/Installed/InstallationFailed. */
+  firmwareStatus?: string | null;
+  firmwareStatusAt?: TS;
   connectors?: Record<string, ConnectorState>;
   connectedAt?: TS;
   disconnectedAt?: TS;
