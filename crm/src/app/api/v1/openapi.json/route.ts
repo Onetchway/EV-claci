@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { publicOrigin } from "@/lib/ocpi/base-url";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -97,5 +99,5 @@ function spec(origin: string) {
 }
 
 export async function GET(req: Request) {
-  return NextResponse.json(spec(new URL(req.url).origin));
+  return NextResponse.json(spec(publicOrigin(req)));
 }

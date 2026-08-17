@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { adminDb } from "@/lib/firebase/admin";
+import { publicOrigin } from "@/lib/ocpi/base-url";
 import { OCPI_COUNTRY_CODE, OCPI_PARTY_ID } from "@/lib/ocpi/identity";
 import { OCPI_PARTIES, requirePendingParty } from "@/lib/ocpi/auth";
 import type { OcpiCredentials, OcpiResponse } from "@/lib/ocpi/types";
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
       registeredAt: FieldValue.serverTimestamp(),
     });
 
-    const base = new URL(req.url).origin;
+    const base = publicOrigin(req);
     const ourCredentials: OcpiCredentials = {
       token: tokenC,
       url: `${base}/api/ocpi/versions`,

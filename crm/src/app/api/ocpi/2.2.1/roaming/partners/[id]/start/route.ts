@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { errorResponse, requireCaller, ApiError } from "@/app/api/_lib/guard";
 import { adminDb } from "@/lib/firebase/admin";
+import { publicOrigin } from "@/lib/ocpi/base-url";
 import { getRoamingPartner, sendStartSessionToPartner } from "@/lib/ocpi/roaming-client";
 
 export const runtime = "nodejs";
@@ -31,7 +32,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (!partner) throw new ApiError("Roaming partner not found.", 404);
 
     const rid = randomUUID();
-    const base = new URL(req.url).origin;
+    const base = publicOrigin(req);
     await adminDb().collection("roamingCommands").doc(rid).set({
       kind: "START_SESSION", partnerId: partner.id, partnerName: partner.businessName,
       locationId, evseUid: evseUid ?? null, idToken, result: "PENDING",

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { errorResponse, requireCaller } from "@/app/api/_lib/guard";
+import { publicOrigin } from "@/lib/ocpi/base-url";
 import { registerWithPartner } from "@/lib/ocpi/roaming-client";
 
 export const runtime = "nodejs";
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
   try {
     await requireCaller(req, "ADMIN");
     const { businessName, versionsUrl, theirTokenA } = Body.parse(await req.json());
-    const base = new URL(req.url).origin;
+    const base = publicOrigin(req);
     const partner = await registerWithPartner(businessName, versionsUrl, theirTokenA, base);
     return NextResponse.json({ ok: true, partner });
   } catch (err) {
