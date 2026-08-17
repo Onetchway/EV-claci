@@ -127,15 +127,18 @@ async function buildOcpiLocationPayload(chargePointId: string): Promise<Record<s
   };
 }
 
+export type OcppProtocolVersion = "ocpp2.0.1" | "ocpp1.6";
+
 interface Connection {
   ws: WebSocket;
   connectedAt: number;
+  protocol: OcppProtocolVersion;
 }
 
 export const connections = new Map<string, Connection>();
 
-export function registerConnection(chargePointId: string, ws: WebSocket): void {
-  connections.set(chargePointId, { ws, connectedAt: Date.now() });
+export function registerConnection(chargePointId: string, ws: WebSocket, protocol: OcppProtocolVersion): void {
+  connections.set(chargePointId, { ws, connectedAt: Date.now(), protocol });
 }
 
 export function unregisterConnection(chargePointId: string): void {
@@ -144,6 +147,11 @@ export function unregisterConnection(chargePointId: string): void {
 
 export function isConnected(chargePointId: string): boolean {
   return connections.has(chargePointId);
+}
+
+/** Which OCPP wire dialect this charge point negotiated — commands.ts uses this to translate outbound Calls for 1.6 chargers. Defaults to 2.0.1 if the charger isn't currently connected (matches the pre-1.6 assumption). */
+export function protocolFor(chargePointId: string): OcppProtocolVersion {
+  return connections.get(chargePointId)?.protocol ?? "ocpp2.0.1";
 }
 
 /** Records the charger's own progress reports (Downloading/Downloaded/Installing/Installed/etc.) after an UpdateFirmware command was sent. */
@@ -249,7 +257,7 @@ export async function updateConnectorStatus(
   pushOcpiUpdateSafe("locations", chargePointId, () => buildOcpiLocationPayload(chargePointId));
 }
 
-function sessionDocId(chargePointId: string, transactionId: string): string {
+export function sessionDocId(chargePointId: string, transactionId: string): string {
   return `${chargePointId}__${transactionId}`;
 }
 
@@ -339,6 +347,114 @@ export async function recordTransactionEvent(
 }
 
 /**
+ * OCPP 1.6's transaction model differs enough from 2.0.1's unified
+ * TransactionEvent that it gets its own write path here rather than being
+ * shoehorned into recordTransactionEvent: 1.6 has a separate
+ * StartTransaction/StopTransaction pair, the CSMS (not the charge point)
+ * assigns the transactionId, and there's no evse concept — every 1.6
+ * charge point is treated as a single EVSE (evseId 1), same assumption
+ * UnlockConnector's default already makes elsewhere in this codebase.
+ * MeterValues arrives separately and isn't folded into a transaction event
+ * the way 2.0.1 does it, so idle-time tracking (present in
+ * recordTransactionEvent) isn't replicated here — a known simplification.
+ */
+export async function start16Transaction(
+  chargePointId: string,
+  connectorId: number,
+  idTag: string,
+  meterStartWh: number,
+  timestamp: string,
+): Promise<number> {
+  const transactionId = Date.now();
+  const ref = db().collection(CHARGE_SESSIONS).doc(sessionDocId(chargePointId, String(transactionId)));
+  await ref.set({
+    chargePointId,
+    transactionId: String(transactionId),
+    evseId: 1,
+    connectorId,
+    idToken: idTag,
+    status: "ACTIVE",
+    startedAt: Timestamp.fromDate(new Date(timestamp)),
+    energyStartWh: meterStartWh,
+    latestEnergyWh: meterStartWh,
+    idleMinutes: 0,
+    lastEventType: "Started",
+    lastUpdateAt: FieldValue.serverTimestamp(),
+  });
+
+  pushOcpiUpdateSafe("sessions", ref.id, async () => ({
+    country_code: OCPI_COUNTRY_CODE,
+    party_id: OCPI_PARTY_ID,
+    id: ref.id,
+    start_date_time: timestamp,
+    kwh: 0,
+    currency: "INR",
+    status: "ACTIVE",
+    last_updated: new Date().toISOString(),
+  }));
+
+  return transactionId;
+}
+
+export async function record16MeterValue(chargePointId: string, transactionId: number, energyWh: number): Promise<void> {
+  const ref = db().collection(CHARGE_SESSIONS).doc(sessionDocId(chargePointId, String(transactionId)));
+  const snap = await ref.get();
+  const data = snap.data();
+  if (!data || data.status !== "ACTIVE") return;
+  const start = data.energyStartWh as number | undefined;
+  const patch: Record<string, unknown> = { latestEnergyWh: energyWh, lastUpdateAt: FieldValue.serverTimestamp() };
+  let energyDeliveredWh: number | undefined;
+  if (start != null && energyWh >= start) {
+    energyDeliveredWh = energyWh - start;
+    patch.energyDeliveredWh = energyDeliveredWh;
+  }
+  await ref.set(patch, { merge: true });
+
+  pushOcpiUpdateSafe("sessions", ref.id, async () => ({
+    country_code: OCPI_COUNTRY_CODE,
+    party_id: OCPI_PARTY_ID,
+    id: ref.id,
+    start_date_time: toIsoTs(data.startedAt),
+    kwh: (energyDeliveredWh ?? 0) / 1000,
+    currency: "INR",
+    status: "ACTIVE",
+    last_updated: new Date().toISOString(),
+  }));
+}
+
+export async function stop16Transaction(
+  chargePointId: string,
+  transactionId: number,
+  meterStopWh: number,
+  timestamp: string,
+  reason: string | undefined,
+): Promise<void> {
+  const ref = db().collection(CHARGE_SESSIONS).doc(sessionDocId(chargePointId, String(transactionId)));
+  const snap = await ref.get();
+  const prev = snap.data();
+  if (!prev) {
+    console.warn(`[ocpp1.6] StopTransaction for unknown transaction ${transactionId} on ${chargePointId}`);
+    return;
+  }
+  const start = prev.energyStartWh as number | undefined;
+  const energyDeliveredWh = start != null && meterStopWh >= start ? meterStopWh - start : undefined;
+
+  const patch: Record<string, unknown> = {
+    status: "ENDED",
+    endedAt: Timestamp.fromDate(new Date(timestamp)),
+    stoppedReason: reason ?? null,
+    latestEnergyWh: meterStopWh,
+    lastEventType: "Ended",
+    lastUpdateAt: FieldValue.serverTimestamp(),
+    ...(energyDeliveredWh != null && { energyDeliveredWh }),
+  };
+  await ref.set(patch, { merge: true });
+
+  const data = { ...prev, ...patch };
+  await billSession(ref, chargePointId, data, energyDeliveredWh);
+}
+
+/**
  * Traces an id token → its rfidTokens doc → the EMSP user it's assigned to
  * (if any), independent of whether a debit actually happens — a durable
  * "who charged" reference on every session, not just ones that got billed
@@ -388,7 +504,7 @@ async function lookupVehicleForIdToken(
  * fields written) rather than guessing a rate — the CRM shows this
  * explicitly as "No tariff matched" instead of a silent ₹0.
  */
-async function billSession(
+export async function billSession(
   ref: FirebaseFirestore.DocumentReference,
   chargePointId: string,
   sessionData: FirebaseFirestore.DocumentData | undefined,

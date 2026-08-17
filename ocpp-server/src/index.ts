@@ -20,12 +20,14 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { COMMAND_ACTIONS, sendCommand, rejectCommand, resolveCommand, type CommandAction } from "./ocpp/commands.js";
 import { initFirebase } from "./firebase.js";
 import { handleCall } from "./ocpp/handlers.js";
+import { handleCall16 } from "./ocpp16/handlers.js";
 import {
   encodeCallError, encodeCallResult, isCall, isCallResult, isCallError, parseFrame,
 } from "./ocpp/rpc.js";
 import { logOcppMessage } from "./message-log.js";
 import {
   isRegisteredAndActive, markOffline, recordOperationalStatus, registerConnection, unregisterConnection,
+  type OcppProtocolVersion,
 } from "./registry.js";
 import { sweepStaleConnections, sweepSlaBreaches, OFFLINE_SWEEP_MS } from "./tickets.js";
 import { sweepZoneLoads } from "./load-balancer.js";
@@ -36,7 +38,7 @@ import { sweepRevenueGuarantees } from "./revenue-guarantee.js";
 initFirebase();
 
 const PORT = Number(process.env.PORT) || 8080;
-const SUPPORTED_SUBPROTOCOL = "ocpp2.0.1";
+const SUPPORTED_SUBPROTOCOLS: OcppProtocolVersion[] = ["ocpp2.0.1", "ocpp1.6"];
 const COMMAND_API_KEY = process.env.COMMAND_API_KEY;
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
@@ -102,11 +104,12 @@ const httpServer = createServer((req, res) => {
 const wss = new WebSocketServer({
   server: httpServer,
   handleProtocols: (protocols) => {
-    // Best-effort: accept whatever the charge point offers so a connection
-    // still shows up (and logs) even if firmware only speaks OCPP 1.6 — see
-    // README for why that's a real possibility with the deployed hardware.
-    // Message *shapes* below are 2.0.1-only, per explicit instruction.
-    if (protocols.has(SUPPORTED_SUBPROTOCOL)) return SUPPORTED_SUBPROTOCOL;
+    // Both dialects are understood now — prefer 2.0.1 if a charger somehow
+    // offers both, otherwise accept 1.6. A charger offering neither still
+    // gets a connection (whatever it offered first) so it shows up and
+    // logs, even though its messages likely won't parse as either dialect.
+    if (protocols.has("ocpp2.0.1")) return "ocpp2.0.1";
+    if (protocols.has("ocpp1.6")) return "ocpp1.6";
     const [first] = protocols;
     return first ?? false;
   },
@@ -167,14 +170,15 @@ wss.on("connection", (ws: WebSocket, req) => {
 
 function attachChargePoint(chargePointId: string, ws: WebSocket): void {
   const negotiated = (ws as { protocol?: string }).protocol;
-  console.log(`[ws] ${chargePointId} connected (subprotocol: ${negotiated || "none offered"})`);
-  if (negotiated && negotiated !== SUPPORTED_SUBPROTOCOL) {
+  const protocol: OcppProtocolVersion = negotiated === "ocpp1.6" ? "ocpp1.6" : "ocpp2.0.1";
+  console.log(`[ws] ${chargePointId} connected (subprotocol: ${negotiated || "none offered"}, dispatching as ${protocol})`);
+  if (negotiated && !SUPPORTED_SUBPROTOCOLS.includes(negotiated as OcppProtocolVersion)) {
     console.warn(
-      `[ws] ${chargePointId} negotiated "${negotiated}", not "${SUPPORTED_SUBPROTOCOL}" — ` +
-        "this server only understands OCPP 2.0.1 message shapes, so calls from this charge point will likely fail to parse.",
+      `[ws] ${chargePointId} negotiated "${negotiated}", which isn't one of ${SUPPORTED_SUBPROTOCOLS.join(", ")} — ` +
+        `defaulting to ${protocol} message shapes, so calls from this charge point will likely fail to parse.`,
     );
   }
-  registerConnection(chargePointId, ws);
+  registerConnection(chargePointId, ws, protocol);
 
   ws.on("message", (data) => {
     void (async () => {
@@ -189,7 +193,9 @@ function attachChargePoint(chargePointId: string, ws: WebSocket): void {
         const [, uniqueId, action, payload] = frame;
         logOcppMessage(chargePointId, "IN", "Call", action, uniqueId, payload);
         try {
-          const result = await handleCall(chargePointId, action, payload);
+          const result = protocol === "ocpp1.6"
+            ? await handleCall16(chargePointId, action, payload)
+            : await handleCall(chargePointId, action, payload);
           if (result.ok) {
             logOcppMessage(chargePointId, "OUT", "CallResult", action, uniqueId, result.payload);
             ws.send(encodeCallResult(uniqueId, result.payload));

@@ -19,6 +19,7 @@ import type { WebSocket } from "ws";
 import { connections } from "../registry.js";
 import { logOcppMessage } from "../message-log.js";
 import { encodeCall } from "./rpc.js";
+import { translateForOcpp16 } from "../ocpp16/commands.js";
 
 interface PendingCall {
   chargePointId: string;
@@ -60,6 +61,24 @@ export function sendCommand(
   const conn = connections.get(chargePointId);
   if (!conn) return Promise.reject(new ChargerNotConnectedError(chargePointId));
 
+  // Callers (CRM API routes, OCPI routes, the load balancer, depot
+  // scheduling) all speak the 2.0.1 action/payload shapes unconditionally —
+  // this is the one place that needs to know a charger might actually be a
+  // 1.6 charger, and translate on the way out. Response shapes are left
+  // untranslated: every action this server sends gets back a `.status`
+  // field either way, so callers reading that need no protocol awareness.
+  let wireAction: string = action;
+  let wirePayload: unknown = payload;
+  if (conn.protocol === "ocpp1.6") {
+    try {
+      const translated = translateForOcpp16(action, payload);
+      wireAction = translated.action;
+      wirePayload = translated.payload;
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   const uniqueId = randomUUID();
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -68,8 +87,8 @@ export function sendCommand(
     }, timeoutMs);
 
     pending.set(uniqueId, { chargePointId, action, resolve, reject, timer });
-    logOcppMessage(chargePointId, "OUT", "Call", action, uniqueId, payload);
-    (conn.ws as WebSocket).send(encodeCall(uniqueId, action, payload));
+    logOcppMessage(chargePointId, "OUT", "Call", wireAction, uniqueId, wirePayload);
+    (conn.ws as WebSocket).send(encodeCall(uniqueId, wireAction, wirePayload));
   });
 }
 
