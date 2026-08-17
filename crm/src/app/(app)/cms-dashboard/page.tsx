@@ -45,6 +45,44 @@ export default function CmsDashboardPage() {
     return { total: registry.filter((r) => r.active).length, online, active, energyToday };
   }, [registry, points, sessions]);
 
+  /**
+   * The full Available/Charging/Preparing/Faulted/Maintenance taxonomy,
+   * composed from three separate signals rather than one OCPP field — no
+   * single field carries all five: connector status gives
+   * Available/Faulted/Reserved/Unavailable; "Maintenance" is
+   * operationalStatus (an admin-set ChangeAvailability flag, not something
+   * a charger reports on its own); and "Charging" vs "Preparing" both show
+   * as connector status "Occupied" — only the active session's own
+   * chargingState (2.0.1) tells them apart. A 1.6 session has no
+   * chargingState field at all, so an occupied connector with no
+   * chargingState signal defaults to "Charging" rather than an unresolved
+   * bucket.
+   */
+  const statusTaxonomy = useMemo(() => {
+    const activeChargingStateByCharger = new Map<string, string | null | undefined>();
+    for (const s of sessions) {
+      if (s.status === "ACTIVE") activeChargingStateByCharger.set(s.chargePointId, s.chargingState);
+    }
+    const counts = { Available: 0, Charging: 0, Preparing: 0, Faulted: 0, Maintenance: 0, Other: 0 };
+    for (const p of points) {
+      const connectors = Object.values(p.connectors ?? {});
+      if (connectors.length === 0) continue;
+      for (const c of connectors) {
+        if (c.status === "Faulted") { counts.Faulted += 1; continue; }
+        if (p.operationalStatus === "INOPERATIVE") { counts.Maintenance += 1; continue; }
+        if (c.status === "Occupied") {
+          const chargingState = activeChargingStateByCharger.get(p.chargePointId ?? p.id);
+          if (!chargingState || chargingState === "Charging") counts.Charging += 1;
+          else counts.Preparing += 1;
+          continue;
+        }
+        if (c.status === "Available") { counts.Available += 1; continue; }
+        counts.Other += 1;
+      }
+    }
+    return counts;
+  }, [points, sessions]);
+
   const breakdown = useMemo(() => {
     const active = registry.filter((r) => r.active);
     const ac = active.filter((r) => r.chargerPowerType === "AC").length;
@@ -83,6 +121,16 @@ export default function CmsDashboardPage() {
             <StatCard label="Active sessions" value={stats.active} tone={stats.active ? "positive" : "default"} icon={<Battery className="h-4 w-4" />} />
             <StatCard label="Energy delivered (recent)" value={wh(stats.energyToday)} />
           </div>
+
+          <Card title="Connector status" className="mb-4" subtitle="Available / Charging / Preparing / Faulted / Maintenance, live across every connected connector.">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <StatCard label="Available" value={statusTaxonomy.Available} tone={statusTaxonomy.Available ? "positive" : "default"} />
+              <StatCard label="Charging" value={statusTaxonomy.Charging} tone={statusTaxonomy.Charging ? "positive" : "default"} />
+              <StatCard label="Preparing" value={statusTaxonomy.Preparing} />
+              <StatCard label="Faulted" value={statusTaxonomy.Faulted} tone={statusTaxonomy.Faulted ? "negative" : "default"} />
+              <StatCard label="Maintenance" value={statusTaxonomy.Maintenance} tone={statusTaxonomy.Maintenance ? "warn" : "default"} />
+            </div>
+          </Card>
 
           <div className="mb-4 grid gap-4 lg:grid-cols-3">
             <Card title="Power type">
