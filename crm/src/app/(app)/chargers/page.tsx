@@ -8,16 +8,20 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 
+import { doc, getDoc } from "firebase/firestore";
+
 import { useAuth, useViewer } from "@/components/auth-provider";
 import { ConnectorIcon } from "@/components/connector-icon";
 import {
   Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner,
   useAsyncAction, useToast,
 } from "@/components/ui";
+import { getDb } from "@/lib/firebase/client";
 import { useSettings } from "@/hooks/use-settings";
 import {
   approveSelfServeCharger, chargerWsUrl, CHARGER_TYPES, CHARGER_VENDORS, CONNECTOR_TYPES, deleteChargerRegistration, oemLabel,
-  registerCharger, rejectSelfServeCharger, setChargerActive, subscribeChargerRegistry, updateChargerRegistration,
+  registerCharger, rejectSelfServeCharger, setChargerActive, setChargerCustomTariffId, subscribeChargerRegistry,
+  updateChargerRegistration,
   type ChargerRegistration, type ChargerRegistrationDraft, type ConnectorTypeName,
 } from "@/lib/db/charger-registry";
 import {
@@ -26,11 +30,12 @@ import {
 import { subscribeLeads } from "@/lib/db/leads";
 import { sendChargerCommand } from "@/lib/ocpp-commands";
 import { addRfidToken, deleteRfidToken, setRfidTokenScope, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
+import { createTariff, setTariffActive, TARIFFS, updateTariff } from "@/lib/db/tariffs";
 import { subscribeTickets } from "@/lib/db/tickets";
 import { subscribeZones } from "@/lib/db/zones";
 import { INDIAN_STATES, LEAD_TYPE_LABEL, LEAD_TYPES, type LeadType } from "@/lib/constants";
-import { canManageChargers, canManageRfid } from "@/lib/permissions";
-import type { Lead, RevenueShareType, RfidToken, Ticket, Zone } from "@/lib/types";
+import { canManageChargers, canManageRfid, canManageTariffs } from "@/lib/permissions";
+import type { Lead, RevenueShareType, RfidToken, Tariff, Ticket, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
 
 const CONNECTOR_COLOR: Record<ConnectorStatus, string> = {
@@ -47,6 +52,7 @@ const blankDraft: ChargerRegistrationDraft = {
   leadId: null, leadCode: null,
   reservationsEnabled: false, accessType: "PUBLIC", open24Hours: true, openingHours: "",
   heartbeatIntervalSec: 300, maxSocPercent: undefined, photoUrl: null,
+  tariffMode: "STANDARD", revenueShareOverride: false,
 };
 
 /** Generates and displays the connection QR for a given charger, on demand — nothing is precomputed. */
@@ -178,6 +184,11 @@ export default function ChargersPage() {
   const [justRegisteredToken, setJustRegisteredToken] = useState<string | undefined>(undefined);
   const [editingRegId, setEditingRegId] = useState<string | null>(null);
   const [customChargerId, setCustomChargerId] = useState("");
+  const [customTariffId, setCustomTariffId] = useState<string | null>(null);
+  const [pricingType, setPricingType] = useState<Tariff["pricingType"]>("PER_KWH");
+  const [pricingRate, setPricingRate] = useState("");
+  const [pricingGstPct, setPricingGstPct] = useState("18");
+  const [pricingPlatformFeeInr, setPricingPlatformFeeInr] = useState("0");
   const [viewingId, setViewingId] = useState<string | null>(null);
 
   const [startingFor, setStartingFor] = useState<string | null>(null);
@@ -353,21 +364,61 @@ export default function ChargersPage() {
     return rows;
   }, [registry, siteFilter, cityFilter, stateFilter, connectorTypeFilter, faultFilter, chargerSearch, zoneName, zoneById, openTicketChargerIds]);
 
+  /**
+   * Upserts (or deactivates) the SPECIFIC_CHARGERS Tariff doc backing
+   * tariffMode === "CUSTOM" — a friendlier per-charger entry point onto the
+   * existing tariff engine rather than a second pricing system. Runs after
+   * the charger registration write, since it needs the real chargerId
+   * (only known post-create for a brand-new charger).
+   */
+  async function syncChargerTariff(regId: string, chargerId: string): Promise<void> {
+    // Firestore rules restrict tariff writes to Admin/Super Admin/Finance —
+    // pricing is a finance decision, not an ops one (see permissions.ts) —
+    // so skip entirely for a viewer who can't write tariffs even if a
+    // stale draft somehow still says tariffMode: "CUSTOM".
+    if (!actor || !canManageTariffs(viewer)) return;
+    if (draft.tariffMode === "CUSTOM") {
+      const tariffDraft = {
+        name: `Custom — ${draft.label.trim()}`,
+        scope: "SPECIFIC_CHARGERS" as const,
+        chargerIds: [chargerId], connectorKeys: [], zoneIds: [], cities: [], states: [],
+        fleetIds: [], emspUserIds: [], corporateAccountIds: [],
+        pricingType, rate: Number(pricingRate) || 0, gstPct: Number(pricingGstPct) || 0,
+        platformFeeInr: Number(pricingPlatformFeeInr) || 0,
+        priority: 100, active: true,
+      };
+      if (customTariffId) {
+        await updateTariff(customTariffId, tariffDraft, actor);
+      } else {
+        const newId = await createTariff(tariffDraft, actor);
+        await setChargerCustomTariffId(regId, newId);
+      }
+    } else if (customTariffId) {
+      // Switched back to STANDARD — deactivate rather than delete, so the
+      // rate history survives and switching back to CUSTOM later just
+      // reactivates (and updates) the same doc instead of losing it.
+      await setTariffActive(customTariffId, false, actor);
+    }
+  }
+
   async function submitRegistration() {
     if (!actor || !draft.label.trim() || !draft.location.trim()) return;
     setRegistering(true);
     try {
       if (editingRegId) {
         await updateChargerRegistration(editingRegId, { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined });
+        const chargerId = registry.find((r) => r.id === editingRegId)?.chargerId;
+        if (chargerId) await syncChargerTariff(editingRegId, chargerId);
         push("Charger updated.", "success");
         closeAddModal();
       } else {
-        const { chargerId, connectionToken } = await registerCharger(
+        const { id: regId, chargerId, connectionToken } = await registerCharger(
           { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined },
           actor,
           customChargerId.trim() || undefined,
           profile?.orgId,
         );
+        if (draft.tariffMode === "CUSTOM") await syncChargerTariff(regId, chargerId);
         setJustRegisteredId(chargerId);
         setJustRegisteredToken(connectionToken);
         setDraft(blankDraft);
@@ -394,7 +445,25 @@ export default function ChargersPage() {
       open24Hours: r.open24Hours ?? true, openingHours: r.openingHours ?? "",
       heartbeatIntervalSec: r.heartbeatIntervalSec ?? 300, maxSocPercent: r.maxSocPercent,
       photoUrl: r.photoUrl ?? null,
+      tariffMode: r.tariffMode ?? "STANDARD",
+      revenueShareOverride: r.revenueShareOverride ?? false,
+      revenueShareType: r.revenueShareType,
+      revenueShareValue: r.revenueShareValue,
+      electricityCostPerKwh: r.electricityCostPerKwh,
+      revenueShareHybridPct: r.revenueShareHybridPct,
     });
+    setCustomTariffId(r.customTariffId ?? null);
+    setPricingType("PER_KWH"); setPricingRate(""); setPricingGstPct("18"); setPricingPlatformFeeInr("0");
+    if (r.customTariffId) {
+      void getDoc(doc(getDb(), TARIFFS, r.customTariffId)).then((snap) => {
+        const t = snap.data() as Tariff | undefined;
+        if (!t) return;
+        setPricingType(t.pricingType);
+        setPricingRate(String(t.rate ?? ""));
+        setPricingGstPct(String(t.gstPct ?? 18));
+        setPricingPlatformFeeInr(String(t.platformFeeInr ?? 0));
+      });
+    }
     setAddOpen(true);
   }
 
@@ -403,6 +472,8 @@ export default function ChargersPage() {
     setJustRegisteredId(null);
     setJustRegisteredToken(undefined);
     setEditingRegId(null);
+    setCustomTariffId(null);
+    setPricingType("PER_KWH"); setPricingRate(""); setPricingGstPct("18"); setPricingPlatformFeeInr("0");
     setDraft(blankDraft);
     setDraftLeadType("");
     setCustomChargerId("");
@@ -1365,6 +1436,87 @@ export default function ChargersPage() {
                 />
               </Field>
             )}
+
+            {canManageTariffs(viewer) && (
+            <div className="sm:col-span-2 border-t border-ink-100 pt-4">
+              <p className="text-sm font-medium text-ink-900">Pricing</p>
+              <p className="mt-0.5 text-xs text-ink-500">Follow standard pricing unless this charger needs its own rate — a custom rate always wins over a zone/state/all-chargers tariff.</p>
+              <div className="mt-2 flex gap-4">
+                <label className="flex items-center gap-1.5 text-sm text-ink-700">
+                  <input type="radio" checked={(draft.tariffMode ?? "STANDARD") === "STANDARD"} onChange={() => setDraft((d) => ({ ...d, tariffMode: "STANDARD" }))} />
+                  Follow standard pricing
+                </label>
+                <label className="flex items-center gap-1.5 text-sm text-ink-700">
+                  <input type="radio" checked={draft.tariffMode === "CUSTOM"} onChange={() => setDraft((d) => ({ ...d, tariffMode: "CUSTOM" }))} />
+                  Custom pricing for this charger
+                </label>
+              </div>
+              {draft.tariffMode === "CUSTOM" && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                  <Field label="Pricing type">
+                    <Select
+                      value={pricingType}
+                      onChange={(e) => setPricingType(e.target.value as Tariff["pricingType"])}
+                      options={[{ value: "PER_KWH", label: "₹/kWh" }, { value: "PER_MINUTE", label: "₹/minute" }, { value: "PER_SESSION", label: "Flat per session" }]}
+                    />
+                  </Field>
+                  <Field label="Rate (₹)" required><Input type="number" min={0} value={pricingRate} onChange={(e) => setPricingRate(e.target.value)} /></Field>
+                  <Field label="GST %"><Input type="number" min={0} max={28} value={pricingGstPct} onChange={(e) => setPricingGstPct(e.target.value)} /></Field>
+                  <Field label="Platform fee (₹)"><Input type="number" min={0} value={pricingPlatformFeeInr} onChange={(e) => setPricingPlatformFeeInr(e.target.value)} /></Field>
+                </div>
+              )}
+            </div>
+            )}
+
+            <div className="sm:col-span-2 border-t border-ink-100 pt-4">
+              <Checkbox
+                label="Override this station's revenue share for this charger"
+                checked={draft.revenueShareOverride ?? false}
+                onChange={(v) => setDraft((d) => ({ ...d, revenueShareOverride: v }))}
+              />
+              <p className="mt-0.5 text-xs text-ink-500">Leave unchecked to use the site's (Zone) revenue-share settings — useful when just one charger at a site is financed/owned differently.</p>
+              {draft.revenueShareOverride && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Field label="Share type">
+                    <Select
+                      value={draft.revenueShareType ?? ""}
+                      onChange={(e) => setDraft((d) => ({ ...d, revenueShareType: (e.target.value || undefined) as RevenueShareType | undefined }))}
+                      options={[
+                        { value: "PERCENT", label: "% of session total" }, { value: "FIXED", label: "Flat ₹ per session" },
+                        { value: "PROFIT_SHARE", label: "% of profit (after electricity cost)" }, { value: "TIERED_HYBRID", label: "Flat floor + % of remaining profit" },
+                      ]}
+                      placeholder="None"
+                    />
+                  </Field>
+                  <Field label={draft.revenueShareType === "FIXED" || draft.revenueShareType === "TIERED_HYBRID" ? "Value (₹)" : "Value (%)"}>
+                    <Input
+                      type="number" min={0}
+                      value={draft.revenueShareValue ?? ""}
+                      onChange={(e) => setDraft((d) => ({ ...d, revenueShareValue: e.target.value ? Number(e.target.value) : undefined }))}
+                    />
+                  </Field>
+                  {(draft.revenueShareType === "PROFIT_SHARE" || draft.revenueShareType === "TIERED_HYBRID") && (
+                    <Field label="Electricity cost (₹/kWh)">
+                      <Input
+                        type="number" min={0}
+                        value={draft.electricityCostPerKwh ?? ""}
+                        onChange={(e) => setDraft((d) => ({ ...d, electricityCostPerKwh: e.target.value ? Number(e.target.value) : undefined }))}
+                      />
+                    </Field>
+                  )}
+                  {draft.revenueShareType === "TIERED_HYBRID" && (
+                    <Field label="Upside % above floor">
+                      <Input
+                        type="number" min={0} max={100}
+                        value={draft.revenueShareHybridPct ?? ""}
+                        onChange={(e) => setDraft((d) => ({ ...d, revenueShareHybridPct: e.target.value ? Number(e.target.value) : undefined }))}
+                      />
+                    </Field>
+                  )}
+                </div>
+              )}
+            </div>
+
             <Field label="Notes" className="sm:col-span-2">
               <Input
                 value={draft.notes ?? ""}

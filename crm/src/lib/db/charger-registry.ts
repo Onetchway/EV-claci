@@ -115,6 +115,33 @@ export interface ChargerRegistration {
   approvedBy?: Actor | null;
   rejectedAt?: TS;
   rejectedReason?: string;
+
+  /**
+   * "STANDARD" (default, and the only behavior before this existed) — this
+   * charger is billed by whatever tariff normally resolves for it
+   * (ALL_CHARGERS / ZONE / CITY / STATE, per ocpp-server's tariff.ts
+   * specificity order). "CUSTOM" — this charger has its own price, kept as
+   * a real Tariff doc (scope SPECIFIC_CHARGERS, see customTariffId) that
+   * naturally outranks any broader-scope tariff — no separate pricing
+   * engine, just a friendlier per-charger entry point onto the existing one.
+   */
+  tariffMode?: "STANDARD" | "CUSTOM";
+  /** The Tariff doc id backing tariffMode === "CUSTOM" — created on first use, deactivated (not deleted, so the rate history survives) if tariffMode reverts to STANDARD, reactivated if it's switched back. */
+  customTariffId?: string | null;
+
+  /**
+   * Per-charger override of this charger's zone/site-wide revenue-share
+   * settings — unset/false means "use the zone's settings" (the only
+   * behavior before this existed). Same field shapes as Zone's equivalent
+   * fields, just scoped to one charger instead of the whole site — useful
+   * when one charger at a site is financed/owned differently than the rest
+   * (e.g. a single fast charger a different partner put in).
+   */
+  revenueShareOverride?: boolean;
+  revenueShareType?: RevenueShareType;
+  revenueShareValue?: number;
+  electricityCostPerKwh?: number;
+  revenueShareHybridPct?: number;
 }
 
 /** Display name for a registration's manufacturer — the free-text override when vendor is "Other". */
@@ -124,7 +151,9 @@ export function oemLabel(r: Pick<ChargerRegistration, "vendor" | "vendorOther">)
 
 export type ChargerRegistrationDraft = Omit<
   ChargerRegistration,
-  "id" | "chargerId" | "active" | "createdAt" | "createdBy" | "installationDate" | "warrantyStart" | "warrantyEnd" | "connectionToken"
+  | "id" | "chargerId" | "active" | "createdAt" | "createdBy" | "installationDate" | "warrantyStart" | "warrantyEnd" | "connectionToken"
+  // System-managed — set only via the tariff upsert flow in the /chargers form, never a plain field edit.
+  | "customTariffId"
 > & {
   installationDate?: Date | null;
   warrantyStart?: Date | null;
@@ -204,7 +233,7 @@ export async function registerCharger(
   actor: Actor,
   customChargerId?: string,
   orgId?: string | null,
-): Promise<{ chargerId: string; connectionToken: string }> {
+): Promise<{ id: string; chargerId: string; connectionToken: string }> {
   let chargerId: string;
   if (customChargerId?.trim()) {
     chargerId = sanitizeCustomChargerId(customChargerId);
@@ -220,7 +249,7 @@ export async function registerCharger(
   if (orgId) await assertUnderLicenseQuota(orgId, draft.chargerPowerType);
 
   const connectionToken = generateConnectionToken();
-  await addDoc(collection(getDb(), CHARGER_REGISTRY), {
+  const ref = await addDoc(collection(getDb(), CHARGER_REGISTRY), {
     ...draftDatesToTimestamps(draft),
     chargerId,
     active: true,
@@ -229,7 +258,7 @@ export async function registerCharger(
     createdAt: serverTimestamp(),
     createdBy: actor,
   });
-  return { chargerId, connectionToken };
+  return { id: ref.id, chargerId, connectionToken };
 }
 
 export interface SelfServeChargerDraft {
@@ -375,6 +404,11 @@ export async function updateChargerRegistration(
   patch: Partial<ChargerRegistrationDraft>,
 ): Promise<void> {
   await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), draftDatesToTimestamps(patch));
+}
+
+/** Links (or unlinks, with null) this charger's custom Tariff doc — kept out of updateChargerRegistration's normal patch surface since it's only ever set as a side effect of the tariff-upsert flow, not a plain form field. */
+export async function setChargerCustomTariffId(id: string, customTariffId: string | null): Promise<void> {
+  await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), { customTariffId });
 }
 
 /**

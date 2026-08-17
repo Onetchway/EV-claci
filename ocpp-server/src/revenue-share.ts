@@ -63,17 +63,30 @@ export async function accrueSiteRevenueShare(
   const { zoneId } = await loadChargerContext(chargePointId);
   if (!zoneId) return;
 
-  const zoneSnap = await db().collection("zones").doc(zoneId).get();
+  const [zoneSnap, regSnap] = await Promise.all([
+    db().collection("zones").doc(zoneId).get(),
+    db().collection("chargerRegistry").where("chargerId", "==", chargePointId).limit(1).get(),
+  ]);
   if (!zoneSnap.exists) return;
   const zone = zoneSnap.data()!;
   const zoneName = (zone.name as string | undefined) ?? "Unknown site";
-  const electricityCostPerKwh = (zone.electricityCostPerKwh as number | undefined) ?? 0;
-  const hybridPct = (zone.revenueShareHybridPct as number | undefined) ?? 0;
+
+  // A charger with its own revenueShareOverride prices the primary
+  // "Site host" entry off its own fields instead of the zone's — e.g. one
+  // fast charger at a site financed by a different partner than the rest.
+  // additionalRevenueShares (other parties splitting the same session)
+  // stay zone-level only: those are about the site as a whole, not a
+  // single charger, so a per-charger override doesn't touch them.
+  const reg = regSnap.docs[0]?.data();
+  const useOverride = reg?.revenueShareOverride === true;
+  const source = useOverride ? reg! : zone;
+  const electricityCostPerKwh = (source.electricityCostPerKwh as number | undefined) ?? 0;
+  const hybridPct = (source.revenueShareHybridPct as number | undefined) ?? 0;
 
   const entries: Record<string, unknown>[] = [];
 
-  const shareType = zone.revenueShareType as RevenueShareType | undefined;
-  const shareValue = zone.revenueShareValue as number | undefined;
+  const shareType = source.revenueShareType as RevenueShareType | undefined;
+  const shareValue = source.revenueShareValue as number | undefined;
   if (shareType && shareValue && shareValue > 0) {
     entries.push({
       zoneId, zoneName, recipientName: "Site host", kind: "SESSION",
