@@ -123,6 +123,44 @@ export interface OcpiUnlockConnectorRequest {
   connector_id: string;
 }
 
+/**
+ * OCPI 2.2.1 Charging Profiles module (RECEIVER side — an eMSP pushes a
+ * profile onto one of our active sessions). Maps onto the OCPP 2.0.1
+ * SetChargingProfile/ClearChargingProfile commands the load balancer
+ * (ocpp-server/src/load-balancer.ts) already sends for zone capping — same
+ * OCPP mechanism, just driven by a roaming partner instead of our own
+ * automation. GET (retrieve the currently-active profile) isn't
+ * implemented: reading it back would mean waiting on an OCPP
+ * GetChargingProfiles round-trip synchronously, and nothing here currently
+ * tracks "what profile is this charger running" as queryable state.
+ */
+export interface OcpiChargingProfilePeriod {
+  start_period: number;
+  limit: number;
+}
+
+export interface OcpiChargingProfile {
+  start_date_time?: string;
+  duration?: number;
+  charging_rate_unit: "W" | "A";
+  min_charging_power?: number;
+  charging_profile_period: OcpiChargingProfilePeriod[];
+}
+
+export interface OcpiSetChargingProfileRequest {
+  response_url: string;
+  charging_profile: OcpiChargingProfile;
+}
+
+export interface OcpiChargingProfileResponse {
+  result: "ACCEPTED" | "REJECTED" | "UNKNOWN_SESSION" | "NOT_SUPPORTED";
+  timeout: number;
+}
+
+export interface OcpiChargingProfileResult {
+  result: "ACCEPTED" | "FAILED" | "REJECTED" | "UNKNOWN_SESSION";
+}
+
 export interface OcpiCdr {
   country_code: string;
   party_id: string;
