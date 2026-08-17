@@ -104,6 +104,15 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // A tenant's own Razorpay key SECRET — deliberately never client-
+    // readable (organizations/{orgId} above is readable by any signed-in
+    // user for branding/logo lookups, which a payment secret can never
+    // share a document with). Only api/organizations/[id]/payment-secret
+    // (Admin SDK) and the order/verify payment routes ever touch this.
+    match /organizationPaymentSecrets/{orgId} {
+      allow read, write: if false;
+    }
+
     // ------------------------------------------------------------------ users
 
     match /users/{userId} {

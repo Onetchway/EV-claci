@@ -5,33 +5,38 @@ import { Building2, Plus, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Spinner, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Spinner, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
   createOrganization, deleteOrganization, setOrganizationActive, subscribeOrganizations, updateOrganization,
   type OrganizationDraft,
 } from "@/lib/db/organizations";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isSuperAdmin } from "@/lib/permissions";
 import type { Organization } from "@/lib/types";
 
-const blankDraft: OrganizationDraft = { name: "", logoUrl: "", primaryColorHex: "", customDomain: "", acLicenseTotal: undefined, dcLicenseTotal: undefined };
+const blankDraft: OrganizationDraft = { name: "", logoUrl: "", primaryColorHex: "", customDomain: "", acLicenseTotal: undefined, dcLicenseTotal: undefined, razorpayKeyId: "" };
 
 export default function OrganizationsPage() {
   const { actor } = useAuth();
   const viewer = useViewer();
   const canManage = isSuperAdmin(viewer.role);
   const { run, busy } = useAsyncAction();
+  const { push } = useToast();
 
   const [orgs, setOrgs] = useState<Organization[] | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Organization | null>(null);
   const [draft, setDraft] = useState<OrganizationDraft>(blankDraft);
+  const [keySecretInput, setKeySecretInput] = useState("");
+  const [secretBusy, setSecretBusy] = useState(false);
 
   useEffect(() => subscribeOrganizations(setOrgs), []);
 
   function openNew() {
     setEditing(null);
     setDraft(blankDraft);
+    setKeySecretInput("");
     setOpen(true);
   }
 
@@ -39,8 +44,9 @@ export default function OrganizationsPage() {
     setEditing(o);
     setDraft({
       name: o.name, logoUrl: o.logoUrl ?? "", primaryColorHex: o.primaryColorHex ?? "", customDomain: o.customDomain ?? "",
-      acLicenseTotal: o.acLicenseTotal, dcLicenseTotal: o.dcLicenseTotal,
+      acLicenseTotal: o.acLicenseTotal, dcLicenseTotal: o.dcLicenseTotal, razorpayKeyId: o.razorpayKeyId ?? "",
     });
+    setKeySecretInput("");
     setOpen(true);
   }
 
@@ -53,12 +59,36 @@ export default function OrganizationsPage() {
       customDomain: draft.customDomain?.trim() || undefined,
       acLicenseTotal: draft.acLicenseTotal || undefined,
       dcLicenseTotal: draft.dcLicenseTotal || undefined,
+      razorpayKeyId: draft.razorpayKeyId?.trim() || undefined,
     };
     await run(async () => {
       if (editing) await updateOrganization(editing.id, clean);
       else await createOrganization(clean, actor);
       setOpen(false);
     }, editing ? "Organisation updated." : "Organisation created.");
+  }
+
+  async function submitKeySecret() {
+    if (!editing) return;
+    setSecretBusy(true);
+    try {
+      const current = getFirebaseAuth().currentUser;
+      if (!current) throw new Error("Your session expired. Sign in again.");
+      const token = await current.getIdToken();
+      const res = await fetch(`/api/organizations/${editing.id}/payment-secret`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ razorpayKeySecret: keySecretInput.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status}).`);
+      setKeySecretInput("");
+      push(keySecretInput.trim() ? "Key secret saved." : "Key secret cleared — this tenant's payments will use the platform account again.", "success");
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setSecretBusy(false);
+    }
   }
 
   if (!canManage) {
@@ -166,6 +196,29 @@ export default function OrganizationsPage() {
           <Field label="Custom domain" hint="Stored for reference — DNS/SSL routing to this domain isn't set up yet.">
             <Input value={draft.customDomain ?? ""} onChange={(e) => setDraft((d) => ({ ...d, customDomain: e.target.value }))} placeholder="app.acme-ev.com" />
           </Field>
+
+          <div className="border-t border-ink-100 pt-4">
+            <p className="label">Payment gateway</p>
+            <p className="mt-1 text-xs text-ink-500">
+              When set, this tenant's EMSP users/corporate accounts (whose profile has orgId set to this
+              organisation) top up their wallet through this Razorpay account instead of the platform's.
+              Leave both blank to keep using the platform account.
+            </p>
+            <Field label="Razorpay Key ID" className="mt-3">
+              <Input value={draft.razorpayKeyId ?? ""} onChange={(e) => setDraft((d) => ({ ...d, razorpayKeyId: e.target.value }))} placeholder="rzp_live_…" />
+            </Field>
+            {editing && (
+              <Field label="Razorpay Key Secret" hint="Write-only — never shown back once saved. Leave blank and save to clear it (reverts this tenant to the platform account).">
+                <div className="flex gap-2">
+                  <Input type="password" value={keySecretInput} onChange={(e) => setKeySecretInput(e.target.value)} placeholder="•••••••••••••••" className="flex-1" />
+                  <Button loading={secretBusy} onClick={() => void submitKeySecret()}>Save secret</Button>
+                </div>
+              </Field>
+            )}
+            {!editing && (
+              <p className="mt-2 text-xs text-ink-400">Save this organisation first, then set its key secret.</p>
+            )}
+          </div>
         </div>
       </Modal>
     </>

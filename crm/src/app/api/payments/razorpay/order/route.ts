@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getRazorpayClient } from "@/lib/razorpay-admin.server";
+import { getRazorpayClient, resolveRazorpayKeysForOwner } from "@/lib/razorpay-admin.server";
 import { errorResponse, requireCaller } from "../../../_lib/guard";
 
 export const runtime = "nodejs";
@@ -13,6 +13,12 @@ export const dynamic = "force-dynamic";
  * route returns a clear 503 rather than a confusing SDK error. Once set,
  * this endpoint + /verify (which checks the payment signature) are a
  * complete, working Razorpay integration — nothing else to wire up.
+ *
+ * If the wallet owner belongs to a white-label tenant with its own
+ * Razorpay account configured (Organization.razorpayKeyId +
+ * organizationPaymentSecrets), the order — and the money — goes there
+ * instead of the platform's account. /verify resolves the exact same way,
+ * since the two must agree on which secret signed the payment.
  */
 
 const Body = z.object({
@@ -26,7 +32,8 @@ export async function POST(req: Request) {
     await requireCaller(req, "OPERATIONS");
     const body = Body.parse(await req.json());
 
-    const client = getRazorpayClient();
+    const tenantKeys = await resolveRazorpayKeysForOwner(body.ownerType, body.ownerId);
+    const client = getRazorpayClient(tenantKeys);
     const order = await client.orders.create({
       amount: Math.round(body.amountInr * 100), // paise
       currency: "INR",
@@ -37,7 +44,7 @@ export async function POST(req: Request) {
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
-      keyId: process.env.RAZORPAY_KEY_ID,
+      keyId: tenantKeys?.keyId ?? process.env.RAZORPAY_KEY_ID,
     });
   } catch (err) {
     if (err instanceof z.ZodError) {

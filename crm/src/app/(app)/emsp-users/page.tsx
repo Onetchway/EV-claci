@@ -16,9 +16,10 @@ import {
 } from "@/lib/db/emsp-users";
 import { EMSP_USER_TYPE_LABEL, EMSP_USER_TYPES } from "@/lib/constants";
 import { emailPaymentReceipt } from "@/lib/db/notifications";
-import { canManageEmspUsers, hasRole } from "@/lib/permissions";
+import { subscribeOrganizations } from "@/lib/db/organizations";
+import { canManageEmspUsers, hasRole, isSuperAdmin } from "@/lib/permissions";
 import { topUpWallet, type WalletTopupResult } from "@/lib/razorpay-client";
-import type { CorporateAccount, EmspUser, WalletOwnerType } from "@/lib/types";
+import type { CorporateAccount, EmspUser, Organization, WalletOwnerType } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { manualWalletCredit } from "@/lib/wallet-client";
 
@@ -30,6 +31,8 @@ export default function EmspUsersPage() {
 
   const [users, setUsers] = useState<EmspUser[] | null>(null);
   const [accounts, setAccounts] = useState<CorporateAccount[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
+  const canAssignOrg = isSuperAdmin(viewer.role);
 
   const [userOpen, setUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<EmspUser | null>(null);
@@ -41,12 +44,14 @@ export default function EmspUsersPage() {
   const [uMonthlyCap, setUMonthlyCap] = useState("");
   const [uCity, setUCity] = useState("");
   const [uState, setUState] = useState("");
+  const [uOrgId, setUOrgId] = useState("");
 
   const [acctOpen, setAcctOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<CorporateAccount | null>(null);
   const [aName, setAName] = useState("");
   const [aGstin, setAGstin] = useState("");
   const [aEmail, setAEmail] = useState("");
+  const [aOrgId, setAOrgId] = useState("");
 
   const [topupFor, setTopupFor] = useState<{ ownerType: WalletOwnerType; ownerId: string; name: string } | null>(null);
   const [topupAmount, setTopupAmount] = useState("500");
@@ -60,6 +65,7 @@ export default function EmspUsersPage() {
 
   useEffect(() => subscribeEmspUsers(setUsers), []);
   useEffect(() => subscribeCorporateAccounts(setAccounts), []);
+  useEffect(() => subscribeOrganizations(setOrgs), []);
 
   const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
 
@@ -111,7 +117,7 @@ export default function EmspUsersPage() {
   function openNewUser() {
     setEditingUser(null);
     setUName(""); setUPhone(""); setUEmail(""); setUType("RETAIL"); setUAccountId(""); setUMonthlyCap("");
-    setUCity(""); setUState("");
+    setUCity(""); setUState(""); setUOrgId("");
     setUserOpen(true);
   }
 
@@ -119,7 +125,7 @@ export default function EmspUsersPage() {
     setEditingUser(u);
     setUName(u.name); setUPhone(u.phone); setUEmail(u.email ?? ""); setUType(u.type);
     setUAccountId(u.corporateAccountId ?? ""); setUMonthlyCap(u.monthlyCapInr != null ? String(u.monthlyCapInr) : "");
-    setUCity(u.city ?? ""); setUState(u.state ?? "");
+    setUCity(u.city ?? ""); setUState(u.state ?? ""); setUOrgId(u.orgId ?? "");
     setUserOpen(true);
   }
 
@@ -131,6 +137,7 @@ export default function EmspUsersPage() {
           name: uName.trim(), phone: uPhone.trim(), email: uEmail.trim() || undefined,
           type: uType, corporateAccountId: uType === "CORPORATE" ? (uAccountId || null) : null,
           city: uCity.trim() || null, state: uState.trim() || null,
+          ...(canAssignOrg && { orgId: uOrgId || null }),
         });
       } else {
         await createEmspUser({
@@ -138,6 +145,7 @@ export default function EmspUsersPage() {
           type: uType, corporateAccountId: uType === "CORPORATE" ? (uAccountId || null) : null,
           monthlyCapInr: uType === "CORPORATE" && uMonthlyCap.trim() ? Number(uMonthlyCap) : undefined,
           city: uCity.trim() || undefined, state: uState.trim() || undefined,
+          orgId: canAssignOrg ? (uOrgId || undefined) : undefined,
         }, actor);
       }
       setUserOpen(false);
@@ -146,20 +154,23 @@ export default function EmspUsersPage() {
 
   function openNewAccount() {
     setEditingAccount(null);
-    setAName(""); setAGstin(""); setAEmail("");
+    setAName(""); setAGstin(""); setAEmail(""); setAOrgId("");
     setAcctOpen(true);
   }
 
   function openEditAccount(a: CorporateAccount) {
     setEditingAccount(a);
-    setAName(a.name); setAGstin(a.gstin ?? ""); setAEmail(a.billingEmail ?? "");
+    setAName(a.name); setAGstin(a.gstin ?? ""); setAEmail(a.billingEmail ?? ""); setAOrgId(a.orgId ?? "");
     setAcctOpen(true);
   }
 
   async function submitAccount() {
     if (!actor || !aName.trim()) return;
     await run(async () => {
-      const draft = { name: aName.trim(), gstin: aGstin.trim() || undefined, billingEmail: aEmail.trim() || undefined };
+      const draft = {
+        name: aName.trim(), gstin: aGstin.trim() || undefined, billingEmail: aEmail.trim() || undefined,
+        ...(canAssignOrg && { orgId: aOrgId || null }),
+      };
       if (editingAccount) await updateCorporateAccount(editingAccount.id, draft);
       else await createCorporateAccount(draft, actor);
       setAcctOpen(false);
@@ -313,6 +324,11 @@ export default function EmspUsersPage() {
           {editingUser && uType === "CORPORATE" && (
             <p className="text-xs text-ink-500">Edit the monthly benefit cap from this user's profile page.</p>
           )}
+          {canAssignOrg && (
+            <Field label="White-label tenant" hint="If set, this user's wallet top-ups run through that tenant's own Razorpay account instead of the platform's.">
+              <Select value={uOrgId} onChange={(e) => setUOrgId(e.target.value)} options={orgs.map((o) => ({ value: o.id, label: o.name }))} placeholder="Platform account (default)" />
+            </Field>
+          )}
         </div>
       </Modal>
 
@@ -333,6 +349,11 @@ export default function EmspUsersPage() {
           <Field label="Company name" required><Input value={aName} onChange={(e) => setAName(e.target.value)} /></Field>
           <Field label="GSTIN"><Input value={aGstin} onChange={(e) => setAGstin(e.target.value)} /></Field>
           <Field label="Billing email"><Input value={aEmail} onChange={(e) => setAEmail(e.target.value)} /></Field>
+          {canAssignOrg && (
+            <Field label="White-label tenant" hint="If set, this account's wallet top-ups run through that tenant's own Razorpay account instead of the platform's.">
+              <Select value={aOrgId} onChange={(e) => setAOrgId(e.target.value)} options={orgs.map((o) => ({ value: o.id, label: o.name }))} placeholder="Platform account (default)" />
+            </Field>
+          )}
         </div>
       </Modal>
 

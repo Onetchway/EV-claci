@@ -33,7 +33,7 @@ export function subscribeCorporateAccounts(
 }
 
 export async function createCorporateAccount(
-  draft: { name: string; gstin?: string; billingEmail?: string },
+  draft: { name: string; gstin?: string; billingEmail?: string; orgId?: string | null },
   actor: Actor,
 ): Promise<string> {
   const ref = await addDoc(collection(getDb(), CORPORATE_ACCOUNTS), {
@@ -44,7 +44,7 @@ export async function createCorporateAccount(
 
 export async function updateCorporateAccount(
   id: string,
-  draft: { name: string; gstin?: string; billingEmail?: string },
+  draft: { name: string; gstin?: string; billingEmail?: string; orgId?: string | null },
 ): Promise<void> {
   await updateDoc(doc(getDb(), CORPORATE_ACCOUNTS, id), { ...draft });
 }
@@ -77,7 +77,7 @@ export async function setEmspUserActive(id: string, active: boolean): Promise<vo
   await updateDoc(doc(getDb(), EMSP_USERS, id), { active });
 }
 
-export type EmspUserEditDraft = Pick<EmspUser, "name" | "phone" | "email" | "type" | "corporateAccountId" | "city" | "state">;
+export type EmspUserEditDraft = Pick<EmspUser, "name" | "phone" | "email" | "type" | "corporateAccountId" | "city" | "state" | "orgId">;
 
 export async function updateEmspUser(id: string, draft: EmspUserEditDraft): Promise<void> {
   await updateDoc(doc(getDb(), EMSP_USERS, id), { ...draft });

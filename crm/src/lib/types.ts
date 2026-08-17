@@ -64,6 +64,21 @@ export interface Organization {
   /** Charger quota for this tenant, by power type — undefined/0 = unlimited. Enforced at registration (registerCharger), counting this org's own active chargers of that type. The default (non-white-label) organisation is never quota-checked. */
   acLicenseTotal?: number;
   dcLicenseTotal?: number;
+  /**
+   * This tenant's own Razorpay account — set to receive wallet top-ups
+   * (see api/payments/razorpay/order and /verify) directly into their own
+   * account instead of the platform's, for an EMSP user/corporate account
+   * whose orgId matches. keyId is safe to expose to any signed-in reader
+   * (it's what Razorpay's own client-side Checkout widget requires
+   * publicly) — deliberately NOT where the secret lives. The matching
+   * key SECRET is stored in the separate organizationPaymentSecrets
+   * collection, which the client SDK can never read (see firestore.rules)
+   * — setting it goes through api/organizations/[id]/payment-secret, a
+   * write-only endpoint that never returns the existing value back.
+   * Unset keyId = this tenant's payments run on the platform's own
+   * Razorpay account, same as before this existed.
+   */
+  razorpayKeyId?: string;
   active: boolean;
   createdAt: TS;
   createdBy?: Actor | null;
@@ -761,6 +776,8 @@ export interface CorporateAccount {
   gstin?: string;
   billingEmail?: string;
   walletBalanceInr?: number;
+  /** Which white-label tenant this account belongs to, if any — see Organization.razorpayKeyId. Unset = the platform's own (non-white-label) account. */
+  orgId?: string | null;
   createdAt: TS;
   createdBy?: Actor | null;
 }
@@ -778,6 +795,8 @@ export interface EmspUser {
   /** Registered address city/state — the only honest "where is this user" signal available at wallet top-up time (there's no charger/session involved yet), used for city/state-restricted coupons. */
   city?: string | null;
   state?: string | null;
+  /** Which white-label tenant this user belongs to, if any — see Organization.razorpayKeyId. Unset = the platform's own (non-white-label) account. */
+  orgId?: string | null;
   walletBalanceInr?: number;
   /** Corporate benefit cap — this employee's own session spend, resettable-by-calendar-month, is blocked at the charger (Authorize → NoCredit) once it reaches this. Only meaningful when corporateAccountId is set. */
   monthlyCapInr?: number;

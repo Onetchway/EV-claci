@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { adminDb } from "@/lib/firebase/admin";
+import { resolveRazorpayKeysForOwner } from "@/lib/razorpay-admin.server";
 import { dispatchWebhookSafe } from "@/lib/webhooks.server";
 import { ApiError, errorResponse, requireCaller } from "../../../_lib/guard";
 
@@ -34,7 +35,11 @@ export async function POST(req: Request) {
     const caller = await requireCaller(req, "OPERATIONS");
     const body = Body.parse(await req.json());
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    // Must resolve exactly the same way /order does — the secret that
+    // signed this payment is whichever one created the order, tenant or
+    // platform, and there's no way to tell which from the request alone.
+    const tenantKeys = await resolveRazorpayKeysForOwner(body.ownerType, body.ownerId);
+    const keySecret = tenantKeys?.keySecret ?? process.env.RAZORPAY_KEY_SECRET;
     if (!keySecret) {
       throw new ApiError("RAZORPAY_KEY_SECRET is not configured on this server.", 503);
     }
