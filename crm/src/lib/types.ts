@@ -656,9 +656,13 @@ export interface Zone {
   slaHours?: number;
   /** Whether — and how — each session's total (post-GST) revenue is shared with this site's host/owner. Unset type = no revenue share, nothing accrues. */
   revenueShareType?: RevenueShareType;
-  /** % (0-100) if type is PERCENT, flat ₹ per session if type is FIXED. */
+  /** % (0-100) for PERCENT/PROFIT_SHARE, flat ₹ per session for FIXED, flat ₹ per session as the guaranteed floor for TIERED_HYBRID. */
   revenueShareValue?: number;
-  /** Guaranteed minimum ₹ the site host receives per calendar month — if accrued PERCENT/FIXED shares fall short, a top-up entry closes the gap (the "hybrid" model: whichever of % share or the guarantee is higher). */
+  /** Only used when revenueShareType is PROFIT_SHARE or TIERED_HYBRID — subtracted (× kWh delivered) from a session's total before the share is computed, so the host is paid on margin, not raw revenue. Unset/0 = no deduction. */
+  electricityCostPerKwh?: number;
+  /** Only used when revenueShareType is TIERED_HYBRID — the % of session profit (total − electricity cost − the flat floor in revenueShareValue) paid on top of that floor. */
+  revenueShareHybridPct?: number;
+  /** Guaranteed minimum ₹ the site host receives per calendar month — if the month's accrued share (across all session-level entries, whatever type) falls short, a top-up entry closes the gap. Distinct from TIERED_HYBRID above: this operates monthly in arrears, TIERED_HYBRID computes its floor+upside per session as it happens. */
   revenueShareMinGuaranteeInr?: number;
   /** Which calendar month (YYYY-MM) the guarantee sweep last topped up, so it never double-tops-up the same month. */
   revenueShareGuaranteeMonth?: string;
@@ -673,7 +677,14 @@ export interface Zone {
   createdBy?: Actor | null;
 }
 
-export type RevenueShareType = "PERCENT" | "FIXED";
+/**
+ * PROFIT_SHARE: % of (session total − electricity cost), not raw revenue.
+ * TIERED_HYBRID: a flat ₹ floor (revenueShareValue) plus revenueShareHybridPct%
+ * of whatever profit remains after that floor and electricity cost — a
+ * guaranteed-minimum-plus-upside deal computed per session, distinct from
+ * the monthly revenueShareMinGuaranteeInr top-up on Zone.
+ */
+export type RevenueShareType = "PERCENT" | "FIXED" | "PROFIT_SHARE" | "TIERED_HYBRID";
 export type RevenueShareStatus = "PENDING" | "PAID";
 
 export interface AdditionalRevenueShare {

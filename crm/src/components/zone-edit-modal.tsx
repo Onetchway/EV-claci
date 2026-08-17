@@ -46,6 +46,8 @@ export function ZoneEditModal({
   const [slaHours, setSlaHours] = useState("");
   const [revenueShareType, setRevenueShareType] = useState<RevenueShareType | "">("");
   const [revenueShareValue, setRevenueShareValue] = useState("");
+  const [electricityCostPerKwh, setElectricityCostPerKwh] = useState("");
+  const [revenueShareHybridPct, setRevenueShareHybridPct] = useState("");
   const [revenueShareMinGuaranteeInr, setRevenueShareMinGuaranteeInr] = useState("");
   const [additionalRevenueShares, setAdditionalRevenueShares] = useState<AdditionalRevenueShare[]>([]);
   const [bankAccountNumber, setBankAccountNumber] = useState("");
@@ -73,6 +75,8 @@ export function ZoneEditModal({
       setSlaHours(editing.slaHours != null ? String(editing.slaHours) : "");
       setRevenueShareType(editing.revenueShareType ?? "");
       setRevenueShareValue(editing.revenueShareValue != null ? String(editing.revenueShareValue) : "");
+      setElectricityCostPerKwh(editing.electricityCostPerKwh != null ? String(editing.electricityCostPerKwh) : "");
+      setRevenueShareHybridPct(editing.revenueShareHybridPct != null ? String(editing.revenueShareHybridPct) : "");
       setRevenueShareMinGuaranteeInr(editing.revenueShareMinGuaranteeInr != null ? String(editing.revenueShareMinGuaranteeInr) : "");
       setAdditionalRevenueShares(editing.additionalRevenueShares ?? []);
       setBankAccountNumber(editing.bankAccountNumber ?? "");
@@ -82,7 +86,8 @@ export function ZoneEditModal({
     } else {
       setName(""); setMaxLoadKw(0); setSiteType(""); setAddress(""); setCity(""); setPincode(""); setState("");
       setPocName(""); setPocPhone(""); setOwnerUid(""); setDiscomName(""); setSlaHours("");
-      setRevenueShareType(""); setRevenueShareValue(""); setRevenueShareMinGuaranteeInr(""); setAdditionalRevenueShares([]);
+      setRevenueShareType(""); setRevenueShareValue(""); setElectricityCostPerKwh(""); setRevenueShareHybridPct("");
+      setRevenueShareMinGuaranteeInr(""); setAdditionalRevenueShares([]);
       setBankAccountNumber(""); setBankIfscCode(""); setBankAccountName(""); setBankName("");
     }
   }, [open, editing]);
@@ -104,6 +109,9 @@ export function ZoneEditModal({
       slaHours: slaHours.trim() ? Number(slaHours) : undefined,
       revenueShareType: revenueShareType || undefined,
       revenueShareValue: revenueShareType && revenueShareValue.trim() ? Number(revenueShareValue) : undefined,
+      electricityCostPerKwh: (revenueShareType === "PROFIT_SHARE" || revenueShareType === "TIERED_HYBRID") && electricityCostPerKwh.trim()
+        ? Number(electricityCostPerKwh) : undefined,
+      revenueShareHybridPct: revenueShareType === "TIERED_HYBRID" && revenueShareHybridPct.trim() ? Number(revenueShareHybridPct) : undefined,
       revenueShareMinGuaranteeInr: revenueShareMinGuaranteeInr.trim() ? Number(revenueShareMinGuaranteeInr) : undefined,
       additionalRevenueShares: additionalRevenueShares.filter((r) => r.name.trim() && r.value > 0),
       bankAccountNumber: bankAccountNumber.trim() || undefined,
@@ -208,26 +216,41 @@ export function ZoneEditModal({
             <Select
               value={revenueShareType}
               onChange={(e) => setRevenueShareType(e.target.value as RevenueShareType | "")}
-              options={[{ value: "PERCENT", label: "Yes — % of each session" }, { value: "FIXED", label: "Yes — flat ₹ per session" }]}
+              options={[
+                { value: "PERCENT", label: "% of each session's revenue" },
+                { value: "FIXED", label: "Flat ₹ per session" },
+                { value: "PROFIT_SHARE", label: "% of profit (revenue minus electricity cost)" },
+                { value: "TIERED_HYBRID", label: "Flat floor + % of remaining profit" },
+              ]}
               placeholder="No revenue share"
             />
           </Field>
           {revenueShareType && (
-            <Field label={revenueShareType === "PERCENT" ? "Share (%)" : "Flat amount per session (₹)"}>
+            <Field label={revenueShareType === "PERCENT" || revenueShareType === "PROFIT_SHARE" ? "Share (%)" : revenueShareType === "TIERED_HYBRID" ? "Guaranteed floor per session (₹)" : "Flat amount per session (₹)"}>
               <Input
                 type="number"
                 min={0}
-                max={revenueShareType === "PERCENT" ? 100 : undefined}
+                max={revenueShareType === "PERCENT" || revenueShareType === "PROFIT_SHARE" ? 100 : undefined}
                 value={revenueShareValue}
                 onChange={(e) => setRevenueShareValue(e.target.value)}
-                placeholder={revenueShareType === "PERCENT" ? "e.g. 15" : "e.g. 20"}
+                placeholder={revenueShareType === "PERCENT" || revenueShareType === "PROFIT_SHARE" ? "e.g. 15" : "e.g. 20"}
               />
+            </Field>
+          )}
+          {(revenueShareType === "PROFIT_SHARE" || revenueShareType === "TIERED_HYBRID") && (
+            <Field label="Electricity cost (₹/kWh)" hint="Subtracted from each session's revenue before the share is computed, so the host is paid on margin.">
+              <Input type="number" min={0} step="0.01" value={electricityCostPerKwh} onChange={(e) => setElectricityCostPerKwh(e.target.value)} placeholder="e.g. 8" />
+            </Field>
+          )}
+          {revenueShareType === "TIERED_HYBRID" && (
+            <Field label="Upside share (%)" hint="On top of the guaranteed floor above, this % of whatever profit remains after electricity cost and the floor.">
+              <Input type="number" min={0} max={100} value={revenueShareHybridPct} onChange={(e) => setRevenueShareHybridPct(e.target.value)} placeholder="e.g. 10" />
             </Field>
           )}
           <p className="text-xs text-ink-500">Accrues automatically per session on /settlements — e.g. an RWA hosting this charger.</p>
 
           <div className="border-t border-ink-100 pt-4">
-            <Field label="Guaranteed minimum (₹/month)" hint="Hybrid model: if the site host's accrued share falls short of this in a calendar month, a top-up entry closes the gap automatically. Leave blank for no guarantee.">
+            <Field label="Guaranteed minimum (₹/month)" hint="Monthly, in arrears: if the site host's accrued share (whatever type above) falls short of this across a calendar month, a top-up entry closes the gap automatically. Leave blank for no guarantee. (Different from the per-session floor+upside hybrid option above.)">
               <Input type="number" min={0} value={revenueShareMinGuaranteeInr} onChange={(e) => setRevenueShareMinGuaranteeInr(e.target.value)} placeholder="e.g. 10000" />
             </Field>
           </div>
