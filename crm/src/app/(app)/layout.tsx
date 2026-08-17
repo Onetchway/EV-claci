@@ -94,6 +94,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+      { href: "/auto-triggers", label: "Auto Triggers", icon: Zap, adminOnly: true },
       { href: "/diagnostics", label: "Diagnostic Knowledge Base", icon: BookOpen },
       { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
       { href: "/developer", label: "Developer (API & Webhooks)", icon: Terminal, adminOnly: true },

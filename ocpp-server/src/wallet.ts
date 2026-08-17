@@ -13,6 +13,7 @@
 
 import { FieldValue } from "firebase-admin/firestore";
 
+import { getAutoTriggerSettings } from "./auto-triggers.js";
 import { db } from "./firebase.js";
 
 export interface WalletDebitResult {
@@ -22,7 +23,6 @@ export interface WalletDebitResult {
   newBalanceInr: number;
 }
 
-const LOW_BALANCE_THRESHOLD_INR = Number(process.env.LOW_BALANCE_THRESHOLD_INR) || 100;
 const APP_URL = process.env.CRM_APP_URL || "https://app.livantogreen.com";
 
 /**
@@ -39,7 +39,10 @@ async function alertLowBalanceIfCrossed(
   previousBalance: number,
   newBalanceInr: number,
 ): Promise<void> {
-  if (newBalanceInr > LOW_BALANCE_THRESHOLD_INR || previousBalance <= LOW_BALANCE_THRESHOLD_INR) return;
+  const settings = await getAutoTriggerSettings();
+  if (!settings.lowBalanceAlertEnabled) return;
+  const threshold = settings.lowBalanceThresholdInr;
+  if (newBalanceInr > threshold || previousBalance <= threshold) return;
   const collection = ownerType === "CORPORATE_ACCOUNT" ? "corporateAccounts" : "emspUsers";
   const snap = await db().collection(collection).doc(ownerId).get();
   const email = ownerType === "CORPORATE_ACCOUNT"
@@ -56,7 +59,7 @@ async function alertLowBalanceIfCrossed(
         `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;line-height:1.6;max-width:520px">` +
         `<p style="margin:0 0 16px;font-weight:700;font-size:18px;color:#0f766e">Livanto Green</p>` +
         `<p>Hello,</p>` +
-        `<p>Your wallet balance is now <strong>₹${balanceStr}</strong>, below the ₹${LOW_BALANCE_THRESHOLD_INR} alert threshold.</p>` +
+        `<p>Your wallet balance is now <strong>₹${balanceStr}</strong>, below the ₹${threshold} alert threshold.</p>` +
         `<p>Top up soon to avoid a declined session at the charger.</p>` +
         `<p><a href="${APP_URL}" style="color:#0f766e">Top up now →</a></p>` +
         `<p style="margin:24px 0 0;color:#888;font-size:12px">This is an automated message from Livanto Green. Please don't reply directly to this email.</p>` +

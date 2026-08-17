@@ -8,16 +8,14 @@
 
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
+import { getAutoTriggerSettings } from "./auto-triggers.js";
 import { db } from "./firebase.js";
 import { sendCommand } from "./ocpp/commands.js";
 import { dispatchWebhookSafe } from "./webhooks.js";
 
 export const TICKETS = "tickets";
 
-/** Hours before an open ticket is considered SLA-breached — a flat default for Phase 2, not yet per-site. */
-const SLA_HOURS = Number(process.env.FAULT_SLA_HOURS) || 4;
-
-/** Missed-heartbeat window before an ONLINE charger is swept to OFFLINE + ticketed. */
+/** Missed-heartbeat window before an ONLINE charger is swept to OFFLINE + ticketed. Read once at startup — see getAutoTriggerSettings() for the live-editable fault SLA / auto-recovery values used per-ticket below. */
 export const OFFLINE_SWEEP_MS = Number(process.env.OFFLINE_SWEEP_MS) || 6 * 60 * 1000;
 
 export type TicketType = "OFFLINE" | "FAULT" | "MANUAL";
@@ -52,22 +50,18 @@ async function notifyTicketOpened(chargePointId: string, type: TicketType, descr
   }
 }
 
-/** Looks up a per-site SLA override (Zones.slaHours in the CRM) via the charger's registered zoneId — falls back to the flat default when unset. */
+/** Looks up a per-site SLA override (Zones.slaHours in the CRM) via the charger's registered zoneId — falls back to the live-editable default (settings/autoTriggers) when unset. */
 async function slaHoursFor(chargePointId: string): Promise<number> {
-  const reg = await db()
-    .collection("chargerRegistry")
-    .where("chargerId", "==", chargePointId)
-    .limit(1)
-    .get();
+  const [reg, settings] = await Promise.all([
+    db().collection("chargerRegistry").where("chargerId", "==", chargePointId).limit(1).get(),
+    getAutoTriggerSettings(),
+  ]);
   const zoneId = reg.empty ? null : (reg.docs[0]!.data().zoneId as string | null | undefined);
-  if (!zoneId) return SLA_HOURS;
+  if (!zoneId) return settings.faultSlaHoursDefault;
   const zoneSnap = await db().collection("zones").doc(zoneId).get();
   const override = zoneSnap.data()?.slaHours as number | undefined;
-  return override && override > 0 ? override : SLA_HOURS;
+  return override && override > 0 ? override : settings.faultSlaHoursDefault;
 }
-
-/** Cooldown between automatic recovery attempts on the same charger — never hammer a genuinely broken unit with repeated resets. */
-const AUTO_RECOVERY_COOLDOWN_MS = 30 * 60 * 1000;
 
 /**
  * Attempts a single, non-disruptive recovery before ticketing a FAULT: a
@@ -75,13 +69,18 @@ const AUTO_RECOVERY_COOLDOWN_MS = 30 * 60 * 1000;
  * session on another connector of the same station. Best-effort — a
  * charger that's genuinely unreachable just fails this silently and the
  * ticket opens as normal. Returns whether an attempt was made, so the
- * ticket description can say so.
+ * ticket description can say so. Cooldown between attempts and whether
+ * this runs at all are both live-editable via settings/autoTriggers.
  */
 async function attemptAutoRecovery(chargePointId: string): Promise<boolean> {
+  const settings = await getAutoTriggerSettings();
+  if (!settings.autoRecoveryEnabled) return false;
+
   const chargePointRef = db().collection("chargePoints").doc(chargePointId);
   const snap = await chargePointRef.get();
   const lastAttempt = snap.data()?.lastAutoRecoveryAt as Timestamp | undefined;
-  if (lastAttempt && Date.now() - lastAttempt.toMillis() < AUTO_RECOVERY_COOLDOWN_MS) return false;
+  const cooldownMs = settings.autoRecoveryCooldownMinutes * 60_000;
+  if (lastAttempt && Date.now() - lastAttempt.toMillis() < cooldownMs) return false;
 
   await chargePointRef.set({ lastAutoRecoveryAt: FieldValue.serverTimestamp() }, { merge: true });
   try {
