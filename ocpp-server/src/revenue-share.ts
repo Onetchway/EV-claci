@@ -15,23 +15,48 @@ import { FieldValue } from "firebase-admin/firestore";
 import { db } from "./firebase.js";
 import { loadChargerContext } from "./tariff.js";
 
-type RevenueShareType = "PERCENT" | "FIXED";
+type RevenueShareType = "PERCENT" | "FIXED" | "PROFIT_SHARE" | "TIERED_HYBRID";
 interface AdditionalRevenueShare {
   name: string;
   type: RevenueShareType;
   value: number;
 }
 
-function computeShareAmount(type: RevenueShareType, value: number, totalCostInr: number): number {
-  return type === "PERCENT"
-    ? Math.round(totalCostInr * (value / 100) * 100) / 100
-    : Math.min(value, totalCostInr);
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * PROFIT_SHARE and TIERED_HYBRID both need to know the session's energy
+ * (to compute electricity cost) and the zone's electricityCostPerKwh — the
+ * other two types don't, so those two params are optional and only
+ * additional-revenue-share entries (which are always PERCENT/FIXED today)
+ * never need them.
+ */
+function computeShareAmount(
+  type: RevenueShareType,
+  value: number,
+  totalCostInr: number,
+  energyDeliveredWh: number,
+  electricityCostPerKwh: number,
+  hybridPct: number,
+): number {
+  const electricityCostInr = electricityCostPerKwh > 0 ? (energyDeliveredWh / 1000) * electricityCostPerKwh : 0;
+  if (type === "PERCENT") return round2(totalCostInr * (value / 100));
+  if (type === "FIXED") return round2(Math.min(value, totalCostInr));
+  if (type === "PROFIT_SHARE") {
+    const profit = Math.max(0, totalCostInr - electricityCostInr);
+    return round2(profit * (value / 100));
+  }
+  // TIERED_HYBRID: a flat floor (value), plus hybridPct% of whatever profit remains after electricity cost and that floor.
+  const floor = Math.min(value, totalCostInr);
+  const remainingProfit = Math.max(0, totalCostInr - electricityCostInr - floor);
+  return round2(floor + remainingProfit * (hybridPct / 100));
 }
 
 export async function accrueSiteRevenueShare(
   chargePointId: string,
   sessionId: string,
   totalCostInr: number,
+  energyDeliveredWh: number,
 ): Promise<void> {
   if (totalCostInr <= 0) return;
 
@@ -42,6 +67,8 @@ export async function accrueSiteRevenueShare(
   if (!zoneSnap.exists) return;
   const zone = zoneSnap.data()!;
   const zoneName = (zone.name as string | undefined) ?? "Unknown site";
+  const electricityCostPerKwh = (zone.electricityCostPerKwh as number | undefined) ?? 0;
+  const hybridPct = (zone.revenueShareHybridPct as number | undefined) ?? 0;
 
   const entries: Record<string, unknown>[] = [];
 
@@ -51,7 +78,8 @@ export async function accrueSiteRevenueShare(
     entries.push({
       zoneId, zoneName, recipientName: "Site host", kind: "SESSION",
       sessionId, chargePointId, grossAmountInr: totalCostInr,
-      shareType, shareRate: shareValue, shareAmountInr: computeShareAmount(shareType, shareValue, totalCostInr),
+      shareType, shareRate: shareValue,
+      shareAmountInr: computeShareAmount(shareType, shareValue, totalCostInr, energyDeliveredWh, electricityCostPerKwh, hybridPct),
       status: "PENDING", createdAt: FieldValue.serverTimestamp(),
     });
   }
@@ -62,7 +90,8 @@ export async function accrueSiteRevenueShare(
     entries.push({
       zoneId, zoneName, recipientName: a.name, kind: "SESSION",
       sessionId, chargePointId, grossAmountInr: totalCostInr,
-      shareType: a.type, shareRate: a.value, shareAmountInr: computeShareAmount(a.type, a.value, totalCostInr),
+      shareType: a.type, shareRate: a.value,
+      shareAmountInr: computeShareAmount(a.type, a.value, totalCostInr, energyDeliveredWh, electricityCostPerKwh, hybridPct),
       status: "PENDING", createdAt: FieldValue.serverTimestamp(),
     });
   }

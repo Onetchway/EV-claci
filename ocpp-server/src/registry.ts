@@ -573,7 +573,7 @@ export async function billSession(
     }
   }
 
-  await accrueSiteRevenueShare(chargePointId, ref.id, totalCostInr);
+  await accrueSiteRevenueShare(chargePointId, ref.id, totalCostInr, energyDeliveredWh ?? 0);
 
   // A persisted Charge Detail Record — previously OCPI's /cdrs endpoint
   // reconstructed this on every request straight from chargeSessions; now
