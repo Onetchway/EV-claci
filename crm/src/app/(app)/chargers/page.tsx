@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   Copy, ExternalLink, FileText, Lock, MapPin as MapPinIcon, Pencil, Plus, Power, PowerOff, QrCode,
-  RotateCcw, Settings2, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
+  RotateCcw, Settings2, Smartphone, Trash2, UploadCloud, Wifi, WifiOff, X, Zap,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -99,6 +99,47 @@ function ConnectionDetails({ serverHost, chargerId, connectionToken }: { serverH
   );
 }
 
+/** The driver-facing "Scan, Pay, Charge" QR — print/stick this on the charger. Points at the public /charge page, not the OCPP connection URL above. */
+function ChargingQr({ chargerId }: { chargerId: string }) {
+  const [qr, setQr] = useState<string | null>(null);
+  const { push } = useToast();
+  const url = typeof window !== "undefined" ? `${window.location.origin}/charge/${chargerId}` : "";
+
+  useEffect(() => {
+    if (!url) return;
+    let cancelled = false;
+    QRCode.toDataURL(url, { margin: 1, width: 220 }).then((dataUrl) => {
+      if (!cancelled) setQr(dataUrl);
+    }).catch(() => setQr(null));
+    return () => { cancelled = true; };
+  }, [url]);
+
+  return (
+    <div className="flex flex-col items-center gap-3 text-center">
+      {qr ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={qr} alt="Driver charging QR code" className="h-[220px] w-[220px] rounded-lg ring-1 ring-ink-200" />
+      ) : (
+        <div className="flex h-[220px] w-[220px] items-center justify-center rounded-lg bg-ink-50"><Spinner /></div>
+      )}
+      <div className="flex w-full items-center gap-2 rounded-lg bg-ink-50 px-3 py-2">
+        <code className="flex-1 truncate text-left text-xs text-ink-700">{url}</code>
+        <button
+          type="button"
+          onClick={() => { void navigator.clipboard.writeText(url); push("Charging link copied.", "success"); }}
+          className="shrink-0 rounded-md p-1.5 text-ink-500 hover:bg-ink-200 hover:text-ink-800"
+          aria-label="Copy charging link"
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <p className="text-xs text-ink-500">
+        A driver scans this to pay and start a session with no app — Scan, Pay, Charge. Print it and stick it on the charger.
+      </p>
+    </div>
+  );
+}
+
 export default function ChargersPage() {
   const { actor, profile } = useAuth();
   const viewer = useViewer();
@@ -118,6 +159,7 @@ export default function ChargersPage() {
   const [connectorTypeFilter, setConnectorTypeFilter] = useState("");
   const [faultFilter, setFaultFilter] = useState(false);
   const [openTickets, setOpenTickets] = useState<Ticket[]>([]);
+  const [chargingQrForId, setChargingQrForId] = useState<string | null>(null);
   const [approvingReg, setApprovingReg] = useState<ChargerRegistration | null>(null);
   const [approveRateType, setApproveRateType] = useState<RevenueShareType>("PERCENT");
   const [approveRateValue, setApproveRateValue] = useState("");
@@ -552,6 +594,14 @@ export default function ChargersPage() {
                             title="View connection details"
                           >
                             <QrCode className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setChargingQrForId(r.id)}
+                            className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
+                            title="Driver charging QR (app-less)"
+                          >
+                            <Smartphone className="h-4 w-4" />
                           </button>
                           {canManage && (
                             <button
@@ -1333,6 +1383,15 @@ export default function ChargersPage() {
         footer={<Button onClick={() => setViewingId(null)}>Close</Button>}
       >
         {viewingReg && <ConnectionDetails serverHost={settings.ocpp.serverHost} chargerId={viewingReg.chargerId} connectionToken={viewingReg.connectionToken} />}
+      </Modal>
+
+      <Modal
+        open={!!chargingQrForId}
+        onClose={() => setChargingQrForId(null)}
+        title="Driver charging QR"
+        footer={<Button onClick={() => setChargingQrForId(null)}>Close</Button>}
+      >
+        {chargingQrForId && <ChargingQr chargerId={chargingQrForId} />}
       </Modal>
 
       <Modal
