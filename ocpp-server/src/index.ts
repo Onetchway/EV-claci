@@ -29,6 +29,7 @@ import {
 } from "./registry.js";
 import { sweepStaleConnections, sweepSlaBreaches, OFFLINE_SWEEP_MS } from "./tickets.js";
 import { sweepZoneLoads } from "./load-balancer.js";
+import { sweepScheduledCharging } from "./depot-scheduling.js";
 import { sweepSubscriptionRenewals } from "./subscriptions.js";
 import { sweepRevenueGuarantees } from "./revenue-guarantee.js";
 
@@ -260,3 +261,8 @@ const REVENUE_GUARANTEE_SWEEP_MS = Number(process.env.REVENUE_GUARANTEE_SWEEP_MS
 setInterval(() => {
   sweepRevenueGuarantees().catch((err) => console.error("[sweep] revenue guarantee sweep failed:", err));
 }, REVENUE_GUARANTEE_SWEEP_MS);
+
+const DEPOT_SCHEDULE_SWEEP_MS = Number(process.env.DEPOT_SCHEDULE_SWEEP_MS) || 60 * 1000;
+setInterval(() => {
+  sweepScheduledCharging().catch((err) => console.error("[sweep] depot scheduled-charging sweep failed:", err));
+}, DEPOT_SCHEDULE_SWEEP_MS);

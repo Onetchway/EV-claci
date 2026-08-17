@@ -420,6 +420,12 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
     }
+    // Depot/scheduled charging — the CRM only creates/cancels; ocpp-server
+    // (Admin SDK, bypasses this) marks TRIGGERED/FAILED when a schedule fires.
+    match /chargingSchedules/{scheduleId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
+    }
     match /drivers/{driverId} {
       allow read: if signedIn();
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];

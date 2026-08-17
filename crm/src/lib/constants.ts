@@ -965,6 +965,25 @@ export const COMPLAINT_PRIORITY_LABEL: Record<ComplaintPriority, string> = {
 export const RFID_TOKEN_STATUSES = ["ACTIVE", "BLOCKED"] as const;
 export type RfidTokenStatus = (typeof RFID_TOKEN_STATUSES)[number];
 
+// --------------------------------------------------- depot / scheduled charging
+
+export const CHARGING_SCHEDULE_STATUSES = ["SCHEDULED", "TRIGGERED", "CANCELLED", "FAILED"] as const;
+export type ChargingScheduleStatus = (typeof CHARGING_SCHEDULE_STATUSES)[number];
+
+export const CHARGING_SCHEDULE_STATUS_LABEL: Record<ChargingScheduleStatus, string> = {
+  SCHEDULED: "Scheduled",
+  TRIGGERED: "Started",
+  CANCELLED: "Cancelled",
+  FAILED: "Failed",
+};
+
+export const CHARGING_SCHEDULE_STATUS_COLOR: Record<ChargingScheduleStatus, string> = {
+  SCHEDULED: "bg-sky-100 text-sky-800 ring-sky-200",
+  TRIGGERED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CANCELLED: "bg-ink-100 text-ink-600 ring-ink-200",
+  FAILED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
 // ------------------------------------------------------ charging tariffs
 
 export const TARIFF_PRICING_TYPES = ["PER_KWH", "PER_MINUTE", "PER_SESSION"] as const;

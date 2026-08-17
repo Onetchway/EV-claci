@@ -1,6 +1,6 @@
 import type { Timestamp } from "firebase/firestore";
 import type {
-  ActivityType, AssetCategory, AssetStatus, CommercialModel, CommissionStatus,
+  ActivityType, AssetCategory, AssetStatus, ChargingScheduleStatus, CommercialModel, CommissionStatus,
   ComplaintCategory, ComplaintPriority, ComplaintStatus,
   ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EoiStatus,
   FollowupPriority, FollowupStatus, FollowupType, FundingMode, LandType,
@@ -550,6 +550,25 @@ export interface RfidToken {
   scopeZoneId?: string | null;
   scopeChargerIds?: string[];
   description?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+/** A future-dated RequestStartTransaction — depot/fleet charging scheduled ahead of time (e.g. overnight) instead of a walk-up tap. The OCPP server sweeps for due schedules and fires the remote start itself; the CRM only ever creates/cancels. */
+export interface ChargingSchedule {
+  id: string;
+  chargerId: string;
+  evseId: number;
+  vehicleId?: string | null;
+  vehicleRegNumber?: string | null;
+  fleetId?: string | null;
+  /** Resolved once at creation time, not re-looked-up at trigger time — a card reassigned after scheduling shouldn't silently change who this session bills to. */
+  idToken: string;
+  idTokenLabel?: string;
+  scheduledStartAt: TS;
+  status: ChargingScheduleStatus;
+  triggeredAt?: TS | null;
+  failReason?: string | null;
   createdAt: TS;
   createdBy?: Actor | null;
 }

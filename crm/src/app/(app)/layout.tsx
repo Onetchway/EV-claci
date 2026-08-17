@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Battery, BookOpen, Boxes, Building2, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
+  BarChart3, Battery, BookOpen, Boxes, Building2, CalendarClock, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
   Gauge, Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, MapPin, Menu, MessageSquareWarning, Package, Percent, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
   Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
@@ -60,6 +60,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/emsp-users", label: "User Management", icon: UserCircle },
       { href: "/payments", label: "Payment Transactions", icon: Receipt },
       { href: "/fleets", label: "Fleet Management", icon: Truck },
+      { href: "/depot-charging", label: "Depot / Scheduled Charging", icon: CalendarClock },
       { href: "/invoices", label: "Invoicing", icon: FileText },
       { href: "/settlements", label: "Settlements", icon: IndianRupee },
       { href: "/reconciliation", label: "Razorpay Reconciliation", icon: Scale },
