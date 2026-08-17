@@ -9,6 +9,7 @@ import {
 import QRCode from "qrcode";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
+import { ConnectorIcon } from "@/components/connector-icon";
 import {
   Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner,
   useAsyncAction, useToast,
@@ -459,8 +460,13 @@ export default function ChargersPage() {
                       <td className="td text-ink-600">{r.zoneId ? zoneName.get(r.zoneId) ?? "—" : "—"}</td>
                       <td className="td"><code className="text-xs text-ink-600">{r.chargerId}</code></td>
                       <td className="td text-ink-600">
-                        {r.chargerPowerType}{r.connectorType ? ` · ${r.connectorType}` : ""}
-                        {r.connectors && r.connectors.length > 0 && ` +${r.connectors.length}`}
+                        <div className="flex items-center gap-1.5">
+                          {r.connectorType && <ConnectorIcon type={r.connectorType} size={20} />}
+                          <span>
+                            {r.chargerPowerType}{r.connectorType ? ` · ${r.connectorType}` : ""}
+                            {r.connectors && r.connectors.length > 0 && ` +${r.connectors.length}`}
+                          </span>
+                        </div>
                       </td>
                       <td className="td text-ink-600">{oemLabel(r)}</td>
                       <td className="td text-ink-600">{r.location}</td>

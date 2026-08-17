@@ -6,9 +6,10 @@ import {
   Battery, Building2, Ticket, Wifi, Zap,
 } from "lucide-react";
 
+import { CONNECTOR_TYPE_COLOR } from "@/components/connector-icon";
 import { DonutChart } from "@/components/donut-chart";
 import { Card, PageHeader, Spinner, StatCard } from "@/components/ui";
-import { CONNECTOR_TYPES, subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
+import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
 import { subscribeChargePoints, subscribeRecentSessions, type ChargePoint, type ChargeSession } from "@/lib/db/chargers";
 import { subscribeTickets } from "@/lib/db/tickets";
 import type { Ticket as TicketType } from "@/lib/types";
@@ -17,12 +18,6 @@ function wh(v?: number): string {
   if (v == null) return "—";
   return `${(v / 1000).toFixed(2)} kWh`;
 }
-
-// Color follows the connector type's fixed identity (CONNECTOR_TYPES order), never its rank in a
-// sorted-by-count list — so a type doesn't change color as other types' counts shift around it.
-const CONNECTOR_TYPE_COLOR: Record<string, string> = Object.fromEntries(
-  CONNECTOR_TYPES.map((t, i) => [t, ["#1fae54", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6"][i % 6]]),
-);
 
 const QUICK_LINKS = [
   { href: "/chargers", label: "Charger Management", icon: Zap, description: "Register, configure and command chargers." },

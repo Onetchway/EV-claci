@@ -11,6 +11,7 @@ import {
 } from "recharts";
 
 import { useViewer } from "@/components/auth-provider";
+import { ConnectorIcon } from "@/components/connector-icon";
 import {
   Badge, Button, Card, EmptyState, PageHeader, Select, Spinner, StatCard, useAsyncAction, useToast,
 } from "@/components/ui";
@@ -210,6 +211,24 @@ export default function ChargerDetailPage() {
               <div><dt className="text-xs text-ink-500">Serial number</dt><dd className="text-ink-900">{live?.serialNumber ?? reg.serialNumber ?? "—"}</dd></div>
               <div><dt className="text-xs text-ink-500">OEM / Model</dt><dd className="text-ink-900">{oemLabel(reg)}{reg.model ? ` · ${reg.model}` : ""}</dd></div>
               <div><dt className="text-xs text-ink-500">Power</dt><dd className="text-ink-900">{reg.powerKw ? `${reg.powerKw} kW` : "—"} ({reg.chargerPowerType})</dd></div>
+              {(reg.connectorType || (reg.connectors && reg.connectors.length > 0)) && (
+                <div>
+                  <dt className="text-xs text-ink-500">Connectors</dt>
+                  <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+                    {reg.connectors && reg.connectors.length > 0 ? (
+                      reg.connectors.map((c) => (
+                        <span key={c.connectorId} className="inline-flex items-center gap-1 text-ink-900">
+                          <ConnectorIcon type={c.connectorType} size={20} /> {c.connectorType}
+                        </span>
+                      ))
+                    ) : reg.connectorType ? (
+                      <span className="inline-flex items-center gap-1 text-ink-900">
+                        <ConnectorIcon type={reg.connectorType} size={20} /> {reg.connectorType}
+                      </span>
+                    ) : null}
+                  </dd>
+                </div>
+              )}
               <div><dt className="text-xs text-ink-500">Firmware version</dt><dd className="text-ink-900">{live?.firmwareVersion ?? "—"}</dd></div>
               <div><dt className="text-xs text-ink-500">Hardware version</dt><dd className="text-ink-900">{reg.hardwareVersion || "—"}</dd></div>
               <div><dt className="text-xs text-ink-500">Access</dt><dd className="text-ink-900">{reg.accessType === "PRIVATE" ? "Private" : "Public"} · {reg.open24Hours === false ? (reg.openingHours || "Custom hours") : "Open 24 hours"}</dd></div>

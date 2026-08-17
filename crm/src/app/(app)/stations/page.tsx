@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { useViewer } from "@/components/auth-provider";
+import { ConnectorIcon } from "@/components/connector-icon";
 import type { MapPin as MapPinType } from "@/components/chargers-map";
 import {
   Badge, Button, Card, EmptyState, Input, PageHeader, Spinner,
@@ -220,8 +221,13 @@ export default function StationsPage() {
                             <tr key={c.id} className="hover:bg-ink-50">
                               <td className="td font-medium">{c.label}</td>
                               <td className="td text-ink-600">
-                                {c.chargerPowerType}{c.connectorType ? ` · ${c.connectorType}` : ""}
-                                {c.connectors && c.connectors.length > 0 && ` +${c.connectors.length}`}
+                                <div className="flex items-center gap-1.5">
+                                  {c.connectorType && <ConnectorIcon type={c.connectorType} size={20} />}
+                                  <span>
+                                    {c.chargerPowerType}{c.connectorType ? ` · ${c.connectorType}` : ""}
+                                    {c.connectors && c.connectors.length > 0 && ` +${c.connectors.length}`}
+                                  </span>
+                                </div>
                               </td>
                               <td className="td text-ink-600">{oemLabel(c)}</td>
                               <td className="td">
