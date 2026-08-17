@@ -19,6 +19,7 @@ import {
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 
 import { getBucket, getDb } from "../firebase/client";
+import { logChangeSafe } from "./change-log";
 import type { Actor, RevenueShareType, TS } from "../types";
 
 export const CHARGER_REGISTRY = "chargerRegistry";
@@ -258,6 +259,7 @@ export async function registerCharger(
     createdAt: serverTimestamp(),
     createdBy: actor,
   });
+  logChangeSafe({ entityType: "CHARGER", entityId: ref.id, entityLabel: draft.label, action: "CREATE", actor });
   return { id: ref.id, chargerId, connectionToken };
 }
 
@@ -402,8 +404,10 @@ export async function uploadChargerPhoto(id: string, file: File): Promise<void> 
 export async function updateChargerRegistration(
   id: string,
   patch: Partial<ChargerRegistrationDraft>,
+  actor?: Actor,
 ): Promise<void> {
   await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), draftDatesToTimestamps(patch));
+  if (actor) logChangeSafe({ entityType: "CHARGER", entityId: id, entityLabel: patch.label ?? id, action: "UPDATE", actor });
 }
 
 /** Links (or unlinks, with null) this charger's custom Tariff doc — kept out of updateChargerRegistration's normal patch surface since it's only ever set as a side effect of the tariff-upsert flow, not a plain form field. */
@@ -417,13 +421,15 @@ export async function setChargerCustomTariffId(id: string, customTariffId: strin
  * hard delete would work too, but keeping the record preserves history
  * (which chargers were ever provisioned, by whom).
  */
-export async function setChargerActive(id: string, active: boolean): Promise<void> {
+export async function setChargerActive(id: string, active: boolean, actor?: Actor, label?: string): Promise<void> {
   await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), { active });
+  if (actor) logChangeSafe({ entityType: "CHARGER", entityId: id, entityLabel: label ?? id, action: active ? "ACTIVATE" : "DEACTIVATE", actor });
 }
 
 /** Hard delete — unlike setChargerActive(false), this removes the record entirely and can't be undone from the CRM. */
-export async function deleteChargerRegistration(id: string): Promise<void> {
+export async function deleteChargerRegistration(id: string, actor?: Actor, label?: string): Promise<void> {
   await deleteDoc(doc(getDb(), CHARGER_REGISTRY, id));
+  if (actor) logChangeSafe({ entityType: "CHARGER", entityId: id, entityLabel: label ?? id, action: "DELETE", actor });
 }
 
 export function chargerWsUrl(serverHost: string, chargerId: string, connectionToken?: string): string {

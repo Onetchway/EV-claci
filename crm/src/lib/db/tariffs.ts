@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
+import { logChangeSafe } from "./change-log";
 import type { Actor, Tariff } from "../types";
 
 export const TARIFFS = "tariffs";
@@ -42,6 +43,7 @@ export async function createTariff(draft: TariffDraft, actor: Actor): Promise<st
     updatedAt: serverTimestamp(),
     updatedBy: actor,
   });
+  logChangeSafe({ entityType: "TARIFF", entityId: ref.id, entityLabel: draft.name, action: "CREATE", actor });
   return ref.id;
 }
 
@@ -51,12 +53,15 @@ export async function updateTariff(id: string, draft: TariffDraft, actor: Actor)
     updatedAt: serverTimestamp(),
     updatedBy: actor,
   });
+  logChangeSafe({ entityType: "TARIFF", entityId: id, entityLabel: draft.name, action: "UPDATE", actor });
 }
 
-export async function setTariffActive(id: string, active: boolean, actor: Actor): Promise<void> {
+export async function setTariffActive(id: string, active: boolean, actor: Actor, name?: string): Promise<void> {
   await updateDoc(doc(getDb(), TARIFFS, id), { active, updatedAt: serverTimestamp(), updatedBy: actor });
+  logChangeSafe({ entityType: "TARIFF", entityId: id, entityLabel: name ?? id, action: active ? "ACTIVATE" : "DEACTIVATE", actor });
 }
 
-export async function deleteTariff(id: string): Promise<void> {
+export async function deleteTariff(id: string, actor?: Actor, name?: string): Promise<void> {
   await deleteDoc(doc(getDb(), TARIFFS, id));
+  if (actor) logChangeSafe({ entityType: "TARIFF", entityId: id, entityLabel: name ?? id, action: "DELETE", actor });
 }

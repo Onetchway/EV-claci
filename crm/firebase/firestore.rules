@@ -687,6 +687,16 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // General CMS audit trail (lib/db/change-log.ts) — the non-Leads
+    // counterpart to `activities` above: charger/tariff/zone/workflow/user/
+    // settings edits. Append-only and self-attributed the same way; read
+    // restricted to admins, matching the /logs page's own gate.
+    match /changeLog/{entryId} {
+      allow read: if isAdmin();
+      allow create: if signedIn() && actorIsSelf('actor');
+      allow update, delete: if false;
+    }
+
     // Anything not matched above is denied.
     match /{document=**} {
       allow read, write: if false;

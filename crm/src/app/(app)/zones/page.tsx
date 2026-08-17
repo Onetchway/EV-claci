@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Plus, Trash2 } from "lucide-react";
 
-import { useViewer } from "@/components/auth-provider";
+import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Button, Card, EmptyState, PageHeader, Spinner, useAsyncAction,
 } from "@/components/ui";
@@ -16,6 +16,7 @@ import type { Zone } from "@/lib/types";
 
 export default function ZonesPage() {
   const viewer = useViewer();
+  const { actor } = useAuth();
   const canManage = canManageChargers(viewer);
   const { run } = useAsyncAction();
 
@@ -97,7 +98,7 @@ export default function ZonesPage() {
                 {canManage && (
                   <div className="mt-3 flex gap-2 border-t border-ink-100 pt-3">
                     <Button size="sm" onClick={() => openEdit(z)}>Edit</Button>
-                    <Button size="sm" onClick={() => void run(() => deleteZone(z.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button size="sm" onClick={() => void run(() => deleteZone(z.id, actor ?? undefined, z.name))}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 )}
               </Card>

@@ -66,7 +66,7 @@ export default function WorkflowsPage() {
       actions,
     };
     await run(async () => {
-      if (editing) await updateWorkflowRule(editing.id, draft);
+      if (editing) await updateWorkflowRule(editing.id, draft, actor);
       else await createWorkflowRule(draft, actor);
       setOpen(false);
     }, editing ? "Workflow updated." : "Workflow created.");
@@ -75,7 +75,7 @@ export default function WorkflowsPage() {
   async function handleDelete(rule: WorkflowRule) {
     if (!window.confirm(`Delete workflow "${rule.name}"?`)) return;
     try {
-      await deleteWorkflowRule(rule.id);
+      await deleteWorkflowRule(rule.id, actor ?? undefined, rule.name);
       push("Workflow deleted.", "success");
     } catch (e) {
       push((e as Error).message, "error");
@@ -122,7 +122,7 @@ export default function WorkflowsPage() {
                       </div>
                     </td>
                     <td className="td" onClick={(e) => e.stopPropagation()}>
-                      <Checkbox label="" checked={r.active} onChange={(v) => void setWorkflowRuleActive(r.id, v)} />
+                      <Checkbox label="" checked={r.active} onChange={(v) => void setWorkflowRuleActive(r.id, v, actor ?? undefined, r.name)} />
                     </td>
                     <td className="td text-right" onClick={(e) => e.stopPropagation()}>
                       <Button size="sm" variant="ghost" onClick={() => void handleDelete(r)}><Trash2 className="h-3.5 w-3.5" /></Button>

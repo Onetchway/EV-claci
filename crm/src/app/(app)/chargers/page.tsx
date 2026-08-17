@@ -244,7 +244,7 @@ export default function ChargersPage() {
       zoneId: locZoneId || null,
       lat: locLat.trim() ? Number(locLat) : null,
       lng: locLng.trim() ? Number(locLng) : null,
-    }), "Location updated.");
+    }, actor ?? undefined), "Location updated.");
     setLocatingReg(null);
   }
 
@@ -407,7 +407,7 @@ export default function ChargersPage() {
     setRegistering(true);
     try {
       if (editingRegId) {
-        await updateChargerRegistration(editingRegId, { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined });
+        await updateChargerRegistration(editingRegId, { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined }, actor ?? undefined);
         const chargerId = registry.find((r) => r.id === editingRegId)?.chargerId;
         if (chargerId) await syncChargerTariff(editingRegId, chargerId);
         push("Charger updated.", "success");
@@ -698,7 +698,7 @@ export default function ChargersPage() {
                           {canManage && (
                             <button
                               type="button"
-                              onClick={() => run(() => setChargerActive(r.id, !r.active), r.active ? "Charger deactivated." : "Charger reactivated.")}
+                              onClick={() => run(() => setChargerActive(r.id, !r.active, actor ?? undefined, r.label), r.active ? "Charger deactivated." : "Charger reactivated.")}
                               className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
                               title={r.active ? "Deactivate (revoke connection access)" : "Reactivate"}
                             >
@@ -710,7 +710,7 @@ export default function ChargersPage() {
                               type="button"
                               onClick={() => {
                                 if (!window.confirm(`Delete ${r.label}? This can't be undone.`)) return;
-                                void run(() => deleteChargerRegistration(r.id), "Charger deleted.");
+                                void run(() => deleteChargerRegistration(r.id, actor ?? undefined, r.label), "Charger deleted.");
                               }}
                               className="rounded-md p-1.5 text-ink-500 hover:bg-rose-50 hover:text-rose-700"
                               title="Delete charger"

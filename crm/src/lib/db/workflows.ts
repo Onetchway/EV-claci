@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
+import { logChangeSafe } from "./change-log";
 import type { Actor } from "../types";
 
 export const WORKFLOW_RULES = "workflowRules";
@@ -76,17 +77,21 @@ export async function createWorkflowRule(draft: WorkflowRuleDraft, actor: Actor)
   const ref = await addDoc(collection(getDb(), WORKFLOW_RULES), {
     ...draft, createdAt: serverTimestamp(), createdBy: actor,
   });
+  logChangeSafe({ entityType: "WORKFLOW_RULE", entityId: ref.id, entityLabel: draft.name, action: "CREATE", actor });
   return ref.id;
 }
 
-export async function updateWorkflowRule(id: string, draft: WorkflowRuleDraft): Promise<void> {
+export async function updateWorkflowRule(id: string, draft: WorkflowRuleDraft, actor?: Actor): Promise<void> {
   await updateDoc(doc(getDb(), WORKFLOW_RULES, id), { ...draft });
+  if (actor) logChangeSafe({ entityType: "WORKFLOW_RULE", entityId: id, entityLabel: draft.name, action: "UPDATE", actor });
 }
 
-export async function setWorkflowRuleActive(id: string, active: boolean): Promise<void> {
+export async function setWorkflowRuleActive(id: string, active: boolean, actor?: Actor, name?: string): Promise<void> {
   await updateDoc(doc(getDb(), WORKFLOW_RULES, id), { active });
+  if (actor) logChangeSafe({ entityType: "WORKFLOW_RULE", entityId: id, entityLabel: name ?? id, action: active ? "ACTIVATE" : "DEACTIVATE", actor });
 }
 
-export async function deleteWorkflowRule(id: string): Promise<void> {
+export async function deleteWorkflowRule(id: string, actor?: Actor, name?: string): Promise<void> {
   await deleteDoc(doc(getDb(), WORKFLOW_RULES, id));
+  if (actor) logChangeSafe({ entityType: "WORKFLOW_RULE", entityId: id, entityLabel: name ?? id, action: "DELETE", actor });
 }

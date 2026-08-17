@@ -121,7 +121,7 @@ export function ZoneEditModal({
     };
     await run(async () => {
       const id = editing ? editing.id : await createZone(draft, actor);
-      if (editing) await updateZone(editing.id, draft);
+      if (editing) await updateZone(editing.id, draft, actor);
       onClose();
       onSaved?.(id);
     }, editing ? "Station updated." : "Station created.");
