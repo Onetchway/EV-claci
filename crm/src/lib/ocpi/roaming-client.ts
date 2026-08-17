@@ -47,10 +47,14 @@ async function fetchJson<T>(url: string, token: string): Promise<T> {
 
 async function discoverEndpoints(versionsUrl: string, token: string): Promise<{ endpoints: OcpiEndpoint[]; detailsUrl: string }> {
   const versions = await fetchJson<{ data: Array<{ version: string; url: string }> }>(versionsUrl, token);
-  const v221 = versions.data?.find((v) => v.version === "2.2.1");
-  if (!v221) throw new Error("Partner does not advertise OCPI 2.2.1.");
-  const details = await fetchJson<{ data: { endpoints: OcpiEndpoint[] } }>(v221.url, token);
-  return { endpoints: details.data?.endpoints ?? [], detailsUrl: v221.url };
+  // 2.2.1 is a backwards-compatible errata patch of 2.2, not a breaking
+  // version — plenty of real implementations (including Pipelet's own
+  // tools) only advertise "2.2" in their versions list even though the
+  // modules we call are 2.2.1-compatible, so accept either label.
+  const v22x = versions.data?.find((v) => v.version === "2.2.1") ?? versions.data?.find((v) => v.version === "2.2");
+  if (!v22x) throw new Error("Partner does not advertise OCPI 2.2 or 2.2.1.");
+  const details = await fetchJson<{ data: { endpoints: OcpiEndpoint[] } }>(v22x.url, token);
+  return { endpoints: details.data?.endpoints ?? [], detailsUrl: v22x.url };
 }
 
 /**
