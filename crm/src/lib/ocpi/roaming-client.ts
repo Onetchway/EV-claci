@@ -82,21 +82,32 @@ export async function registerWithPartner(
   if (!credentialsEndpoint) throw new Error("Partner does not expose a credentials endpoint.");
 
   const ourTokenForThem = randomUUID();
-  const res = await fetch(credentialsEndpoint.url, {
+  const requestBody = JSON.stringify({
+    token: ourTokenForThem,
+    url: `${ourAppUrl}/api/ocpi/versions`,
+    roles: [{
+      role: "EMSP",
+      business_details: { name: "Livanto Green" },
+      party_id: OCPI_PARTY_ID,
+      country_code: OCPI_COUNTRY_CODE,
+    }],
+  });
+  const postCredentials = (authorization: string) => fetch(credentialsEndpoint.url, {
     method: "POST",
-    headers: { "content-type": "application/json", Authorization: tokenHeader(theirTokenA) },
-    body: JSON.stringify({
-      token: ourTokenForThem,
-      url: `${ourAppUrl}/api/ocpi/versions`,
-      roles: [{
-        role: "EMSP",
-        business_details: { name: "Livanto Green" },
-        party_id: OCPI_PARTY_ID,
-        country_code: OCPI_COUNTRY_CODE,
-      }],
-    }),
+    headers: { "content-type": "application/json", Authorization: authorization },
+    body: requestBody,
     signal: AbortSignal.timeout(15_000),
   });
+
+  // The GET calls above (discoverEndpoints) already proved this partner
+  // accepts a base64 token, but a 401 here specifically can still mean
+  // their credentials POST validates the header differently than their
+  // GET routes do — so on a 401 (and only a 401, not a generic failure),
+  // retry once with the token sent raw before giving up. Cheap and safe:
+  // token_a is one-time-use either way, so a second attempt after a
+  // genuine rejection just fails again with the same status.
+  let res = await postCredentials(tokenHeader(theirTokenA));
+  if (res.status === 401) res = await postCredentials(`Token ${theirTokenA}`);
   if (!res.ok) throw new Error(`Partner rejected registration: HTTP ${res.status}`);
   const body = (await res.json()) as { data: OcpiCredentials };
   const theirTokenC = body.data.token;
