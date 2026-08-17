@@ -86,10 +86,13 @@ function bearerToken(req: Request): string | null {
  */
 function candidateTokens(raw: string): string[] {
   const candidates = [raw];
-  try {
-    const decoded = Buffer.from(raw, "base64").toString("utf8");
-    if (decoded && decoded !== raw && /^[a-zA-Z0-9-]+$/.test(decoded)) candidates.push(decoded);
-  } catch { /* not base64 — raw is the only candidate */ }
+  const looksLikeToken = (s: string) => /^[a-zA-Z0-9-]+$/.test(s);
+  for (const encoding of ["base64", "base64url"] as const) {
+    try {
+      const decoded = Buffer.from(raw, encoding).toString("utf8");
+      if (decoded && decoded !== raw && looksLikeToken(decoded)) candidates.push(decoded);
+    } catch { /* not valid in this encoding — skip */ }
+  }
   return candidates;
 }
 

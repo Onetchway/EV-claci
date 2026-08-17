@@ -44,12 +44,19 @@ export function subscribeOcpiParties(
   );
 }
 
+/** 32 random bytes as a 64-char hex string — the token shape several real OCPI implementations (including test harnesses like Pipelet) expect and validate against, rather than a UUID's dashed 36-char form. OCPI itself doesn't mandate a format, but matching the common shape avoids partner-side friction. */
+function randomHexToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** Creates a pending registration and returns the token_a to share with the partner out of band — shown once, not stored anywhere else. */
 export async function inviteOcpiParty(
   draft: { businessName: string },
   actor: Actor,
 ): Promise<{ id: string; tokenA: string }> {
-  const tokenA = crypto.randomUUID();
+  const tokenA = randomHexToken();
   const ref = doc(collection(getDb(), OCPI_PARTIES));
   await setDoc(ref, {
     status: "PENDING",
