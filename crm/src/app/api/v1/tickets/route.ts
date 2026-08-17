@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
  * partner NOC dashboard). Auth: `Authorization: Bearer <api key>`.
  */
 export async function GET(req: Request) {
+  let finish: ((status: number) => void) | undefined;
   try {
-    await requireApiKey(req);
+    ({ finish } = await requireApiKey(req));
     const db = adminDb();
 
     const snap = await db.collection("tickets").orderBy("createdAt", "desc").limit(100).get();
@@ -32,8 +33,11 @@ export async function GET(req: Request) {
       };
     });
 
+    finish?.(200);
     return NextResponse.json({ tickets });
   } catch (err) {
-    return errorResponse(err);
+    const res = errorResponse(err);
+    finish?.(res.status);
+    return res;
   }
 }

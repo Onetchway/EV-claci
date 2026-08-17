@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
  * `Authorization: Bearer <api key>`, same as /api/v1/chargers.
  */
 export async function GET(req: Request) {
+  let finish: ((status: number) => void) | undefined;
   try {
-    await requireApiKey(req);
+    ({ finish } = await requireApiKey(req));
     const db = adminDb();
 
     const snap = await db.collection("chargeSessions").orderBy("lastUpdateAt", "desc").limit(100).get();
@@ -31,8 +32,11 @@ export async function GET(req: Request) {
       };
     });
 
+    finish?.(200);
     return NextResponse.json({ sessions });
   } catch (err) {
-    return errorResponse(err);
+    const res = errorResponse(err);
+    finish?.(res.status);
+    return res;
   }
 }

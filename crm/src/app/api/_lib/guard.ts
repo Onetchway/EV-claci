@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { NextResponse } from "next/server";
 
 import { ROLE_RANK, type Role } from "@/lib/constants";
@@ -15,11 +17,23 @@ export interface Caller {
   name: string;
 }
 
+/**
+ * `code` is a stable, machine-readable slug (e.g. "RATE_LIMITED",
+ * "KEY_EXPIRED") an integration can branch on without string-matching
+ * `message`, which is free to change. Optional so existing call sites
+ * (just a message + status) keep working unchanged — errorResponse below
+ * falls back to a generic code derived from the HTTP status when omitted.
+ */
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(message: string, readonly status: number, readonly code?: string) {
     super(message);
   }
 }
+
+const STATUS_FALLBACK_CODE: Record<number, string> = {
+  400: "BAD_REQUEST", 401: "UNAUTHORIZED", 403: "FORBIDDEN", 404: "NOT_FOUND",
+  429: "RATE_LIMITED", 500: "INTERNAL_ERROR", 502: "UPSTREAM_ERROR", 503: "UNAVAILABLE",
+};
 
 /**
  * Verifies the caller's Firebase ID token and reads their role from Firestore
@@ -76,10 +90,23 @@ export function highestRole(roles: Role[]): Role {
   return [...roles].sort((a, b) => (ROLE_RANK[b] ?? 0) - (ROLE_RANK[a] ?? 0))[0] ?? "AGENT";
 }
 
+/**
+ * Every failure response gets a requestId — cheap to generate, and the one
+ * thing that lets us find "the request that failed for you at 3:14pm" in
+ * logs/apiRequestLogs without the caller needing to have captured anything
+ * else. Not returned on success (the 2xx body is whatever the route
+ * defines) — this is specifically for the "something broke, now what"
+ * support path.
+ */
 export function errorResponse(err: unknown) {
+  const requestId = randomUUID();
   if (err instanceof ApiError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
+    const code = err.code ?? STATUS_FALLBACK_CODE[err.status] ?? "ERROR";
+    return NextResponse.json({ error: err.message, code, requestId }, { status: err.status });
   }
-  console.error("[api] unexpected error", err);
-  return NextResponse.json({ error: (err as Error)?.message ?? "Unexpected error." }, { status: 500 });
+  console.error(`[api] unexpected error (requestId ${requestId})`, err);
+  return NextResponse.json(
+    { error: (err as Error)?.message ?? "Unexpected error.", code: "INTERNAL_ERROR", requestId },
+    { status: 500 },
+  );
 }

@@ -14,8 +14,9 @@ export const dynamic = "force-dynamic";
  * CRM's Developer page.
  */
 export async function GET(req: Request) {
+  let finish: ((status: number) => void) | undefined;
   try {
-    await requireApiKey(req);
+    ({ finish } = await requireApiKey(req));
     const db = adminDb();
 
     const [registrySnap, pointsSnap] = await Promise.all([
@@ -41,8 +42,11 @@ export async function GET(req: Request) {
       };
     });
 
+    finish?.(200);
     return NextResponse.json({ chargers });
   } catch (err) {
-    return errorResponse(err);
+    const res = errorResponse(err);
+    finish?.(res.status);
+    return res;
   }
 }

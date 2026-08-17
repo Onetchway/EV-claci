@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { adminDb } from "@/lib/firebase/admin";
-import { requireRegisteredParty } from "@/lib/ocpi/auth";
+import { ocpiErrorResponse, requireRegisteredParty } from "@/lib/ocpi/auth";
 import type { OcpiResponse, OcpiToken } from "@/lib/ocpi/types";
 
 export const runtime = "nodejs";
@@ -27,7 +27,7 @@ async function upsert(req: Request, params: { country_code: string; party_id: st
   try {
     party = await requireRegisteredParty(req);
   } catch (err) {
-    return NextResponse.json({ status_code: 2000, status_message: (err as Error).message }, { status: 401 });
+    return ocpiErrorResponse(err);
   }
 
   const body = await req.json().catch(() => null) as Partial<OcpiToken> | null;
@@ -63,7 +63,7 @@ export async function DELETE(req: Request, { params }: { params: { country_code:
   try {
     await requireRegisteredParty(req);
   } catch (err) {
-    return NextResponse.json({ status_code: 2000, status_message: (err as Error).message }, { status: 401 });
+    return ocpiErrorResponse(err);
   }
 
   await adminDb().collection("ocpiPartnerTokens").doc(docId(params.country_code, params.party_id, params.token_uid)).delete();

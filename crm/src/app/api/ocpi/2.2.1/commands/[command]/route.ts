@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { adminDb } from "@/lib/firebase/admin";
-import { requireRegisteredParty } from "@/lib/ocpi/auth";
+import { ocpiErrorResponse, requireRegisteredParty } from "@/lib/ocpi/auth";
 import { sendOcppCommand } from "@/lib/ocpp/send-command.server";
 import type {
   OcpiCommandResponse, OcpiCommandResult, OcpiCommandType, OcpiResponse,
@@ -42,7 +42,7 @@ export async function POST(req: Request, { params }: { params: { command: string
   try {
     await requireRegisteredParty(req);
   } catch (err) {
-    return NextResponse.json({ status_code: 2000, status_message: (err as Error).message }, { status: 401 });
+    return ocpiErrorResponse(err);
   }
 
   const command = params.command.toUpperCase() as OcpiCommandType;

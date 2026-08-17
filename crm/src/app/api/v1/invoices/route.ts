@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
  * an accounting system). Auth: `Authorization: Bearer <api key>`.
  */
 export async function GET(req: Request) {
+  let finish: ((status: number) => void) | undefined;
   try {
-    await requireApiKey(req);
+    ({ finish } = await requireApiKey(req));
     const db = adminDb();
 
     const snap = await db.collection("invoices").orderBy("createdAt", "desc").limit(100).get();
@@ -36,8 +37,11 @@ export async function GET(req: Request) {
       };
     });
 
+    finish?.(200);
     return NextResponse.json({ invoices });
   } catch (err) {
-    return errorResponse(err);
+    const res = errorResponse(err);
+    finish?.(res.status);
+    return res;
   }
 }

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import { adminDb } from "@/lib/firebase/admin";
 
 /**
@@ -9,6 +11,30 @@ import { adminDb } from "@/lib/firebase/admin";
  * registration (POST /credentials only); `token_c` is what they use for
  * every request after that, once we've generated it during registration.
  */
+
+/**
+ * Same reasoning as api/v1/_lib/apikey.ts's rate limiter — best-effort,
+ * in-memory, per-instance. A roaming partner's polling loop or a
+ * misbehaving integration shouldn't be able to hammer these endpoints
+ * unbounded just because OCPI itself doesn't mandate a rate-limit scheme.
+ * Higher ceiling than /api/v1's default (120 vs 60) since a partner
+ * legitimately polling locations/sessions/tariffs across several modules
+ * needs more headroom than a single external dashboard integration.
+ */
+const OCPI_RATE_LIMIT_PER_MINUTE = 120;
+const ocpiRequestLog = new Map<string, number[]>();
+
+function checkOcpiRateLimit(token: string): void {
+  const key = createHash("sha256").update(token).digest("hex");
+  const now = Date.now();
+  const windowStart = now - 60_000;
+  const timestamps = (ocpiRequestLog.get(key) ?? []).filter((t) => t > windowStart);
+  if (timestamps.length >= OCPI_RATE_LIMIT_PER_MINUTE) {
+    throw new Error(`RATE_LIMITED: max ${OCPI_RATE_LIMIT_PER_MINUTE} requests/minute exceeded for this token.`);
+  }
+  timestamps.push(now);
+  ocpiRequestLog.set(key, timestamps);
+}
 
 export interface OcpiParty {
   id: string;
@@ -25,6 +51,25 @@ export interface OcpiParty {
 
 export const OCPI_PARTIES = "ocpiParties";
 
+/**
+ * Shared error → HTTP response mapping for every OCPI route that only
+ * calls one of the three auth functions above and nothing else that could
+ * throw for a different reason — RATE_LIMITED gets a real 429 instead of
+ * being folded into the generic 401 every other auth failure returns.
+ * OCPI's own status_code/status_message envelope stays as-is (that's the
+ * receiver-facing contract other implementations parse); this only fixes
+ * the HTTP status line, which a generic HTTP client (not an OCPI-aware
+ * one) is what actually backs off on.
+ */
+export function ocpiErrorResponse(err: unknown): Response {
+  const message = (err as Error)?.message ?? "Unauthorized.";
+  const rateLimited = message.startsWith("RATE_LIMITED:");
+  return Response.json(
+    { status_code: 2000, status_message: rateLimited ? message.slice("RATE_LIMITED: ".length) : message },
+    { status: rateLimited ? 429 : 401 },
+  );
+}
+
 function bearerToken(req: Request): string | null {
   const header = req.headers.get("authorization") ?? "";
   return header.toLowerCase().startsWith("token ") ? header.slice(6).trim() : null;
@@ -34,6 +79,7 @@ function bearerToken(req: Request): string | null {
 export async function requireRegisteredParty(req: Request): Promise<OcpiParty> {
   const token = bearerToken(req);
   if (!token) throw new Error("UNAUTHORIZED: missing Authorization: Token header.");
+  checkOcpiRateLimit(token);
   const snap = await adminDb().collection(OCPI_PARTIES)
     .where("tokenC", "==", token).where("status", "==", "REGISTERED").limit(1).get();
   if (snap.empty) throw new Error("UNAUTHORIZED: token not recognized or not yet registered.");
@@ -60,6 +106,7 @@ export async function requirePendingParty(req: Request): Promise<OcpiParty> {
 export async function requireRoamingPartnerAuth(req: Request): Promise<{ id: string; businessName: string }> {
   const token = bearerToken(req);
   if (!token) throw new Error("UNAUTHORIZED: missing Authorization: Token header.");
+  checkOcpiRateLimit(token);
   const snap = await adminDb().collection("ocpiRoamingPartners")
     .where("ourTokenForThem", "==", token).where("status", "==", "REGISTERED").limit(1).get();
   if (snap.empty) throw new Error("UNAUTHORIZED: token not recognized or partner not registered.");

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { adminDb } from "@/lib/firebase/admin";
-import { requireRoamingPartnerAuth } from "@/lib/ocpi/auth";
+import { ocpiErrorResponse, requireRoamingPartnerAuth } from "@/lib/ocpi/auth";
 import type { OcpiResponse, OcpiSession } from "@/lib/ocpi/types";
 
 export const runtime = "nodejs";
@@ -21,7 +21,7 @@ export async function PUT(req: Request, { params }: { params: { session_id: stri
   try {
     partner = await requireRoamingPartnerAuth(req);
   } catch (err) {
-    return NextResponse.json({ status_code: 2000, status_message: (err as Error).message }, { status: 401 });
+    return ocpiErrorResponse(err);
   }
 
   const body = await req.json().catch(() => null) as OcpiSession | null;

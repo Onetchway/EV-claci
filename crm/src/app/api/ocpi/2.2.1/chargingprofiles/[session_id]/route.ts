@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { adminDb } from "@/lib/firebase/admin";
-import { requireRegisteredParty } from "@/lib/ocpi/auth";
+import { ocpiErrorResponse, requireRegisteredParty } from "@/lib/ocpi/auth";
 import { sendOcppCommand } from "@/lib/ocpp/send-command.server";
 import type {
   OcpiChargingProfileResponse, OcpiChargingProfileResult, OcpiResponse, OcpiSetChargingProfileRequest,
@@ -57,7 +57,7 @@ export async function PUT(req: Request, { params }: { params: { session_id: stri
   try {
     await requireRegisteredParty(req);
   } catch (err) {
-    return NextResponse.json({ status_code: 2000, status_message: (err as Error).message }, { status: 401 });
+    return ocpiErrorResponse(err);
   }
 
   const body = await req.json().catch(() => null) as OcpiSetChargingProfileRequest | null;
@@ -108,7 +108,7 @@ export async function DELETE(req: Request, { params }: { params: { session_id: s
   try {
     await requireRegisteredParty(req);
   } catch (err) {
-    return NextResponse.json({ status_code: 2000, status_message: (err as Error).message }, { status: 401 });
+    return ocpiErrorResponse(err);
   }
 
   const session = await loadActiveSession(params.session_id);
@@ -128,7 +128,7 @@ export async function GET(req: Request) {
   try {
     await requireRegisteredParty(req);
   } catch (err) {
-    return NextResponse.json({ status_code: 2000, status_message: (err as Error).message }, { status: 401 });
+    return ocpiErrorResponse(err);
   }
   return envelope({ result: "NOT_SUPPORTED", timeout: 0 });
 }

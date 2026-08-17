@@ -577,6 +577,14 @@ service cloud.firestore {
       allow read, write: if role() in ['SUPER_ADMIN', 'ADMIN'];
     }
 
+    // Structured per-call log written by api/v1/_lib/apikey.ts (Admin SDK)
+    // for support/debugging — admins can read for a given key, never write
+    // directly, since it's a record of what actually happened.
+    match /apiRequestLogs/{logId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+
     // Webhook subscriptions hold a real signing secret (unlike apiKeys,
     // which only ever stores a hash) — admin-only, same as ocpiParties.
     match /webhookSubscriptions/{subId} {

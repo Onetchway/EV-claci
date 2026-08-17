@@ -1318,7 +1318,14 @@ export interface ApiKey {
   /** First 8 chars of the raw key, kept for the admin to recognise which key is which without re-showing the secret. */
   prefix: string;
   active: boolean;
+  /** Requests/minute this key is capped at — see api/v1/_lib/apikey.ts's checkRateLimit. Defaults to 60 when unset. */
+  rateLimitPerMinute?: number;
+  /** Optional hard expiry — an expired key is rejected the same as a revoked one, but distinguished in the error message so an integration owner knows to rotate rather than assume they did something wrong. */
+  expiresAt?: TS | null;
   lastUsedAt?: TS | null;
+  requestCount?: number;
+  revokedAt?: TS | null;
+  revokedBy?: Actor | null;
   createdAt: TS;
   createdBy?: Actor | null;
 }

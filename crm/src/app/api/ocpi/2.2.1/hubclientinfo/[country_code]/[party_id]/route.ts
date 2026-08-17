@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { adminDb } from "@/lib/firebase/admin";
-import { requireRegisteredParty } from "@/lib/ocpi/auth";
+import { ocpiErrorResponse, requireRegisteredParty } from "@/lib/ocpi/auth";
 import type { OcpiHubClientInfo, OcpiResponse } from "@/lib/ocpi/types";
 
 export const runtime = "nodejs";
@@ -20,7 +20,7 @@ export async function PUT(req: Request, { params }: { params: { country_code: st
   try {
     await requireRegisteredParty(req);
   } catch (err) {
-    return NextResponse.json({ status_code: 2000, status_message: (err as Error).message }, { status: 401 });
+    return ocpiErrorResponse(err);
   }
 
   const body = await req.json().catch(() => null) as Partial<OcpiHubClientInfo> | null;
