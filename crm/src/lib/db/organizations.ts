@@ -42,7 +42,7 @@ export function subscribeOrganizations(
   );
 }
 
-export type OrganizationDraft = Pick<Organization, "name" | "logoUrl" | "primaryColorHex" | "customDomain">;
+export type OrganizationDraft = Pick<Organization, "name" | "logoUrl" | "primaryColorHex" | "customDomain" | "acLicenseTotal" | "dcLicenseTotal">;
 
 export async function createOrganization(draft: OrganizationDraft, actor: Actor): Promise<string> {
   const ref = await addDoc(collection(getDb(), ORGANIZATIONS), {

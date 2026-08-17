@@ -61,6 +61,9 @@ export interface Organization {
   primaryColorHex?: string;
   /** Stored for future DNS/routing setup — not yet actively used to route traffic. */
   customDomain?: string;
+  /** Charger quota for this tenant, by power type — undefined/0 = unlimited. Enforced at registration (registerCharger), counting this org's own active chargers of that type. The default (non-white-label) organisation is never quota-checked. */
+  acLicenseTotal?: number;
+  dcLicenseTotal?: number;
   active: boolean;
   createdAt: TS;
   createdBy?: Actor | null;

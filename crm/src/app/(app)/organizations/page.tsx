@@ -14,7 +14,7 @@ import {
 import { isSuperAdmin } from "@/lib/permissions";
 import type { Organization } from "@/lib/types";
 
-const blankDraft: OrganizationDraft = { name: "", logoUrl: "", primaryColorHex: "", customDomain: "" };
+const blankDraft: OrganizationDraft = { name: "", logoUrl: "", primaryColorHex: "", customDomain: "", acLicenseTotal: undefined, dcLicenseTotal: undefined };
 
 export default function OrganizationsPage() {
   const { actor } = useAuth();
@@ -37,7 +37,10 @@ export default function OrganizationsPage() {
 
   function openEdit(o: Organization) {
     setEditing(o);
-    setDraft({ name: o.name, logoUrl: o.logoUrl ?? "", primaryColorHex: o.primaryColorHex ?? "", customDomain: o.customDomain ?? "" });
+    setDraft({
+      name: o.name, logoUrl: o.logoUrl ?? "", primaryColorHex: o.primaryColorHex ?? "", customDomain: o.customDomain ?? "",
+      acLicenseTotal: o.acLicenseTotal, dcLicenseTotal: o.dcLicenseTotal,
+    });
     setOpen(true);
   }
 
@@ -48,6 +51,8 @@ export default function OrganizationsPage() {
       logoUrl: draft.logoUrl?.trim() || undefined,
       primaryColorHex: draft.primaryColorHex?.trim() || undefined,
       customDomain: draft.customDomain?.trim() || undefined,
+      acLicenseTotal: draft.acLicenseTotal || undefined,
+      dcLicenseTotal: draft.dcLicenseTotal || undefined,
     };
     await run(async () => {
       if (editing) await updateOrganization(editing.id, clean);
@@ -96,6 +101,8 @@ export default function OrganizationsPage() {
                 <Badge className={o.active ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-ink-100 text-ink-500 ring-ink-200"}>
                   {o.active ? "Active" : "Disabled"}
                 </Badge>
+                {!!o.acLicenseTotal && <Badge className="bg-ink-100 text-ink-600 ring-ink-200">AC: {o.acLicenseTotal}</Badge>}
+                {!!o.dcLicenseTotal && <Badge className="bg-ink-100 text-ink-600 ring-ink-200">DC: {o.dcLicenseTotal}</Badge>}
               </div>
               <div className="mt-3 flex gap-2 border-t border-ink-100 pt-3">
                 <Button size="sm" onClick={() => openEdit(o)}>Edit</Button>
@@ -140,6 +147,22 @@ export default function OrganizationsPage() {
           <Field label="Primary colour" hint="Hex, e.g. #1fae54. Used for the sidebar icon background.">
             <Input value={draft.primaryColorHex ?? ""} onChange={(e) => setDraft((d) => ({ ...d, primaryColorHex: e.target.value }))} placeholder="#1fae54" />
           </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="AC charger licenses" hint="Blank/0 = unlimited.">
+              <Input
+                type="number" min={0}
+                value={draft.acLicenseTotal ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, acLicenseTotal: e.target.value ? Number(e.target.value) : undefined }))}
+              />
+            </Field>
+            <Field label="DC charger licenses" hint="Blank/0 = unlimited.">
+              <Input
+                type="number" min={0}
+                value={draft.dcLicenseTotal ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, dcLicenseTotal: e.target.value ? Number(e.target.value) : undefined }))}
+              />
+            </Field>
+          </div>
           <Field label="Custom domain" hint="Stored for reference — DNS/SSL routing to this domain isn't set up yet.">
             <Input value={draft.customDomain ?? ""} onChange={(e) => setDraft((d) => ({ ...d, customDomain: e.target.value }))} placeholder="app.acme-ev.com" />
           </Field>

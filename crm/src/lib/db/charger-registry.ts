@@ -13,7 +13,7 @@
  */
 
 import {
-  addDoc, collection, deleteDoc, doc, getDocs, limit as fsLimit, onSnapshot, orderBy, query, serverTimestamp,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit as fsLimit, onSnapshot, orderBy, query, serverTimestamp,
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
@@ -97,6 +97,8 @@ export interface ChargerRegistration {
   maxSocPercent?: number;
   /** A shared secret appended to this charger's WebSocket URL as ?token=... — a lightweight connection-auth layer on top of the charger-ID allow-list, short of full OCPP Security Profile certificates. */
   connectionToken?: string;
+  /** The white-label tenant this charger counts against for license-quota purposes — set from the registering staff member's own Organization at creation time, never user-editable. Null/absent = the default (Livanto's own) organisation, which is never quota-checked. */
+  orgId?: string | null;
 }
 
 /** Display name for a registration's manufacturer — the free-text override when vendor is "Other". */
@@ -185,6 +187,7 @@ export async function registerCharger(
   draft: ChargerRegistrationDraft,
   actor: Actor,
   customChargerId?: string,
+  orgId?: string | null,
 ): Promise<{ chargerId: string; connectionToken: string }> {
   let chargerId: string;
   if (customChargerId?.trim()) {
@@ -197,16 +200,43 @@ export async function registerCharger(
   } else {
     chargerId = `${slugify(draft.label)}-${uniqueSuffix()}`;
   }
+
+  if (orgId) await assertUnderLicenseQuota(orgId, draft.chargerPowerType);
+
   const connectionToken = generateConnectionToken();
   await addDoc(collection(getDb(), CHARGER_REGISTRY), {
     ...draftDatesToTimestamps(draft),
     chargerId,
     active: true,
     connectionToken,
+    orgId: orgId ?? null,
     createdAt: serverTimestamp(),
     createdBy: actor,
   });
   return { chargerId, connectionToken };
+}
+
+/** Throws if registering one more charger of this power type would exceed the tenant's license quota. Unlimited (no throw) when the org has no quota set for that type. */
+async function assertUnderLicenseQuota(orgId: string, powerType: ChargerPowerType): Promise<void> {
+  const orgSnap = await getDoc(doc(getDb(), "organizations", orgId));
+  if (!orgSnap.exists()) return;
+  const org = orgSnap.data() as { name?: string; acLicenseTotal?: number; dcLicenseTotal?: number };
+  const quota = powerType === "AC" ? org.acLicenseTotal : org.dcLicenseTotal;
+  if (!quota || quota <= 0) return;
+
+  const existing = await getDocs(
+    query(
+      collection(getDb(), CHARGER_REGISTRY),
+      where("orgId", "==", orgId),
+      where("chargerPowerType", "==", powerType),
+      where("active", "==", true),
+    ),
+  );
+  if (existing.size >= quota) {
+    throw new Error(
+      `${org.name ?? "This organisation"} has used all ${quota} ${powerType} charger licenses. Contact your platform admin to increase the quota.`,
+    );
+  }
 }
 
 /** Rotates a charger's connection token — the old one stops working immediately, so the charger must be reconfigured with the new URL. */

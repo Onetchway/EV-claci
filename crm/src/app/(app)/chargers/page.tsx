@@ -99,7 +99,7 @@ function ConnectionDetails({ serverHost, chargerId, connectionToken }: { serverH
 }
 
 export default function ChargersPage() {
-  const { actor } = useAuth();
+  const { actor, profile } = useAuth();
   const viewer = useViewer();
   const { settings } = useSettings();
   const canManage = canManageChargers(viewer);
@@ -320,6 +320,7 @@ export default function ChargersPage() {
           { ...draft, powerKw: draft.powerKw ? Number(draft.powerKw) : undefined },
           actor,
           customChargerId.trim() || undefined,
+          profile?.orgId,
         );
         setJustRegisteredId(chargerId);
         setJustRegisteredToken(connectionToken);
