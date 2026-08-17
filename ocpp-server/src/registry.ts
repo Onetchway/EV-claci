@@ -23,6 +23,7 @@ import { subscriptionDiscountFor } from "./subscriptions.js";
 import { computeCost, resolveTariff } from "./tariff.js";
 import { debitWalletForSession } from "./wallet.js";
 import { dispatchWebhookSafe } from "./webhooks.js";
+import { OCPI_COUNTRY_CODE, OCPI_PARTY_ID, pushOcpiUpdateSafe } from "./ocpi-push.js";
 
 export const CHARGE_POINTS = "chargePoints";
 export const CHARGE_SESSIONS = "chargeSessions";
@@ -54,6 +55,76 @@ export async function isRegisteredAndActive(chargePointId: string, token?: strin
   const registeredToken = snap.docs[0]!.data().connectionToken as string | undefined;
   if (!registeredToken) return true;
   return registeredToken === token;
+}
+
+const OCPI_CONNECTOR_STANDARD: Record<string, string> = {
+  "Type 2": "IEC_62196_T2",
+  CCS2: "IEC_62196_T2_COMBO",
+  CHAdeMO: "CHADEMO",
+  "GB/T": "GBT_AC",
+  "Bharat AC-001": "IEC_62196_T2",
+  "Bharat DC-001": "GBT_DC",
+};
+
+const OCPI_CONNECTOR_STATUS: Record<string, string> = {
+  Available: "AVAILABLE",
+  Occupied: "CHARGING",
+  Reserved: "RESERVED",
+  Unavailable: "INOPERATIVE",
+  Faulted: "OUTOFORDER",
+};
+
+function toIsoTs(ts: unknown): string {
+  const d = (ts as { toDate?: () => Date } | undefined)?.toDate?.();
+  return (d ?? new Date()).toISOString();
+}
+
+/** Mirrors crm/src/lib/ocpi/mappers.ts's mapLocations, but for one charger — built fresh from Firestore for a background OCPI push rather than reused from the CRM app (separate deployable, see ocpi-push.ts). */
+async function buildOcpiLocationPayload(chargePointId: string): Promise<Record<string, unknown> | null> {
+  const [registrySnap, pointSnap] = await Promise.all([
+    db().collection(CHARGER_REGISTRY).where("chargerId", "==", chargePointId).where("active", "==", true).limit(1).get(),
+    db().collection(CHARGE_POINTS).doc(chargePointId).get(),
+  ]);
+  if (registrySnap.empty) return null;
+  const r = registrySnap.docs[0]!.data();
+  if (r.lat == null || r.lng == null) return null;
+  const live = pointSnap.data();
+
+  const connectors = r.connectorType ? [{
+    id: "1",
+    standard: OCPI_CONNECTOR_STANDARD[r.connectorType as string] ?? "IEC_62196_T2",
+    format: "CABLE",
+    power_type: r.chargerPowerType === "DC" ? "DC" : "AC_3_PHASE",
+    max_voltage: 400,
+    max_amperage: r.powerKw ? Math.round(((r.powerKw as number) * 1000) / 400) : 32,
+    max_electric_power: ((r.powerKw as number) ?? 0) * 1000,
+    last_updated: toIsoTs(live?.lastSeenAt),
+  }] : [];
+
+  const connectorStatuses = live?.connectors ? Object.values(live.connectors as Record<string, { status: string }>) : [];
+  const evseStatus = live?.status !== "ONLINE"
+    ? "OUTOFORDER"
+    : (OCPI_CONNECTOR_STATUS[connectorStatuses[0]?.status ?? "Available"] ?? "UNKNOWN");
+
+  return {
+    country_code: OCPI_COUNTRY_CODE,
+    party_id: OCPI_PARTY_ID,
+    id: chargePointId,
+    publish: true,
+    name: r.label,
+    address: r.location,
+    city: r.location,
+    country: "IND",
+    coordinates: { latitude: String(r.lat), longitude: String(r.lng) },
+    evses: [{
+      uid: chargePointId,
+      evse_id: `${OCPI_COUNTRY_CODE}*${OCPI_PARTY_ID}*E${chargePointId}`,
+      status: evseStatus,
+      connectors,
+      last_updated: toIsoTs(live?.lastSeenAt),
+    }],
+    last_updated: toIsoTs(live?.lastSeenAt ?? r.createdAt),
+  };
 }
 
 interface Connection {
@@ -127,6 +198,7 @@ export async function markOnline(
     { merge: true },
   );
   dispatchWebhookSafe("charger.online", { chargePointId });
+  pushOcpiUpdateSafe("locations", chargePointId, () => buildOcpiLocationPayload(chargePointId));
 }
 
 /**
@@ -147,6 +219,7 @@ export async function markOffline(chargePointId: string): Promise<void> {
     { merge: true },
   );
   dispatchWebhookSafe("charger.offline", { chargePointId });
+  pushOcpiUpdateSafe("locations", chargePointId, () => buildOcpiLocationPayload(chargePointId));
 }
 
 export async function touchHeartbeat(chargePointId: string): Promise<void> {
@@ -173,6 +246,7 @@ export async function updateConnectorStatus(
     },
     { merge: true },
   );
+  pushOcpiUpdateSafe("locations", chargePointId, () => buildOcpiLocationPayload(chargePointId));
 }
 
 function sessionDocId(chargePointId: string, transactionId: string): string {
@@ -246,6 +320,18 @@ export async function recordTransactionEvent(
     energyDeliveredWh = latest - start;
     await ref.set({ energyDeliveredWh }, { merge: true });
   }
+
+  pushOcpiUpdateSafe("sessions", ref.id, async () => ({
+    country_code: OCPI_COUNTRY_CODE,
+    party_id: OCPI_PARTY_ID,
+    id: ref.id,
+    start_date_time: toIsoTs(data?.startedAt),
+    end_date_time: data?.endedAt ? toIsoTs(data.endedAt) : undefined,
+    kwh: (energyDeliveredWh ?? 0) / 1000,
+    currency: "INR",
+    status: data?.status === "ACTIVE" ? "ACTIVE" : "COMPLETED",
+    last_updated: new Date().toISOString(),
+  }));
 
   if (req.eventType === "Ended") {
     await billSession(ref, chargePointId, data, energyDeliveredWh);
@@ -390,6 +476,18 @@ async function billSession(
     energyDeliveredWh: energyDeliveredWh ?? null,
     totalCostInr,
   });
+
+  pushOcpiUpdateSafe("cdrs", ref.id, async () => ({
+    country_code: OCPI_COUNTRY_CODE,
+    party_id: OCPI_PARTY_ID,
+    id: ref.id,
+    start_date_time: toIsoTs(sessionData?.startedAt),
+    end_date_time: endedAt.toISOString(),
+    total_energy: (energyDeliveredWh ?? 0) / 1000,
+    total_cost: { excl_vat: cost.costBeforeGstInr, incl_vat: totalCostInr },
+    currency: "INR",
+    last_updated: new Date().toISOString(),
+  }));
 }
 
 export async function recordMeterValues(
