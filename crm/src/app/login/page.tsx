@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Building2, ShieldCheck, Users2, Zap } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
-import { Button, Spinner, useToast } from "@/components/ui";
+import { Button, Input, Spinner, useToast } from "@/components/ui";
 
 const FRIENDLY: Record<string, string> = {
   "auth/popup-closed-by-user": "Sign-in window closed before completing — try again.",
@@ -91,12 +91,16 @@ function ChargingStationArt() {
 }
 
 export default function LoginPage() {
-  const { signInWithGoogle, user, profile, loading, configured } = useAuth();
+  const { signInWithGoogle, signIn, resetPassword, user, profile, loading, configured } = useAuth();
   const router = useRouter();
   const { push } = useToast();
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     if (!loading && user && profile?.active) router.replace("/dashboard");
@@ -112,6 +116,40 @@ export default function LoginPage() {
       const message = readableError(err);
       setError(message);
       push(message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onEmailSignIn(e: FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || !password) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await signIn(email.trim(), password);
+      router.replace("/dashboard");
+    } catch (err) {
+      const message = readableError(err);
+      setError(message);
+      push(message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onForgotPassword() {
+    if (!email.trim()) {
+      setError("Enter your email above first, then click \"Forgot password?\".");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await resetPassword(email.trim());
+      setResetSent(true);
+    } catch (err) {
+      setError(readableError(err));
     } finally {
       setBusy(false);
     }
@@ -172,8 +210,9 @@ export default function LoginPage() {
           <div className="mb-8 flex items-start gap-3 rounded-xl bg-brand-50 px-5 py-4 text-sm text-brand-800 ring-1 ring-inset ring-brand-100">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
             <p>
-              Sign-in is restricted to <strong>@livantogreen.com</strong> Google
-              Workspace accounts. Personal Google accounts cannot access this CRM.
+              Livanto Green staff sign in with their <strong>@livantogreen.com</strong> Google
+              Workspace account. Site Owners, Fleet Managers and other external partners sign in
+              with the email and password an administrator set up for them.
             </p>
           </div>
 
@@ -211,6 +250,42 @@ export default function LoginPage() {
                   Continue with Google
                   <span className="ml-auto text-xs font-normal text-ink-400">@livantogreen.com</span>
                 </Button>
+
+                <div className="flex items-center gap-3 text-xs text-ink-400">
+                  <span className="h-px flex-1 bg-ink-200" />
+                  or sign in with email
+                  <span className="h-px flex-1 bg-ink-200" />
+                </div>
+
+                <form className="space-y-3" onSubmit={(e) => void onEmailSignIn(e)}>
+                  <Input
+                    type="email"
+                    autoComplete="username"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setResetSent(false); }}
+                  />
+                  <Input
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <Button type="submit" loading={busy} disabled={!email.trim() || !password} className="w-full py-3">
+                    Sign in
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => void onForgotPassword()}
+                    className="text-xs text-ink-500 underline decoration-dotted hover:text-ink-700"
+                  >
+                    Forgot password?
+                  </button>
+                  {resetSent && (
+                    <p className="text-xs text-emerald-700">Password reset email sent — check your inbox.</p>
+                  )}
+                </form>
 
                 {error && (
                   <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">

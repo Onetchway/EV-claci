@@ -94,6 +94,27 @@ export async function POST(req: Request) {
       lastLoginAt: null,
     });
 
+    // Beyond the temp password shown once to the admin below (still useful
+    // if email delivery isn't set up), queue a real "set your password"
+    // email — the point that actually lets an external account (Site
+    // Owner, Fleet Manager, white-label CMS staff) sign in without an
+    // admin relaying a password out of band. Best-effort: a failure here
+    // shouldn't fail user creation, since the temp password is still a
+    // working fallback.
+    try {
+      const resetLink = await auth.generatePasswordResetLink(body.email);
+      await db.collection("mail").add({
+        to: [body.email],
+        message: {
+          subject: "Set your Livanto Green password",
+          html: `<p>Hi ${body.name},</p><p>An account has been created for you on the Livanto Green platform. Set your password to sign in:</p><p><a href="${resetLink}">${resetLink}</a></p><p>If you weren't expecting this, you can ignore this email.</p>`,
+        },
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("[users] failed to queue welcome email", err);
+    }
+
     return NextResponse.json({
       uid: created.uid,
       // Returned once so the admin can hand it over; it is never stored.
