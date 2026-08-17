@@ -7,7 +7,7 @@ import {
   BarChart3, Battery, BookOpen, Boxes, Building2, CalendarClock, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
   Gauge, Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, Mail, MapPin, Menu, MessageSquareWarning, Package, Percent, Plug, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
-  Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
+  Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, Workflow, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -101,6 +101,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
       { href: "/auto-triggers", label: "Auto Triggers", icon: Zap, adminOnly: true },
+      { href: "/workflows", label: "Workflows", icon: Workflow, adminOnly: true },
       { href: "/diagnostics", label: "Diagnostic Knowledge Base", icon: BookOpen },
       { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
       { href: "/developer", label: "Developer (API & Webhooks)", icon: Terminal, adminOnly: true },

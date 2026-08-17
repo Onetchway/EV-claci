@@ -22,6 +22,13 @@ export async function GET(req: Request) {
     // that come back once a partner registration is complete.
     { identifier: "sessions", role: "RECEIVER", url: `${base}/api/ocpi/2.2.1/roaming/sessions` },
     { identifier: "cdrs", role: "RECEIVER", url: `${base}/api/ocpi/2.2.1/roaming/cdrs` },
+    // A roaming eMSP partner pushes their token whitelist to us here — we're
+    // the CPO/RECEIVER for this module, the reverse direction of locations/
+    // tariffs/sessions/cdrs above.
+    { identifier: "tokens", role: "RECEIVER", url: `${base}/api/ocpi/2.2.1/cpo/tokens` },
+    // A connected hub pushes every other party's live connect status here —
+    // RECEIVER only, we don't operate as a hub ourselves.
+    { identifier: "hubclientinfo", role: "RECEIVER", url: `${base}/api/ocpi/2.2.1/hubclientinfo` },
   ];
   const body: OcpiResponse<{ version: string; endpoints: OcpiEndpoint[] }> = {
     data: { version: "2.2.1", endpoints },

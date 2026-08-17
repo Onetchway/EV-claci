@@ -1509,6 +1509,7 @@ export const WEBHOOK_EVENTS = [
   "session.ended", "ticket.opened", "ticket.sla_breached",
   "charger.online", "charger.offline",
   "payment.success", "payment.failed",
+  "workflow.custom",
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

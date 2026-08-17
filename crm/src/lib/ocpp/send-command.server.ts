@@ -20,6 +20,8 @@ export async function sendOcppCommand(
   chargerId: string,
   action: OcppCommandAction,
   payload: Record<string, unknown>,
+  /** Pass the same key across an upstream retry of the same logical command so the OCPP server de-dupes it instead of sending a second Call. Omit for a one-shot send. */
+  idempotencyKey?: string,
 ): Promise<unknown> {
   const settingsSnap = await adminDb().collection("settings").doc("app").get();
   const host = (settingsSnap.data()?.ocpp?.serverHost as string | undefined)?.trim();
@@ -30,7 +32,7 @@ export async function sendOcppCommand(
   const res = await fetch(`https://${host}/command/${encodeURIComponent(chargerId)}`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-command-key": key },
-    body: JSON.stringify({ action, payload }),
+    body: JSON.stringify({ action, payload, idempotencyKey }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error ?? `OCPP server returned ${res.status}.`);

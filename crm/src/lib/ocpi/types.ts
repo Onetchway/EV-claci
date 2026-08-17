@@ -1,8 +1,12 @@
 /**
- * Minimal OCPI 2.2.1 payload shapes — only what this CPO-side, pull-only
- * implementation needs to emit. Not the full spec (no push/webhooks, no
- * Commands module yet — see ocpi/README in this directory for what's
- * deliberately not here).
+ * OCPI 2.2.1 payload shapes this app sends or accepts. Covers Credentials,
+ * Locations/Tariffs/Sessions/CDRs (SENDER, we're the CPO), Commands and
+ * ChargingProfiles (RECEIVER), roaming Sessions/CDRs (RECEIVER, we're an
+ * eMSP client of a partner CPO), Tokens (RECEIVER, a partner eMSP pushes
+ * their whitelist to us) and HubClientInfo (RECEIVER only — we don't
+ * operate as a hub). Not implemented: the Payments/PTP module (2.2.1's
+ * physical card-terminal integration surface — a different hardware
+ * integration than anything this app otherwise does).
  */
 
 export interface OcpiResponse<T> {
@@ -170,5 +174,32 @@ export interface OcpiCdr {
   total_energy: number;
   total_cost: { excl_vat: number; incl_vat: number };
   currency: string;
+  last_updated: string;
+}
+
+/** Tokens module — pushed to us (RECEIVER, we're the CPO) by a roaming eMSP partner via PUT/PATCH/DELETE on cpo/tokens/[country_code]/[party_id]/[token_uid]. */
+export interface OcpiToken {
+  country_code: string;
+  party_id: string;
+  uid: string;
+  type: "AD_HOC_USER" | "APP_USER" | "OTHER" | "RFID";
+  contract_id: string;
+  visual_number?: string;
+  issuer: string;
+  group_id?: string;
+  valid: boolean;
+  whitelist: "ALWAYS" | "ALLOWED" | "ALLOWED_OFFLINE" | "NEVER";
+  language?: string;
+  default_profile_type?: string;
+  energy_contract?: { supplier_name: string; contract_id?: string };
+  last_updated: string;
+}
+
+/** HubClientInfo module — a connected hub pushes each connected party's live status here so every party can see who else is reachable through the hub. We only implement RECEIVER (accepting the push); we don't operate as a hub ourselves. */
+export interface OcpiHubClientInfo {
+  country_code: string;
+  party_id: string;
+  role: "CPO" | "EMSP" | "HUB" | "NSP" | "OTHER" | "SCSP";
+  status: "CONNECTED" | "OFFLINE" | "PLANNED" | "SUSPENDED";
   last_updated: string;
 }

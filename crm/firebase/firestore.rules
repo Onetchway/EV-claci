@@ -576,6 +576,37 @@ service cloud.firestore {
       allow read, write: if role() in ['SUPER_ADMIN', 'ADMIN'];
     }
 
+    // Phase 5 workflow-engine rules — additive custom automation attached to
+    // the same four trigger points the hardcoded automation already fires
+    // at. Admin-only, same bar as Auto Triggers.
+    match /workflowRules/{ruleId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Phase 4's durable command-queue trail — ocpp-server (Admin SDK) is the
+    // only writer; CRM users can read it for support/audit but never edit it
+    // directly, since it's a log of what actually happened, not editable state.
+    match /commandQueue/{queueId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // OCPI Tokens module: an eMSP partner pushes their token whitelist here
+    // (ocpp-server's Admin SDK writes it from the CRM's PUT/DELETE receiver
+    // route) — CRM users can read for support, never write directly.
+    match /ocpiPartnerTokens/{tokenDocId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // OCPI HubClientInfo module: a connected hub's pushed party-status
+    // registry — same read-only-from-the-client pattern as the token
+    // whitelist above.
+    match /hubClientInfo/{partyDocId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // ------------------------------------------------------------------- mail
 
     // Outbound email queue for the Firebase "Trigger Email" extension. Any
