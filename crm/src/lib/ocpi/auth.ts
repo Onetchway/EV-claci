@@ -75,25 +75,47 @@ function bearerToken(req: Request): string | null {
   return header.toLowerCase().startsWith("token ") ? header.slice(6).trim() : null;
 }
 
+/**
+ * OCPI §3.2 requires the token in the Authorization header to be
+ * base64-encoded, but not every implementation follows that — some send
+ * the raw token verbatim (including, previously, this app's own outbound
+ * calls). A strict raw-only comparison rejects a fully spec-compliant
+ * partner with "token not recognized" even though the token itself is
+ * correct, just encoded — so try the token as received, and as a
+ * base64-decode of what was received, and accept either.
+ */
+function candidateTokens(raw: string): string[] {
+  const candidates = [raw];
+  try {
+    const decoded = Buffer.from(raw, "base64").toString("utf8");
+    if (decoded && decoded !== raw && /^[a-zA-Z0-9-]+$/.test(decoded)) candidates.push(decoded);
+  } catch { /* not base64 — raw is the only candidate */ }
+  return candidates;
+}
+
 /** Validates the presented token as an active (REGISTERED) party's token_c. Used by every data-pull endpoint. */
 export async function requireRegisteredParty(req: Request): Promise<OcpiParty> {
   const token = bearerToken(req);
   if (!token) throw new Error("UNAUTHORIZED: missing Authorization: Token header.");
   checkOcpiRateLimit(token);
-  const snap = await adminDb().collection(OCPI_PARTIES)
-    .where("tokenC", "==", token).where("status", "==", "REGISTERED").limit(1).get();
-  if (snap.empty) throw new Error("UNAUTHORIZED: token not recognized or not yet registered.");
-  return { id: snap.docs[0]!.id, ...(snap.docs[0]!.data() as Omit<OcpiParty, "id">) };
+  for (const candidate of candidateTokens(token)) {
+    const snap = await adminDb().collection(OCPI_PARTIES)
+      .where("tokenC", "==", candidate).where("status", "==", "REGISTERED").limit(1).get();
+    if (!snap.empty) return { id: snap.docs[0]!.id, ...(snap.docs[0]!.data() as Omit<OcpiParty, "id">) };
+  }
+  throw new Error("UNAUTHORIZED: token not recognized or not yet registered.");
 }
 
 /** Validates the presented token as a pending party's token_a. Used only by the initial POST /credentials call. */
 export async function requirePendingParty(req: Request): Promise<OcpiParty> {
   const token = bearerToken(req);
   if (!token) throw new Error("UNAUTHORIZED: missing Authorization: Token header.");
-  const snap = await adminDb().collection(OCPI_PARTIES)
-    .where("tokenA", "==", token).where("status", "==", "PENDING").limit(1).get();
-  if (snap.empty) throw new Error("UNAUTHORIZED: registration token not recognized or already used.");
-  return { id: snap.docs[0]!.id, ...(snap.docs[0]!.data() as Omit<OcpiParty, "id">) };
+  for (const candidate of candidateTokens(token)) {
+    const snap = await adminDb().collection(OCPI_PARTIES)
+      .where("tokenA", "==", candidate).where("status", "==", "PENDING").limit(1).get();
+    if (!snap.empty) return { id: snap.docs[0]!.id, ...(snap.docs[0]!.data() as Omit<OcpiParty, "id">) };
+  }
+  throw new Error("UNAUTHORIZED: registration token not recognized or already used.");
 }
 
 /**
@@ -107,9 +129,13 @@ export async function requireRoamingPartnerAuth(req: Request): Promise<{ id: str
   const token = bearerToken(req);
   if (!token) throw new Error("UNAUTHORIZED: missing Authorization: Token header.");
   checkOcpiRateLimit(token);
-  const snap = await adminDb().collection("ocpiRoamingPartners")
-    .where("ourTokenForThem", "==", token).where("status", "==", "REGISTERED").limit(1).get();
-  if (snap.empty) throw new Error("UNAUTHORIZED: token not recognized or partner not registered.");
-  const data = snap.docs[0]!.data() as { businessName?: string };
-  return { id: snap.docs[0]!.id, businessName: data.businessName ?? "" };
+  for (const candidate of candidateTokens(token)) {
+    const snap = await adminDb().collection("ocpiRoamingPartners")
+      .where("ourTokenForThem", "==", candidate).where("status", "==", "REGISTERED").limit(1).get();
+    if (!snap.empty) {
+      const data = snap.docs[0]!.data() as { businessName?: string };
+      return { id: snap.docs[0]!.id, businessName: data.businessName ?? "" };
+    }
+  }
+  throw new Error("UNAUTHORIZED: token not recognized or partner not registered.");
 }

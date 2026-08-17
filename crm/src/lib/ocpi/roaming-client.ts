@@ -24,6 +24,11 @@ import type { OcpiCredentials, OcpiEndpoint } from "./types";
 
 export const ROAMING_PARTNERS = "ocpiRoamingPartners";
 
+/** OCPI §3.2 requires the Authorization header's token to be base64-encoded — the receiving side (api/ocpi/2.2.1/*) also accepts a raw token for interop with implementations that don't, but our own outbound calls should be spec-correct. */
+function tokenHeader(token: string): string {
+  return `Token ${Buffer.from(token).toString("base64")}`;
+}
+
 export interface RoamingPartner {
   id: string;
   businessName: string;
@@ -35,7 +40,7 @@ export interface RoamingPartner {
 }
 
 async function fetchJson<T>(url: string, token: string): Promise<T> {
-  const res = await fetch(url, { headers: { Authorization: `Token ${token}` }, signal: AbortSignal.timeout(15_000) });
+  const res = await fetch(url, { headers: { Authorization: tokenHeader(token) }, signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error(`${url} returned HTTP ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -67,7 +72,7 @@ export async function registerWithPartner(
   const ourTokenForThem = randomUUID();
   const res = await fetch(credentialsEndpoint.url, {
     method: "POST",
-    headers: { "content-type": "application/json", Authorization: `Token ${theirTokenA}` },
+    headers: { "content-type": "application/json", Authorization: tokenHeader(theirTokenA) },
     body: JSON.stringify({
       token: ourTokenForThem,
       url: `${ourAppUrl}/api/ocpi/versions`,
@@ -149,7 +154,7 @@ export async function sendStartSessionToPartner(
   if (!partner.endpoints?.commands || !partner.theirTokenC) throw new Error("Partner has no commands endpoint on file.");
   const res = await fetch(`${partner.endpoints.commands.replace(/\/$/, "")}/START_SESSION`, {
     method: "POST",
-    headers: { "content-type": "application/json", Authorization: `Token ${partner.theirTokenC}` },
+    headers: { "content-type": "application/json", Authorization: tokenHeader(partner.theirTokenC!) },
     body: JSON.stringify({ response_url: responseUrl, token: { uid: idToken, contract_id: idToken }, location_id: locationId, evse_uid: evseUid }),
     signal: AbortSignal.timeout(15_000),
   });
@@ -166,7 +171,7 @@ export async function sendStopSessionToPartner(
   if (!partner.endpoints?.commands || !partner.theirTokenC) throw new Error("Partner has no commands endpoint on file.");
   const res = await fetch(`${partner.endpoints.commands.replace(/\/$/, "")}/STOP_SESSION`, {
     method: "POST",
-    headers: { "content-type": "application/json", Authorization: `Token ${partner.theirTokenC}` },
+    headers: { "content-type": "application/json", Authorization: tokenHeader(partner.theirTokenC!) },
     body: JSON.stringify({ response_url: responseUrl, session_id: sessionId }),
     signal: AbortSignal.timeout(15_000),
   });
