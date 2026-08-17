@@ -44,6 +44,18 @@ export async function POST(req: Request) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.issues[0]?.message ?? "Invalid input." }, { status: 400 });
     }
+    // A driver scanning a QR code doesn't need (or want) to see "set
+    // RAZORPAY_KEY_ID in your environment variables" — that's an operator
+    // setup instruction, not something a customer can act on. Log the real
+    // detail server-side (visible to whoever's actually watching Cloud
+    // Logging) and show a plain "try again shortly" instead.
+    if (err instanceof ApiError && err.code === "RAZORPAY_NOT_CONFIGURED") {
+      console.error("[qr-charge/order] payments not configured:", err.message);
+      return NextResponse.json(
+        { error: "Payments aren't available at this charger right now. Please try again shortly or contact site staff." },
+        { status: 503 },
+      );
+    }
     return errorResponse(err);
   }
 }

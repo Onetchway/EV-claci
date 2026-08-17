@@ -14,6 +14,7 @@ export function getRazorpayClient(override?: { keyId: string; keySecret: string 
       "Razorpay isn't configured yet — set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in this app's environment " +
         "(Firebase App Hosting → your backend → Environment variables) to enable wallet top-ups.",
       503,
+      "RAZORPAY_NOT_CONFIGURED",
     );
   }
   return new Razorpay({ key_id: keyId, key_secret: keySecret });
