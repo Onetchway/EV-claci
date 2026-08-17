@@ -908,6 +908,17 @@ export interface Vehicle {
   createdBy?: Actor | null;
 }
 
+/** A manually logged odometer reading — no telematics integration, so this is the only way to get km driven against a vehicle's charging spend. Cost-per-km is derived (total session cost since the earliest reading ÷ km driven since then), not stored. */
+export interface OdometerReading {
+  id: string;
+  vehicleId: string;
+  odometerKm: number;
+  readingDate: TS;
+  notes?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
 /**
  * A GST invoice covering a set of billed charging sessions. Sessions
  * aren't yet automatically attributed to an EMSP user/corporate account

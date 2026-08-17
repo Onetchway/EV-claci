@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "odometerReadings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "vehicleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "readingDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "chargingSchedules",
       "queryScope": "COLLECTION",
       "fields": [

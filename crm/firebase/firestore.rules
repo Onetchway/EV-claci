@@ -430,6 +430,11 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
     }
+    // Manually logged odometer readings, used to derive cost-per-km.
+    match /odometerReadings/{readingId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
+    }
 
     // Wallet top-ups/debits — written only by the Razorpay verify API route
     // (Admin SDK, bypasses this) after checking a real payment signature, so

@@ -9,6 +9,7 @@ import {
   Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, useAsyncAction,
 } from "@/components/ui";
 import { subscribeSessionsForVehicles, type ChargeSession } from "@/lib/db/chargers";
+import { addOdometerReading, subscribeOdometerReadings } from "@/lib/db/odometer";
 import {
   assignVehicleDriver, assignVehicleRfidToken, createDriver, createVehicle, deleteDriver, deleteVehicle,
   subscribeDrivers, subscribeFleets, subscribeVehicles,
@@ -16,8 +17,8 @@ import {
 import { EV_CAR_CATALOG, findCar, OTHER_CAR_ID } from "@/lib/ev-cars";
 import { subscribeRfidTokens } from "@/lib/db/rfid";
 import { canManageFleets } from "@/lib/permissions";
-import type { Driver, Fleet, RfidToken, Vehicle } from "@/lib/types";
-import { formatCompactINR } from "@/lib/utils";
+import type { Driver, Fleet, OdometerReading, RfidToken, Vehicle } from "@/lib/types";
+import { formatCompactINR, formatDate } from "@/lib/utils";
 
 export default function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +32,12 @@ export default function FleetDetailPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [rfidTokens, setRfidTokens] = useState<RfidToken[]>([]);
   const [vehicleSessions, setVehicleSessions] = useState<ChargeSession[]>([]);
+  const [odometerReadings, setOdometerReadings] = useState<OdometerReading[]>([]);
+
+  const [odoFor, setOdoFor] = useState<Vehicle | null>(null);
+  const [odoKm, setOdoKm] = useState("");
+  const [odoDate, setOdoDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [odoNotes, setOdoNotes] = useState("");
 
   const [vOpen, setVOpen] = useState(false);
   const [vReg, setVReg] = useState("");
@@ -51,6 +58,10 @@ export default function FleetDetailPage() {
     () => subscribeSessionsForVehicles(vehicles.map((v) => v.id), setVehicleSessions),
     [vehicles],
   );
+  useEffect(
+    () => subscribeOdometerReadings(vehicles.map((v) => v.id), setOdometerReadings),
+    [vehicles],
+  );
 
   const usageByVehicle = useMemo(() => {
     const map = new Map<string, { sessions: number; energyWh: number; costInr: number }>();
@@ -67,6 +78,40 @@ export default function FleetDetailPage() {
 
   const fleet = fleets.find((f) => f.id === id);
   const driverName = useMemo(() => new Map(drivers.map((d) => [d.id, d.name])), [drivers]);
+
+  const readingsByVehicle = useMemo(() => {
+    const map = new Map<string, OdometerReading[]>();
+    for (const r of odometerReadings) {
+      const list = map.get(r.vehicleId) ?? [];
+      list.push(r);
+      map.set(r.vehicleId, list);
+    }
+    return map;
+  }, [odometerReadings]);
+
+  /** Cost-per-km since the earliest odometer reading — session cost has no odometer-matched window, so this is lifetime-since-first-reading, not a period figure. Needs at least 2 readings to have a km delta. */
+  const costPerKmByVehicle = useMemo(() => {
+    const map = new Map<string, { latestKm: number; costPerKm: number | null }>();
+    for (const [vehicleId, readings] of readingsByVehicle.entries()) {
+      if (readings.length === 0) continue;
+      const first = readings[0]!;
+      const latest = readings[readings.length - 1]!;
+      const kmDriven = latest.odometerKm - first.odometerKm;
+      const costInr = usageByVehicle.get(vehicleId)?.costInr ?? 0;
+      map.set(vehicleId, { latestKm: latest.odometerKm, costPerKm: kmDriven > 0 ? costInr / kmDriven : null });
+    }
+    return map;
+  }, [readingsByVehicle, usageByVehicle]);
+
+  async function submitOdometer() {
+    if (!actor || !odoFor || !odoKm.trim() || !odoDate) return;
+    await run(async () => {
+      await addOdometerReading({
+        vehicleId: odoFor.id, odometerKm: Number(odoKm), readingDate: new Date(odoDate), notes: odoNotes.trim() || undefined,
+      }, actor);
+      setOdoFor(null); setOdoKm(""); setOdoNotes("");
+    }, "Odometer reading logged.");
+  }
 
   async function submitVehicle() {
     if (!actor || !vReg.trim()) return;
@@ -107,6 +152,7 @@ export default function FleetDetailPage() {
                     <th className="th">Reg. no.</th><th className="th">Car</th><th className="th">Battery</th>
                     <th className="th">Driver</th><th className="th">RFID card</th>
                     <th className="th text-right">Sessions</th><th className="th text-right">Energy</th><th className="th text-right">Spend</th>
+                    <th className="th text-right">Odometer</th><th className="th text-right">₹/km</th>
                     {canManage && <th className="th text-right">Actions</th>}
                   </tr>
                 </thead>
@@ -141,17 +187,28 @@ export default function FleetDetailPage() {
                       <td className="td text-right tabular-nums">{usage?.sessions ?? 0}</td>
                       <td className="td text-right tabular-nums">{usage ? `${(usage.energyWh / 1000).toFixed(1)} kWh` : "—"}</td>
                       <td className="td text-right tabular-nums">{usage ? formatCompactINR(usage.costInr) : "—"}</td>
+                      <td className="td text-right tabular-nums">
+                        {costPerKmByVehicle.get(v.id)?.latestKm != null ? `${costPerKmByVehicle.get(v.id)!.latestKm.toLocaleString("en-IN")} km` : "—"}
+                      </td>
+                      <td className="td text-right tabular-nums">
+                        {costPerKmByVehicle.get(v.id)?.costPerKm != null ? `₹${costPerKmByVehicle.get(v.id)!.costPerKm!.toFixed(2)}` : "—"}
+                      </td>
                       {canManage && (
                         <td className="td text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              if (!window.confirm(`Delete vehicle ${v.regNumber}?`)) return;
-                              void run(() => deleteVehicle(v.id), "Vehicle deleted.");
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <div className="flex justify-end gap-1.5">
+                            <Button size="sm" onClick={() => { setOdoFor(v); setOdoKm(""); setOdoNotes(""); setOdoDate(new Date().toISOString().slice(0, 10)); }}>
+                              Log odometer
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                if (!window.confirm(`Delete vehicle ${v.regNumber}?`)) return;
+                                void run(() => deleteVehicle(v.id), "Vehicle deleted.");
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -248,6 +305,33 @@ export default function FleetDetailPage() {
           <Field label="Name" required><Input value={dName} onChange={(e) => setDName(e.target.value)} /></Field>
           <Field label="Phone" required><Input value={dPhone} onChange={(e) => setDPhone(e.target.value)} /></Field>
           <Field label="License number"><Input value={dLicense} onChange={(e) => setDLicense(e.target.value)} /></Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!odoFor}
+        onClose={() => setOdoFor(null)}
+        title={`Log odometer — ${odoFor?.regNumber ?? ""}`}
+        description="Cost-per-km is derived from total session spend since the earliest reading, divided by km driven since then."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setOdoFor(null)}>Cancel</Button>
+            <Button variant="primary" loading={busy} disabled={!odoKm.trim() || !odoDate} onClick={() => void submitOdometer()}>Log</Button>
+          </>
+        )}
+      >
+        <div className="grid gap-4">
+          {odoFor && readingsByVehicle.get(odoFor.id)?.length ? (
+            <p className="text-xs text-ink-500">
+              Last logged: {readingsByVehicle.get(odoFor.id)!.slice(-1)[0]!.odometerKm.toLocaleString("en-IN")} km
+              on {formatDate(readingsByVehicle.get(odoFor.id)!.slice(-1)[0]!.readingDate)}.
+            </p>
+          ) : (
+            <p className="text-xs text-ink-500">No readings yet — this will be the baseline.</p>
+          )}
+          <Field label="Odometer (km)" required><Input type="number" min={0} value={odoKm} onChange={(e) => setOdoKm(e.target.value)} /></Field>
+          <Field label="Reading date" required><Input type="date" value={odoDate} onChange={(e) => setOdoDate(e.target.value)} /></Field>
+          <Field label="Notes"><Input value={odoNotes} onChange={(e) => setOdoNotes(e.target.value)} placeholder="Optional" /></Field>
         </div>
       </Modal>
     </>
