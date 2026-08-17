@@ -17,7 +17,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 
-import { COMMAND_ACTIONS, sendCommand, rejectCommand, resolveCommand, type CommandAction } from "./ocpp/commands.js";
+import { COMMAND_ACTIONS, sendCommand, rejectCommand, resolveCommand, sweepAbandonedCommands, type CommandAction } from "./ocpp/commands.js";
 import { initFirebase } from "./firebase.js";
 import { handleCall } from "./ocpp/handlers.js";
 import { handleCall16 } from "./ocpp16/handlers.js";
@@ -37,6 +37,7 @@ import { sweepSubscriptionRenewals } from "./subscriptions.js";
 import { sweepRevenueGuarantees } from "./revenue-guarantee.js";
 
 initFirebase();
+void sweepAbandonedCommands().catch((err) => console.error("[startup] abandoned-command sweep failed:", err));
 
 const PORT = Number(process.env.PORT) || 8080;
 const SUPPORTED_SUBPROTOCOLS: OcppProtocolVersion[] = ["ocpp2.0.1", "ocpp1.6"];
@@ -62,13 +63,15 @@ async function handleCommandRequest(req: IncomingMessage, res: ServerResponse, c
   }
 
   try {
-    const body = (await readJsonBody(req)) as { action?: string; payload?: unknown };
+    const body = (await readJsonBody(req)) as { action?: string; payload?: unknown; idempotencyKey?: string };
     if (!body.action || !COMMAND_ACTIONS.includes(body.action as CommandAction)) {
       res.writeHead(400, { "content-type": "application/json" });
       res.end(JSON.stringify({ error: `action must be one of: ${COMMAND_ACTIONS.join(", ")}` }));
       return;
     }
-    const result = await sendCommand(chargerId, body.action as CommandAction, body.payload ?? {});
+    const result = await sendCommand(chargerId, body.action as CommandAction, body.payload ?? {}, {
+      idempotencyKey: body.idempotencyKey,
+    });
     if (body.action === "ChangeAvailability") {
       const payload = (body.payload ?? {}) as { evse?: unknown; operationalStatus?: string };
       const resultData = result as { status?: string };

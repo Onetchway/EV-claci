@@ -12,6 +12,8 @@
 import { db } from "./firebase.js";
 
 export const RFID_TOKENS = "rfidTokens";
+/** Tokens an OCPI eMSP partner has pushed to us (we're the CPO) via the Tokens module's PUT/PATCH — see crm/src/app/api/ocpi/2.2.1/cpo/tokens. Checked only as a fallback for a tag our own rfidTokens registry doesn't know about, so a roaming partner's driver can tap here without us needing our own record of every token on their network. */
+export const OCPI_PARTNER_TOKENS = "ocpiPartnerTokens";
 
 /** Resolves the zoneId a charger belongs to, for RFID ZONE-scope checks — same lookup tariff.ts's loadChargerContext does. */
 async function zoneIdForCharger(chargePointId: string): Promise<string | null> {
@@ -29,7 +31,7 @@ export async function checkIdToken(idToken: string, chargePointId: string): Prom
 
   if (any.empty) return "Accepted"; // no tokens registered yet — open mode
 
-  if (match.empty) return "Unknown";
+  if (match.empty) return checkOcpiPartnerToken(idToken);
   const token = match.docs[0]!.data();
   const status = token.status as string | undefined;
   if (status !== "ACTIVE") return "Blocked";
@@ -44,6 +46,15 @@ export async function checkIdToken(idToken: string, chargePointId: string): Prom
     if (!scopeZoneId || scopeZoneId !== actualZoneId) return "Blocked";
   }
   return "Accepted";
+}
+
+/** OCPI Tokens module fallback — the pushed Token's own `valid` flag and `whitelist` field drive this; a partner-pushed token absent, invalid, or NEVER-whitelisted (meaning the partner insists on ALWAYS being asked directly, which this offline check can't do) is treated as Unknown/Blocked rather than guessed at. */
+async function checkOcpiPartnerToken(idToken: string): Promise<"Accepted" | "Blocked" | "Unknown"> {
+  const snap = await db().collection(OCPI_PARTNER_TOKENS).where("uid", "==", idToken).limit(1).get();
+  if (snap.empty) return "Unknown";
+  const token = snap.docs[0]!.data();
+  if (token.whitelist === "NEVER") return "Unknown";
+  return token.valid === true ? "Accepted" : "Blocked";
 }
 
 /**

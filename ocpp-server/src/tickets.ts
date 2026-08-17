@@ -12,6 +12,7 @@ import { getAutoTriggerSettings } from "./auto-triggers.js";
 import { db } from "./firebase.js";
 import { sendCommand } from "./ocpp/commands.js";
 import { dispatchWebhookSafe } from "./webhooks.js";
+import { fireWorkflowTrigger } from "./workflow-engine.js";
 
 export const TICKETS = "tickets";
 
@@ -153,6 +154,7 @@ export async function sweepStaleConnections(): Promise<void> {
       { merge: true },
     );
     await openTicketIfNeeded(doc.id, "OFFLINE", `No heartbeat received for over ${Math.round(OFFLINE_SWEEP_MS / 60000)} minutes.`);
+    void fireWorkflowTrigger("CHARGER_OFFLINE", { chargePointId: doc.id });
   }
 }
 
@@ -196,6 +198,7 @@ export async function sweepSlaBreaches(): Promise<void> {
       });
     }
     dispatchWebhookSafe("ticket.sla_breached", { ticketId: doc.id, chargePointId: t.chargePointId, type: t.type });
+    void fireWorkflowTrigger("TICKET_SLA_BREACH", { ticketId: doc.id, chargePointId: t.chargePointId as string | undefined });
   }
   await batch.commit();
 }

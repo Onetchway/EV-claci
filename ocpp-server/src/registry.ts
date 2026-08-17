@@ -24,6 +24,7 @@ import { computeCost, resolveTariff } from "./tariff.js";
 import { debitWalletForSession } from "./wallet.js";
 import { dispatchWebhookSafe } from "./webhooks.js";
 import { OCPI_COUNTRY_CODE, OCPI_PARTY_ID, pushOcpiUpdateSafe } from "./ocpi-push.js";
+import { fireWorkflowTrigger } from "./workflow-engine.js";
 
 export const CHARGE_POINTS = "chargePoints";
 export const CHARGE_SESSIONS = "chargeSessions";
@@ -605,6 +606,9 @@ export async function billSession(
     chargePointId,
     energyDeliveredWh: energyDeliveredWh ?? null,
     totalCostInr,
+  });
+  void fireWorkflowTrigger("SESSION_COMPLETED", {
+    chargePointId, sessionId: ref.id, energyDeliveredWh: energyDeliveredWh ?? null, totalCostInr,
   });
 
   pushOcpiUpdateSafe("cdrs", ref.id, async () => ({

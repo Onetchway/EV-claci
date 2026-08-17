@@ -6,11 +6,13 @@
  * it: ocpp/commands.ts's sendCommand, when the target charger negotiated
  * "ocpp1.6" instead of "ocpp2.0.1".
  *
- * Deliberately not exhaustive — GetVariables/SetVariables/GetLog have no
- * clean 1:1 1.6 equivalent (1.6 uses GetConfiguration/ChangeConfiguration/
- * GetDiagnostics, different enough to be its own scoped piece of work) and
- * are left unsupported here rather than half-translated. Callers get a
- * clear UnsupportedFor16Error instead of a malformed Call.
+ * GetVariables/SetVariables/GetLog are translated to their nearest 1.6
+ * equivalent (GetConfiguration/ChangeConfiguration/GetDiagnostics) below.
+ * The mapping is lossy in both directions — 2.0.1's component/variable
+ * model has no real 1.6 counterpart, so only the single common case (one
+ * config key by name) is translated; anything with more than one
+ * component/variable in the request throws rather than silently dropping
+ * entries.
  */
 
 import type {
@@ -96,6 +98,32 @@ export function translateForOcpp16(action: string, payload: unknown): { action: 
     case "ClearChargingProfile": {
       const p = payload as { chargingProfileId?: number };
       return { action: "ClearChargingProfile", payload: { id: p.chargingProfileId } };
+    }
+
+    case "GetVariables": {
+      const p = payload as { getVariableData?: Array<{ variable?: { name?: string } }> };
+      const items = p.getVariableData ?? [];
+      if (items.length !== 1) throw new UnsupportedFor16Error("GetVariables (only single-key lookups translate to 1.6 GetConfiguration)");
+      const key = items[0]?.variable?.name;
+      return { action: "GetConfiguration", payload: key ? { key: [key] } : {} };
+    }
+
+    case "SetVariables": {
+      const p = payload as { setVariableData?: Array<{ variable?: { name?: string }; attributeValue?: string }> };
+      const items = p.setVariableData ?? [];
+      if (items.length !== 1) throw new UnsupportedFor16Error("SetVariables (only single-key writes translate to 1.6 ChangeConfiguration)");
+      const [item] = items;
+      const key = item?.variable?.name;
+      if (!key) throw new UnsupportedFor16Error("SetVariables (missing variable name)");
+      return { action: "ChangeConfiguration", payload: { key, value: item?.attributeValue ?? "" } };
+    }
+
+    case "GetLog": {
+      const p = payload as { requestId?: number; log?: { remoteLocation?: string } };
+      return {
+        action: "GetDiagnostics",
+        payload: { location: p.log?.remoteLocation, requestId: p.requestId },
+      };
     }
 
     default:

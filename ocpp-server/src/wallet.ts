@@ -15,6 +15,7 @@ import { FieldValue } from "firebase-admin/firestore";
 
 import { getAutoTriggerSettings } from "./auto-triggers.js";
 import { db } from "./firebase.js";
+import { fireWorkflowTrigger } from "./workflow-engine.js";
 
 export interface WalletDebitResult {
   ownerType: "EMSP_USER" | "CORPORATE_ACCOUNT";
@@ -43,6 +44,7 @@ async function alertLowBalanceIfCrossed(
   if (!settings.lowBalanceAlertEnabled) return;
   const threshold = settings.lowBalanceThresholdInr;
   if (newBalanceInr > threshold || previousBalance <= threshold) return;
+  void fireWorkflowTrigger("WALLET_LOW_BALANCE", { ownerType, ownerId, balanceInr: newBalanceInr });
   const collection = ownerType === "CORPORATE_ACCOUNT" ? "corporateAccounts" : "emspUsers";
   const snap = await db().collection(collection).doc(ownerId).get();
   const email = ownerType === "CORPORATE_ACCOUNT"

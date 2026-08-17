@@ -15,7 +15,8 @@ import { db } from "./firebase.js";
 export type WebhookEvent =
   | "session.ended" | "ticket.opened" | "ticket.sla_breached"
   | "charger.online" | "charger.offline"
-  | "payment.success" | "payment.failed";
+  | "payment.success" | "payment.failed"
+  | "workflow.custom";
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [1000, 4000];
