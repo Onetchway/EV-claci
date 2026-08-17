@@ -3,7 +3,8 @@
 /** Driver-facing (EMSP) users and the corporate accounts some of them bill to. */
 
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, limit as fsLimit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit as fsLimit, onSnapshot, orderBy, query, serverTimestamp,
+  updateDoc, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -141,6 +142,19 @@ export function subscribeWalletTransactions(
     },
     (err) => onError?.(err as Error),
   );
+}
+
+/** One-off fetch (not live) of TOPUP transactions with a Razorpay payment ID in a date range — for Razorpay reconciliation, which runs on demand rather than staying subscribed. */
+export async function getRazorpayTopupsBetween(from: Date, to: Date): Promise<WalletTransaction[]> {
+  const snap = await getDocs(
+    query(
+      collection(getDb(), WALLET_TRANSACTIONS),
+      where("type", "==", "TOPUP"),
+      where("createdAt", ">=", from),
+      where("createdAt", "<=", to),
+    ),
+  );
+  return snap.docs.map((d) => mapTransaction(d.id, d.data())).filter((t) => !!t.razorpayPaymentId);
 }
 
 /** Cross-customer ledger — every wallet top-up/debit/refund, newest first, for the Payment Transactions page. Not owner-scoped, unlike subscribeWalletTransactions. */
