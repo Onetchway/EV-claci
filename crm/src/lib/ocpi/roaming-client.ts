@@ -70,8 +70,16 @@ export async function registerWithPartner(
   ourAppUrl: string,
 ): Promise<RoamingPartner> {
   const { endpoints } = await discoverEndpoints(versionsUrl, theirTokenA);
-  const credentialsEndpoint = endpoints.find((e) => e.identifier === "credentials" && e.role === "RECEIVER");
-  if (!credentialsEndpoint) throw new Error("Partner does not expose a credentials RECEIVER endpoint.");
+  // Prefer an exact identifier+role match (spec-correct), but some
+  // implementations label the role differently or omit it for the
+  // credentials module specifically (it's inherently the one bidirectional
+  // module in OCPI) — if there's exactly one "credentials" endpoint listed
+  // at all, that's unambiguously the one to POST to regardless of how its
+  // role field is labeled.
+  const isCredentials = (e: OcpiEndpoint) => e.identifier?.toLowerCase() === "credentials";
+  const credentialsEndpoint = endpoints.find((e) => isCredentials(e) && String(e.role).toUpperCase() === "RECEIVER")
+    ?? endpoints.filter(isCredentials)[0];
+  if (!credentialsEndpoint) throw new Error("Partner does not expose a credentials endpoint.");
 
   const ourTokenForThem = randomUUID();
   const res = await fetch(credentialsEndpoint.url, {
