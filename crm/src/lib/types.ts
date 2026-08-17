@@ -688,6 +688,20 @@ export interface Zone {
   bankIfscCode?: string;
   bankAccountName?: string;
   bankName?: string;
+  /**
+   * Cached RazorpayX Contact/Fund Account ids for this site's bank
+   * details, created once on the first payout (api/payouts/create) and
+   * reused after — avoids re-registering the same beneficiary with
+   * Razorpay on every payout run. razorpayFundAccountBankKey is a
+   * fingerprint of the bank details that produced these ids
+   * (`accountNumber|ifsc`); the payout route recreates the Fund Account
+   * whenever the zone's current bank details no longer match it, so
+   * editing the bank fields above safely invalidates the cache instead of
+   * silently paying out to stale details.
+   */
+  razorpayContactId?: string;
+  razorpayFundAccountId?: string;
+  razorpayFundAccountBankKey?: string;
   createdAt: TS;
   createdBy?: Actor | null;
 }
@@ -737,6 +751,10 @@ export interface SiteRevenueShare {
   status: RevenueShareStatus;
   createdAt: TS;
   paidAt?: TS | null;
+  /** Set only when paid via the automated RazorpayX payout route, not the manual "mark paid" button. */
+  payoutId?: string | null;
+  payoutMode?: "AUTO" | "MANUAL";
+  paidBy?: string;
 }
 
 /** Logged from the Razorpay `payment.failed` webhook — a checkout attempt that never became a wallet top-up, so it's otherwise invisible. */

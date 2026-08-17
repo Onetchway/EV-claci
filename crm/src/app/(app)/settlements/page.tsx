@@ -5,13 +5,14 @@ import { AlertOctagon, Banknote, CheckCircle2, Plus, Printer, Trash2, Zap } from
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard, useAsyncAction, useToast,
 } from "@/components/ui";
 import { useSettings } from "@/hooks/use-settings";
 import { createElectricityBill, deleteElectricityBill, subscribeElectricityBills, type ElectricityBillDraft } from "@/lib/db/electricity-bills";
 import { subscribeFailedPayments } from "@/lib/db/failed-payments";
 import { markRevenueSharePaid, markRevenueSharesPaidBatch, subscribeSiteRevenueShares } from "@/lib/db/settlements";
 import { subscribeZones } from "@/lib/db/zones";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { canManageSettlements } from "@/lib/permissions";
 import type { ElectricityBill, FailedPayment, SiteRevenueShare, Zone } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
@@ -23,7 +24,11 @@ export default function SettlementsPage() {
   const isSiteOwner = viewer.role === "SITE_OWNER";
   const { run, busy } = useAsyncAction();
   const { settings } = useSettings();
+  const { push } = useToast();
   const [statementOpen, setStatementOpen] = useState(false);
+  const [payoutOpen, setPayoutOpen] = useState(false);
+  const [payoutMode, setPayoutMode] = useState<"IMPS" | "NEFT">("IMPS");
+  const [payoutBusy, setPayoutBusy] = useState(false);
 
   const [rows, setRows] = useState<SiteRevenueShare[] | null>(null);
   const [zoneFilter, setZoneFilter] = useState("");
@@ -103,6 +108,29 @@ export default function SettlementsPage() {
     await run(() => markRevenueSharesPaidBatch(pendingIdsForZone), "Monthly settlement run complete.");
   }
 
+  async function runPayout() {
+    if (!zoneFilter || pendingIdsForZone.length === 0) return;
+    setPayoutBusy(true);
+    try {
+      const current = getFirebaseAuth().currentUser;
+      if (!current) throw new Error("Your session expired. Sign in again.");
+      const token = await current.getIdToken();
+      const res = await fetch("/api/payouts/create", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ zoneId: zoneFilter, shareIds: pendingIdsForZone, mode: payoutMode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status}).`);
+      push(`Payout sent — ₹${data.amountInr.toFixed(2)} (${data.status}). Entries marked paid.`, "success");
+      setPayoutOpen(false);
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setPayoutBusy(false);
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -119,9 +147,14 @@ export default function SettlementsPage() {
             {zoneFilter && <Button size="sm" onClick={() => setBankOpen(true)}>Bank details</Button>}
             {zoneFilter && <Button size="sm" onClick={() => setStatementOpen(true)}><Printer className="h-4 w-4" /> Statement</Button>}
             {zoneFilter && canManage && pendingIdsForZone.length > 0 && (
-              <Button size="sm" variant="primary" loading={busy} onClick={() => void runMonthlySettlement()}>
-                Mark all paid ({pendingIdsForZone.length})
-              </Button>
+              <>
+                <Button size="sm" variant="primary" onClick={() => setPayoutOpen(true)}>
+                  Pay out via RazorpayX ({pendingIdsForZone.length})
+                </Button>
+                <Button size="sm" loading={busy} onClick={() => void runMonthlySettlement()}>
+                  Mark all paid manually
+                </Button>
+              </>
             )}
           </>
         )}
@@ -371,6 +404,30 @@ export default function SettlementsPage() {
             </dl>
           );
         })()}
+      </Modal>
+
+      <Modal
+        open={payoutOpen}
+        onClose={() => setPayoutOpen(false)}
+        title={`Pay out via RazorpayX — ${allZones.find((z) => z.id === zoneFilter)?.name ?? ""}`}
+        description="Sends real money to this site's bank details on file and marks the pending entries paid. Needs RazorpayX enabled and configured on the server."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setPayoutOpen(false)}>Cancel</Button>
+            <Button variant="primary" loading={payoutBusy} onClick={() => void runPayout()}>
+              Send ₹{totals.pendingAmount.toFixed(2)}
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-4">
+          <Field label="Transfer mode">
+            <Select value={payoutMode} onChange={(e) => setPayoutMode(e.target.value as "IMPS" | "NEFT")} options={[{ value: "IMPS", label: "IMPS (instant)" }, { value: "NEFT", label: "NEFT (batched, larger amounts)" }]} />
+          </Field>
+          <p className="text-xs text-ink-500">
+            {pendingIdsForZone.length} pending {pendingIdsForZone.length === 1 ? "entry" : "entries"} totalling ₹{totals.pendingAmount.toFixed(2)}, to the bank account on file (see "Bank details" above).
+          </p>
+        </div>
       </Modal>
     </>
   );
