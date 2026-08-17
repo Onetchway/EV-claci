@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Battery, Building2, Cable, Globe2, Lock, Ticket, Wifi, Zap,
+  Battery, Building2, Ticket, Wifi, Zap,
 } from "lucide-react";
 
+import { DonutChart } from "@/components/donut-chart";
 import { Card, PageHeader, Spinner, StatCard } from "@/components/ui";
-import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
+import { CONNECTOR_TYPES, subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
 import { subscribeChargePoints, subscribeRecentSessions, type ChargePoint, type ChargeSession } from "@/lib/db/chargers";
 import { subscribeTickets } from "@/lib/db/tickets";
 import type { Ticket as TicketType } from "@/lib/types";
@@ -16,6 +17,12 @@ function wh(v?: number): string {
   if (v == null) return "—";
   return `${(v / 1000).toFixed(2)} kWh`;
 }
+
+// Color follows the connector type's fixed identity (CONNECTOR_TYPES order), never its rank in a
+// sorted-by-count list — so a type doesn't change color as other types' counts shift around it.
+const CONNECTOR_TYPE_COLOR: Record<string, string> = Object.fromEntries(
+  CONNECTOR_TYPES.map((t, i) => [t, ["#1fae54", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6"][i % 6]]),
+);
 
 const QUICK_LINKS = [
   { href: "/chargers", label: "Charger Management", icon: Zap, description: "Register, configure and command chargers." },
@@ -84,35 +91,21 @@ export default function CmsDashboardPage() {
 
           <div className="mb-4 grid gap-4 lg:grid-cols-3">
             <Card title="Power type">
-              <div className="flex items-center justify-around py-2 text-center">
-                <div>
-                  <p className="text-2xl font-semibold tabular-nums">{breakdown.ac}</p>
-                  <p className="text-xs text-ink-500">AC</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-semibold tabular-nums">{breakdown.dc}</p>
-                  <p className="text-xs text-ink-500">DC</p>
-                </div>
-              </div>
+              <DonutChart
+                slices={[
+                  { label: "AC", value: breakdown.ac, color: "#1fae54" },
+                  { label: "DC", value: breakdown.dc, color: "#0ea5e9" },
+                ]}
+              />
             </Card>
             <Card title="Access type">
-              <div className="flex items-center justify-around py-2 text-center">
-                <div>
-                  <Globe2 className="mx-auto mb-1 h-4 w-4 text-ink-400" />
-                  <p className="text-2xl font-semibold tabular-nums">{breakdown.publicCount}</p>
-                  <p className="text-xs text-ink-500">Public</p>
-                </div>
-                <div>
-                  <Lock className="mx-auto mb-1 h-4 w-4 text-ink-400" />
-                  <p className="text-2xl font-semibold tabular-nums">{breakdown.privateCount}</p>
-                  <p className="text-xs text-ink-500">Private</p>
-                </div>
-                <div>
-                  <Building2 className="mx-auto mb-1 h-4 w-4 text-ink-400" />
-                  <p className="text-2xl font-semibold tabular-nums">{breakdown.hubs}</p>
-                  <p className="text-xs text-ink-500">Hubs</p>
-                </div>
-              </div>
+              <DonutChart
+                slices={[
+                  { label: "Public", value: breakdown.publicCount, color: "#1fae54" },
+                  { label: "Private", value: breakdown.privateCount, color: "#8b5cf6" },
+                  { label: "Hubs", value: breakdown.hubs, color: "#f59e0b" },
+                ]}
+              />
             </Card>
             <Card title="Open faults">
               <div className="py-2 text-center">
@@ -126,15 +119,11 @@ export default function CmsDashboardPage() {
             {breakdown.byConnector.length === 0 ? (
               <p className="text-sm text-ink-500">No connector data yet.</p>
             ) : (
-              <div className="flex flex-wrap gap-3">
-                {breakdown.byConnector.map(([type, count]) => (
-                  <div key={type} className="flex items-center gap-2 rounded-lg bg-ink-50 px-3 py-2 ring-1 ring-inset ring-ink-100">
-                    <Cable className="h-4 w-4 text-ink-400" />
-                    <span className="text-sm font-medium">{type}</span>
-                    <span className="text-sm tabular-nums text-ink-500">{count}</span>
-                  </div>
-                ))}
-              </div>
+              <DonutChart
+                slices={breakdown.byConnector.map(([type, count]) => ({
+                  label: type, value: count, color: CONNECTOR_TYPE_COLOR[type] ?? "#8590a8",
+                }))}
+              />
             )}
           </Card>
 
