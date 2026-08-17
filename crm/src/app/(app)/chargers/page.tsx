@@ -165,6 +165,7 @@ export default function ChargersPage() {
   const [connectorTypeFilter, setConnectorTypeFilter] = useState("");
   const [faultFilter, setFaultFilter] = useState(false);
   const [openTickets, setOpenTickets] = useState<Ticket[]>([]);
+  /** Holds a real chargerId (e.g. "PPL-73003"), not the Firestore doc id — the QR/URL it feeds into /charge/[chargerId] is keyed by chargerId everywhere else in the app. */
   const [chargingQrForId, setChargingQrForId] = useState<string | null>(null);
   const [approvingReg, setApprovingReg] = useState<ChargerRegistration | null>(null);
   const [approveRateType, setApproveRateType] = useState<RevenueShareType>("PERCENT");
@@ -668,7 +669,7 @@ export default function ChargersPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setChargingQrForId(r.id)}
+                            onClick={() => setChargingQrForId(r.chargerId)}
                             className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
                             title="Driver charging QR (app-less)"
                           >
