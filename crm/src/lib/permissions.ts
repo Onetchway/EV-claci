@@ -1,4 +1,4 @@
-import { ORG_WIDE_ROLES, ROLE_RANK, type Role } from "./constants";
+import { expandRole, ORG_WIDE_ROLES, ROLE_RANK, type Role } from "./constants";
 import type { Lead } from "./types";
 
 /**
@@ -20,7 +20,7 @@ export interface Viewer {
 
 export function rolesOf(viewer: Viewer): Role[] {
   const list = viewer.roles?.length ? viewer.roles : [viewer.role];
-  return list.filter(Boolean);
+  return list.filter(Boolean).flatMap(expandRole);
 }
 
 export function hasRole(viewer: Viewer, ...roles: Role[]): boolean {

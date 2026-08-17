@@ -2,7 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ROLES, ROLE_RANK, type Role } from "@/lib/constants";
+import { ROLE_ENFORCEMENT, ROLES, ROLE_RANK, type Role } from "@/lib/constants";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { ApiError, errorResponse, highestRole, requireCaller } from "../_lib/guard";
 
@@ -20,10 +20,10 @@ const CreateUser = z.object({
   password: z.string().min(8).max(72).optional(),
 });
 
-/** Only a super admin may grant admin or above. */
+/** Only a super admin may grant admin or above. Rank-based (not a literal "ADMIN" check) so PLATFORM_ADMIN/CPO_ADMIN — same rank as ADMIN, just a clearer label — grant exactly what an ADMIN could. */
 function assertCanAssign(callerRole: Role, target: Role) {
   if (callerRole === "SUPER_ADMIN") return;
-  if (callerRole === "ADMIN" && ROLE_RANK[target] < ROLE_RANK.ADMIN) return;
+  if (ROLE_RANK[callerRole] >= ROLE_RANK.ADMIN && ROLE_RANK[target] < ROLE_RANK.ADMIN) return;
   throw new ApiError(`Only a super admin can grant the ${target} role.`, 403);
 }
 
@@ -71,7 +71,12 @@ export async function POST(req: Request) {
     // Custom claims let the Firestore security rules check the role without an
     // extra document read on every request. The rules key off the single
     // highest role; the full list travels alongside for the app's own checks.
-    await auth.setCustomUserClaims(created.uid, { role: primary, roles });
+    // A "specialization" role (PLATFORM_ADMIN, CPO_ADMIN, NOC_OPERATOR,
+    // CORPORATE_ADMIN — see constants.ts's ROLE_ENFORCEMENT) is normalized
+    // to its underlying role here, since that's the only value Firestore's
+    // security rules actually recognize — the Firestore user doc below
+    // still stores the real, specific role for display and app-side checks.
+    await auth.setCustomUserClaims(created.uid, { role: ROLE_ENFORCEMENT[primary] ?? primary, roles });
 
     await db.collection("users").doc(created.uid).set({
       uid: created.uid,

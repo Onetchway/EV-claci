@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ROLES, ROLE_RANK, type Role } from "@/lib/constants";
+import { ROLE_ENFORCEMENT, ROLES, ROLE_RANK, type Role } from "@/lib/constants";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { ApiError, errorResponse, highestRole, requireCaller } from "../../_lib/guard";
 
@@ -23,9 +23,10 @@ const PatchUser = z.object({
   pageAccessOverrides: z.record(z.string(), z.boolean()).nullable().optional(),
 });
 
+/** Rank-based (not a literal "ADMIN" check) so PLATFORM_ADMIN/CPO_ADMIN — same rank as ADMIN, just a clearer label — grant/revoke exactly what an ADMIN could. */
 function assertCanAssign(callerRole: Role, target: Role) {
   if (callerRole === "SUPER_ADMIN") return;
-  if (callerRole === "ADMIN" && ROLE_RANK[target] < ROLE_RANK.ADMIN) return;
+  if (ROLE_RANK[callerRole] >= ROLE_RANK.ADMIN && ROLE_RANK[target] < ROLE_RANK.ADMIN) return;
   throw new ApiError(`Only a super admin can grant or revoke the ${target} role.`, 403);
 }
 
@@ -86,7 +87,9 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
 
     const auth = adminAuth();
     if (nextRoles && nextPrimary) {
-      await auth.setCustomUserClaims(uid, { role: nextPrimary, roles: nextRoles });
+      // See users/route.ts's setCustomUserClaims call — same normalization
+      // of a specialization role to its Firestore-rules-recognized value.
+      await auth.setCustomUserClaims(uid, { role: ROLE_ENFORCEMENT[nextPrimary] ?? nextPrimary, roles: nextRoles });
     }
     if (body.active !== undefined) await auth.updateUser(uid, { disabled: !body.active });
     if (body.name) await auth.updateUser(uid, { displayName: body.name });

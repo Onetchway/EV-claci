@@ -11,7 +11,7 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 
-import type { Role } from "@/lib/constants";
+import { expandRole, type Role } from "@/lib/constants";
 import { firebaseConfigured, getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { ensureProfile, touchLastLogin, USERS } from "@/lib/db/users";
 import type { Viewer } from "@/lib/permissions";
@@ -149,9 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? { uid: profile.uid, name: profile.name, role: profile.role }
         : null;
     const roles: Role[] = profile
-      ? profile.roles?.length
-        ? profile.roles
-        : [profile.role]
+      ? (profile.roles?.length ? profile.roles : [profile.role]).flatMap(expandRole)
       : [];
 
     return {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, KeyRound, Plus, ShieldCheck, UserPlus } from "lucide-react";
+import { Check, Copy, Download, KeyRound, Plus, ShieldCheck, UserPlus } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -21,16 +21,20 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { DEFAULT_PAGE_ACCESS, PAGE_ACCESS_PATHS, PAGE_LABEL } from "@/lib/page-access";
 import { canAssignRole, isAdmin, isSuperAdmin } from "@/lib/permissions";
 import type { AppUser, Organization } from "@/lib/types";
-import { formatCompactINR, formatDate } from "@/lib/utils";
+import { downloadCsv, formatCompactINR, formatDate } from "@/lib/utils";
 
 const ROLE_STYLE: Record<Role, string> = {
   SUPER_ADMIN: "bg-violet-100 text-violet-800 ring-violet-200",
   ADMIN: "bg-sky-100 text-sky-800 ring-sky-200",
+  PLATFORM_ADMIN: "bg-sky-100 text-sky-800 ring-sky-200",
+  CPO_ADMIN: "bg-sky-100 text-sky-800 ring-sky-200",
   SALES_MANAGER: "bg-indigo-100 text-indigo-800 ring-indigo-200",
   AGENT: "bg-ink-100 text-ink-700 ring-ink-200",
   FINANCE: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   OPERATIONS: "bg-amber-100 text-amber-800 ring-amber-200",
+  NOC_OPERATOR: "bg-amber-100 text-amber-800 ring-amber-200",
   FLEET_MANAGER: "bg-teal-100 text-teal-800 ring-teal-200",
+  CORPORATE_ADMIN: "bg-teal-100 text-teal-800 ring-teal-200",
   CUSTOMER_SUPPORT: "bg-pink-100 text-pink-800 ring-pink-200",
   SITE_OWNER: "bg-orange-100 text-orange-800 ring-orange-200",
   VIEWER: "bg-slate-100 text-slate-600 ring-slate-200",
@@ -125,6 +129,17 @@ export default function UsersPage() {
 
   const effectivePolicy = { ...DEFAULT_PAGE_ACCESS, ...(rolePolicy ?? {}) };
 
+  /** A printable/shareable snapshot of the live matrix above — same data the toggle grid reads, not a separately-maintained document that can drift from what's actually enforced. */
+  function exportRbacMatrixCsv() {
+    const roleCols = ROLES.filter((r) => r !== "SUPER_ADMIN");
+    const header = ["Page", "SUPER_ADMIN (always full access)", ...roleCols.map((r) => ROLE_LABEL[r])];
+    const rows = PAGE_ACCESS_PATHS.map((path) => {
+      const allowed = effectivePolicy[path] ?? [];
+      return [PAGE_LABEL[path] ?? path, "Yes", ...roleCols.map((r) => (allowed.includes(r) ? "Yes" : ""))];
+    });
+    downloadCsv(`rbac-matrix-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows]);
+  }
+
   async function toggleRoleForPage(path: string, r: Role) {
     if (!actor) return;
     const current = effectivePolicy[path] ?? [];
@@ -176,6 +191,11 @@ export default function UsersPage() {
             ? "Which pages each role can view, across CRM and CMS. Click a cell to toggle it — changes apply to every user with that role immediately. SUPER_ADMIN always has full access. Need an exception for one person instead? Use \"Access\" on their row below."
             : "Which pages each role can view, across CRM and CMS. SUPER_ADMIN always has full access. Only a Super Admin can edit this matrix."
         }
+        actions={(
+          <Button size="sm" onClick={exportRbacMatrixCsv}>
+            <Download className="h-3.5 w-3.5" /> Export matrix
+          </Button>
+        )}
         className="mb-4"
       >
         <div className="overflow-x-auto scroll-thin">

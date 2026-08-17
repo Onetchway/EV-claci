@@ -3,11 +3,15 @@
 export const ROLES = [
   "SUPER_ADMIN",
   "ADMIN",
+  "PLATFORM_ADMIN",
+  "CPO_ADMIN",
   "SALES_MANAGER",
   "AGENT",
   "FINANCE",
   "OPERATIONS",
+  "NOC_OPERATOR",
   "FLEET_MANAGER",
+  "CORPORATE_ADMIN",
   "CUSTOMER_SUPPORT",
   "SITE_OWNER",
   "VIEWER",
@@ -17,11 +21,15 @@ export type Role = (typeof ROLES)[number];
 export const ROLE_LABEL: Record<Role, string> = {
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
+  PLATFORM_ADMIN: "Platform Admin",
+  CPO_ADMIN: "CPO Admin",
   SALES_MANAGER: "Sales Manager",
   AGENT: "Agent",
   FINANCE: "Finance",
   OPERATIONS: "Operations",
+  NOC_OPERATOR: "NOC Operator",
   FLEET_MANAGER: "Fleet Manager",
+  CORPORATE_ADMIN: "Corporate Admin",
   CUSTOMER_SUPPORT: "Customer Support",
   SITE_OWNER: "Site Owner",
   VIEWER: "Viewer",
@@ -30,11 +38,15 @@ export const ROLE_LABEL: Record<Role, string> = {
 export const ROLE_HINT: Record<Role, string> = {
   SUPER_ADMIN: "Everything, including creating other admins.",
   ADMIN: "Every lead, verify payments and documents, all reports.",
+  PLATFORM_ADMIN: "Same authority as Admin, labeled for whoever owns the platform itself rather than one CPO's day-to-day operations.",
+  CPO_ADMIN: "Same authority as Admin, labeled for whoever runs charger/tariff/OCPI operations specifically.",
   SALES_MANAGER: "Every lead and report; can reassign, but cannot verify money.",
   AGENT: "Only their own leads.",
   FINANCE: "Every lead read-only, plus payment verification and EOI issue.",
   OPERATIONS: "Every lead read-only, plus document verification and stage moves.",
+  NOC_OPERATOR: "Same authority as Operations, labeled for whoever staffs the live-operations/NOC desk specifically.",
   FLEET_MANAGER: "Manages fleets, vehicles and drivers, and their EMSP users — an internal staff role standing in for a corporate/fleet customer, not an external self-service login.",
+  CORPORATE_ADMIN: "Same authority as Fleet Manager, labeled for a corporate account's own administrator rather than internal staff.",
   CUSTOMER_SUPPORT: "Assists EMSP users and corporate accounts (wallet, RFID, subscriptions) — no charger, tariff, or financial-settlement access.",
   SITE_OWNER: "Read-only view of Station Management and Settlements — sees revenue-share payouts, no write access anywhere.",
   VIEWER: "Read-only across the organisation.",
@@ -50,13 +62,44 @@ export const ROLE_RANK: Record<Role, number> = {
   SITE_OWNER: 0,
   AGENT: 1,
   OPERATIONS: 2,
+  NOC_OPERATOR: 2,
   FINANCE: 2,
   FLEET_MANAGER: 2,
+  CORPORATE_ADMIN: 2,
   CUSTOMER_SUPPORT: 1,
   SALES_MANAGER: 3,
   ADMIN: 4,
+  PLATFORM_ADMIN: 4,
+  CPO_ADMIN: 4,
   SUPER_ADMIN: 5,
 };
+
+/**
+ * The four "specialization" roles (PLATFORM_ADMIN, CPO_ADMIN, NOC_OPERATOR,
+ * CORPORATE_ADMIN) exist purely as clearer org-chart labels — each carries
+ * identical capabilities to one underlying role. Rather than touching every
+ * individual capability check in permissions.ts and every `role() in [...]`
+ * array in firestore.rules to recognize four more literal strings, a
+ * specialization role is expanded to include its underlying role wherever
+ * a viewer's role set is computed (permissions.ts's rolesOf, and
+ * auth-provider's own roles array feeding hasPageAccess) — every existing
+ * check written against the underlying role name keeps working unchanged.
+ * The Firestore custom-auth-claim (what Firestore *security rules* actually
+ * read) is set to this same underlying value at user-creation/role-update
+ * time — see api/users/route.ts and api/users/[uid]/route.ts.
+ */
+export const ROLE_ENFORCEMENT: Partial<Record<Role, Role>> = {
+  PLATFORM_ADMIN: "ADMIN",
+  CPO_ADMIN: "ADMIN",
+  NOC_OPERATOR: "OPERATIONS",
+  CORPORATE_ADMIN: "FLEET_MANAGER",
+};
+
+/** A role's own name plus its underlying enforcement role, if it's a specialization — the pair every hasRole()/hasPageAccess() check should treat as equivalent. */
+export function expandRole(role: Role): Role[] {
+  const underlying = ROLE_ENFORCEMENT[role];
+  return underlying ? [role, underlying] : [role];
+}
 
 /**
  * Roles that grant org-wide visibility. The Firestore rules mirror this list,
