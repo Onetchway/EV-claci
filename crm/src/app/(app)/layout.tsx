@@ -56,6 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
       { href: "/zones", label: "Zones & Load Balancing", icon: MapPin },
       { href: "/earnings", label: "Earnings & Statistics", icon: TrendingUp },
+      { href: "/energy", label: "Energy", icon: Zap },
       { href: "/insights", label: "Business Insights", icon: Gauge },
       { href: "/emsp-users", label: "User Management", icon: UserCircle },
       { href: "/payments", label: "Payment Transactions", icon: Receipt },
