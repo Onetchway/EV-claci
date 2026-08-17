@@ -356,12 +356,28 @@ service cloud.firestore {
     match /chargerRegistry/{chargerId} {
       allow read: if signedIn();
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+      // Self-serve registration (lib/db/charger-registry.ts's
+      // registerOwnCharger) — a SITE_OWNER may create their own charger,
+      // but only inactive and pending review; they can never set `active`
+      // themselves, so it genuinely can't accept a session (ocpp-server's
+      // connect check requires active == true) until Admin/Ops approves it.
+      allow create: if role() == 'SITE_OWNER'
+        && request.resource.data.active == false
+        && request.resource.data.pendingApproval == true
+        && request.resource.data.createdBy.uid == request.auth.uid;
     }
 
     // Zone groupings + sanctioned load cap (monitoring, not active control).
     match /zones/{zoneId} {
       allow read: if signedIn();
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+      // Paired with the self-serve chargerRegistry create above — a
+      // SITE_OWNER may create a site for their own self-registered charger,
+      // owned by themselves. Revenue-share fields are left for Admin/Ops to
+      // set at approval time (approveSelfServeCharger), not this create.
+      allow create: if role() == 'SITE_OWNER'
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.createdBy.uid == request.auth.uid;
     }
 
     // Fault/offline tickets — the OCPP server opens OFFLINE/FAULT ones via

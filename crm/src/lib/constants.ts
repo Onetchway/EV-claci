@@ -48,7 +48,7 @@ export const ROLE_HINT: Record<Role, string> = {
   FLEET_MANAGER: "Manages fleets, vehicles and drivers, and their EMSP users — an internal staff role standing in for a corporate/fleet customer, not an external self-service login.",
   CORPORATE_ADMIN: "Same authority as Fleet Manager, labeled for a corporate account's own administrator rather than internal staff.",
   CUSTOMER_SUPPORT: "Assists EMSP users and corporate accounts (wallet, RFID, subscriptions) — no charger, tariff, or financial-settlement access.",
-  SITE_OWNER: "Read-only view of Station Management and Settlements — sees revenue-share payouts, no write access anywhere.",
+  SITE_OWNER: "Read-only view of Station Management and Settlements — sees revenue-share payouts. Can also self-register their own charger for review on the Register My Charger page; every other write stays off.",
   VIEWER: "Read-only across the organisation.",
 };
 

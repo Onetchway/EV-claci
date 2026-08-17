@@ -16,8 +16,8 @@ import {
 } from "@/components/ui";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  chargerWsUrl, CHARGER_TYPES, CHARGER_VENDORS, CONNECTOR_TYPES, deleteChargerRegistration, oemLabel,
-  registerCharger, setChargerActive, subscribeChargerRegistry, updateChargerRegistration,
+  approveSelfServeCharger, chargerWsUrl, CHARGER_TYPES, CHARGER_VENDORS, CONNECTOR_TYPES, deleteChargerRegistration, oemLabel,
+  registerCharger, rejectSelfServeCharger, setChargerActive, subscribeChargerRegistry, updateChargerRegistration,
   type ChargerRegistration, type ChargerRegistrationDraft, type ConnectorTypeName,
 } from "@/lib/db/charger-registry";
 import {
@@ -30,7 +30,7 @@ import { subscribeTickets } from "@/lib/db/tickets";
 import { subscribeZones } from "@/lib/db/zones";
 import { INDIAN_STATES, LEAD_TYPE_LABEL, LEAD_TYPES, type LeadType } from "@/lib/constants";
 import { canManageChargers, canManageRfid } from "@/lib/permissions";
-import type { Lead, RfidToken, Ticket, Zone } from "@/lib/types";
+import type { Lead, RevenueShareType, RfidToken, Ticket, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
 
 const CONNECTOR_COLOR: Record<ConnectorStatus, string> = {
@@ -118,6 +118,9 @@ export default function ChargersPage() {
   const [connectorTypeFilter, setConnectorTypeFilter] = useState("");
   const [faultFilter, setFaultFilter] = useState(false);
   const [openTickets, setOpenTickets] = useState<Ticket[]>([]);
+  const [approvingReg, setApprovingReg] = useState<ChargerRegistration | null>(null);
+  const [approveRateType, setApproveRateType] = useState<RevenueShareType>("PERCENT");
+  const [approveRateValue, setApproveRateValue] = useState("");
 
   const [locatingReg, setLocatingReg] = useState<ChargerRegistration | null>(null);
   const [locZoneId, setLocZoneId] = useState("");
@@ -364,6 +367,27 @@ export default function ChargersPage() {
   }
 
   const viewingReg = registry.find((r) => r.id === viewingId) ?? null;
+  const pendingSelfServe = useMemo(() => registry.filter((r) => r.pendingApproval), [registry]);
+
+  function openApprove(r: ChargerRegistration) {
+    setApprovingReg(r);
+    setApproveRateType(r.ownerRequestedRevShareType ?? "PERCENT");
+    setApproveRateValue(r.ownerRequestedRevShareValue != null ? String(r.ownerRequestedRevShareValue) : "");
+  }
+
+  async function submitApprove() {
+    if (!actor || !approvingReg || !approveRateValue.trim()) return;
+    await run(async () => {
+      await approveSelfServeCharger(approvingReg, { type: approveRateType, value: Number(approveRateValue) }, actor);
+      setApprovingReg(null);
+    }, "Charger approved — it can now accept sessions.");
+  }
+
+  async function handleReject(r: ChargerRegistration) {
+    const reason = window.prompt(`Reason for rejecting "${r.label}"?`);
+    if (reason == null) return;
+    await run(() => rejectSelfServeCharger(r.id, reason.trim() || "No reason given."), "Charger rejected.");
+  }
 
   return (
     <>
@@ -381,6 +405,34 @@ export default function ChargersPage() {
         </div>
       )}
 
+      {canManage && pendingSelfServe.length > 0 && (
+        <Card
+          title="Pending self-serve requests"
+          subtitle="Submitted via Register My Charger — stays offline until approved."
+          className="mb-4"
+        >
+          <div className="space-y-2">
+            {pendingSelfServe.map((r) => (
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div>
+                  <p className="font-medium">{r.label}</p>
+                  <p className="text-xs text-ink-500">
+                    {r.location} · {r.chargerPowerType}
+                    {r.ownerRequestedRevShareType && r.ownerRequestedRevShareValue != null && (
+                      <> · requested {r.ownerRequestedRevShareType === "PERCENT" ? `${r.ownerRequestedRevShareValue}%` : `₹${r.ownerRequestedRevShareValue}/kWh`}</>
+                    )}
+                    {r.createdBy?.name && <> · submitted by {r.createdBy.name}</>}
+                  </p>
+                </div>
+                <div className="flex gap-1.5">
+                  <Button size="sm" variant="primary" onClick={() => openApprove(r)}>Approve</Button>
+                  <Button size="sm" onClick={() => void handleReject(r)}>Reject</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card
         title="Registered chargers"
@@ -1312,6 +1364,32 @@ export default function ChargersPage() {
               <Input value={locLng} onChange={(e) => setLocLng(e.target.value)} placeholder="e.g. 77.3910" />
             </Field>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!approvingReg}
+        onClose={() => setApprovingReg(null)}
+        title={`Approve ${approvingReg?.label ?? ""}`}
+        description="Sets the final rate on the charger's site and activates it — it can accept sessions immediately after."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setApprovingReg(null)}>Cancel</Button>
+            <Button variant="primary" loading={actionBusy} disabled={!approveRateValue.trim()} onClick={() => void submitApprove()}>Approve</Button>
+          </>
+        )}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Rate type">
+            <Select
+              value={approveRateType}
+              onChange={(e) => setApproveRateType(e.target.value as RevenueShareType)}
+              options={[{ value: "PERCENT", label: "% of session revenue" }, { value: "FIXED", label: "Flat ₹ per kWh" }]}
+            />
+          </Field>
+          <Field label={approveRateType === "PERCENT" ? "Percent" : "₹ per kWh"}>
+            <Input type="number" min={0} value={approveRateValue} onChange={(e) => setApproveRateValue(e.target.value)} />
+          </Field>
         </div>
       </Modal>
     </>

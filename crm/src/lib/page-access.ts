@@ -28,6 +28,7 @@ export const DEFAULT_PAGE_ACCESS: Record<string, Role[]> = {
   // CMS
   "/cms-dashboard": ["ADMIN", "OPERATIONS", "FINANCE", "VIEWER"],
   "/chargers": ["ADMIN", "OPERATIONS", "VIEWER"],
+  "/register-charger": ["ADMIN", "OPERATIONS", "SITE_OWNER"],
   "/stations": ["ADMIN", "OPERATIONS", "SITE_OWNER", "VIEWER"],
   "/sessions": ["ADMIN", "OPERATIONS", "FINANCE", "VIEWER"],
   "/tickets": ["ADMIN", "OPERATIONS", "VIEWER"],
@@ -71,6 +72,7 @@ export const PAGE_LABEL: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/cms-dashboard": "CMS Dashboard",
   "/chargers": "Charger Management",
+  "/register-charger": "Register My Charger",
   "/stations": "Station Management",
   "/sessions": "Sessions",
   "/tickets": "Ticket Management",

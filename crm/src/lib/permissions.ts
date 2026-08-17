@@ -168,6 +168,10 @@ export const canManageAssets = (viewer: Viewer) =>
 export const canManageChargers = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
 
+/** Narrower than canManageChargers — a Site Owner may submit their own charger for review (Firestore rules enforce it lands inactive/pending), but can't touch the registry otherwise. */
+export const canSelfServeRegisterCharger = (viewer: Viewer) =>
+  hasRole(viewer, "SITE_OWNER");
+
 // Client quotations — the same bar as making a pricing decision
 // (canManageCatalog / discount / price-override), since drafting a
 // quotation is exactly that.

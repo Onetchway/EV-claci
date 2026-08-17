@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3, Battery, BookOpen, Boxes, Building2, CalendarClock, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
   Gauge, Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
-  ListTodo, LogOut, MapPin, Menu, MessageSquareWarning, Package, Percent, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
+  ListTodo, LogOut, MapPin, Menu, MessageSquareWarning, Package, Percent, Plug, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
   Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
 } from "lucide-react";
 
@@ -49,6 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/cms-dashboard", label: "CMS Dashboard", icon: LayoutDashboard },
       { href: "/chargers", label: "Charger Management", icon: Zap },
+      { href: "/register-charger", label: "Register My Charger", icon: Plug },
       { href: "/stations", label: "Station Management", icon: Building2 },
       { href: "/sessions", label: "Sessions", icon: Battery },
       { href: "/tickets", label: "Ticket Management", icon: Ticket },

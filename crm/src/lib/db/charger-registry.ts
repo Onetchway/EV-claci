@@ -19,7 +19,7 @@ import {
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 
 import { getBucket, getDb } from "../firebase/client";
-import type { Actor, TS } from "../types";
+import type { Actor, RevenueShareType, TS } from "../types";
 
 export const CHARGER_REGISTRY = "chargerRegistry";
 
@@ -99,6 +99,22 @@ export interface ChargerRegistration {
   connectionToken?: string;
   /** The white-label tenant this charger counts against for license-quota purposes — set from the registering staff member's own Organization at creation time, never user-editable. Null/absent = the default (Livanto's own) organisation, which is never quota-checked. */
   orgId?: string | null;
+
+  /**
+   * Self-serve registration (see registerOwnCharger below) — a charger
+   * owner who isn't CRM staff submits their own charger and the %/₹-per-kWh
+   * rate they want, but it stays `active: false` (invisible to the OCPP
+   * server's connect check) until Admin/Ops reviews and approves it. Absent
+   * on every admin-registered charger, which was never pending in the first
+   * place.
+   */
+  pendingApproval?: boolean;
+  ownerRequestedRevShareType?: RevenueShareType;
+  ownerRequestedRevShareValue?: number;
+  approvedAt?: TS;
+  approvedBy?: Actor | null;
+  rejectedAt?: TS;
+  rejectedReason?: string;
 }
 
 /** Display name for a registration's manufacturer — the free-text override when vendor is "Other". */
@@ -214,6 +230,102 @@ export async function registerCharger(
     createdBy: actor,
   });
   return { chargerId, connectionToken };
+}
+
+export interface SelfServeChargerDraft {
+  label: string;
+  location: string;
+  city?: string;
+  state?: string;
+  chargerPowerType: ChargerPowerType;
+  connectorType?: ConnectorTypeName;
+  powerKw?: number;
+  vendor: ChargerVendor;
+  vendorOther?: string;
+  notes?: string;
+  /** What the owner wants to be paid — a % of each session's post-GST total, or a flat ₹/kWh. Reviewed, not auto-applied: Admin/Ops sets the final rate on approval, which may differ from the request. */
+  requestedRevShareType: RevenueShareType;
+  requestedRevShareValue: number;
+}
+
+/**
+ * Lets a charger owner who isn't CRM staff register their own hardware and
+ * name the rate they want — the "Option to add charger by any user... we
+ * will take %/kWh rate set in system" self-serve flow. Firestore rules only
+ * let a SITE_OWNER-role account create a chargerRegistry doc when it's
+ * `active: false, pendingApproval: true` (see firestore.rules) — this
+ * function can't set anything else, and can't flip either flag itself, so
+ * the charger genuinely cannot accept a real session (ocpp-server's
+ * isRegisteredAndActive check requires `active === true`) until Admin/Ops
+ * reviews it via approveSelfServeCharger below. A matching Zone is created
+ * alongside it (owned by the same uid) so Station Management, Settlements,
+ * and the revenue-share engine all have a site to attach to, exactly as if
+ * staff had set one up — this function just can't touch the site's
+ * revenue-share fields until an approval sets them from the reviewed rate.
+ */
+export async function registerOwnCharger(draft: SelfServeChargerDraft, actor: Actor): Promise<{ chargerId: string }> {
+  const zoneRef = await addDoc(collection(getDb(), "zones"), {
+    name: draft.label,
+    maxLoadKw: draft.powerKw ?? 7,
+    address: draft.location,
+    city: draft.city ?? null,
+    state: draft.state ?? null,
+    ownerUid: actor.uid,
+    createdAt: serverTimestamp(),
+    createdBy: actor,
+  });
+
+  const chargerId = `${slugify(draft.label)}-${uniqueSuffix()}`;
+  const connectionToken = generateConnectionToken();
+  await addDoc(collection(getDb(), CHARGER_REGISTRY), {
+    chargerId,
+    label: draft.label,
+    location: draft.location,
+    state: draft.state ?? null,
+    chargerPowerType: draft.chargerPowerType,
+    connectorType: draft.connectorType ?? null,
+    powerKw: draft.powerKw ?? null,
+    vendor: draft.vendor,
+    vendorOther: draft.vendorOther ?? null,
+    notes: draft.notes ?? null,
+    zoneId: zoneRef.id,
+    active: false,
+    pendingApproval: true,
+    ownerRequestedRevShareType: draft.requestedRevShareType,
+    ownerRequestedRevShareValue: draft.requestedRevShareValue,
+    connectionToken,
+    createdAt: serverTimestamp(),
+    createdBy: actor,
+  });
+  return { chargerId };
+}
+
+/** Admin/Ops-only (enforced by firestore.rules — SITE_OWNER can only create, never update). Activates the charger and applies the reviewed rate to its zone. finalRevShare lets the reviewer approve at a different rate than requested. */
+export async function approveSelfServeCharger(
+  registration: Pick<ChargerRegistration, "id" | "zoneId">,
+  finalRevShare: { type: RevenueShareType; value: number },
+  actor: Actor,
+): Promise<void> {
+  await updateDoc(doc(getDb(), CHARGER_REGISTRY, registration.id), {
+    active: true,
+    pendingApproval: false,
+    approvedAt: serverTimestamp(),
+    approvedBy: actor,
+  });
+  if (registration.zoneId) {
+    await updateDoc(doc(getDb(), "zones", registration.zoneId), {
+      revenueShareType: finalRevShare.type,
+      revenueShareValue: finalRevShare.value,
+    });
+  }
+}
+
+export async function rejectSelfServeCharger(id: string, reason: string): Promise<void> {
+  await updateDoc(doc(getDb(), CHARGER_REGISTRY, id), {
+    pendingApproval: false,
+    rejectedAt: serverTimestamp(),
+    rejectedReason: reason,
+  });
 }
 
 /** Throws if registering one more charger of this power type would exceed the tenant's license quota. Unlimited (no throw) when the org has no quota set for that type. */
