@@ -33,12 +33,18 @@ const ACTION_STYLE: Record<string, string> = {
 
 function CmsChangeLog() {
   const [rows, setRows] = useState<ChangeLogEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [entityType, setEntityType] = useState<ChangeEntityType | "">("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     setRows(null);
-    return subscribeChangeLog({ entityType: entityType || undefined, max: 500 }, setRows, () => setRows([]));
+    setError(null);
+    return subscribeChangeLog(
+      { entityType: entityType || undefined, max: 500 },
+      (r) => { setRows(r); setError(null); },
+      (e) => { setError(e.message); setRows([]); },
+    );
   }, [entityType]);
 
   const filtered = useMemo(() => {
@@ -69,10 +75,22 @@ function CmsChangeLog() {
         </div>
       </Card>
 
+      {error && (
+        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-inset ring-rose-200">
+          {error}
+          <p className="mt-1 text-xs">
+            A permission-denied error here usually means the Firestore rules for the `changeLog` collection
+            haven't been deployed yet — run <code>firebase deploy --only firestore:rules</code>.
+          </p>
+        </div>
+      )}
+
       {rows === null ? (
         <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>
       ) : filtered.length === 0 ? (
-        <EmptyState icon={<FileClock className="h-8 w-8" />} title="No CMS changes match these filters" />
+        error ? null : (
+          <EmptyState icon={<FileClock className="h-8 w-8" />} title="No CMS changes match these filters" description="Edit a charger, tariff, station, or workflow rule and it should appear here." />
+        )
       ) : (
         <Card title={`${filtered.length} entries`} subtitle="Charger, tariff, station, and workflow edits — newest first">
           <div className="overflow-x-auto scroll-thin">
