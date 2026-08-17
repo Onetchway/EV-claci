@@ -15,6 +15,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
 import { Avatar, Button, EmptyState, Spinner } from "@/components/ui";
 import { useChargerCatalog } from "@/hooks/use-catalog";
+import { useSettings } from "@/hooks/use-settings";
 import { ROLE_LABEL, type Role } from "@/lib/constants";
 import { subscribeRoleAccessPolicy } from "@/lib/db/access-policy";
 import { subscribeOrganization } from "@/lib/db/organizations";
@@ -102,19 +103,29 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 /**
- * A recreated text wordmark, not the original logo file — no usable image
- * asset was available to embed (only a pasted-in-chat render, not an
- * uploaded file). Swap for an <img> once the real logo file is provided.
+ * A recreated text wordmark — the actual logo file has only ever been
+ * pasted inline in chat, never uploaded, so there's no image asset to
+ * embed. This is styled to match closely: the triangle stands in for the
+ * "a" in "livanto" (as it does in the source mark), and the "green."
+ * period is a filled dot rather than a literal "." glyph. Once a real
+ * logo file exists at Settings → Company → Logo URL (settings.company.logoUrl,
+ * e.g. an upload to /public/logo.png), the sidebar prefers that automatically
+ * — see the logoUrl check in AppLayout below — so this component stops
+ * being used without any further code change.
  */
 function LivantoWordmark() {
   return (
     <div className="flex flex-col leading-[1.05]">
-      <span className="text-[15px] font-extrabold tracking-tight text-navy-900">livanto</span>
-      <span className="flex items-center gap-1 text-[15px] font-extrabold tracking-tight text-brand-600">
-        <svg viewBox="0 0 10 9" className="h-2.5 w-2.5 fill-brand-600" aria-hidden>
-          <polygon points="5,0 10,9 0,9" />
+      <div className="flex items-end text-[16px] font-extrabold tracking-tight text-navy-900">
+        <span>liv</span>
+        <svg viewBox="0 0 10 8" className="mx-px mb-[3px] h-[8px] w-[9px] fill-brand-600" aria-hidden>
+          <polygon points="5,0 10,8 0,8" />
         </svg>
-        green.
+        <span>nto</span>
+      </div>
+      <span className="flex items-baseline text-[16px] font-extrabold tracking-tight text-brand-600">
+        green
+        <span className="ml-[3px] h-[4px] w-[4px] shrink-0 rounded-full bg-brand-600" />
       </span>
     </div>
   );
@@ -127,6 +138,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const [org, setOrg] = useState<Organization | null>(null);
   const [rolePolicy, setRolePolicy] = useState<Record<string, Role[]> | null>(null);
+  const { settings } = useSettings();
 
   useEffect(() => subscribeRoleAccessPolicy(setRolePolicy), []);
 
@@ -196,6 +208,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {org?.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={org.logoUrl} alt="" className="h-9 w-9 rounded-lg object-contain" />
+        ) : settings.company.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={settings.company.logoUrl} alt="Livanto Green" className="h-8 max-w-[150px] object-contain object-left" />
         ) : (
           <LivantoWordmark />
         )}
