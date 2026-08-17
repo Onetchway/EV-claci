@@ -32,6 +32,7 @@ import {
 import { sweepStaleConnections, sweepSlaBreaches, OFFLINE_SWEEP_MS } from "./tickets.js";
 import { sweepZoneLoads } from "./load-balancer.js";
 import { sweepScheduledCharging } from "./depot-scheduling.js";
+import { sweepQrBudgets } from "./qr-budget-guard.js";
 import { sweepSubscriptionRenewals } from "./subscriptions.js";
 import { sweepRevenueGuarantees } from "./revenue-guarantee.js";
 
@@ -272,3 +273,8 @@ const DEPOT_SCHEDULE_SWEEP_MS = Number(process.env.DEPOT_SCHEDULE_SWEEP_MS) || 6
 setInterval(() => {
   sweepScheduledCharging().catch((err) => console.error("[sweep] depot scheduled-charging sweep failed:", err));
 }, DEPOT_SCHEDULE_SWEEP_MS);
+
+const QR_BUDGET_SWEEP_MS = Number(process.env.QR_BUDGET_SWEEP_MS) || 30 * 1000;
+setInterval(() => {
+  sweepQrBudgets().catch((err) => console.error("[sweep] QR budget-guard sweep failed:", err));
+}, QR_BUDGET_SWEEP_MS);

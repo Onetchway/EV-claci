@@ -559,6 +559,20 @@ export async function billSession(
     );
   }
 
+  // App-less QR charging (see qr-budget-guard.ts) pays per-session up front
+  // via Razorpay, not a wallet — debitWalletForSession above finds no
+  // wallet owner for a QR session's one-time idToken and is a no-op, which
+  // is correct. This is the only place that ties the session back to the
+  // payment that actually funded it.
+  if (idToken?.startsWith("QR-")) {
+    const qrSnap = await db().collection("qrChargeSessions").doc(idToken).get();
+    const qr = qrSnap.data();
+    if (qr) {
+      await ref.set({ paymentRef: qr.razorpayPaymentId ?? null, qrSession: true }, { merge: true });
+      await qrSnap.ref.set({ status: "ENDED", endedAt: FieldValue.serverTimestamp(), finalCostInr: totalCostInr }, { merge: true });
+    }
+  }
+
   await accrueSiteRevenueShare(chargePointId, ref.id, totalCostInr);
 
   // A persisted Charge Detail Record — previously OCPI's /cdrs endpoint
