@@ -46,6 +46,7 @@ export const DEFAULT_PAGE_ACCESS: Record<string, Role[]> = {
   "/settlements": ["ADMIN", "FINANCE", "SITE_OWNER", "VIEWER"],
   "/reconciliation": ["ADMIN", "FINANCE", "OPERATIONS"],
   "/coupons": ["ADMIN", "FINANCE", "VIEWER"],
+  "/campaigns": ["ADMIN", "SALES_MANAGER", "VIEWER"],
   "/subscriptions": ["ADMIN", "FINANCE", "VIEWER"],
   "/reports": ["ADMIN", "OPERATIONS", "FINANCE", "VIEWER"],
   // Sales
@@ -90,6 +91,7 @@ export const PAGE_LABEL: Record<string, string> = {
   "/settlements": "Settlements",
   "/reconciliation": "Razorpay Reconciliation",
   "/coupons": "Coupons",
+  "/campaigns": "Campaigns",
   "/subscriptions": "Subscriptions",
   "/reports": "Reports",
   "/leads": "All Leads",

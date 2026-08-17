@@ -494,6 +494,14 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
     }
 
+    // Marketing campaigns — email/notification blasts and banners. Public
+    // banner rendering (api/public/banners) reads via the Admin SDK, so
+    // this rule only covers the CRM's own signed-in-staff access.
+    match /campaigns/{campaignId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
     // Manually-entered DISCOM electricity bills, for the Station Profit
     // figure on Business Insights — bookkeeping input, same access as
     // Settlements (Finance/Admin/SuperAdmin).

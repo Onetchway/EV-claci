@@ -67,6 +67,11 @@ export default function QrChargePage() {
   const [busy, setBusy] = useState(false);
   const [idToken, setIdToken] = useState<string | null>(null);
   const [status, setStatus] = useState<SessionStatus | null>(null);
+  const [banner, setBanner] = useState<{ message: string; imageUrl: string | null; linkUrl: string | null } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/public/banners").then((r) => r.json()).then((data) => setBanner(data.banner)).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     fetch(`/api/public/qr-charge/info?chargerId=${encodeURIComponent(chargerId)}`)
@@ -165,6 +170,26 @@ export default function QrChargePage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-white"><Zap className="h-5 w-5" /></div>
           <span className="text-lg font-semibold text-ink-900">Livanto Green</span>
         </div>
+
+        {banner && (
+          banner.linkUrl ? (
+            <a href={banner.linkUrl} target="_blank" rel="noreferrer" className="mb-4 block overflow-hidden rounded-xl bg-brand-50 ring-1 ring-brand-200">
+              {banner.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={banner.imageUrl} alt="" className="w-full" />
+              )}
+              <p className="p-3 text-sm font-medium text-brand-800">{banner.message}</p>
+            </a>
+          ) : (
+            <div className="mb-4 overflow-hidden rounded-xl bg-brand-50 ring-1 ring-brand-200">
+              {banner.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={banner.imageUrl} alt="" className="w-full" />
+              )}
+              <p className="p-3 text-sm font-medium text-brand-800">{banner.message}</p>
+            </div>
+          )
+        )}
 
         {error && !info && (
           <div className="rounded-xl bg-white p-6 text-center shadow-sm ring-1 ring-ink-200">

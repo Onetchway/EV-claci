@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3, Battery, BookOpen, Boxes, Building2, CalendarClock, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
   Gauge, Globe, HardHat, Handshake, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
-  ListTodo, LogOut, MapPin, Menu, MessageSquareWarning, Package, Percent, Plug, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
+  ListTodo, LogOut, Mail, MapPin, Menu, MessageSquareWarning, Package, Percent, Plug, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
   Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X, Zap,
 } from "lucide-react";
 
@@ -67,6 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/settlements", label: "Settlements", icon: IndianRupee },
       { href: "/reconciliation", label: "Razorpay Reconciliation", icon: Scale },
       { href: "/coupons", label: "Coupons", icon: Percent },
+      { href: "/campaigns", label: "Campaigns", icon: Mail },
       { href: "/subscriptions", label: "Subscriptions", icon: Repeat },
       { href: "/ocpi", label: "OCPI Roaming", icon: Globe, adminOnly: true },
       { href: "/roaming", label: "CPO Roaming (Outbound)", icon: Globe, adminOnly: true },

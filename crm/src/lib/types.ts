@@ -840,6 +840,36 @@ export interface WalletTransaction {
   createdBy?: Actor | null;
 }
 
+export type CampaignAudience = "ALL_EMSP" | "ALL_CORPORATE" | "ALL";
+
+/**
+ * A marketing push — an email/in-app-notification blast, a banner shown on
+ * driver-facing surfaces, or both. There's no mobile driver app in this
+ * codebase yet, so "banner in app" today means the one driver-facing
+ * surface that exists: the app-less QR charging page
+ * (api/public/banners is what it reads from) — a future driver app would
+ * read the same public endpoint.
+ */
+export interface Campaign {
+  id: string;
+  name: string;
+  audience: CampaignAudience;
+  /** Email subject / notification title. */
+  subject: string;
+  /** Plain-text body — kept simple rather than a rich-text/HTML editor. */
+  message: string;
+  showAsBanner: boolean;
+  bannerImageUrl?: string | null;
+  bannerLinkUrl?: string | null;
+  startAt?: TS | null;
+  endAt?: TS | null;
+  active: boolean;
+  sentAt?: TS | null;
+  sentCount?: number;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
 export type CouponType = "PERCENT" | "FLAT";
 
 /** A wallet top-up promo code — validated and redeemed server-side in /api/payments/razorpay/verify, never trusted from the client. */
