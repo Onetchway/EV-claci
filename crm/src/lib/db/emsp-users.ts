@@ -77,7 +77,7 @@ export async function setEmspUserActive(id: string, active: boolean): Promise<vo
   await updateDoc(doc(getDb(), EMSP_USERS, id), { active });
 }
 
-export type EmspUserEditDraft = Pick<EmspUser, "name" | "phone" | "email" | "type" | "corporateAccountId">;
+export type EmspUserEditDraft = Pick<EmspUser, "name" | "phone" | "email" | "type" | "corporateAccountId" | "city" | "state">;
 
 export async function updateEmspUser(id: string, draft: EmspUserEditDraft): Promise<void> {
   await updateDoc(doc(getDb(), EMSP_USERS, id), { ...draft });

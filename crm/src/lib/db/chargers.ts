@@ -99,6 +99,15 @@ export interface ChargeSession {
   vehicleId?: string | null;
   vehicleRegNumber?: string | null;
   vehicleLabel?: string | null;
+  /**
+   * The gateway payment that funded THIS session directly — only set by the
+   * app-less QR pay-per-session flow (see api/public/qr-charge/*), where a
+   * Razorpay payment is tied 1:1 to one session. A wallet-debited session
+   * has no value here: it was funded by an earlier, separate top-up, not a
+   * payment made at charge time.
+   */
+  paymentRef?: string | null;
+  qrSession?: boolean;
 }
 
 function mapChargePoint(id: string, data: Record<string, unknown>): ChargePoint {

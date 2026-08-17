@@ -764,6 +764,9 @@ export interface EmspUser {
   /** Only set when type === "CORPORATE". */
   corporateAccountId?: string | null;
   rfidTokenId?: string | null;
+  /** Registered address city/state — the only honest "where is this user" signal available at wallet top-up time (there's no charger/session involved yet), used for city/state-restricted coupons. */
+  city?: string | null;
+  state?: string | null;
   walletBalanceInr?: number;
   /** Corporate benefit cap — this employee's own session spend, resettable-by-calendar-month, is blocked at the charger (Authorize → NoCredit) once it reaches this. Only meaningful when corporateAccountId is set. */
   monthlyCapInr?: number;
@@ -850,10 +853,20 @@ export interface Coupon {
   maxUses?: number;
   usedCount: number;
   expiresAt?: TS | null;
-  /** Restricts redemption to one specific wallet owner ("client-wise") — a targeted promo code rather than a public one. Absent means anyone can redeem it. There's no zone/city/state restriction: a wallet top-up isn't tied to a physical charging location, so no signal exists at redemption time to enforce one honestly. */
+  /** Restricts redemption to one specific wallet owner ("client-wise") — a targeted promo code rather than a public one. Absent means anyone can redeem it. */
   restrictedToOwnerType?: "EMSP_USER" | "CORPORATE_ACCOUNT" | null;
   restrictedToOwnerId?: string | null;
   restrictedToOwnerName?: string | null;
+  /**
+   * City/state restriction, checked against the redeeming EMSP user's own
+   * registered city/state (EmspUser.city/state) — the only honest location
+   * signal a wallet top-up has, since no charger/session is involved.
+   * Case-insensitive exact match. A corporate-account top-up has no
+   * personal city, so a city/state-restricted coupon can't be redeemed
+   * against one.
+   */
+  restrictedToCity?: string | null;
+  restrictedToState?: string | null;
   createdAt: TS;
   createdBy?: Actor | null;
 }

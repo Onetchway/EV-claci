@@ -76,6 +76,18 @@ export async function POST(req: Request) {
         if (restrictedOwnerId && restrictedOwnerId !== body.ownerId) {
           throw new ApiError("This coupon isn't valid for this account.", 400);
         }
+        const restrictedCity = coupon.restrictedToCity as string | null | undefined;
+        const restrictedState = coupon.restrictedToState as string | null | undefined;
+        if (restrictedCity || restrictedState) {
+          // Only an EMSP_USER has a personal registered city/state — a corporate account top-up isn't tied to one person's address.
+          const ownerCity = body.ownerType === "EMSP_USER" ? (snap.data()?.city as string | undefined) : undefined;
+          const ownerState = body.ownerType === "EMSP_USER" ? (snap.data()?.state as string | undefined) : undefined;
+          const cityOk = !restrictedCity || (ownerCity?.trim().toLowerCase() === restrictedCity.trim().toLowerCase());
+          const stateOk = !restrictedState || (ownerState?.trim().toLowerCase() === restrictedState.trim().toLowerCase());
+          if (!cityOk || !stateOk) {
+            throw new ApiError("This coupon isn't valid for your registered location.", 400);
+          }
+        }
         bonusInr = coupon.type === "PERCENT"
           ? Math.round(body.amountInr * ((coupon.value as number) / 100) * 100) / 100
           : (coupon.value as number);

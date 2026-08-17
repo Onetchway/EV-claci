@@ -32,7 +32,7 @@ export function subscribeCoupons(
   );
 }
 
-export type CouponDraft = Pick<Coupon, "code" | "type" | "value" | "maxUses" | "restrictedToOwnerType" | "restrictedToOwnerId" | "restrictedToOwnerName"> & { expiresAt?: Date };
+export type CouponDraft = Pick<Coupon, "code" | "type" | "value" | "maxUses" | "restrictedToOwnerType" | "restrictedToOwnerId" | "restrictedToOwnerName" | "restrictedToCity" | "restrictedToState"> & { expiresAt?: Date };
 
 export async function createCoupon(draft: CouponDraft, actor: Actor): Promise<string> {
   const ref = await addDoc(collection(getDb(), COUPONS), {

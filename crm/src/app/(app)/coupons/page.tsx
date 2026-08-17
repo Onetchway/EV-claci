@@ -32,6 +32,8 @@ export default function CouponsPage() {
   const [maxUses, setMaxUses] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [restrictKey, setRestrictKey] = useState("");
+  const [restrictCity, setRestrictCity] = useState("");
+  const [restrictState, setRestrictState] = useState("");
 
   useEffect(() => subscribeCoupons(setCoupons), []);
   useEffect(() => subscribeEmspUsers(setEmspUsers), []);
@@ -45,6 +47,7 @@ export default function CouponsPage() {
   function openNew() {
     setEditingId(null);
     setCode(""); setType("PERCENT"); setValue(""); setMaxUses(""); setExpiresAt(""); setRestrictKey("");
+    setRestrictCity(""); setRestrictState("");
     setOpen(true);
   }
 
@@ -53,6 +56,7 @@ export default function CouponsPage() {
     setCode(c.code); setType(c.type); setValue(String(c.value)); setMaxUses(c.maxUses ? String(c.maxUses) : "");
     setExpiresAt("");
     setRestrictKey(c.restrictedToOwnerType && c.restrictedToOwnerId ? `${c.restrictedToOwnerType}:${c.restrictedToOwnerId}` : "");
+    setRestrictCity(c.restrictedToCity ?? ""); setRestrictState(c.restrictedToState ?? "");
     setOpen(true);
   }
 
@@ -71,6 +75,8 @@ export default function CouponsPage() {
       restrictedToOwnerType: (restrictType as CouponDraft["restrictedToOwnerType"]) ?? null,
       restrictedToOwnerId: restrictId ?? null,
       restrictedToOwnerName: restrictName ?? null,
+      restrictedToCity: restrictCity.trim() || null,
+      restrictedToState: restrictState.trim() || null,
     };
     await run(async () => {
       if (editingId) await updateCoupon(editingId, draft);
@@ -112,7 +118,14 @@ export default function CouponsPage() {
                     <td className="td font-mono font-medium">{c.code}</td>
                     <td className="td text-ink-600">{c.type === "PERCENT" ? `${c.value}%` : formatINR(c.value)}</td>
                     <td className="td text-ink-600">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
-                    <td className="td text-ink-600">{c.restrictedToOwnerName ?? "Anyone"}</td>
+                    <td className="td text-ink-600">
+                      {c.restrictedToOwnerName ?? "Anyone"}
+                      {(c.restrictedToCity || c.restrictedToState) && (
+                        <span className="ml-1 text-xs text-ink-400">
+                          ({[c.restrictedToCity, c.restrictedToState].filter(Boolean).join(", ")})
+                        </span>
+                      )}
+                    </td>
                     <td className="td text-ink-600">{c.expiresAt ? formatDate(c.expiresAt) : "No expiry"}</td>
                     <td className="td">
                       <Badge className={c.active ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-ink-100 text-ink-500 ring-ink-200"}>
@@ -179,7 +192,7 @@ export default function CouponsPage() {
           <Field label="Expires" hint="Leave blank for no expiry.">
             <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
           </Field>
-          <Field label="Restrict to a client (client-wise)" hint="A wallet top-up isn't tied to a zone/city/state, so only a specific user or corporate account can be enforced — not a location.">
+          <Field label="Restrict to a client (client-wise)">
             <Select
               value={restrictKey}
               onChange={(e) => setRestrictKey(e.target.value)}
@@ -187,6 +200,14 @@ export default function CouponsPage() {
               placeholder="Anyone can redeem"
             />
           </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Restrict to city" hint="Checked against the redeeming user's own registered city.">
+              <Input value={restrictCity} onChange={(e) => setRestrictCity(e.target.value)} placeholder="Anyone" />
+            </Field>
+            <Field label="Restrict to state" hint="Same — checked against their registered state.">
+              <Input value={restrictState} onChange={(e) => setRestrictState(e.target.value)} placeholder="Anyone" />
+            </Field>
+          </div>
         </div>
       </Modal>
     </>

@@ -39,6 +39,8 @@ export default function EmspUsersPage() {
   const [uType, setUType] = useState<"RETAIL" | "CORPORATE">("RETAIL");
   const [uAccountId, setUAccountId] = useState("");
   const [uMonthlyCap, setUMonthlyCap] = useState("");
+  const [uCity, setUCity] = useState("");
+  const [uState, setUState] = useState("");
 
   const [acctOpen, setAcctOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<CorporateAccount | null>(null);
@@ -109,6 +111,7 @@ export default function EmspUsersPage() {
   function openNewUser() {
     setEditingUser(null);
     setUName(""); setUPhone(""); setUEmail(""); setUType("RETAIL"); setUAccountId(""); setUMonthlyCap("");
+    setUCity(""); setUState("");
     setUserOpen(true);
   }
 
@@ -116,6 +119,7 @@ export default function EmspUsersPage() {
     setEditingUser(u);
     setUName(u.name); setUPhone(u.phone); setUEmail(u.email ?? ""); setUType(u.type);
     setUAccountId(u.corporateAccountId ?? ""); setUMonthlyCap(u.monthlyCapInr != null ? String(u.monthlyCapInr) : "");
+    setUCity(u.city ?? ""); setUState(u.state ?? "");
     setUserOpen(true);
   }
 
@@ -126,12 +130,14 @@ export default function EmspUsersPage() {
         await updateEmspUser(editingUser.id, {
           name: uName.trim(), phone: uPhone.trim(), email: uEmail.trim() || undefined,
           type: uType, corporateAccountId: uType === "CORPORATE" ? (uAccountId || null) : null,
+          city: uCity.trim() || null, state: uState.trim() || null,
         });
       } else {
         await createEmspUser({
           name: uName.trim(), phone: uPhone.trim(), email: uEmail.trim() || undefined,
           type: uType, corporateAccountId: uType === "CORPORATE" ? (uAccountId || null) : null,
           monthlyCapInr: uType === "CORPORATE" && uMonthlyCap.trim() ? Number(uMonthlyCap) : undefined,
+          city: uCity.trim() || undefined, state: uState.trim() || undefined,
         }, actor);
       }
       setUserOpen(false);
@@ -285,6 +291,10 @@ export default function EmspUsersPage() {
           <Field label="Name" required><Input value={uName} onChange={(e) => setUName(e.target.value)} /></Field>
           <Field label="Phone" required><Input value={uPhone} onChange={(e) => setUPhone(e.target.value)} /></Field>
           <Field label="Email"><Input value={uEmail} onChange={(e) => setUEmail(e.target.value)} /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="City"><Input value={uCity} onChange={(e) => setUCity(e.target.value)} placeholder="Optional — used for city/state-restricted coupons" /></Field>
+            <Field label="State"><Input value={uState} onChange={(e) => setUState(e.target.value)} placeholder="Optional" /></Field>
+          </div>
           <Field label="Type">
             <Select value={uType} onChange={(e) => setUType(e.target.value as "RETAIL" | "CORPORATE")} options={EMSP_USER_TYPES.map((t) => ({ value: t, label: EMSP_USER_TYPE_LABEL[t] }))} />
           </Field>
