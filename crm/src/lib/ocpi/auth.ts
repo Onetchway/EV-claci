@@ -49,3 +49,20 @@ export async function requirePendingParty(req: Request): Promise<OcpiParty> {
   if (snap.empty) throw new Error("UNAUTHORIZED: registration token not recognized or already used.");
   return { id: snap.docs[0]!.id, ...(snap.docs[0]!.data() as Omit<OcpiParty, "id">) };
 }
+
+/**
+ * Validates the presented token as a token we ourselves handed to a
+ * roaming partner (`ourTokenForThem` on their ocpiRoamingPartners doc —
+ * see lib/ocpi/roaming-client.ts). Used by the inbound session/CDR PUT
+ * endpoints a partner CPO pushes to once we've registered with them as
+ * their eMSP.
+ */
+export async function requireRoamingPartnerAuth(req: Request): Promise<{ id: string; businessName: string }> {
+  const token = bearerToken(req);
+  if (!token) throw new Error("UNAUTHORIZED: missing Authorization: Token header.");
+  const snap = await adminDb().collection("ocpiRoamingPartners")
+    .where("ourTokenForThem", "==", token).where("status", "==", "REGISTERED").limit(1).get();
+  if (snap.empty) throw new Error("UNAUTHORIZED: token not recognized or partner not registered.");
+  const data = snap.docs[0]!.data() as { businessName?: string };
+  return { id: snap.docs[0]!.id, businessName: data.businessName ?? "" };
+}

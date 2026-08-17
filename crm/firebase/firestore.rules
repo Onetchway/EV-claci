@@ -510,6 +510,27 @@ service cloud.firestore {
       allow read, write: if role() in ['SUPER_ADMIN', 'ADMIN'];
     }
 
+    // CPO↔CPO roaming — this app as an eMSP client of a partner CPO (see
+    // lib/ocpi/roaming-client.ts). All three are written by Admin SDK only
+    // (the registration/start/stop API routes and the partner-push
+    // receivers); client access is read-only for the CRM's /roaming page.
+    match /ocpiRoamingPartners/{partnerId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+    match /roamingSessions/{sessionId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+    match /roamingCommands/{commandId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+    match /roamingCdrs/{cdrId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+
     // Developer API keys. Only the hash is ever stored (see lib/db/api-keys.ts),
     // but the key list itself (names, prefixes) is still admin-only.
     match /apiKeys/{keyId} {

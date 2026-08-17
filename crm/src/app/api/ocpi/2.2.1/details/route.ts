@@ -16,6 +16,12 @@ export async function GET(req: Request) {
     { identifier: "cdrs", role: "SENDER", url: `${base}/api/ocpi/2.2.1/cpo/cdrs` },
     { identifier: "commands", role: "RECEIVER", url: `${base}/api/ocpi/2.2.1/commands` },
     { identifier: "chargingprofiles", role: "RECEIVER", url: `${base}/api/ocpi/2.2.1/chargingprofiles` },
+    // eMSP-side endpoints — this app also registers with partner CPOs as an
+    // eMSP client (lib/ocpi/roaming-client.ts) to let our own RFID tokens
+    // roam onto their networks; these two accept the session/CDR pushes
+    // that come back once a partner registration is complete.
+    { identifier: "sessions", role: "RECEIVER", url: `${base}/api/ocpi/2.2.1/roaming/sessions` },
+    { identifier: "cdrs", role: "RECEIVER", url: `${base}/api/ocpi/2.2.1/roaming/cdrs` },
   ];
   const body: OcpiResponse<{ version: string; endpoints: OcpiEndpoint[] }> = {
     data: { version: "2.2.1", endpoints },

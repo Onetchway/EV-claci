@@ -67,6 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/coupons", label: "Coupons", icon: Percent },
       { href: "/subscriptions", label: "Subscriptions", icon: Repeat },
       { href: "/ocpi", label: "OCPI Roaming", icon: Globe, adminOnly: true },
+      { href: "/roaming", label: "CPO Roaming (Outbound)", icon: Globe, adminOnly: true },
       { href: "/organizations", label: "White label CMS", icon: Building2, adminOnly: true },
       { href: "/reports", label: "Reports", icon: FileSpreadsheet },
     ],
