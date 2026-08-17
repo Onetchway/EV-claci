@@ -107,10 +107,36 @@ export async function getRoamingPartner(id: string): Promise<RoamingPartner | nu
   return { id: snap.id, ...(snap.data() as Omit<RoamingPartner, "id">) };
 }
 
-export async function pullPartnerLocations(partner: RoamingPartner): Promise<unknown[]> {
+async function pullPartnerLocations(partner: RoamingPartner): Promise<unknown[]> {
   if (!partner.endpoints?.locations || !partner.theirTokenC) throw new Error("Partner has no locations endpoint on file.");
   const body = await fetchJson<{ data: unknown[] }>(partner.endpoints.locations, partner.theirTokenC);
   return body.data ?? [];
+}
+
+export const ROAMING_PARTNER_LOCATIONS_CACHE = "roamingPartnerLocationsCache";
+const LOCATIONS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Cached wrapper around pullPartnerLocations — a partner's full location
+ * list rarely changes minute to minute, and this page can get opened
+ * repeatedly while someone's browsing available chargers to start a
+ * session on, so re-hitting the partner's live endpoint on every load was
+ * both slow and needless load on their server. Pass force to bypass the
+ * cache (e.g. a manual "Refresh" action), otherwise a cached pull under
+ * LOCATIONS_CACHE_TTL_MS old is served as-is.
+ */
+export async function getCachedPartnerLocations(partner: RoamingPartner, force = false): Promise<unknown[]> {
+  const cacheRef = adminDb().collection(ROAMING_PARTNER_LOCATIONS_CACHE).doc(partner.id);
+  if (!force) {
+    const cached = await cacheRef.get();
+    const pulledAt = (cached.data()?.pulledAt as { toMillis?: () => number } | undefined)?.toMillis?.();
+    if (pulledAt && Date.now() - pulledAt < LOCATIONS_CACHE_TTL_MS) {
+      return (cached.data()?.locations as unknown[]) ?? [];
+    }
+  }
+  const locations = await pullPartnerLocations(partner);
+  await cacheRef.set({ locations, pulledAt: new Date() }).catch(() => undefined);
+  return locations;
 }
 
 export async function sendStartSessionToPartner(

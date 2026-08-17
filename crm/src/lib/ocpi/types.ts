@@ -48,6 +48,8 @@ export interface OcpiConnector {
   max_voltage: number;
   max_amperage: number;
   max_electric_power: number;
+  /** The Tariff (by id) that prices a session on this connector, if a location-scoped one resolves — see mapLocations' tariffForCharger. Omitted rather than guessed at for a charger with no location-scoped tariff (only a USER/CORPORATE/FLEET/time-windowed one, which can't be represented statically here). */
+  tariff_ids?: string[];
   last_updated: string;
 }
 

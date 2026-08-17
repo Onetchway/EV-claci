@@ -17,6 +17,7 @@ import { getDb, getFirebaseAuth } from "../firebase/client";
 export const ROAMING_PARTNERS = "ocpiRoamingPartners";
 export const ROAMING_SESSIONS = "roamingSessions";
 export const ROAMING_COMMANDS = "roamingCommands";
+export const ROAMING_CDRS = "roamingCdrs";
 
 export interface RoamingPartnerRow {
   id: string;
@@ -37,6 +38,17 @@ export interface RoamingSessionRow {
   end_date_time?: string;
 }
 
+export interface RoamingCdrRow {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  start_date_time?: string;
+  end_date_time?: string;
+  total_energy?: number;
+  total_cost?: { excl_vat: number; incl_vat: number };
+  currency?: string;
+}
+
 function mapDoc<T>(id: string, data: Record<string, unknown>): T {
   return { id, ...(data as object) } as T;
 }
@@ -53,6 +65,14 @@ export function subscribeRoamingSessions(cb: (rows: RoamingSessionRow[]) => void
   return onSnapshot(
     query(collection(getDb(), ROAMING_SESSIONS), orderBy("receivedAt", "desc")),
     (snap) => cb(snap.docs.map((d) => mapDoc<RoamingSessionRow>(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}
+
+export function subscribeRoamingCdrs(cb: (rows: RoamingCdrRow[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), ROAMING_CDRS), orderBy("receivedAt", "desc")),
+    (snap) => cb(snap.docs.map((d) => mapDoc<RoamingCdrRow>(d.id, d.data()))),
     (err) => onError?.(err as Error),
   );
 }
@@ -85,11 +105,11 @@ export async function registerRoamingPartner(draft: { businessName: string; vers
   return authedFetch("/api/ocpi/2.2.1/roaming/partners", draft);
 }
 
-export async function pullRoamingLocations(partnerId: string): Promise<unknown[]> {
+export async function pullRoamingLocations(partnerId: string, force = false): Promise<unknown[]> {
   const current = getFirebaseAuth().currentUser;
   if (!current) throw new Error("Your session expired. Sign in again.");
   const token = await current.getIdToken();
-  const res = await fetch(`/api/ocpi/2.2.1/roaming/partners/${partnerId}/locations`, { headers: { authorization: `Bearer ${token}` } });
+  const res = await fetch(`/api/ocpi/2.2.1/roaming/partners/${partnerId}/locations${force ? "?refresh=1" : ""}`, { headers: { authorization: `Bearer ${token}` } });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status}).`);
   return data.locations as unknown[];

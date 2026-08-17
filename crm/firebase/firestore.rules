@@ -559,6 +559,13 @@ service cloud.firestore {
       allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
       allow write: if false;
     }
+    // Short-TTL cache of a partner's own pulled location list (see
+    // lib/ocpi/roaming-client.ts's getCachedPartnerLocations) — same
+    // Admin-SDK-only write pattern as the three collections above.
+    match /roamingPartnerLocationsCache/{partnerId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
     match /roamingCdrs/{cdrId} {
       allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
       allow write: if false;

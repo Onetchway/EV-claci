@@ -9,7 +9,8 @@ import {
 } from "@/components/ui";
 import {
   pullRoamingLocations, registerRoamingPartner, startRoamingSession, stopRoamingSession,
-  subscribeRoamingPartners, subscribeRoamingSessions, type RoamingPartnerRow, type RoamingSessionRow,
+  subscribeRoamingCdrs, subscribeRoamingPartners, subscribeRoamingSessions,
+  type RoamingCdrRow, type RoamingPartnerRow, type RoamingSessionRow,
 } from "@/lib/db/ocpi-roaming";
 import { subscribeRfidTokens } from "@/lib/db/rfid";
 import { canManageOcpi } from "@/lib/permissions";
@@ -37,6 +38,7 @@ export default function RoamingPage() {
 
   const [partners, setPartners] = useState<RoamingPartnerRow[] | null>(null);
   const [sessions, setSessions] = useState<RoamingSessionRow[] | null>(null);
+  const [cdrs, setCdrs] = useState<RoamingCdrRow[] | null>(null);
   const [tokens, setTokens] = useState<RfidToken[]>([]);
 
   const [addOpen, setAddOpen] = useState(false);
@@ -53,6 +55,7 @@ export default function RoamingPage() {
 
   useEffect(() => subscribeRoamingPartners(setPartners), []);
   useEffect(() => subscribeRoamingSessions(setSessions), []);
+  useEffect(() => subscribeRoamingCdrs(setCdrs), []);
   useEffect(() => subscribeRfidTokens(setTokens), []);
 
   if (!canManage) {
@@ -74,12 +77,12 @@ export default function RoamingPage() {
     }
   }
 
-  async function openStart(partner: RoamingPartnerRow) {
+  async function openStart(partner: RoamingPartnerRow, force = false) {
     setStartFor(partner);
     setLocations(null);
     setLocationId(""); setEvseUid(""); setIdToken("");
     try {
-      const raw = await pullRoamingLocations(partner.id);
+      const raw = await pullRoamingLocations(partner.id, force);
       setLocations(raw as PartnerLocation[]);
     } catch (e) {
       push((e as Error).message, "error");
@@ -191,6 +194,39 @@ export default function RoamingPage() {
         )}
       </Card>
 
+      <Card title="Roaming CDRs" subtitle="Settlement records a partner posted once a roaming session on their network ended — what they'll actually invoice us for.">
+        {cdrs === null ? (
+          <div className="flex justify-center py-10 text-ink-400"><Spinner className="h-6 w-6" /></div>
+        ) : cdrs.length === 0 ? (
+          <EmptyState icon={<Globe className="h-8 w-8" />} title="No roaming CDRs yet" />
+        ) : (
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr>
+                  <th className="th">CDR</th>
+                  <th className="th">Partner</th>
+                  <th className="th">Ended</th>
+                  <th className="th text-right">kWh</th>
+                  <th className="th text-right">Total (incl. VAT)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {cdrs.map((c) => (
+                  <tr key={c.id} className="hover:bg-ink-50">
+                    <td className="td font-mono text-xs">{c.id}</td>
+                    <td className="td">{c.partnerName}</td>
+                    <td className="td text-ink-600">{c.end_date_time ? new Date(c.end_date_time).toLocaleString() : "—"}</td>
+                    <td className="td text-right tabular-nums">{c.total_energy?.toFixed(2) ?? "—"}</td>
+                    <td className="td text-right tabular-nums">{c.total_cost ? `${c.currency ?? "INR"} ${c.total_cost.incl_vat.toFixed(2)}` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
       <Modal
         open={addOpen}
         onClose={() => setAddOpen(false)}
@@ -216,9 +252,13 @@ export default function RoamingPage() {
         open={!!startFor}
         onClose={() => setStartFor(null)}
         title={`Start a session on ${startFor?.businessName ?? ""}`}
+        description="Locations are served from a 5-minute cache — use Refresh if a charger you expect is missing."
         footer={(
           <>
             <Button variant="ghost" onClick={() => setStartFor(null)}>Cancel</Button>
+            {startFor && (
+              <Button variant="secondary" disabled={locations === null} onClick={() => void openStart(startFor, true)}>Refresh</Button>
+            )}
             <Button variant="primary" loading={busy} disabled={!locationId || !idToken} onClick={() => void submitStart()}>Send START_SESSION</Button>
           </>
         )}
