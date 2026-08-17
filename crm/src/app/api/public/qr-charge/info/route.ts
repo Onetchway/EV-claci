@@ -28,10 +28,18 @@ export async function GET(req: Request) {
   ]);
   const point = pointSnap.data();
   const online = point?.status === "ONLINE";
-  const connectors = point?.connectors ? (Object.values(point.connectors) as Array<{ status?: string }>) : [];
+  const connectorEntries = point?.connectors
+    ? (Object.entries(point.connectors) as Array<[string, { status?: string }]>)
+    : [];
+  const connectors = connectorEntries.map(([id, c]) => ({ id, status: c.status ?? "Unavailable" }));
   const available = connectors.some((c) => c.status === "Available");
 
   const tariff = tariffSnap.docs[0]?.data();
+
+  const reviewSnap = await db.collection("chargerReviews").where("chargerId", "==", chargerId).get();
+  const ratings = reviewSnap.docs.map((d) => d.data().rating as number);
+  const reviewCount = ratings.length;
+  const reviewAverage = reviewCount > 0 ? Math.round((ratings.reduce((a, b) => a + b, 0) / reviewCount) * 100) / 100 : null;
 
   return NextResponse.json({
     label: reg.label,
@@ -41,6 +49,12 @@ export async function GET(req: Request) {
     powerKw: reg.powerKw ?? null,
     online,
     available,
+    // Per-connector live status (e.g. "Connector 1: Available", "Connector
+    // 2: Charging") — same detail a driver expects to see before scanning,
+    // not just a single yes/no for the whole station.
+    connectors,
     estimatedRatePerKwh: tariff?.rate ?? null,
+    reviewAverage,
+    reviewCount,
   });
 }

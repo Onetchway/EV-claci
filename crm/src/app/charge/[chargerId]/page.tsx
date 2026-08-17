@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, Zap } from "lucide-react";
+import { CheckCircle2, Loader2, Star, Zap } from "lucide-react";
 
 declare global {
   interface Window {
@@ -35,6 +35,11 @@ function loadCheckoutScript(): Promise<void> {
   return scriptPromise;
 }
 
+interface ConnectorInfo {
+  id: string;
+  status: string;
+}
+
 interface ChargerInfo {
   label: string;
   location: string;
@@ -43,8 +48,20 @@ interface ChargerInfo {
   powerKw: number | null;
   online: boolean;
   available: boolean;
+  connectors: ConnectorInfo[];
   estimatedRatePerKwh: number | null;
+  reviewAverage: number | null;
+  reviewCount: number;
 }
+
+const CONNECTOR_STATUS_LABEL: Record<string, string> = {
+  Available: "Available", Occupied: "Charging", Reserved: "Reserved",
+  Unavailable: "Unavailable", Faulted: "Out of order",
+};
+const CONNECTOR_STATUS_COLOR: Record<string, string> = {
+  Available: "bg-emerald-100 text-emerald-800", Occupied: "bg-amber-100 text-amber-800",
+  Reserved: "bg-sky-100 text-sky-800", Unavailable: "bg-ink-100 text-ink-600", Faulted: "bg-rose-100 text-rose-800",
+};
 
 interface SessionStatus {
   status: string;
@@ -68,6 +85,10 @@ export default function QrChargePage() {
   const [idToken, setIdToken] = useState<string | null>(null);
   const [status, setStatus] = useState<SessionStatus | null>(null);
   const [banner, setBanner] = useState<{ message: string; imageUrl: string | null; linkUrl: string | null } | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
 
   useEffect(() => {
     fetch("/api/public/banners").then((r) => r.json()).then((data) => setBanner(data.banner)).catch(() => undefined);
@@ -147,6 +168,25 @@ export default function QrChargePage() {
     }
   }
 
+  async function submitReview() {
+    if (!idToken || reviewRating < 1) return;
+    setReviewBusy(true);
+    try {
+      const res = await fetch("/api/public/qr-charge/review", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chargerId, sessionId: idToken, rating: reviewRating, comment: reviewComment.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not submit your review.");
+      setReviewSubmitted(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
   async function stopCharging() {
     if (!idToken) return;
     setBusy(true);
@@ -203,15 +243,35 @@ export default function QrChargePage() {
 
         {info && !idToken && (
           <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-ink-200">
-            <p className="text-lg font-semibold text-ink-900">{info.label}</p>
-            <p className="text-sm text-ink-500">{info.location}</p>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-lg font-semibold text-ink-900">{info.label}</p>
+                <p className="text-sm text-ink-500">{info.location}</p>
+              </div>
+              {info.reviewAverage != null && (
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">
+                  <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> {info.reviewAverage} <span className="font-normal text-amber-700">({info.reviewCount})</span>
+                </span>
+              )}
+            </div>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <span className={`rounded-full px-2 py-1 font-medium ${info.online ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
                 {info.online ? "Online" : "Offline"}
               </span>
-              {info.available && <span className="rounded-full bg-emerald-100 px-2 py-1 font-medium text-emerald-800">Available</span>}
               <span className="rounded-full bg-ink-100 px-2 py-1 font-medium text-ink-700">{info.chargerPowerType}{info.powerKw ? ` · ${info.powerKw} kW` : ""}</span>
             </div>
+            {info.connectors.length > 0 && (
+              <div className="mt-3 grid gap-1.5">
+                {info.connectors.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-1.5 text-xs">
+                    <span className="font-medium text-ink-700">Connector {c.id}</span>
+                    <span className={`rounded-full px-2 py-0.5 font-medium ${CONNECTOR_STATUS_COLOR[c.status] ?? "bg-ink-100 text-ink-600"}`}>
+                      {CONNECTOR_STATUS_LABEL[c.status] ?? c.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             {info.estimatedRatePerKwh != null && (
               <p className="mt-2 text-xs text-ink-500">Estimated rate: ₹{info.estimatedRatePerKwh}/kWh — final cost depends on your exact usage.</p>
             )}
@@ -279,6 +339,37 @@ export default function QrChargePage() {
                   {status.finalCostInr != null ? `Final cost: ₹${status.finalCostInr.toFixed(2)}` : "Finalizing your bill…"}
                 </p>
                 <p className="mt-1 text-xs text-ink-400">Energy delivered: {(status.energyDeliveredWh / 1000).toFixed(2)} kWh</p>
+
+                {reviewSubmitted ? (
+                  <p className="mt-5 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Thanks for your feedback!</p>
+                ) : (
+                  <div className="mt-5 rounded-lg bg-ink-50 p-4 text-left">
+                    <p className="text-sm font-medium text-ink-900">Rate your charge</p>
+                    <div className="mt-2 flex gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button key={n} type="button" onClick={() => setReviewRating(n)} aria-label={`${n} star`}>
+                          <Star className={`h-6 w-6 ${n <= reviewRating ? "fill-amber-500 text-amber-500" : "text-ink-300"}`} />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="Anything to add? (optional)"
+                      rows={2}
+                      maxLength={500}
+                      className="input mt-2 w-full resize-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={reviewBusy || reviewRating < 1}
+                      onClick={() => void submitReview()}
+                      className="mt-2 w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      {reviewBusy ? "Submitting…" : "Submit review"}
+                    </button>
+                  </div>
+                )}
               </>
             ) : (
               <>

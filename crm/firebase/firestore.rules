@@ -585,6 +585,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Driver ratings/reviews from the app-less QR charging page. Public
+    // read — the landing page shows a charger's rating before anyone
+    // commits to using it — but write only via the Admin-SDK-backed
+    // api/public/qr-charge/review route (which verifies the review names a
+    // real session before accepting it); a signed-in CRM user can't write
+    // here either, since this is deliberately never editable after the
+    // fact from either side.
+    match /chargerReviews/{reviewId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Webhook subscriptions hold a real signing secret (unlike apiKeys,
     // which only ever stores a hash) — admin-only, same as ocpiParties.
     match /webhookSubscriptions/{subId} {

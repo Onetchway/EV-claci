@@ -1346,3 +1346,21 @@ export interface WebhookSubscription {
   createdAt: TS;
   createdBy?: Actor | null;
 }
+
+/**
+ * A driver's post-charge rating/review, submitted from the app-less QR
+ * charging page (see app/charge/[chargerId]/page.tsx) once their own
+ * session has ended — never open to anyone who just knows a chargerId, so
+ * a review always ties back to a real qrChargeSessions doc. Public read
+ * (the QR landing page shows the aggregate + recent comments, same as any
+ * consumer charging app), write only via the Admin-SDK-backed
+ * api/public/qr-charge/review route.
+ */
+export interface ChargerReview {
+  id: string;
+  chargerId: string;
+  sessionId: string;
+  rating: number;
+  comment?: string;
+  createdAt: TS;
+}

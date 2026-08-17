@@ -12,11 +12,12 @@ import {
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
-import type { TS } from "../types";
+import type { ChargerReview, TS } from "../types";
 
 export const CHARGE_POINTS = "chargePoints";
 export const CHARGE_SESSIONS = "chargeSessions";
 export const DOWNTIME_EVENTS = "downtimeEvents";
+export const CHARGER_REVIEWS = "chargerReviews";
 
 export type ChargePointStatus = "ONLINE" | "OFFLINE";
 export type ConnectorStatus = "Available" | "Occupied" | "Reserved" | "Unavailable" | "Faulted";
@@ -304,6 +305,19 @@ const OCPP_MESSAGES = "ocppMessages";
 
 function mapOcppMessage(id: string, data: Record<string, unknown>): OcppMessage {
   return { id, ...(data as Omit<OcppMessage, "id">) };
+}
+
+/** Driver ratings/reviews submitted from the app-less QR charging page (see app/charge/[chargerId]) — public collection, read-only from here (writes only go through api/public/qr-charge/review). */
+export function subscribeChargerReviews(
+  chargePointId: string,
+  cb: (rows: ChargerReview[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), CHARGER_REVIEWS), where("chargerId", "==", chargePointId), orderBy("createdAt", "desc"), fsLimit(50)),
+    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ChargerReview, "id">) }))),
+    (err) => onError?.(err as Error),
+  );
 }
 
 export function subscribeOcppMessagesForCharger(

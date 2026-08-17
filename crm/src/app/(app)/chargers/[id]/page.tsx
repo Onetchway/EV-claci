@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, Battery, Camera, Copy, MapPin, RefreshCw, Wifi, WifiOff,
+  ArrowLeft, Battery, Camera, Copy, MapPin, RefreshCw, Star, Wifi, WifiOff,
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -21,12 +21,13 @@ import {
   type ChargerRegistration,
 } from "@/lib/db/charger-registry";
 import {
-  subscribeChargePoint, subscribeDowntimeEventsForCharger, subscribeOcppMessagesForCharger, subscribeSessionsForChargePoint,
+  subscribeChargePoint, subscribeChargerReviews, subscribeDowntimeEventsForCharger, subscribeOcppMessagesForCharger,
+  subscribeSessionsForChargePoint,
   type ChargePoint, type ChargeSession, type DowntimeEvent, type OcppMessage,
 } from "@/lib/db/chargers";
 import { subscribeZones } from "@/lib/db/zones";
 import { canManageChargers } from "@/lib/permissions";
-import type { Zone } from "@/lib/types";
+import type { ChargerReview, Zone } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 
 const CONNECTOR_COLOR: Record<string, string> = {
@@ -62,6 +63,7 @@ export default function ChargerDetailPage() {
   const [zones, setZones] = useState<Zone[]>([]);
   const [downtime, setDowntime] = useState<DowntimeEvent[]>([]);
   const [messages, setMessages] = useState<OcppMessage[]>([]);
+  const [reviews, setReviews] = useState<ChargerReview[]>([]);
   const [tab, setTab] = useState<"usage" | "uptime" | "logs">("usage");
   const [rangeDays, setRangeDays] = useState("7");
   const [uploading, setUploading] = useState(false);
@@ -87,6 +89,15 @@ export default function ChargerDetailPage() {
     if (!reg) return;
     return subscribeOcppMessagesForCharger(reg.chargerId, setMessages);
   }, [reg]);
+  useEffect(() => {
+    if (!reg) return;
+    return subscribeChargerReviews(reg.chargerId, setReviews);
+  }, [reg]);
+
+  const avgRating = useMemo(
+    () => (reviews.length ? Math.round((reviews.reduce((a, r) => a + r.rating, 0) / reviews.length) * 100) / 100 : null),
+    [reviews],
+  );
 
   const zoneName = useMemo(() => new Map(zones.map((z) => [z.id, z.name])), [zones]);
 
@@ -275,6 +286,36 @@ export default function ChargerDetailPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </Card>
+
+          <Card
+            title="Driver reviews"
+            subtitle="Submitted from the app-less QR charging page after a session ends"
+            actions={avgRating != null && (
+              <span className="flex items-center gap-1 text-sm font-semibold text-amber-700">
+                <Star className="h-4 w-4 fill-amber-500 text-amber-500" /> {avgRating} <span className="font-normal text-ink-500">({reviews.length})</span>
+              </span>
+            )}
+          >
+            {reviews.length === 0 ? (
+              <EmptyState icon={<Star className="h-8 w-8" />} title="No reviews yet" />
+            ) : (
+              <div className="grid gap-2">
+                {reviews.slice(0, 10).map((r) => (
+                  <div key={r.id} className="rounded-lg bg-ink-50 px-3 py-2">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star key={n} className={`h-3.5 w-3.5 ${n <= r.rating ? "fill-amber-500 text-amber-500" : "text-ink-300"}`} />
+                        ))}
+                      </span>
+                      <span className="text-xs text-ink-400">{r.createdAt ? formatDateTime(r.createdAt) : ""}</span>
+                    </div>
+                    {r.comment && <p className="mt-1 text-sm text-ink-700">{r.comment}</p>}
+                  </div>
+                ))}
               </div>
             )}
           </Card>
