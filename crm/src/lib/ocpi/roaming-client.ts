@@ -108,7 +108,16 @@ export async function registerWithPartner(
   // genuine rejection just fails again with the same status.
   let res = await postCredentials(tokenHeader(theirTokenA));
   if (res.status === 401) res = await postCredentials(`Token ${theirTokenA}`);
-  if (!res.ok) throw new Error(`Partner rejected registration: HTTP ${res.status}`);
+  if (!res.ok) {
+    // Surface whatever the partner actually said instead of just the
+    // status — an OCPI error body's status_message (or any plain-text
+    // body) is the only way to tell "token already used" apart from
+    // "wrong role" apart from a partner-side bug without guessing.
+    const detail = await res.text().catch(() => "");
+    let message = "";
+    try { message = (JSON.parse(detail) as { status_message?: string; message?: string }).status_message ?? JSON.parse(detail).message ?? ""; } catch { message = detail; }
+    throw new Error(`Partner rejected registration: HTTP ${res.status}${message ? ` — ${message.slice(0, 300)}` : ""}`);
+  }
   const body = (await res.json()) as { data: OcpiCredentials };
   const theirTokenC = body.data.token;
 
