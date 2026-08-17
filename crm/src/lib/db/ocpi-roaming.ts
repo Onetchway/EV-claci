@@ -36,6 +36,9 @@ export interface RoamingSessionRow {
   currency?: string;
   start_date_time?: string;
   end_date_time?: string;
+  /** The OCPI party that pushed this session update — captured on every push (see api/ocpi/2.2.1/roaming/sessions/[session_id]), just not previously surfaced anywhere in the UI. */
+  country_code?: string;
+  party_id?: string;
 }
 
 export interface RoamingCdrRow {
@@ -47,6 +50,8 @@ export interface RoamingCdrRow {
   total_energy?: number;
   total_cost?: { excl_vat: number; incl_vat: number };
   currency?: string;
+  country_code?: string;
+  party_id?: string;
 }
 
 function mapDoc<T>(id: string, data: Record<string, unknown>): T {

@@ -169,6 +169,7 @@ export default function RoamingPage() {
                 <tr>
                   <th className="th">Session</th>
                   <th className="th">Partner</th>
+                  <th className="th">Country/Party ID</th>
                   <th className="th">Status</th>
                   <th className="th text-right">kWh</th>
                   <th className="th text-right">Actions</th>
@@ -179,6 +180,7 @@ export default function RoamingPage() {
                   <tr key={s.id} className="hover:bg-ink-50">
                     <td className="td font-mono text-xs">{s.id}</td>
                     <td className="td">{s.partnerName}</td>
+                    <td className="td font-mono text-xs text-ink-500">{s.country_code && s.party_id ? `${s.country_code}/${s.party_id}` : "—"}</td>
                     <td className="td"><Badge className={STATUS_COLOR[s.status] ?? STATUS_COLOR.COMPLETED}>{s.status}</Badge></td>
                     <td className="td text-right tabular-nums">{s.kwh?.toFixed(2) ?? "—"}</td>
                     <td className="td text-right">
@@ -206,6 +208,7 @@ export default function RoamingPage() {
                 <tr>
                   <th className="th">CDR</th>
                   <th className="th">Partner</th>
+                  <th className="th">Country/Party ID</th>
                   <th className="th">Ended</th>
                   <th className="th text-right">kWh</th>
                   <th className="th text-right">Total (incl. VAT)</th>
@@ -216,6 +219,7 @@ export default function RoamingPage() {
                   <tr key={c.id} className="hover:bg-ink-50">
                     <td className="td font-mono text-xs">{c.id}</td>
                     <td className="td">{c.partnerName}</td>
+                    <td className="td font-mono text-xs text-ink-500">{c.country_code && c.party_id ? `${c.country_code}/${c.party_id}` : "—"}</td>
                     <td className="td text-ink-600">{c.end_date_time ? new Date(c.end_date_time).toLocaleString() : "—"}</td>
                     <td className="td text-right tabular-nums">{c.total_energy?.toFixed(2) ?? "—"}</td>
                     <td className="td text-right tabular-nums">{c.total_cost ? `${c.currency ?? "INR"} ${c.total_cost.incl_vat.toFixed(2)}` : "—"}</td>

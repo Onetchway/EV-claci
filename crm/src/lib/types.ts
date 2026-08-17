@@ -986,7 +986,10 @@ export interface Driver {
 
 export interface Vehicle {
   id: string;
-  fleetId: string;
+  /** Unset for a vehicle registered directly by an EMSP user (see emspUserId) rather than owned by a fleet. */
+  fleetId?: string | null;
+  /** Set when this vehicle belongs to an individual (non-fleet) EMSP user who registered it themselves — mutually exclusive with fleetId in practice, though nothing enforces that at the type level. */
+  emspUserId?: string | null;
   regNumber: string;
   /** References ev-cars.ts's EV_CAR_CATALOG, or OTHER_CAR_ID for a manual entry. */
   carId: string;

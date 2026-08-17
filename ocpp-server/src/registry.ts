@@ -140,6 +140,12 @@ export const connections = new Map<string, Connection>();
 
 export function registerConnection(chargePointId: string, ws: WebSocket, protocol: OcppProtocolVersion): void {
   connections.set(chargePointId, { ws, connectedAt: Date.now(), protocol });
+  // Best-effort — the in-memory connections Map (protocolFor, above) is the
+  // source of truth commands.ts actually depends on; this write is purely so
+  // the CRM's charger detail page can show which dialect a charger
+  // negotiated without needing its own live connection to this instance.
+  db().collection(CHARGE_POINTS).doc(chargePointId).set({ protocol }, { merge: true })
+    .catch((err) => console.error(`[registry] failed to persist protocol for ${chargePointId}:`, err));
 }
 
 export function unregisterConnection(chargePointId: string): void {

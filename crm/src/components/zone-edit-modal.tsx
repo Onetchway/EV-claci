@@ -109,8 +109,7 @@ export function ZoneEditModal({
       slaHours: slaHours.trim() ? Number(slaHours) : undefined,
       revenueShareType: revenueShareType || undefined,
       revenueShareValue: revenueShareType && revenueShareValue.trim() ? Number(revenueShareValue) : undefined,
-      electricityCostPerKwh: (revenueShareType === "PROFIT_SHARE" || revenueShareType === "TIERED_HYBRID") && electricityCostPerKwh.trim()
-        ? Number(electricityCostPerKwh) : undefined,
+      electricityCostPerKwh: electricityCostPerKwh.trim() ? Number(electricityCostPerKwh) : undefined,
       revenueShareHybridPct: revenueShareType === "TIERED_HYBRID" && revenueShareHybridPct.trim() ? Number(revenueShareHybridPct) : undefined,
       revenueShareMinGuaranteeInr: revenueShareMinGuaranteeInr.trim() ? Number(revenueShareMinGuaranteeInr) : undefined,
       additionalRevenueShares: additionalRevenueShares.filter((r) => r.name.trim() && r.value > 0),
@@ -237,11 +236,14 @@ export function ZoneEditModal({
               />
             </Field>
           )}
-          {(revenueShareType === "PROFIT_SHARE" || revenueShareType === "TIERED_HYBRID") && (
-            <Field label="Electricity cost (₹/kWh)" hint="Subtracted from each session's revenue before the share is computed, so the host is paid on margin.">
-              <Input type="number" min={0} step="0.01" value={electricityCostPerKwh} onChange={(e) => setElectricityCostPerKwh(e.target.value)} placeholder="e.g. 8" />
-            </Field>
-          )}
+          <Field
+            label="Electricity rate (₹/kWh)"
+            hint={revenueShareType === "PROFIT_SHARE" || revenueShareType === "TIERED_HYBRID"
+              ? "Subtracted from each session's revenue before the share is computed, so the host is paid on margin."
+              : "What this site actually pays its DISCOM per kWh — informational unless a profit-based revenue share above uses it."}
+          >
+            <Input type="number" min={0} step="0.01" value={electricityCostPerKwh} onChange={(e) => setElectricityCostPerKwh(e.target.value)} placeholder="e.g. 8" />
+          </Field>
           {revenueShareType === "TIERED_HYBRID" && (
             <Field label="Upside share (%)" hint="On top of the guaranteed floor above, this % of whatever profit remains after electricity cost and the floor.">
               <Input type="number" min={0} max={100} value={revenueShareHybridPct} onChange={(e) => setRevenueShareHybridPct(e.target.value)} placeholder="e.g. 10" />

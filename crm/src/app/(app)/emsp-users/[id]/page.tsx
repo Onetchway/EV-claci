@@ -2,17 +2,20 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Car, Download, IndianRupee, Undo2, Zap } from "lucide-react";
+import { Car, Download, IndianRupee, Plus, Trash2, Undo2, Zap } from "lucide-react";
 
-import { useViewer } from "@/components/auth-provider";
+import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, useAsyncAction, useToast,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction, useToast,
 } from "@/components/ui";
 import { subscribeSessionsForWalletOwner, type ChargeSession } from "@/lib/db/chargers";
 import {
   getCorporateAccount, setEmspUserMonthlyCap, setEmspUserRfidToken, subscribeEmspUser, subscribeWalletTransactions,
 } from "@/lib/db/emsp-users";
-import { subscribeDriverForEmspUser, subscribeVehiclesForDriver } from "@/lib/db/fleets";
+import {
+  createVehicle, deleteVehicle, subscribeDriverForEmspUser, subscribeVehiclesForDriver, subscribeVehiclesForEmspUser,
+} from "@/lib/db/fleets";
+import { EV_CAR_CATALOG, findCar, OTHER_CAR_ID } from "@/lib/ev-cars";
 import { refundTopup } from "@/lib/razorpay-client";
 import { subscribeRfidTokens } from "@/lib/db/rfid";
 import { EMSP_USER_TYPE_LABEL } from "@/lib/constants";
@@ -22,12 +25,30 @@ import { downloadCsv, formatDateTime, formatINR } from "@/lib/utils";
 
 export default function EmspUserProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const { actor } = useAuth();
   const viewer = useViewer();
   const canManage = canManageEmspUsers(viewer);
   const canRefund = canManageSettlements(viewer);
   const { run, busy } = useAsyncAction();
   const { push } = useToast();
   const [refundingId, setRefundingId] = useState<string | null>(null);
+
+  const [vOpen, setVOpen] = useState(false);
+  const [vReg, setVReg] = useState("");
+  const [vCarId, setVCarId] = useState(EV_CAR_CATALOG[0]!.id);
+  const [vOtherMake, setVOtherMake] = useState("");
+  const [vOtherBattery, setVOtherBattery] = useState("");
+
+  async function submitVehicle() {
+    if (!actor || !vReg.trim()) return;
+    const car = findCar(vCarId);
+    const carLabel = car ? `${car.make} ${car.model}` : (vOtherMake.trim() || "Other");
+    const batteryKwh = car ? car.batteryKwh : (vOtherBattery.trim() ? Number(vOtherBattery) : undefined);
+    await run(async () => {
+      await createVehicle({ emspUserId: id, regNumber: vReg.trim().toUpperCase(), carId: vCarId, carLabel, batteryKwh, assignedDriverId: null }, actor);
+      setVReg(""); setVCarId(EV_CAR_CATALOG[0]!.id); setVOtherMake(""); setVOtherBattery(""); setVOpen(false);
+    }, "Vehicle added.");
+  }
 
   function exportWalletCsv() {
     downloadCsv(`wallet-report-${user?.name ?? id}.csv`, [
@@ -66,13 +87,15 @@ export default function EmspUserProfilePage() {
   const [account, setAccount] = useState<CorporateAccount | null>(null);
   const [rfidTokens, setRfidTokens] = useState<RfidToken[]>([]);
   const [driver, setDriver] = useState<Driver | null>(null);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [fleetVehicles, setFleetVehicles] = useState<Vehicle[]>([]);
+  const [ownVehicles, setOwnVehicles] = useState<Vehicle[]>([]);
   const [txns, setTxns] = useState<WalletTransaction[]>([]);
   const [sessions, setSessions] = useState<ChargeSession[]>([]);
 
   useEffect(() => subscribeEmspUser(id, setUser), [id]);
   useEffect(() => subscribeRfidTokens(setRfidTokens), []);
   useEffect(() => subscribeDriverForEmspUser(id, setDriver), [id]);
+  useEffect(() => subscribeVehiclesForEmspUser(id, setOwnVehicles), [id]);
 
   useEffect(() => {
     if (!user) { setAccount(null); return; }
@@ -94,9 +117,11 @@ export default function EmspUserProfilePage() {
   }, [user, walletOwnerType, walletOwnerId]);
 
   useEffect(() => {
-    if (!driver) { setVehicles([]); return; }
-    return subscribeVehiclesForDriver(driver.id, setVehicles);
+    if (!driver) { setFleetVehicles([]); return; }
+    return subscribeVehiclesForDriver(driver.id, setFleetVehicles);
   }, [driver]);
+
+  const vehicles = useMemo(() => [...ownVehicles, ...fleetVehicles], [ownVehicles, fleetVehicles]);
 
   const linkedToken = useMemo(() => rfidTokens.find((t) => t.id === user?.rfidTokenId) ?? null, [rfidTokens, user]);
   const walletBalance = account ? (account.walletBalanceInr ?? 0) : (user?.walletBalanceInr ?? 0);
@@ -236,23 +261,61 @@ export default function EmspUserProfilePage() {
           </div>
         </Card>
 
-        <Card title="Vehicles" actions={<Car className="h-4 w-4 text-ink-400" />}>
-          {!driver ? (
-            <p className="text-sm text-ink-500">Not linked to a fleet driver record.</p>
-          ) : vehicles.length === 0 ? (
-            <p className="text-sm text-ink-500">No vehicle assigned.</p>
+        <Card
+          title="Vehicles"
+          actions={canManage ? (
+            <Button size="sm" onClick={() => setVOpen(true)}><Plus className="h-3.5 w-3.5" /> Add</Button>
+          ) : (
+            <Car className="h-4 w-4 text-ink-400" />
+          )}
+        >
+          {vehicles.length === 0 ? (
+            <p className="text-sm text-ink-500">No vehicles registered{driver ? "" : " and not linked to a fleet driver record"}.</p>
           ) : (
             <div className="grid gap-2">
               {vehicles.map((v) => (
-                <div key={v.id} className="text-sm">
-                  <p className="font-medium">{v.regNumber}</p>
-                  <p className="text-ink-500">{v.carLabel}{v.batteryKwh ? ` · ${v.batteryKwh} kWh` : ""}</p>
+                <div key={v.id} className="flex items-center justify-between text-sm">
+                  <div>
+                    <p className="font-medium">{v.regNumber}</p>
+                    <p className="text-ink-500">{v.carLabel}{v.batteryKwh ? ` · ${v.batteryKwh} kWh` : ""}{v.fleetId ? " · fleet vehicle" : ""}</p>
+                  </div>
+                  {canManage && v.emspUserId === id && (
+                    <Button size="sm" onClick={() => void run(() => deleteVehicle(v.id))} title="Remove vehicle">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </Card>
       </div>
+
+      <Modal open={vOpen} onClose={() => setVOpen(false)} title="Add vehicle">
+        <div className="grid gap-3">
+          <Field label="Registration number">
+            <Input value={vReg} onChange={(e) => setVReg(e.target.value)} placeholder="e.g. DL 01 AB 1234" />
+          </Field>
+          <Field label="Vehicle model">
+            <Select
+              value={vCarId}
+              onChange={(e) => setVCarId(e.target.value)}
+              options={[...EV_CAR_CATALOG.map((c) => ({ value: c.id, label: `${c.make} ${c.model} (${c.batteryKwh} kWh)` })), { value: OTHER_CAR_ID, label: "Other — enter manually" }]}
+            />
+          </Field>
+          {vCarId === OTHER_CAR_ID && (
+            <>
+              <Field label="Make / model">
+                <Input value={vOtherMake} onChange={(e) => setVOtherMake(e.target.value)} placeholder="e.g. Custom EV" />
+              </Field>
+              <Field label="Battery (kWh)" hint="Optional">
+                <Input type="number" min={0} value={vOtherBattery} onChange={(e) => setVOtherBattery(e.target.value)} />
+              </Field>
+            </>
+          )}
+          <Button onClick={() => void submitVehicle()} loading={busy} disabled={!vReg.trim()}>Add vehicle</Button>
+        </div>
+      </Modal>
 
       <Card title="Charging sessions" subtitle={`${sessions.length} wallet-billed session${sessions.length === 1 ? "" : "s"}`} className="mt-4">
         {sessions.length === 0 ? (

@@ -41,6 +41,8 @@ export interface ChargePoint {
   /** Latest FirmwareStatusNotification reported after an UpdateFirmware command — e.g. Downloading/Downloaded/Installing/Installed/InstallationFailed. */
   firmwareStatus?: string | null;
   firmwareStatusAt?: TS;
+  /** The OCPP dialect this charger negotiated on its current (or most recent) connection — written by ocpp-server's registerConnection. Absent for a charger that's never connected since this field was added. */
+  protocol?: "ocpp2.0.1" | "ocpp1.6";
   connectors?: Record<string, ConnectorState>;
   /** Charger-level (not per-connector) availability, set from a ChangeAvailability command's Accepted result. */
   operationalStatus?: "OPERATIVE" | "INOPERATIVE";
@@ -149,6 +151,18 @@ export function subscribeChargePoint(
   return onSnapshot(
     doc(getDb(), CHARGE_POINTS, id),
     (snap) => cb(snap.exists() ? mapChargePoint(snap.id, snap.data()) : null),
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Every session currently ACTIVE, across all chargers — used to resolve a charger's live transactionId for a Remote Stop button. No orderBy, so no composite index needed. */
+export function subscribeActiveSessions(
+  cb: (rows: ChargeSession[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), CHARGE_SESSIONS), where("status", "==", "ACTIVE")),
+    (snap) => cb(snap.docs.map((d) => mapSession(d.id, d.data()))),
     (err) => onError?.(err as Error),
   );
 }

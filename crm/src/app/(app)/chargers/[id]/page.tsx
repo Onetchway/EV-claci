@@ -241,6 +241,7 @@ export default function ChargerDetailPage() {
                 </div>
               )}
               <div><dt className="text-xs text-ink-500">Firmware version</dt><dd className="text-ink-900">{live?.firmwareVersion ?? "—"}</dd></div>
+              <div><dt className="text-xs text-ink-500">OCPP version</dt><dd className="text-ink-900">{live?.protocol === "ocpp1.6" ? "OCPP 1.6J" : live?.protocol === "ocpp2.0.1" ? "OCPP 2.0.1" : "—"}</dd></div>
               <div><dt className="text-xs text-ink-500">Hardware version</dt><dd className="text-ink-900">{reg.hardwareVersion || "—"}</dd></div>
               <div><dt className="text-xs text-ink-500">Access</dt><dd className="text-ink-900">{reg.accessType === "PRIVATE" ? "Private" : "Public"} · {reg.open24Hours === false ? (reg.openingHours || "Custom hours") : "Open 24 hours"}</dd></div>
               <div><dt className="text-xs text-ink-500">Heartbeat interval</dt><dd className="text-ink-900">{reg.heartbeatIntervalSec ?? 300}s</dd></div>

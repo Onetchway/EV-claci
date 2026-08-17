@@ -326,7 +326,7 @@ export default function QrChargePage() {
             <div className="p-6">
               {info.connectors.length > 0 && (
                 <div className="grid gap-1.5">
-                  {info.connectors.map((c) => (
+                  {(evseId ? info.connectors.filter((c) => String(c.id) === String(evseId)) : info.connectors).map((c) => (
                     <div key={c.id} className="flex items-center justify-between rounded-xl bg-ink-50 px-3.5 py-2 text-sm">
                       <span className="font-medium text-ink-700">Connector {c.id}</span>
                       <span className={`flex items-center gap-1.5 text-xs font-semibold ${CONNECTOR_STATUS_TEXT[c.status] ?? "text-ink-500"}`}>

@@ -124,6 +124,19 @@ export function subscribeDriverForEmspUser(
   );
 }
 
+/** Vehicles an individual EMSP user registered themselves — no fleet/driver involved. */
+export function subscribeVehiclesForEmspUser(
+  emspUserId: string,
+  cb: (rows: Vehicle[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), VEHICLES), where("emspUserId", "==", emspUserId)),
+    (snap) => cb(snap.docs.map((d) => mapVehicle(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export function subscribeVehiclesForDriver(
   driverId: string,
   cb: (rows: Vehicle[]) => void,

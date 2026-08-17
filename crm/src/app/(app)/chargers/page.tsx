@@ -25,16 +25,16 @@ import {
   type ChargerRegistration, type ChargerRegistrationDraft, type ConnectorTypeName,
 } from "@/lib/db/charger-registry";
 import {
-  subscribeChargePoints, type ChargePoint, type ConnectorStatus,
+  subscribeActiveSessions, subscribeChargePoints, type ChargePoint, type ChargeSession, type ConnectorStatus,
 } from "@/lib/db/chargers";
 import { subscribeLeads } from "@/lib/db/leads";
 import { sendChargerCommand } from "@/lib/ocpp-commands";
-import { addRfidToken, deleteRfidToken, setRfidTokenScope, setRfidTokenStatus, subscribeRfidTokens } from "@/lib/db/rfid";
+import { subscribeRfidTokens } from "@/lib/db/rfid";
 import { createTariff, setTariffActive, TARIFFS, updateTariff } from "@/lib/db/tariffs";
 import { subscribeTickets } from "@/lib/db/tickets";
 import { subscribeZones } from "@/lib/db/zones";
 import { INDIAN_STATES, LEAD_TYPE_LABEL, LEAD_TYPES, type LeadType } from "@/lib/constants";
-import { canManageChargers, canManageRfid, canManageTariffs } from "@/lib/permissions";
+import { canManageChargers, canManageTariffs } from "@/lib/permissions";
 import type { Lead, RevenueShareType, RfidToken, Tariff, Ticket, Zone } from "@/lib/types";
 import { cn, formatDateTime, formatINR } from "@/lib/utils";
 
@@ -105,11 +105,22 @@ function ConnectionDetails({ serverHost, chargerId, connectionToken }: { serverH
   );
 }
 
-/** The driver-facing "Scan, Pay, Charge" QR — print/stick this on the charger. Points at the public /charge page, not the OCPP connection URL above. */
-function ChargingQr({ chargerId }: { chargerId: string }) {
+/**
+ * The driver-facing "Scan, Pay, Charge" QR — print/stick this on the
+ * charger (or on each individual connector for a multi-gun charger).
+ * Points at the public /charge page, not the OCPP connection URL above.
+ * When a charger has more than one connector, a selector lets you generate
+ * a QR scoped to one specific connector (?evse=N) so a driver scanning the
+ * QR on connector 2 lands straight on connector 2 rather than having to
+ * pick it themselves after scanning.
+ */
+function ChargingQr({ chargerId, connectorIds }: { chargerId: string; connectorIds: number[] }) {
   const [qr, setQr] = useState<string | null>(null);
+  const [connectorId, setConnectorId] = useState<number | "">("");
   const { push } = useToast();
-  const url = typeof window !== "undefined" ? `${window.location.origin}/charge/${chargerId}` : "";
+  const url = typeof window !== "undefined"
+    ? `${window.location.origin}/charge/${chargerId}${connectorId ? `?evse=${connectorId}` : ""}`
+    : "";
 
   useEffect(() => {
     if (!url) return;
@@ -122,6 +133,18 @@ function ChargingQr({ chargerId }: { chargerId: string }) {
 
   return (
     <div className="flex flex-col items-center gap-3 text-center">
+      {connectorIds.length > 1 && (
+        <div className="w-full">
+          <Select
+            value={String(connectorId)}
+            onChange={(e) => setConnectorId(e.target.value ? Number(e.target.value) : "")}
+            options={[
+              { value: "", label: "Whole charger (driver picks a connector)" },
+              ...connectorIds.map((id) => ({ value: String(id), label: `Connector ${id} only` })),
+            ]}
+          />
+        </div>
+      )}
       {qr ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={qr} alt="Driver charging QR code" className="h-[220px] w-[220px] rounded-lg ring-1 ring-ink-200" />
@@ -140,7 +163,8 @@ function ChargingQr({ chargerId }: { chargerId: string }) {
         </button>
       </div>
       <p className="text-xs text-ink-500">
-        A driver scans this to pay and start a session with no app — Scan, Pay, Charge. Print it and stick it on the charger.
+        A driver scans this to pay and start a session with no app — Scan, Pay, Charge.
+        {connectorId ? " This one is scoped to a single connector." : ""} Print it and stick it on the charger{connectorIds.length > 1 ? " (or on the specific connector)" : ""}.
       </p>
     </div>
   );
@@ -153,6 +177,7 @@ export default function ChargersPage() {
   const canManage = canManageChargers(viewer);
 
   const [points, setPoints] = useState<ChargePoint[]>([]);
+  const [activeSessions, setActiveSessions] = useState<ChargeSession[]>([]);
   const [registry, setRegistry] = useState<ChargerRegistration[]>([]);
   const [rfidTokens, setRfidTokens] = useState<RfidToken[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
@@ -208,12 +233,6 @@ export default function ChargersPage() {
   const [logFor, setLogFor] = useState<string | null>(null);
   const [logUrl, setLogUrl] = useState("");
 
-  const [newTokenId, setNewTokenId] = useState("");
-  const [newTokenLabel, setNewTokenLabel] = useState("");
-  const [newTokenScope, setNewTokenScope] = useState<"GLOBAL" | "ZONE" | "CHARGER">("GLOBAL");
-  const [newTokenZoneId, setNewTokenZoneId] = useState("");
-  const [newTokenChargerId, setNewTokenChargerId] = useState("");
-  const [editingScopeId, setEditingScopeId] = useState<string | null>(null);
 
   const { run, busy: actionBusy } = useAsyncAction();
   const { push } = useToast();
@@ -223,6 +242,7 @@ export default function ChargersPage() {
     [],
   );
   useEffect(() => subscribeChargerRegistry(setRegistry), []);
+  useEffect(() => subscribeActiveSessions(setActiveSessions), []);
   useEffect(() => subscribeRfidTokens(setRfidTokens), []);
   useEffect(() => subscribeZones(setZones), []);
   useEffect(() => subscribeTickets({}, (rows) => setOpenTickets(rows.filter((t) => t.status === "OPEN" || t.status === "IN_PROGRESS"))), []);
@@ -320,23 +340,11 @@ export default function ChargersPage() {
     setLogUrl("");
   }
 
-  async function addToken() {
-    if (!actor || !newTokenId.trim() || !newTokenLabel.trim()) return;
-    await run(async () => {
-      await addRfidToken(newTokenId, newTokenLabel, actor, {
-        activationScope: newTokenScope,
-        scopeZoneId: newTokenScope === "ZONE" ? newTokenZoneId || null : null,
-        scopeChargerIds: newTokenScope === "CHARGER" && newTokenChargerId ? [newTokenChargerId] : [],
-      });
-      setNewTokenId("");
-      setNewTokenLabel("");
-      setNewTokenScope("GLOBAL");
-      setNewTokenZoneId("");
-      setNewTokenChargerId("");
-    }, "RFID token added.");
-  }
-
   const pointByChargerId = useMemo(() => new Map(points.map((p) => [p.chargePointId ?? p.id, p])), [points]);
+  const activeTransactionByCharger = useMemo(
+    () => new Map(activeSessions.map((s) => [s.chargePointId, s.transactionId])),
+    [activeSessions],
+  );
   const zoneName = useMemo(() => new Map(zones.map((z) => [z.id, z.name])), [zones]);
   const zoneById = useMemo(() => new Map(zones.map((z) => [z.id, z])), [zones]);
   const openTicketChargerIds = useMemo(() => new Set(openTickets.map((t) => t.chargePointId)), [openTickets]);
@@ -673,7 +681,7 @@ export default function ChargersPage() {
                             className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
                             title="Installer setup only — OCPP connection URL for the charger's own config portal, not for drivers"
                           >
-                            <Settings2 className="h-4 w-4" />
+                            <QrCode className="h-4 w-4" />
                           </button>
                           {canManage && (
                             <button
@@ -804,11 +812,33 @@ export default function ChargersPage() {
                   </Button>
                   <Button
                     size="sm"
+                    disabled={p.status !== "ONLINE" || !activeTransactionByCharger.get(p.chargePointId) || commandBusy === p.chargePointId + "Remote stop"}
+                    title={activeTransactionByCharger.get(p.chargePointId) ? undefined : "No active session on this charger"}
+                    onClick={() => void runCommand(p.chargePointId, "Remote stop", () =>
+                      sendChargerCommand(p.chargePointId, "RequestStopTransaction", {
+                        transactionId: activeTransactionByCharger.get(p.chargePointId),
+                      }))}
+                  >
+                    Remote stop
+                  </Button>
+                  <Button
+                    size="sm"
                     disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Reset"}
                     onClick={() => void runCommand(p.chargePointId, "Reset", () =>
                       sendChargerCommand(p.chargePointId, "Reset", { type: "OnIdle" }))}
                   >
                     <RotateCcw className="h-3.5 w-3.5" /> Reset
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Emergency stop"}
+                    onClick={() => {
+                      if (!window.confirm(`Emergency stop ${p.chargePointId}? This power-cycles the charger immediately and interrupts any session in progress — use Remote stop for a graceful stop instead.`)) return;
+                      void runCommand(p.chargePointId, "Emergency stop", () =>
+                        sendChargerCommand(p.chargePointId, "Reset", { type: "Immediate" }));
+                    }}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Emergency stop
                   </Button>
                   <Button
                     size="sm"
@@ -856,169 +886,6 @@ export default function ChargersPage() {
           ))}
         </div>
       )}
-
-      <Card
-        title="RFID tokens"
-        subtitle={rfidTokens.length === 0
-          ? "No tokens registered — every tag is currently accepted (open mode)."
-          : "Allow-list enforced — only ACTIVE tokens below can start a session."}
-        className="mt-4"
-      >
-        {canManageRfid(viewer) && (
-          <div className="mb-4 flex flex-wrap items-end gap-2">
-            <Field label="Tag ID">
-              <Input value={newTokenId} onChange={(e) => setNewTokenId(e.target.value)} placeholder="e.g. 04A1B2C3" />
-            </Field>
-            <Field label="Label">
-              <Input value={newTokenLabel} onChange={(e) => setNewTokenLabel(e.target.value)} placeholder="e.g. Driver name / card #" />
-            </Field>
-            <Field label="Activation scope">
-              <Select
-                value={newTokenScope}
-                onChange={(e) => setNewTokenScope(e.target.value as "GLOBAL" | "ZONE" | "CHARGER")}
-                options={[
-                  { value: "GLOBAL", label: "Any charger" },
-                  { value: "ZONE", label: "Site only" },
-                  { value: "CHARGER", label: "Specific charger" },
-                ]}
-              />
-            </Field>
-            {newTokenScope === "ZONE" && (
-              <Field label="Site">
-                <Select
-                  value={newTokenZoneId}
-                  onChange={(e) => setNewTokenZoneId(e.target.value)}
-                  options={[{ value: "", label: "Select site…" }, ...zones.map((z) => ({ value: z.id, label: z.name }))]}
-                />
-              </Field>
-            )}
-            {newTokenScope === "CHARGER" && (
-              <Field label="Charger">
-                <Select
-                  value={newTokenChargerId}
-                  onChange={(e) => setNewTokenChargerId(e.target.value)}
-                  options={[{ value: "", label: "Select charger…" }, ...registry.map((r) => ({ value: r.chargerId, label: r.label }))]}
-                />
-              </Field>
-            )}
-            <Button
-              loading={actionBusy}
-              disabled={
-                !newTokenId.trim()
-                || !newTokenLabel.trim()
-                || (newTokenScope === "ZONE" && !newTokenZoneId)
-                || (newTokenScope === "CHARGER" && !newTokenChargerId)
-              }
-              onClick={() => void addToken()}
-            >
-              <Plus className="h-4 w-4" /> Add token
-            </Button>
-          </div>
-        )}
-        {rfidTokens.length === 0 ? (
-          <p className="text-sm text-ink-500">Nothing registered yet.</p>
-        ) : (
-          <div className="overflow-x-auto scroll-thin">
-            <table className="w-full">
-              <thead className="border-b border-ink-200">
-                <tr><th className="th">Tag ID</th><th className="th">Label</th><th className="th">Status</th><th className="th">Scope</th>{canManageRfid(viewer) && <th className="th text-right">Actions</th>}</tr>
-              </thead>
-              <tbody className="divide-y divide-ink-100">
-                {rfidTokens.map((t) => {
-                  const scope = t.activationScope ?? "GLOBAL";
-                  const scopeLabel = scope === "ZONE"
-                    ? `Site: ${t.scopeZoneId ? zoneName.get(t.scopeZoneId) ?? "—" : "—"}`
-                    : scope === "CHARGER"
-                      ? `Charger: ${(t.scopeChargerIds ?? [])[0] ?? "—"}`
-                      : "Any charger";
-                  return (
-                    <tr key={t.id} className="hover:bg-ink-50">
-                      <td className="td font-mono text-xs">{t.idToken}</td>
-                      <td className="td">{t.label}</td>
-                      <td className="td">
-                        <Badge className={t.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-rose-100 text-rose-800 ring-rose-200"}>
-                          {t.status}
-                        </Badge>
-                      </td>
-                      <td className="td">
-                        {editingScopeId === t.id ? (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <Select
-                              value={scope}
-                              onChange={(e) => {
-                                const nextScope = e.target.value as "GLOBAL" | "ZONE" | "CHARGER";
-                                void run(() => setRfidTokenScope(t.id, {
-                                  activationScope: nextScope,
-                                  scopeZoneId: nextScope === "ZONE" ? t.scopeZoneId ?? null : null,
-                                  scopeChargerIds: nextScope === "CHARGER" ? t.scopeChargerIds ?? [] : [],
-                                }));
-                              }}
-                              options={[
-                                { value: "GLOBAL", label: "Any charger" },
-                                { value: "ZONE", label: "Site only" },
-                                { value: "CHARGER", label: "Specific charger" },
-                              ]}
-                            />
-                            {scope === "ZONE" && (
-                              <Select
-                                value={t.scopeZoneId ?? ""}
-                                onChange={(e) => void run(() => setRfidTokenScope(t.id, {
-                                  activationScope: "ZONE", scopeZoneId: e.target.value || null, scopeChargerIds: [],
-                                }))}
-                                options={[{ value: "", label: "Select site…" }, ...zones.map((z) => ({ value: z.id, label: z.name }))]}
-                              />
-                            )}
-                            {scope === "CHARGER" && (
-                              <Select
-                                value={(t.scopeChargerIds ?? [])[0] ?? ""}
-                                onChange={(e) => void run(() => setRfidTokenScope(t.id, {
-                                  activationScope: "CHARGER", scopeZoneId: null, scopeChargerIds: e.target.value ? [e.target.value] : [],
-                                }))}
-                                options={[{ value: "", label: "Select charger…" }, ...registry.map((r) => ({ value: r.chargerId, label: r.label }))]}
-                              />
-                            )}
-                            <Button size="sm" onClick={() => setEditingScopeId(null)}>Done</Button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="text-left text-xs text-ink-600 underline decoration-dotted disabled:no-underline disabled:cursor-default"
-                            disabled={!canManageRfid(viewer)}
-                            onClick={() => canManageRfid(viewer) && setEditingScopeId(t.id)}
-                          >
-                            {scopeLabel}
-                          </button>
-                        )}
-                      </td>
-                      {canManageRfid(viewer) && (
-                        <td className="td text-right">
-                          <div className="flex justify-end gap-1.5">
-                            <Button
-                              size="sm"
-                              onClick={() => void run(() => setRfidTokenStatus(t.id, t.status === "ACTIVE" ? "BLOCKED" : "ACTIVE"))}
-                            >
-                              {t.status === "ACTIVE" ? "Block" : "Unblock"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                if (!window.confirm(`Delete tag ${t.label}? This can't be undone.`)) return;
-                                void run(() => deleteRfidToken(t.id), "Token deleted.");
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
 
       <Modal
         open={!!startingFor}
@@ -1545,7 +1412,15 @@ export default function ChargersPage() {
         title="Driver charging QR"
         footer={<Button onClick={() => setChargingQrForId(null)}>Close</Button>}
       >
-        {chargingQrForId && <ChargingQr chargerId={chargingQrForId} />}
+        {chargingQrForId && (
+          <ChargingQr
+            chargerId={chargingQrForId}
+            connectorIds={(() => {
+              const reg = registry.find((r) => r.chargerId === chargingQrForId);
+              return reg ? [1, ...(reg.connectors ?? []).map((c) => c.connectorId)] : [1];
+            })()}
+          />
+        )}
       </Modal>
 
       <Modal

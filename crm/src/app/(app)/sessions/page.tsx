@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Battery, Search, Square } from "lucide-react";
+import { Battery, Download, Search, Square } from "lucide-react";
 
 import { useViewer } from "@/components/auth-provider";
 import {
@@ -15,7 +15,7 @@ import { sendChargerCommand } from "@/lib/ocpp-commands";
 import { canManageChargers, canVerifyPayment } from "@/lib/permissions";
 import { applySessionDiscount } from "@/lib/sessions-client";
 import type { Zone } from "@/lib/types";
-import { formatDateTime, formatINR } from "@/lib/utils";
+import { downloadCsv, formatDateTime, formatINR } from "@/lib/utils";
 
 function wh(v?: number): string {
   if (v == null) return "—";
@@ -131,11 +131,29 @@ export default function SessionsPage() {
     }
   }
 
+  function exportCsv() {
+    downloadCsv(`livanto-sessions-${new Date().toISOString().slice(0, 10)}.csv`, [
+      ["Charge point", "Status", "Started", "Duration", "User", "Vehicle", "Energy delivered (kWh)", "Cost (INR)", "Paid"],
+      ...filtered.map((s) => [
+        s.chargePointId, s.status, formatDateTime(s.startedAt), durationMinutes(s),
+        s.walletOwnerName ?? "", s.vehicleRegNumber ?? "",
+        s.energyDeliveredWh != null ? (s.energyDeliveredWh / 1000).toFixed(2) : "",
+        s.totalCostInr != null ? String(s.totalCostInr) : "",
+        s.walletDebited ? "Yes" : "No",
+      ]),
+    ]);
+  }
+
   return (
     <>
       <PageHeader
         title="Sessions"
         description="Every live and recent charging session across the fleet, newest first."
+        actions={(
+          <Button onClick={exportCsv} disabled={!filtered.length}>
+            <Download className="h-4 w-4" /> Export
+          </Button>
+        )}
       />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">

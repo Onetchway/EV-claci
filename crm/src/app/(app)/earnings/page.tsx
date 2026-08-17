@@ -6,28 +6,42 @@ import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 
+import { DateRangeFilter } from "@/components/date-range-filter";
 import { Card, EmptyState, PageHeader, Spinner, StatCard } from "@/components/ui";
 import { subscribeSessionsSince, type ChargeSession } from "@/lib/db/chargers";
+import { defaultDateRangeState, rangeLabel, rangeSince, rangeUntil, type DateRangeState } from "@/lib/date-range";
 import { formatCompactINR, formatINR } from "@/lib/utils";
 
-const RANGE_DAYS = 30;
+function tsMillis(ts: unknown): number | null {
+  return (ts as { toMillis?: () => number } | undefined)?.toMillis?.() ?? null;
+}
 
-function dayKey(ts: unknown): string | null {
-  const millis = (ts as { toMillis?: () => number } | undefined)?.toMillis?.();
+function trendKey(ts: unknown, monthly: boolean): string | null {
+  const millis = tsMillis(ts);
   if (!millis) return null;
-  return new Date(millis).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  return new Date(millis).toLocaleDateString("en-IN", monthly ? { month: "short", year: "2-digit" } : { day: "2-digit", month: "short" });
 }
 
 export default function EarningsPage() {
+  const [range, setRange] = useState<DateRangeState>(defaultDateRangeState());
   const [sessions, setSessions] = useState<ChargeSession[] | null>(null);
 
-  useEffect(() => {
-    const since = new Date();
-    since.setDate(since.getDate() - RANGE_DAYS);
-    return subscribeSessionsSince(since, setSessions);
-  }, []);
+  useEffect(() => subscribeSessionsSince(rangeSince(range), setSessions), [range.preset, range.year, range.customFrom]);
 
-  const billed = useMemo(() => (sessions ?? []).filter((s) => s.totalCostInr != null), [sessions]);
+  const until = useMemo(() => rangeUntil(range), [range.preset, range.year, range.customTo]);
+  const inRange = useMemo(() => {
+    if (!until) return sessions ?? [];
+    const untilMs = until.getTime();
+    return (sessions ?? []).filter((s) => {
+      const ms = tsMillis(s.endedAt ?? s.lastUpdateAt);
+      return ms == null || ms < untilMs;
+    });
+  }, [sessions, until]);
+
+  const monthly = range.preset === "year" || (range.preset === "custom" && !!range.customFrom && !!range.customTo
+    && (new Date(range.customTo).getTime() - new Date(range.customFrom).getTime()) > 1000 * 60 * 60 * 24 * 120);
+
+  const billed = useMemo(() => inRange.filter((s) => s.totalCostInr != null), [inRange]);
 
   const totals = useMemo(() => {
     const revenue = billed.reduce((a, s) => a + (s.totalCostInr ?? 0), 0);
@@ -37,19 +51,19 @@ export default function EarningsPage() {
       energyKwh: energyWh / 1000,
       sessionCount: billed.length,
       avgPerSession: billed.length ? revenue / billed.length : 0,
-      unbilledCount: (sessions ?? []).length - billed.length,
+      unbilledCount: inRange.length - billed.length,
     };
-  }, [billed, sessions]);
+  }, [billed, inRange]);
 
   const trend = useMemo(() => {
-    const byDay = new Map<string, number>();
+    const byPeriod = new Map<string, number>();
     for (const s of billed) {
-      const key = dayKey(s.endedAt ?? s.lastUpdateAt);
+      const key = trendKey(s.endedAt ?? s.lastUpdateAt, monthly);
       if (!key) continue;
-      byDay.set(key, (byDay.get(key) ?? 0) + (s.totalCostInr ?? 0));
+      byPeriod.set(key, (byPeriod.get(key) ?? 0) + (s.totalCostInr ?? 0));
     }
-    return Array.from(byDay.entries()).map(([day, revenue]) => ({ day, revenue }));
-  }, [billed]);
+    return Array.from(byPeriod.entries()).map(([day, revenue]) => ({ day, revenue }));
+  }, [billed, monthly]);
 
   const topChargers = useMemo(() => {
     const byCharger = new Map<string, { revenue: number; energyWh: number; sessions: number }>();
@@ -70,15 +84,17 @@ export default function EarningsPage() {
     <>
       <PageHeader
         title="Earnings"
-        description={`Revenue from billed charging sessions over the last ${RANGE_DAYS} days.`}
+        description={`Revenue from billed charging sessions over ${rangeLabel(range)}. Filter below by preset range, calendar year, or a custom date range.`}
       />
+
+      <DateRangeFilter state={range} onChange={setRange} />
 
       {sessions === null ? (
         <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>
       ) : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard label="Revenue (30d)" value={formatCompactINR(totals.revenue)} icon={<IndianRupee className="h-4 w-4" />} tone="positive" />
+            <StatCard label="Revenue" value={formatCompactINR(totals.revenue)} icon={<IndianRupee className="h-4 w-4" />} tone="positive" />
             <StatCard label="Energy delivered" value={`${totals.energyKwh.toFixed(1)} kWh`} icon={<Zap className="h-4 w-4" />} />
             <StatCard label="Billed sessions" value={totals.sessionCount} icon={<Battery className="h-4 w-4" />} sub={totals.unbilledCount ? `${totals.unbilledCount} unbilled (no tariff matched)` : undefined} />
             <StatCard label="Avg. revenue / session" value={formatINR(totals.avgPerSession)} icon={<TrendingUp className="h-4 w-4" />} />
