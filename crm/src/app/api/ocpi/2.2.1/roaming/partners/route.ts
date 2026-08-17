@@ -20,7 +20,10 @@ export async function POST(req: Request) {
     await requireCaller(req, "ADMIN");
     const { businessName, versionsUrl, theirTokenA } = Body.parse(await req.json());
     const base = publicOrigin(req);
-    const partner = await registerWithPartner(businessName, versionsUrl, theirTokenA, base);
+    // Defense in depth against a token pasted with embedded whitespace
+    // (e.g. copied across a line-wrapped display) — a real token never
+    // legitimately contains any, so strip it all rather than just the ends.
+    const partner = await registerWithPartner(businessName, versionsUrl, theirTokenA.replace(/\s+/g, ""), base);
     return NextResponse.json({ ok: true, partner });
   } catch (err) {
     if (err instanceof z.ZodError) {

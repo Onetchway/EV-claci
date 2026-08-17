@@ -66,7 +66,11 @@ export default function RoamingPage() {
     if (!businessName.trim() || !versionsUrl.trim() || !theirTokenA.trim()) return;
     setBusy(true);
     try {
-      await registerRoamingPartner({ businessName: businessName.trim(), versionsUrl: versionsUrl.trim(), theirTokenA: theirTokenA.trim() });
+      // A token pasted from a UI that wraps it across lines can pick up a
+      // newline or extra whitespace in the middle of the string — trim()
+      // alone only strips the ends, so strip all whitespace since a real
+      // token never legitimately contains any.
+      await registerRoamingPartner({ businessName: businessName.trim(), versionsUrl: versionsUrl.trim(), theirTokenA: theirTokenA.replace(/\s+/g, "") });
       push("Registered with partner.", "success");
       setAddOpen(false);
       setBusinessName(""); setVersionsUrl(""); setTheirTokenA("");
