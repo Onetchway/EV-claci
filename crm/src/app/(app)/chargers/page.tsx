@@ -661,19 +661,19 @@ export default function ChargersPage() {
                           </Link>
                           <button
                             type="button"
-                            onClick={() => setViewingId(r.id)}
+                            onClick={() => setChargingQrForId(r.chargerId)}
                             className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
-                            title="View connection details"
+                            title="Driver charging QR — print this and stick it on the charger"
                           >
-                            <QrCode className="h-4 w-4" />
+                            <Smartphone className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
-                            onClick={() => setChargingQrForId(r.chargerId)}
+                            onClick={() => setViewingId(r.id)}
                             className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800"
-                            title="Driver charging QR (app-less)"
+                            title="Installer setup only — OCPP connection URL for the charger's own config portal, not for drivers"
                           >
-                            <Smartphone className="h-4 w-4" />
+                            <Settings2 className="h-4 w-4" />
                           </button>
                           {canManage && (
                             <button
@@ -1532,7 +1532,8 @@ export default function ChargersPage() {
       <Modal
         open={!!viewingReg}
         onClose={() => setViewingId(null)}
-        title={viewingReg ? `Connect ${viewingReg.label}` : ""}
+        title={viewingReg ? `Installer setup — ${viewingReg.label}` : ""}
+        description="One-time technical setup, not for drivers — this is the wss:// URL the physical charger's own firmware connects to. Paste it into the charger's Central System URL setting during installation. Use the Driver charging QR (phone icon) for the customer-facing link instead."
         footer={<Button onClick={() => setViewingId(null)}>Close</Button>}
       >
         {viewingReg && <ConnectionDetails serverHost={settings.ocpp.serverHost} chargerId={viewingReg.chargerId} connectionToken={viewingReg.connectionToken} />}
