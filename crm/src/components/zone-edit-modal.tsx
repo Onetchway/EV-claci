@@ -218,6 +218,7 @@ export function ZoneEditModal({
               options={[
                 { value: "PERCENT", label: "% of each session's revenue" },
                 { value: "FIXED", label: "Flat ₹ per session" },
+                { value: "PER_KWH", label: "Per unit — ₹ per kWh delivered" },
                 { value: "PROFIT_SHARE", label: "% of profit (revenue minus electricity cost)" },
                 { value: "TIERED_HYBRID", label: "Flat floor + % of remaining profit" },
               ]}
@@ -225,14 +226,15 @@ export function ZoneEditModal({
             />
           </Field>
           {revenueShareType && (
-            <Field label={revenueShareType === "PERCENT" || revenueShareType === "PROFIT_SHARE" ? "Share (%)" : revenueShareType === "TIERED_HYBRID" ? "Guaranteed floor per session (₹)" : "Flat amount per session (₹)"}>
+            <Field label={revenueShareType === "PERCENT" || revenueShareType === "PROFIT_SHARE" ? "Share (%)" : revenueShareType === "TIERED_HYBRID" ? "Guaranteed floor per session (₹)" : revenueShareType === "PER_KWH" ? "Rate (₹ per kWh)" : "Flat amount per session (₹)"}>
               <Input
                 type="number"
                 min={0}
+                step={revenueShareType === "PER_KWH" ? "0.01" : undefined}
                 max={revenueShareType === "PERCENT" || revenueShareType === "PROFIT_SHARE" ? 100 : undefined}
                 value={revenueShareValue}
                 onChange={(e) => setRevenueShareValue(e.target.value)}
-                placeholder={revenueShareType === "PERCENT" || revenueShareType === "PROFIT_SHARE" ? "e.g. 15" : "e.g. 20"}
+                placeholder={revenueShareType === "PERCENT" || revenueShareType === "PROFIT_SHARE" ? "e.g. 15" : revenueShareType === "PER_KWH" ? "e.g. 2" : "e.g. 20"}
               />
             </Field>
           )}
@@ -281,7 +283,7 @@ export function ZoneEditModal({
                     <Select
                       value={r.type}
                       onChange={(e) => setAdditionalRevenueShares((prev) => prev.map((row, ri) => (ri === i ? { ...row, type: e.target.value as RevenueShareType } : row)))}
-                      options={[{ value: "PERCENT", label: "%" }, { value: "FIXED", label: "₹ flat" }]}
+                      options={[{ value: "PERCENT", label: "%" }, { value: "FIXED", label: "₹ flat" }, { value: "PER_KWH", label: "₹/kWh" }]}
                     />
                     <Input
                       className="w-24"

@@ -202,7 +202,9 @@ export default function SettlementsPage() {
                     <td className="td text-ink-600">{r.chargePointId ?? "—"}</td>
                     <td className="td text-ink-600">{formatDateTime(r.createdAt)}</td>
                     <td className="td text-right tabular-nums text-ink-600">{formatINR(r.grossAmountInr)}</td>
-                    <td className="td text-right tabular-nums text-ink-600">{r.shareType === "PERCENT" ? `${r.shareRate}%` : formatINR(r.shareRate)}</td>
+                    <td className="td text-right tabular-nums text-ink-600">
+                      {r.shareType === "PERCENT" ? `${r.shareRate}%` : r.shareType === "PER_KWH" ? `${formatINR(r.shareRate)}/kWh` : formatINR(r.shareRate)}
+                    </td>
                     <td className="td text-right tabular-nums font-medium">{formatINR(r.shareAmountInr)}</td>
                     <td className="td">
                       <Badge className={r.status === "PAID" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-amber-100 text-amber-800 ring-amber-200"}>

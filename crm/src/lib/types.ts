@@ -671,7 +671,7 @@ export interface Zone {
   slaHours?: number;
   /** Whether — and how — each session's total (post-GST) revenue is shared with this site's host/owner. Unset type = no revenue share, nothing accrues. */
   revenueShareType?: RevenueShareType;
-  /** % (0-100) for PERCENT/PROFIT_SHARE, flat ₹ per session for FIXED, flat ₹ per session as the guaranteed floor for TIERED_HYBRID. */
+  /** % (0-100) for PERCENT/PROFIT_SHARE, flat ₹ per session for FIXED, flat ₹ per session as the guaranteed floor for TIERED_HYBRID, ₹ per kWh delivered for PER_KWH. */
   revenueShareValue?: number;
   /** Only used when revenueShareType is PROFIT_SHARE or TIERED_HYBRID — subtracted (× kWh delivered) from a session's total before the share is computed, so the host is paid on margin, not raw revenue. Unset/0 = no deduction. */
   electricityCostPerKwh?: number;
@@ -712,8 +712,10 @@ export interface Zone {
  * of whatever profit remains after that floor and electricity cost — a
  * guaranteed-minimum-plus-upside deal computed per session, distinct from
  * the monthly revenueShareMinGuaranteeInr top-up on Zone.
+ * PER_KWH: a flat ₹ amount (revenueShareValue) × kWh delivered — a per-unit
+ * lease/royalty rate rather than a cut of revenue or profit.
  */
-export type RevenueShareType = "PERCENT" | "FIXED" | "PROFIT_SHARE" | "TIERED_HYBRID";
+export type RevenueShareType = "PERCENT" | "FIXED" | "PROFIT_SHARE" | "TIERED_HYBRID" | "PER_KWH";
 export type RevenueShareStatus = "PENDING" | "PAID";
 
 export interface AdditionalRevenueShare {

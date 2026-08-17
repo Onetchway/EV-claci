@@ -806,7 +806,11 @@ export default function ChargersPage() {
                   <Button
                     size="sm"
                     disabled={p.status !== "ONLINE" || commandBusy === p.chargePointId + "Remote start"}
-                    onClick={() => setStartingFor(p.chargePointId)}
+                    onClick={() => {
+                      const firstActive = rfidTokens.find((t) => t.status === "ACTIVE");
+                      setStartIdToken(firstActive?.idToken ?? "STAFF-REMOTE-START");
+                      setStartingFor(p.chargePointId);
+                    }}
                   >
                     Remote start
                   </Button>
@@ -907,13 +911,20 @@ export default function ChargersPage() {
         )}
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="RFID / ID token" required className="sm:col-span-2">
+          <Field
+            label="RFID / ID token"
+            required
+            className="sm:col-span-2"
+            hint="Defaults to a staff test tag so you can just hit Start — change it only if you need this session attributed to a specific registered card."
+          >
             {rfidTokens.filter((t) => t.status === "ACTIVE").length > 0 ? (
               <Select
                 value={startIdToken}
                 onChange={(e) => setStartIdToken(e.target.value)}
-                options={rfidTokens.filter((t) => t.status === "ACTIVE").map((t) => ({ value: t.idToken, label: `${t.label} (${t.idToken})` }))}
-                placeholder="Choose a registered tag"
+                options={[
+                  { value: "STAFF-REMOTE-START", label: "Staff test tag (not billed to any card)" },
+                  ...rfidTokens.filter((t) => t.status === "ACTIVE").map((t) => ({ value: t.idToken, label: `${t.label} (${t.idToken})` })),
+                ]}
               />
             ) : (
               <Input value={startIdToken} onChange={(e) => setStartIdToken(e.target.value)} placeholder="Tag ID" />

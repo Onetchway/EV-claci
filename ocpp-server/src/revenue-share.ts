@@ -1,8 +1,8 @@
 /**
  * Site (host) revenue share. Accrues once a session is billed (see
  * billSession() in registry.ts) if the charger's zone has a
- * revenueShareType set — the primary site host's cut, either a % of the
- * total or a flat ₹ amount. Any additionalRevenueShares configured on the
+ * revenueShareType set — the primary site host's cut, a % of the total, a
+ * flat ₹ amount, or a ₹-per-kWh rate. Any additionalRevenueShares configured on the
  * zone (other parties splitting the same session — a CPO partner, an
  * equipment financier) accrue their own entries too, all in one write.
  * Writes to `siteRevenueShares`, a plain PENDING/PAID ledger the CRM's
@@ -15,7 +15,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { db } from "./firebase.js";
 import { loadChargerContext } from "./tariff.js";
 
-type RevenueShareType = "PERCENT" | "FIXED" | "PROFIT_SHARE" | "TIERED_HYBRID";
+type RevenueShareType = "PERCENT" | "FIXED" | "PROFIT_SHARE" | "TIERED_HYBRID" | "PER_KWH";
 interface AdditionalRevenueShare {
   name: string;
   type: RevenueShareType;
@@ -42,6 +42,7 @@ function computeShareAmount(
   const electricityCostInr = electricityCostPerKwh > 0 ? (energyDeliveredWh / 1000) * electricityCostPerKwh : 0;
   if (type === "PERCENT") return round2(totalCostInr * (value / 100));
   if (type === "FIXED") return round2(Math.min(value, totalCostInr));
+  if (type === "PER_KWH") return round2((energyDeliveredWh / 1000) * value);
   if (type === "PROFIT_SHARE") {
     const profit = Math.max(0, totalCostInr - electricityCostInr);
     return round2(profit * (value / 100));
