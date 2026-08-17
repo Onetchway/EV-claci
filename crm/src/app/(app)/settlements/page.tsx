@@ -322,6 +322,7 @@ export default function SettlementsPage() {
               <p>Generated {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</p>
             </div>
           </div>
+          <div className="overflow-x-auto scroll-thin">
           <table className="w-full text-sm">
             <thead className="border-b border-ink-200">
               <tr>
@@ -341,6 +342,7 @@ export default function SettlementsPage() {
               ))}
             </tbody>
           </table>
+          </div>
           <dl className="mt-4 flex justify-end gap-6 border-t border-ink-200 pt-3 text-sm">
             <div className="flex items-center gap-2"><dt className="text-ink-500">Pending</dt><dd className="font-medium tabular-nums">{formatINR(totals.pendingAmount)}</dd></div>
             <div className="flex items-center gap-2"><dt className="text-ink-500">Paid</dt><dd className="font-medium tabular-nums">{formatINR(totals.paidAmount)}</dd></div>

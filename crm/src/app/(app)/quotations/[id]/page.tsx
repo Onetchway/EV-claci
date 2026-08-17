@@ -181,7 +181,8 @@ function QuotationDocument({
           </div>
         </div>
 
-        <table className="mt-6 w-full text-sm">
+        <div className="mt-6 overflow-x-auto scroll-thin">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
               <th className="pb-2">Description</th>
@@ -207,6 +208,7 @@ function QuotationDocument({
             ))}
           </tbody>
         </table>
+        </div>
 
         <div className="mt-4 flex justify-end">
           <dl className="w-56 space-y-1.5 text-sm">

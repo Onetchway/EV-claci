@@ -168,7 +168,7 @@ export function ZoneEditModal({
           <Field label="Address">
             <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" />
           </Field>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="City"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
             <Field label="Pincode"><Input value={pincode} onChange={(e) => setPincode(e.target.value)} /></Field>
             <Field label="State">
