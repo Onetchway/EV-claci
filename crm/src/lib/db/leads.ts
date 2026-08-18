@@ -539,7 +539,16 @@ export async function reassignLead(
 }
 
 /** Keeps the denormalised payment rollup on the lead in step with its ledger. */
-export async function refreshPaymentRollup(leadId: string): Promise<void> {
+/**
+ * Actor is required (not just nice-to-have) because /leads/{id}'s update
+ * rule enforces actorIsSelf('updatedBy') on every write — omitting it here
+ * left the field pointing at whatever staff member happened to touch this
+ * lead last, so anyone else recording/editing/deleting a payment got a
+ * silent-looking "Missing or insufficient permissions" on this rollup
+ * write even though the payment sub-document itself (different rules) had
+ * already saved fine.
+ */
+export async function refreshPaymentRollup(leadId: string, actor: Actor): Promise<void> {
   const db = getDb();
   const leadRef = doc(db, LEADS, leadId);
   const snap = await getDocs(collection(db, LEADS, leadId, "payments"));
@@ -552,7 +561,12 @@ export async function refreshPaymentRollup(leadId: string): Promise<void> {
   const leadSnap = await getDoc(leadRef);
   const value = (leadSnap.data()?.value as number | undefined) ?? 0;
 
-  await updateDoc(leadRef, { paidAmount: paid, dueAmount: Math.max(0, value - paid) });
+  await updateDoc(leadRef, {
+    paidAmount: paid,
+    dueAmount: Math.max(0, value - paid),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
 }
 
 /** Moves a lead to Trash — hidden from normal views, recoverable until permanently deleted. */

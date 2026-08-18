@@ -68,7 +68,7 @@ export async function addPayment(lead: Lead, draft: PaymentDraft, actor: Actor):
     verifiedBy: draft.status === "VERIFIED" ? actor : null,
   });
 
-  await refreshPaymentRollup(lead.id);
+  await refreshPaymentRollup(lead.id, actor);
   accruePartnerCommissionSafe(lead.id);
 
   logActivitySafe({
@@ -108,7 +108,7 @@ export async function updatePayment(
   }
 
   await updateDoc(doc(getDb(), LEADS, lead.id, "payments", payment.id), update);
-  await refreshPaymentRollup(lead.id);
+  await refreshPaymentRollup(lead.id, actor);
   accruePartnerCommissionSafe(lead.id);
 
   const bits: string[] = [];
@@ -130,7 +130,7 @@ export async function updatePayment(
 
 export async function deletePayment(lead: Lead, payment: Payment, actor: Actor): Promise<void> {
   await deleteDoc(doc(getDb(), LEADS, lead.id, "payments", payment.id));
-  await refreshPaymentRollup(lead.id);
+  await refreshPaymentRollup(lead.id, actor);
 
   logActivitySafe({
     leadId: lead.id,

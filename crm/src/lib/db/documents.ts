@@ -104,6 +104,8 @@ export async function uploadDocument(
     docCount: increment(1),
     lastActivityAt: serverTimestamp(),
     lastActivityBy: actor.name,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
   });
 
   logActivitySafe({
@@ -148,7 +150,11 @@ export async function deleteDocument(lead: Lead, document: LeadDocument, actor: 
   // Remove the Firestore row first: an orphaned storage object is recoverable,
   // a row pointing at a deleted file is a broken link in the UI.
   await deleteDoc(doc(getDb(), LEADS, lead.id, "documents", document.id));
-  await updateDoc(doc(getDb(), LEADS, lead.id), { docCount: increment(-1) });
+  await updateDoc(doc(getDb(), LEADS, lead.id), {
+    docCount: increment(-1),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
 
   try {
     await deleteObject(ref(getBucket(), document.storagePath));
