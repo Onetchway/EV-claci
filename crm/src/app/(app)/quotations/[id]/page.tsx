@@ -158,7 +158,13 @@ function QuotationDocument({
         <div className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
           {company.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={company.logoUrl} alt={company.shortName} className="h-10 w-auto shrink-0 object-contain" />
+            <img
+              src={company.logoUrl}
+              alt={company.shortName}
+              width={197}
+              height={40}
+              className="h-10 w-auto shrink-0"
+            />
           ) : (
             <p className="text-lg font-bold tracking-tight text-ink-900">{company.legalName}</p>
           )}

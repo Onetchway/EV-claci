@@ -78,6 +78,12 @@ body {
     background: #fff;
   }
 
+  /* Chrome's Print-to-PDF pipeline can otherwise drop background colors/images the on-screen renderer shows fine. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* Hide the app shell: sidebar, headers, toasts, and anything opted out. */
   aside,
   header,
