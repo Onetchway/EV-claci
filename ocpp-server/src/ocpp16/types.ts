@@ -94,3 +94,16 @@ export function energyWhFrom16(values: MeterValue16[] | undefined): number | nul
   }
   return null;
 }
+
+/** Pulls the State-of-Charge percentage out of a 1.6 meterValue array, if the charger reports it. */
+export function socFrom16(values: MeterValue16[] | undefined): number | null {
+  if (!values?.length) return null;
+  for (const mv of values) {
+    const sample = mv.sampledValue.find((s) => s.measurand === "SoC");
+    if (sample) {
+      const raw = Number(sample.value);
+      if (!Number.isNaN(raw)) return raw;
+    }
+  }
+  return null;
+}

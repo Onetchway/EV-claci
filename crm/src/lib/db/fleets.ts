@@ -3,7 +3,7 @@
 /** Fleet operators: fleets, their vehicles, and their drivers. */
 
 import {
-  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -54,6 +54,12 @@ export function subscribeVehicles(
     (snap) => cb(snap.docs.map((d) => mapVehicle(d.id, d.data()))),
     (err) => onError?.(err as Error),
   );
+}
+
+/** One-shot fetch — battery capacity is static, so a live subscription isn't worth it for the "how much charge is left to add" estimate on a session's detail page. */
+export async function getVehicle(id: string): Promise<Vehicle | null> {
+  const snap = await getDoc(doc(getDb(), VEHICLES, id));
+  return snap.exists() ? mapVehicle(snap.id, snap.data()) : null;
 }
 
 export type VehicleDraft = Omit<Vehicle, "id" | "createdAt" | "createdBy">;

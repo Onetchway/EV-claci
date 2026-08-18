@@ -221,7 +221,12 @@ export default function SessionsPage() {
                     <td className="td text-ink-600">{durationMinutes(s)}</td>
                     <td className="td text-ink-600">{s.walletOwnerName ?? "—"}</td>
                     <td className="td text-ink-600">{s.vehicleRegNumber ?? "—"}</td>
-                    <td className="td text-right font-medium tabular-nums">{wh(s.energyDeliveredWh)}</td>
+                    <td className="td text-right font-medium tabular-nums">
+                      {wh(s.energyDeliveredWh)}
+                      {s.status === "ACTIVE" && s.socPercent != null && (
+                        <div className="text-[10px] font-normal text-emerald-600">{s.socPercent}% SoC</div>
+                      )}
+                    </td>
                     <td className="td text-right tabular-nums text-ink-600">
                       {s.totalCostInr != null ? (
                         <div className="flex flex-col items-end gap-0.5">

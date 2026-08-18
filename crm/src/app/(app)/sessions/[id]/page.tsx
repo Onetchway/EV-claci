@@ -11,11 +11,12 @@ import {
 } from "@/components/ui";
 import { subscribeChargerRegistry, type ChargerRegistration } from "@/lib/db/charger-registry";
 import { subscribeChargeSession, type ChargeSession } from "@/lib/db/chargers";
+import { getVehicle } from "@/lib/db/fleets";
 import { subscribeZones } from "@/lib/db/zones";
 import { sendChargerCommand } from "@/lib/ocpp-commands";
 import { canManageChargers, canVerifyPayment } from "@/lib/permissions";
 import { applySessionDiscount } from "@/lib/sessions-client";
-import type { Zone } from "@/lib/types";
+import type { Vehicle, Zone } from "@/lib/types";
 import { formatDateTime, formatINR } from "@/lib/utils";
 
 function wh(v?: number | null): string {
@@ -52,15 +53,27 @@ export default function SessionDetailPage() {
   const [session, setSession] = useState<ChargeSession | null | undefined>(undefined);
   const [registry, setRegistry] = useState<ChargerRegistration[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [commandBusy, setCommandBusy] = useState(false);
   const [discountBusy, setDiscountBusy] = useState(false);
 
   useEffect(() => subscribeChargeSession(id, setSession), [id]);
   useEffect(() => subscribeChargerRegistry(setRegistry), []);
   useEffect(() => subscribeZones(setZones), []);
+  useEffect(() => {
+    if (!session?.vehicleId) { setVehicle(null); return; }
+    void getVehicle(session.vehicleId).then(setVehicle);
+  }, [session?.vehicleId]);
 
   const reg = useMemo(() => registry.find((r) => r.chargerId === session?.chargePointId), [registry, session?.chargePointId]);
   const zone = useMemo(() => (reg?.zoneId ? zones.find((z) => z.id === reg.zoneId) : undefined), [reg?.zoneId, zones]);
+
+  /** Rough estimate only: assumes the vehicle started this session at the reported SoC and charges linearly to 100% — no charge-curve modelling, since we only ever get one SoC sample per MeterValues cadence rather than a full profile. */
+  const pendingKwh = useMemo(() => {
+    if (!vehicle?.batteryKwh || session?.socPercent == null) return null;
+    const remainingPct = Math.max(0, 100 - session.socPercent);
+    return (vehicle.batteryKwh * remainingPct) / 100;
+  }, [vehicle?.batteryKwh, session?.socPercent]);
 
   async function stopSession() {
     if (!session) return;
@@ -142,14 +155,26 @@ export default function SessionDetailPage() {
       <Card title="Energy" className="mb-4">
         <dl className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
           <Field label="Energy delivered" value={wh(session.energyDeliveredWh)} />
+          <Field
+            label="State of charge"
+            value={session.socPercent != null ? (
+              <span className={session.status === "ACTIVE" ? "text-emerald-700" : undefined}>{session.socPercent}%</span>
+            ) : undefined}
+          />
+          <Field
+            label="Estimated to full"
+            value={pendingKwh != null ? `~${pendingKwh.toFixed(1)} kWh` : (vehicle && !vehicle.batteryKwh ? "Vehicle battery size unknown" : undefined)}
+          />
           <Field label="Meter start (Wh)" value={session.energyStartWh} />
           <Field label="Latest meter (Wh)" value={session.latestEnergyWh} />
           <Field label="EVSE" value={session.evseId} />
         </dl>
         <p className="mt-3 text-xs text-ink-500">
-          Live instantaneous telemetry (charger current/voltage/power, EV demand, state-of-charge) isn't persisted
-          per-session yet — only cumulative meter readings from OCPP MeterValues are. Adding that needs a dedicated
-          time-series store, since it changes every few seconds during a session.
+          {session.socPercent != null
+            ? "State of charge as last reported by the vehicle over OCPP — not every EV/charger combination sends it, and it only updates as often as the charger's MeterValues cadence."
+            : "This vehicle/charger hasn't reported a state-of-charge sample yet — not every EV relays it over OCPP, so this can stay empty for an entire session even though energy delivery is tracking normally."}
+          {" "}Live instantaneous power/current/voltage still isn't persisted per-session — only cumulative meter
+          readings and the odd SoC sample are, since a full telemetry stream needs a dedicated time-series store.
         </p>
       </Card>
 

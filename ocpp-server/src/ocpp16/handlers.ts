@@ -16,7 +16,7 @@ import { openTicketIfNeeded as openTicket } from "../tickets.js";
 import { OcppErrorCode } from "../ocpp/rpc.js";
 import type { ConnectorStatus } from "../ocpp/types.js";
 import {
-  energyWhFrom16, type Authorize16Request, type Authorize16Response,
+  energyWhFrom16, socFrom16, type Authorize16Request, type Authorize16Response,
   type BootNotification16Request, type BootNotification16Response, type ChargePointStatus16,
   type Heartbeat16Response, type MeterValues16Request, type StartTransaction16Request,
   type StartTransaction16Response, type StatusNotification16Request, type StopTransaction16Request,
@@ -110,8 +110,9 @@ export async function handleCall16(
     case "MeterValues": {
       const req = payload as MeterValues16Request;
       const energyWh = energyWhFrom16(req.meterValue);
-      if (energyWh != null && req.transactionId != null) {
-        await record16MeterValue(chargePointId, req.transactionId, energyWh);
+      const soc = socFrom16(req.meterValue);
+      if ((energyWh != null || soc != null) && req.transactionId != null) {
+        await record16MeterValue(chargePointId, req.transactionId, energyWh, soc);
       }
       return ok({});
     }

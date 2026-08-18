@@ -69,6 +69,8 @@ export interface ChargeSession {
   energyStartWh?: number;
   latestEnergyWh?: number;
   energyDeliveredWh?: number;
+  /** State of charge, 0-100, as last reported in a MeterValues SoC sample — many chargers/EVs never send this at all, so it stays unset for most sessions. */
+  socPercent?: number;
   stoppedReason?: string | null;
   /** Cumulative minutes spent in a non-"Charging" state (connected but idle) — what idle/parking fees are computed against. */
   idleMinutes?: number;

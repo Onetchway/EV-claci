@@ -145,3 +145,13 @@ export function energyWhFrom(values: MeterValue[] | undefined): number | null {
   }
   return null;
 }
+
+/** Pulls the State-of-Charge percentage out of a meterValue array, if the charger reports it — many don't (it requires the EV to relay it over the charging protocol), so this is commonly absent even mid-session. */
+export function socFrom(values: MeterValue[] | undefined): number | null {
+  if (!values?.length) return null;
+  for (const mv of values) {
+    const sample = mv.sampledValue.find((s) => s.measurand === "SoC");
+    if (sample) return sample.value;
+  }
+  return null;
+}

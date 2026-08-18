@@ -13,7 +13,7 @@ import { checkIdToken, checkMonthlyCap } from "../rfid.js";
 import { openTicketIfNeeded } from "../tickets.js";
 import { OcppErrorCode } from "./rpc.js";
 import {
-  energyWhFrom, type AuthorizeRequest, type AuthorizeResponse,
+  energyWhFrom, socFrom, type AuthorizeRequest, type AuthorizeResponse,
   type BootNotificationRequest, type BootNotificationResponse, type HeartbeatResponse,
   type MeterValuesRequest, type StatusNotificationRequest, type TransactionEventRequest,
   type TransactionEventResponse,
@@ -92,7 +92,7 @@ export async function handleCall(
 
     case "MeterValues": {
       const req = payload as MeterValuesRequest;
-      await recordMeterValues(chargePointId, req.evseId, energyWhFrom(req.meterValue));
+      await recordMeterValues(chargePointId, req.evseId, energyWhFrom(req.meterValue), socFrom(req.meterValue));
       return ok({});
     }
 

@@ -403,18 +403,27 @@ export async function start16Transaction(
   return transactionId;
 }
 
-export async function record16MeterValue(chargePointId: string, transactionId: number, energyWh: number): Promise<void> {
+export async function record16MeterValue(
+  chargePointId: string,
+  transactionId: number,
+  energyWh: number | null,
+  socPercent: number | null,
+): Promise<void> {
   const ref = db().collection(CHARGE_SESSIONS).doc(sessionDocId(chargePointId, String(transactionId)));
   const snap = await ref.get();
   const data = snap.data();
   if (!data || data.status !== "ACTIVE") return;
   const start = data.energyStartWh as number | undefined;
-  const patch: Record<string, unknown> = { latestEnergyWh: energyWh, lastUpdateAt: FieldValue.serverTimestamp() };
+  const patch: Record<string, unknown> = { lastUpdateAt: FieldValue.serverTimestamp() };
   let energyDeliveredWh: number | undefined;
-  if (start != null && energyWh >= start) {
-    energyDeliveredWh = energyWh - start;
-    patch.energyDeliveredWh = energyDeliveredWh;
+  if (energyWh != null) {
+    patch.latestEnergyWh = energyWh;
+    if (start != null && energyWh >= start) {
+      energyDeliveredWh = energyWh - start;
+      patch.energyDeliveredWh = energyDeliveredWh;
+    }
   }
+  if (socPercent != null) patch.socPercent = socPercent;
   await ref.set(patch, { merge: true });
 
   pushOcpiUpdateSafe("sessions", ref.id, async () => ({
@@ -634,8 +643,16 @@ export async function recordMeterValues(
   chargePointId: string,
   evseId: number,
   energyWh: number | null,
+  socPercent: number | null,
 ): Promise<void> {
-  if (energyWh == null) return;
+  // Previously bailed out entirely (including skipping the lastUpdateAt
+  // bump) whenever a sample didn't carry the energy register measurand —
+  // so a charger sending frequent MeterValues with only SoC, or with the
+  // energy register on a different cadence, looked "stuck" in the CRM even
+  // though it was reporting the whole time. Only the energy-specific
+  // fields are conditional now; a session write (and the liveness signal
+  // that comes with it) happens whenever there's anything to record.
+  if (energyWh == null && socPercent == null) return;
   // Attach to whichever active session on this charge point/evse is most
   // recently updated — Phase 1 doesn't track a separate meter-reading log.
   const snap = await db()
@@ -649,7 +666,11 @@ export async function recordMeterValues(
   if (snap.empty) return;
   const ref = snap.docs[0]!.ref;
   const start = snap.docs[0]!.data().energyStartWh as number | undefined;
-  const patch: Record<string, unknown> = { latestEnergyWh: energyWh, lastUpdateAt: FieldValue.serverTimestamp() };
-  if (start != null && energyWh >= start) patch.energyDeliveredWh = energyWh - start;
+  const patch: Record<string, unknown> = { lastUpdateAt: FieldValue.serverTimestamp() };
+  if (energyWh != null) {
+    patch.latestEnergyWh = energyWh;
+    if (start != null && energyWh >= start) patch.energyDeliveredWh = energyWh - start;
+  }
+  if (socPercent != null) patch.socPercent = socPercent;
   await ref.set(patch, { merge: true });
 }
