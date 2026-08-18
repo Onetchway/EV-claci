@@ -463,7 +463,7 @@ function PaymentReceipt({
         </Button>
       </div>
 
-      <article className="loi-sheet mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
+      <article className="loi-sheet receipt-sheet mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card">
         <div className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
           {company.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
