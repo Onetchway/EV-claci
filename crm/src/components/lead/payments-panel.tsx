@@ -19,7 +19,7 @@ import {
 } from "@/lib/db/payments";
 import { canDeletePayment, canVerifyPayment, type Viewer } from "@/lib/permissions";
 import type { Actor, Lead, Payment } from "@/lib/types";
-import { formatDate, formatINR } from "@/lib/utils";
+import { cn, formatDate, formatINR } from "@/lib/utils";
 
 // Presets cover every slab Livanto actually invoices at; "Custom" unlocks a
 // free-typed rate for the odd one-off that doesn't fit those.
@@ -27,7 +27,10 @@ const GST_PRESETS = [0.05, 0.089, 0.12, 0.18] as const;
 
 interface DraftState {
   milestone: PaymentMilestone;
+  /** Whatever the staff member actually typed — its meaning (excl. or incl. GST) is given by amountMode, not fixed. */
   baseAmount: string;
+  /** Which way to read baseAmount: the amount received before GST, or the full amount actually received. Storage is always excl.-GST (Payment.baseAmount) regardless — this only controls what number is typed in. */
+  amountMode: "EXCL" | "INCL";
   gstPct: string;
   gstCustom: boolean;
   mode: PaymentMode;
@@ -40,6 +43,7 @@ interface DraftState {
 const blankDraft = (milestone: PaymentMilestone, amount = ""): DraftState => ({
   milestone,
   baseAmount: amount,
+  amountMode: "EXCL",
   gstPct: String(GST_RATE * 100),
   gstCustom: false,
   mode: "NEFT",
@@ -77,8 +81,22 @@ export function PaymentsPanel({
   useEffect(() => onSummary?.(summary.collectedPct), [summary.collectedPct, onSummary]);
 
   const draftGstPct = draft ? Math.max(0, Number(draft.gstPct) || 0) / 100 : 0;
-  const draftGst = draft ? Math.round((Number(draft.baseAmount) || 0) * draftGstPct) : 0;
-  const draftTotal = draft ? (Math.round(Number(draft.baseAmount) || 0) + draftGst) : 0;
+  const draftEntered = draft ? Math.max(0, Number(draft.baseAmount) || 0) : 0;
+  // draft.baseAmount is excl.-GST already, or needs backing out of the incl.-GST total the staff typed.
+  const draftBase = draft
+    ? (draft.amountMode === "INCL" ? Math.round(draftEntered / (1 + draftGstPct)) : Math.round(draftEntered))
+    : 0;
+  const draftGst = draft ? Math.round(draftBase * draftGstPct) : 0;
+  const draftTotal = draftBase + draftGst;
+
+  /** Switching modes converts the typed number to keep the same real amount, instead of silently reinterpreting whatever's already there. */
+  function setAmountMode(mode: "EXCL" | "INCL") {
+    if (!draft || draft.amountMode === mode) return;
+    const entered = Math.max(0, Number(draft.baseAmount) || 0);
+    const pct = Math.max(0, Number(draft.gstPct) || 0) / 100;
+    const converted = mode === "INCL" ? Math.round(entered * (1 + pct)) : Math.round(entered / (1 + pct));
+    setDraft({ ...draft, amountMode: mode, baseAmount: entered ? String(converted) : draft.baseAmount });
+  }
 
   function openNew(milestone: PaymentMilestone) {
     const m = summary.milestones.find((x) => x.key === milestone);
@@ -94,6 +112,7 @@ export function PaymentsPanel({
     setDraft({
       milestone: p.milestone,
       baseAmount: String(p.baseAmount),
+      amountMode: "EXCL",
       gstPct: String(pct),
       gstCustom: !GST_PRESETS.some((g) => Math.abs(g * 100 - pct) < 0.001),
       mode: p.mode,
@@ -106,9 +125,11 @@ export function PaymentsPanel({
 
   async function save() {
     if (!draft) return;
-    const base = Math.round(Number(draft.baseAmount) || 0);
-    if (base <= 0) throw new Error("Enter an amount greater than zero.");
+    const entered = Math.max(0, Number(draft.baseAmount) || 0);
     const gstPct = Math.max(0, Number(draft.gstPct) || 0) / 100;
+    // Storage is always the excl.-GST base — back it out of the incl.-GST total when that's what was typed.
+    const base = draft.amountMode === "INCL" ? Math.round(entered / (1 + gstPct)) : Math.round(entered);
+    if (base <= 0) throw new Error("Enter an amount greater than zero.");
 
     const payload = {
       milestone: draft.milestone,
@@ -333,7 +354,26 @@ export function PaymentsPanel({
               />
             </Field>
 
-            <Field label="Amount (excl. GST)" required>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="label mb-0">Amount received <span className="text-rose-500">*</span></label>
+                <div className="flex overflow-hidden rounded-md border border-ink-200 text-[11px] font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setAmountMode("EXCL")}
+                    className={cn("px-2 py-0.5", draft.amountMode === "EXCL" ? "bg-brand-600 text-white" : "bg-white text-ink-500 hover:bg-ink-50")}
+                  >
+                    Excl. GST
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAmountMode("INCL")}
+                    className={cn("border-l border-ink-200 px-2 py-0.5", draft.amountMode === "INCL" ? "bg-brand-600 text-white" : "bg-white text-ink-500 hover:bg-ink-50")}
+                  >
+                    Incl. GST
+                  </button>
+                </div>
+              </div>
               <Input
                 type="number"
                 min={0}
@@ -341,7 +381,7 @@ export function PaymentsPanel({
                 value={draft.baseAmount}
                 onChange={(e) => setDraft({ ...draft, baseAmount: e.target.value })}
               />
-            </Field>
+            </div>
 
             <Field label="GST rate" required>
               <div className="flex gap-2">
@@ -402,8 +442,9 @@ export function PaymentsPanel({
             </Field>
 
             <div className="sm:col-span-2 rounded-lg bg-ink-50 px-3 py-2.5 text-sm">
+              <div className="flex justify-between"><span className="text-ink-600">Amount excl. GST</span><span className="tabular-nums">{formatINR(draftBase)}</span></div>
               <div className="flex justify-between"><span className="text-ink-600">GST @ {(draftGstPct * 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}%</span><span className="tabular-nums">{formatINR(draftGst)}</span></div>
-              <div className="mt-1 flex justify-between font-semibold"><span>Total received</span><span className="tabular-nums">{formatINR(draftTotal)}</span></div>
+              <div className="mt-1 flex justify-between border-t border-ink-200 pt-1 font-semibold"><span>Total received</span><span className="tabular-nums">{formatINR(draftTotal)}</span></div>
             </div>
           </div>
         )}
