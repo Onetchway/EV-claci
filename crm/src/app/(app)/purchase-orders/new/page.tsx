@@ -130,7 +130,7 @@ function NewPurchaseOrderInner() {
                   </div>
                   <div className="col-span-4 sm:col-span-2">
                     <label className="label">Unit price</label>
-                    <Input type="number" min={0} step={1000} value={it.unitPrice} onChange={(e) => patchItem(it.id, { unitPrice: Math.max(0, Number(e.target.value) || 0) })} />
+                    <Input type="number" min={0} step={1} value={it.unitPrice} onChange={(e) => patchItem(it.id, { unitPrice: Math.max(0, Number(e.target.value) || 0) })} />
                   </div>
                   <div className="col-span-3 sm:col-span-2">
                     <label className="label">GST %</label>

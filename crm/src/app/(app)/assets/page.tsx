@@ -166,7 +166,7 @@ export default function AssetsPage() {
             <Input value={form.serialNumber} onChange={(e) => setForm((f) => ({ ...f, serialNumber: e.target.value }))} />
           </Field>
           <Field label="Cost (excl. GST)" required>
-            <Input type="number" min={0} step={1000} value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} />
+            <Input type="number" min={0} step={1} value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} />
           </Field>
           <Field label="Purchase date">
             <Input type="date" value={form.purchaseDate} onChange={(e) => setForm((f) => ({ ...f, purchaseDate: e.target.value }))} />
@@ -184,7 +184,7 @@ export default function AssetsPage() {
             </Field>
           )}
           <Field label="Salvage value">
-            <Input type="number" min={0} step={1000} value={form.salvageValue} onChange={(e) => setForm((f) => ({ ...f, salvageValue: e.target.value }))} />
+            <Input type="number" min={0} step={1} value={form.salvageValue} onChange={(e) => setForm((f) => ({ ...f, salvageValue: e.target.value }))} />
           </Field>
           <Field label="Notes" className="sm:col-span-2">
             <Textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />

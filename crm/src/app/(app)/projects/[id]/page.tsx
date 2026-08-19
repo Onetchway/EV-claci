@@ -175,7 +175,7 @@ function WorkstreamRow({
             <Input
               type="number"
               min={0}
-              step={1000}
+              step={1}
               value={form.cost ?? ""}
               onChange={(e) => setForm({ ...form, cost: e.target.value === "" ? null : Number(e.target.value) })}
             />
@@ -636,7 +636,7 @@ export default function ProjectDetailPage() {
               <Input
                 type="number"
                 min={0}
-                step={1000}
+                step={1}
                 value={discom.demandNoteAmount ?? ""}
                 onChange={(e) => setDiscom({ ...discom, demandNoteAmount: e.target.value === "" ? null : Number(e.target.value) })}
               />

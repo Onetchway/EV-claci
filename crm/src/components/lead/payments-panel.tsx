@@ -337,7 +337,7 @@ export function PaymentsPanel({
               <Input
                 type="number"
                 min={0}
-                step={1000}
+                step={1}
                 value={draft.baseAmount}
                 onChange={(e) => setDraft({ ...draft, baseAmount: e.target.value })}
               />

@@ -179,7 +179,7 @@ export function FinancingPanel({
                 <Input
                   type="number"
                   min={0}
-                  step={10000}
+                  step={1}
                   value={form.requestedAmount ?? ""}
                   disabled={!editable}
                   onChange={(e) => set("requestedAmount", e.target.value === "" ? null : Number(e.target.value))}
@@ -190,7 +190,7 @@ export function FinancingPanel({
                 <Input
                   type="number"
                   min={0}
-                  step={10000}
+                  step={1}
                   value={form.sanctionedAmount ?? ""}
                   disabled={!editable}
                   onChange={(e) => set("sanctionedAmount", e.target.value === "" ? null : Number(e.target.value))}
@@ -201,7 +201,7 @@ export function FinancingPanel({
                 <Input
                   type="number"
                   min={0}
-                  step={10000}
+                  step={1}
                   value={form.disbursedAmount ?? ""}
                   disabled={!editable}
                   onChange={(e) => set("disbursedAmount", e.target.value === "" ? null : Number(e.target.value))}

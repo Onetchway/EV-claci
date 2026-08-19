@@ -566,7 +566,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 <Input
                   type="number"
                   min={0}
-                  step={10000}
+                  step={1}
                   value={values.financing.requestedAmount ?? ""}
                   onChange={(e) =>
                     set("financing", {

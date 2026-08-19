@@ -230,7 +230,7 @@ function NewProjectInner() {
                 <Input
                   type="number"
                   min={0}
-                  step={10000}
+                  step={1}
                   value={capexBudget ?? ""}
                   onChange={(e) => setCapexBudget(e.target.value === "" ? null : Number(e.target.value))}
                 />

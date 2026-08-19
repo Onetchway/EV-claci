@@ -379,17 +379,17 @@ export default function CatalogPage() {
             </Field>
 
             <Field label="Price, excl. GST" required>
-              <Input type="number" min={0} step={1000} value={draft.basePrice} onChange={(e) => setDraft({ ...draft, basePrice: e.target.value })} />
+              <Input type="number" min={0} step={1} value={draft.basePrice} onChange={(e) => setDraft({ ...draft, basePrice: e.target.value })} />
             </Field>
             <Field label="Vehicle type">
               <Input value={draft.vehicleType} onChange={(e) => setDraft({ ...draft, vehicleType: e.target.value })} placeholder="2W / 3W / Car" />
             </Field>
 
             <Field label="Stage 1 — EOI" hint="Pre-GST. Stage 3 is worked out automatically.">
-              <Input type="number" min={0} step={1000} value={draft.stage1EOI} onChange={(e) => setDraft({ ...draft, stage1EOI: e.target.value })} />
+              <Input type="number" min={0} step={1} value={draft.stage1EOI} onChange={(e) => setDraft({ ...draft, stage1EOI: e.target.value })} />
             </Field>
             <Field label="Stage 2 — Infrastructure" hint="Pre-GST.">
-              <Input type="number" min={0} step={1000} value={draft.stage2Infra} onChange={(e) => setDraft({ ...draft, stage2Infra: e.target.value })} />
+              <Input type="number" min={0} step={1} value={draft.stage2Infra} onChange={(e) => setDraft({ ...draft, stage2Infra: e.target.value })} />
             </Field>
 
             <Field label="Minimum space">

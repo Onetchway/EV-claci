@@ -165,7 +165,7 @@ function BasketRow({
             <input
               type="number"
               min={0}
-              step={1000}
+              step={1}
               value={unitPrice}
               disabled={disabled || !allowPriceOverride}
               onChange={(e) => onPatch({ unitPrice: Math.max(0, Number(e.target.value) || 0) })}
@@ -294,7 +294,7 @@ function ExtrasEditor({
                 <input
                   type="number"
                   min={0}
-                  step={1000}
+                  step={1}
                   value={e.amount || ""}
                   disabled={disabled}
                   onChange={(ev) => patch(e.id, { amount: Math.max(0, Number(ev.target.value) || 0) })}
@@ -470,7 +470,7 @@ export function ChargerConfigurator({
                         type="number"
                         min={0}
                         max={quote.subtotal}
-                        step={1000}
+                        step={1}
                         value={discount || ""}
                         disabled={disabled}
                         onChange={(e) => onDiscountChange(Math.max(0, Number(e.target.value) || 0))}

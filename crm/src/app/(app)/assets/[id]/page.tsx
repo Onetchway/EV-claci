@@ -160,7 +160,7 @@ export default function AssetDetailPage() {
             </Field>
           )}
           <Field label="Salvage value">
-            <Input type="number" min={0} step={1000} value={form.salvageValue ?? 0} onChange={(e) => setForm((f) => ({ ...f, salvageValue: Number(e.target.value) || 0 }))} />
+            <Input type="number" min={0} step={1} value={form.salvageValue ?? 0} onChange={(e) => setForm((f) => ({ ...f, salvageValue: Number(e.target.value) || 0 }))} />
           </Field>
           <Field label="Notes" className="sm:col-span-2">
             <Textarea rows={2} value={form.notes ?? ""} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />

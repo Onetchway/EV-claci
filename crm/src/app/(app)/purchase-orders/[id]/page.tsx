@@ -235,7 +235,7 @@ export default function PurchaseOrderDetailPage() {
         {draft && (
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Amount" required>
-              <Input type="number" min={0} step={1000} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} />
+              <Input type="number" min={0} step={1} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} />
             </Field>
             <Field label="Payment mode">
               <Select value={draft.mode} onChange={(e) => setDraft({ ...draft, mode: e.target.value as PaymentMode })} options={PAYMENT_MODES.map((m) => ({ value: m, label: m }))} />
