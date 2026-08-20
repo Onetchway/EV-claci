@@ -427,6 +427,13 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 placeholder="https://maps.app.goo.gl/…"
               />
             </Field>
+            <Field
+              label="Site address"
+              className="sm:col-span-2 lg:col-span-3"
+              hint="Full postal address of where the charger installs — separate from the client's own address above. Feeds the Letter of Intent automatically."
+            >
+              <Textarea value={values.site.address ?? ""} onChange={(e) => setSite({ address: e.target.value })} rows={2} />
+            </Field>
             <Field label="Property owner">
               <Select
                 placeholder="Select"

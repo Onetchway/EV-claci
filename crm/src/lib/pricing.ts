@@ -238,7 +238,7 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
   const stage2Share = laterTotal > 0 ? stage2Raw / laterTotal : 0.5;
 
   const defs: { key: MilestoneAmount["key"]; label: string; base: number }[] = [
-    { key: "EOI", label: "Advance — payable on execution of this LOI; non-refundable", base: advance },
+    { key: "EOI", label: "Advance — payable on execution of this LOI", base: advance },
     { key: "INFRA", label: "1st Installment — towards civil work and installation of the charger", base: rupee(remainder * stage2Share) },
     { key: "COMMISSIONING", label: "2nd Installment — towards electrical connection, LT panel installation and final handover", base: 0 },
   ];

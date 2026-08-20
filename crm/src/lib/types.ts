@@ -160,6 +160,13 @@ export interface EoiDoc {
   acceptedAt?: TS;
 }
 
+/** A superseded LOI, archived to leads/{id}/eoiVersions the moment it's replaced by a regenerated one — so a letter a signatory already saw stays retrievable and reprintable even after the client's details or the config change and a fresh one is issued. */
+export interface EoiVersion extends EoiDoc {
+  id: string;
+  archivedAt: TS;
+  archivedBy: Actor;
+}
+
 export interface Actor {
   uid: string;
   name: string;
@@ -182,6 +189,8 @@ export interface ClientInfo {
 
 export interface SiteInfo {
   locationName?: string;
+  /** Full postal address of the site — distinct from locationName (a short name/label) and separate from the client's own address, since the charger installs at the site, not necessarily where the client lives/registers. Used as-is when the Letter of Intent is (re)generated. */
+  address?: string;
   mapsLink?: string;
   lat?: number | null;
   lng?: number | null;

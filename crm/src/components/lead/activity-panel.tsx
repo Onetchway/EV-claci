@@ -38,6 +38,7 @@ const ICONS: Partial<Record<ActivityType, typeof CircleDot>> = {
   EOI_CREATED: FileSignature,
   EOI_UPDATED: FileSignature,
   EOI_ISSUED: FileSignature,
+  EOI_REGENERATED: FileSignature,
 };
 
 const TONE: Partial<Record<ActivityType, string>> = {
@@ -51,6 +52,7 @@ const TONE: Partial<Record<ActivityType, string>> = {
   FINANCING_UPDATED: "bg-teal-100 text-teal-700",
   EOI_CREATED: "bg-indigo-100 text-indigo-700",
   EOI_ISSUED: "bg-emerald-100 text-emerald-700",
+  EOI_REGENERATED: "bg-indigo-100 text-indigo-700",
   LINKED: "bg-sky-100 text-sky-700",
 };
 

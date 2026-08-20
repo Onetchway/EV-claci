@@ -77,7 +77,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
   const closing = opts.settings?.loi.closing?.trim() || DEFAULT_CLOSING;
 
   const siteName =
-    lead.site?.locationName?.trim() ||
+    [lead.site?.locationName?.trim(), lead.site?.address?.trim()].filter(Boolean).join(" — ") ||
     lead.linkedLeads?.[0]?.name?.trim() ||
     [lead.client?.city, lead.client?.state].filter(Boolean).join(", ") ||
     "the Investor's premises";

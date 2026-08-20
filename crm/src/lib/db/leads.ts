@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs,
+  addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs,
   limit as fsLimit, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
   setDoc, Timestamp, updateDoc, where, writeBatch, type QueryConstraint,
 } from "firebase/firestore";
@@ -16,7 +16,7 @@ import { getDb } from "../firebase/client";
 import {
   buildQuote, normaliseConfig, normaliseExtras, type ConfigItem, type ExtraItem,
 } from "../pricing";
-import type { Actor, ClientInfo, EoiDoc, FinancingInfo, Lead, SiteInfo } from "../types";
+import type { Actor, ClientInfo, EoiDoc, EoiVersion, FinancingInfo, Lead, SiteInfo } from "../types";
 import { buildSearchTokens, formatINR, normalisePhone, toDate } from "../utils";
 import { logActivitySafe } from "./activity";
 
@@ -852,6 +852,59 @@ export async function saveEoi(lead: Lead, eoi: EoiDoc, actor: Actor): Promise<vo
     message: existing
       ? `Letter of Intent ${eoi.number} updated`
       : `Letter of Intent ${eoi.number} drafted for ${formatINR(eoi.totalAmount)}`,
+    actor,
+  });
+}
+
+export const EOI_VERSIONS = "eoiVersions";
+
+export function subscribeEoiVersions(
+  leadId: string,
+  cb: (rows: EoiVersion[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), LEADS, leadId, EOI_VERSIONS), orderBy("archivedAt", "desc")),
+    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<EoiVersion, "id">) }))),
+    (err) => onError?.(err as Error),
+  );
+}
+
+/**
+ * Archives the lead's current LOI (if any) to leads/{id}/eoiVersions, then
+ * replaces it with a freshly-built one — client name/address, site, and the
+ * quotation are all re-pulled from the lead's current data. Before this,
+ * "regenerating" meant re-typing every changed field by hand inside the one
+ * live letter, and there was nowhere to see a version a signatory had
+ * already been sent once it got edited over.
+ */
+export async function regenerateEoi(lead: Lead, built: EoiDoc, actor: Actor): Promise<void> {
+  const db = getDb();
+  if (lead.eoi) {
+    await addDoc(collection(db, LEADS, lead.id, EOI_VERSIONS), {
+      ...lead.eoi,
+      archivedAt: serverTimestamp(),
+      archivedBy: actor,
+    });
+  }
+
+  await updateDoc(doc(db, LEADS, lead.id), {
+    eoi: { ...built, createdAt: serverTimestamp(), createdBy: actor },
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  });
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "EOI_REGENERATED",
+    message: lead.eoi
+      ? `Letter of Intent regenerated as ${built.number} (previous letter ${lead.eoi.number} archived)`
+      : `Letter of Intent ${built.number} drafted for ${formatINR(built.totalAmount)}`,
     actor,
   });
 }

@@ -61,7 +61,7 @@ export const LOI_CLAUSES: LoiClause[] = [
       "shortfall — provided the station is fully operational, the Investor is not in default, and the shortfall is not due to force " +
       "majeure, loss of site access, or DISCOM disconnection. {{company}}'s total exposure under this support is capped at " +
       "{{maxAggregate}} across the {{payoutMonths}} months. This is a limited revenue-support mechanism, not a guaranteed return or a " +
-      "deposit, and surplus revenue above the minimum monthly payout will be shared as per the Tripartite Agreement.",
+      "deposit, and surplus revenue above the minimum monthly payout will be shared as mutually agreed between the parties.",
   },
   {
     key: "site",
@@ -135,16 +135,14 @@ export const LOI_CLAUSES: LoiClause[] = [
     key: "general",
     heading: "General",
     body:
-      "This LOI, together with the Tripartite Agreement once executed, represents the entire understanding between the parties on this " +
-      "project. It may only be amended in writing signed by both parties, and if any part of it is found unenforceable, the rest will " +
-      "remain in effect.",
+      "This LOI represents the entire understanding between the parties on this project. It may only be amended in writing signed by " +
+      "both parties, and if any part of it is found unenforceable, the rest will remain in effect.",
   },
 ];
 
 export const DEFAULT_CLOSING =
-  "Kindly sign and return a copy of this Letter to enable us to proceed. On receipt of the Advance, we will share the Tripartite " +
-  "Agreement for execution and commence site feasibility and preparatory work, following which the Charging Station shall be handed " +
-  "over and made operational.";
+  "Kindly sign and return a copy of this Letter to enable us to proceed. On receipt of the Advance, we will commence site feasibility " +
+  "and preparatory work, following which the Charging Station shall be handed over and made operational.";
 
 export function defaultIntro(kwLabel: string, extraEquipment?: string): string {
   const extra = extraEquipment ? `, along with ${extraEquipment}` : "";

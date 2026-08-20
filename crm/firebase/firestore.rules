@@ -210,6 +210,15 @@ service cloud.firestore {
                           && resource.data.uploadedBy.uid == uid()
                           && resource.data.status == 'PENDING');
       }
+
+      // Archived LOI versions — an immutable history, same reasoning as
+      // creditDebitNotes: issue a new one (via regenerateEoi) rather than
+      // editing an old one, so a letter a signatory already saw stays
+      // exactly as it was sent.
+      match /eoiVersions/{versionId} {
+        allow read: if canTouchLead(leadId);
+        allow create: if canEditLead(leadId) && actorIsSelf('archivedBy');
+      }
     }
 
     // --------------------------------------------------------------- projects
