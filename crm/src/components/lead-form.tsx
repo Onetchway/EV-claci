@@ -23,10 +23,10 @@ import {
 import { DEFAULT_FINANCING, findDuplicateLeads } from "@/lib/db/leads";
 import { subscribePartners } from "@/lib/db/partners";
 import { canApplyDiscount, canOverridePrice, canReassign } from "@/lib/permissions";
-import type { ConfigItem, ExtraItem } from "@/lib/pricing";
+import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
 import type { ClientInfo, FinancingInfo, Lead, SiteInfo } from "@/lib/types";
 import {
-  cn, isValidEmail, isValidPan, isValidPhone, normalisePhone, parseMapsLink, toDate,
+  cn, formatINR, isValidEmail, isValidPan, isValidPhone, normalisePhone, parseMapsLink, toDate,
 } from "@/lib/utils";
 
 export interface LeadFormValues {
@@ -144,6 +144,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
   const [busy, setBusy] = useState(false);
   const [duplicates, setDuplicates] = useState<Lead[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [fundingInputMode, setFundingInputMode] = useState<"AMOUNT" | "PERCENT">("AMOUNT");
 
   const viewer = useMemo(
     () => ({ uid: profile?.uid ?? "", role: role ?? "AGENT" as const }),
@@ -151,6 +152,12 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
   );
 
   const showChargers = !TYPES_WITHOUT_CHARGERS.includes(values.type);
+
+  /** Same total the Charger configuration card below shows as "Total investment" — recomputed here too so the funding % option has something to work off before that card even renders (and stays in sync as it's edited). */
+  const totalInvestment = useMemo(
+    () => buildQuote(values.config, { discount: values.discount, extras: values.extras }).grandTotal,
+    [values.config, values.discount, values.extras],
+  );
 
   const set = <K extends keyof LeadFormValues>(key: K, val: LeadFormValues[K]) =>
     setValues((v) => ({ ...v, [key]: val }));
@@ -562,20 +569,73 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                   {BANKS.map((b) => <option key={b} value={b} />)}
                 </datalist>
               </Field>
-              <Field label="Amount to be financed">
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={values.financing.requestedAmount ?? ""}
-                  onChange={(e) =>
-                    set("financing", {
-                      ...values.financing,
-                      requestedAmount: e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
-                />
-              </Field>
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="label mb-0">Amount to be financed</label>
+                  <div className="flex overflow-hidden rounded-md border border-ink-200 text-[11px] font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setFundingInputMode("AMOUNT")}
+                      className={cn("px-2 py-0.5", fundingInputMode === "AMOUNT" ? "bg-brand-600 text-white" : "bg-white text-ink-500 hover:bg-ink-50")}
+                    >
+                      ₹ Amount
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFundingInputMode("PERCENT")}
+                      disabled={totalInvestment <= 0}
+                      title={totalInvestment <= 0 ? "Add chargers below first to price this as a % of the total" : undefined}
+                      className={cn(
+                        "border-l border-ink-200 px-2 py-0.5",
+                        fundingInputMode === "PERCENT" ? "bg-brand-600 text-white" : "bg-white text-ink-500 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50",
+                      )}
+                    >
+                      % of total
+                    </button>
+                  </div>
+                </div>
+                {fundingInputMode === "AMOUNT" ? (
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={values.financing.requestedAmount ?? ""}
+                    onChange={(e) =>
+                      set("financing", {
+                        ...values.financing,
+                        requestedAmount: e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={values.financing.requestedAmount != null
+                        ? Math.round((values.financing.requestedAmount / totalInvestment) * 10000) / 100
+                        : ""}
+                      onChange={(e) => {
+                        const pct = e.target.value === "" ? null : Number(e.target.value);
+                        set("financing", {
+                          ...values.financing,
+                          requestedAmount: pct == null ? null : Math.round((pct / 100) * totalInvestment),
+                        });
+                      }}
+                    />
+                    <span className="text-sm text-ink-500">%</span>
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-ink-500">
+                  {fundingInputMode === "AMOUNT"
+                    ? (totalInvestment > 0 && values.financing.requestedAmount
+                      ? `= ${Math.round((values.financing.requestedAmount / totalInvestment) * 10000) / 100}% of the ${formatINR(totalInvestment)} total`
+                      : "Of the total investment, once chargers are configured below.")
+                    : `= ${formatINR(values.financing.requestedAmount ?? 0)} of the ${formatINR(totalInvestment)} total`}
+                </p>
+              </div>
             </>
           )}
         </div>
