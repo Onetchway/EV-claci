@@ -411,7 +411,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
         </div>
       </Card>
 
-      {values.type === "SITE" && (
+      {(values.type === "SITE" || values.type === "FRANCHISE") && (
         <Card
           title="Site details"
           subtitle="Everything needed to judge whether a charger can go here."
