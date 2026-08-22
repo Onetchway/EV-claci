@@ -280,6 +280,32 @@ img { max-width: 100%; display: block; }
 .model__share { margin: 1.2rem 0; padding: 1rem; border-radius: var(--radius-sm); background: rgba(198,249,78,.1); border: 1px solid rgba(198,249,78,.25); font-size: .95rem; }
 .model__share strong { color: var(--lime); }
 
+/* ---------- Partnership steps ---------- */
+.steps { display: grid; grid-template-columns: repeat(7, 1fr); gap: .8rem; margin-top: 2.6rem; }
+.step { text-align: center; padding: 1.1rem .6rem; border-radius: var(--radius-sm); background: var(--white); border: 1px solid var(--line); }
+.step__n {
+  display: grid; place-items: center; width: 26px; height: 26px; margin: 0 auto .6rem; border-radius: 50%;
+  background: var(--green); color: #fff; font-family: "Sora"; font-weight: 700; font-size: .8rem;
+}
+.step b { display: block; font-family: "Sora"; font-size: .92rem; margin-bottom: .2rem; }
+.step span { color: var(--muted); font-size: .78rem; line-height: 1.35; }
+
+/* ---------- Investment table ---------- */
+.invest-table-wrap { margin-top: 2.6rem; }
+.invest-table-scroll { overflow-x: auto; border-radius: var(--radius-sm); }
+.invest-table { width: 100%; min-width: 640px; border-collapse: collapse; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; font-size: .88rem; }
+.invest-table caption { text-align: left; font-size: .85rem; color: var(--muted); padding: 0 0 .8rem; caption-side: top; }
+.invest-table th, .invest-table td { padding: .7rem .9rem; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.invest-table th[scope="row"] { text-align: left; font-weight: 600; color: var(--slate); background: var(--bg-alt); white-space: normal; }
+.invest-table thead th { text-align: right; font-family: "Sora"; color: var(--green-2); background: var(--bg-alt); }
+.invest-table thead th:first-child { text-align: left; }
+.invest-table tbody tr:last-child th, .invest-table tbody tr:last-child td { border-bottom: 0; }
+.invest-table__note { margin-top: .9rem; font-size: .8rem; color: var(--muted); line-height: 1.5; }
+
+/* ---------- Press strip ---------- */
+.press-strip { margin-top: 2.6rem; text-align: center; }
+.press-strip__label { font-size: .85rem; color: var(--muted); margin-bottom: 1rem; }
+
 /* ---------- Timeline ---------- */
 .timeline { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6rem; counter-reset: t; }
 .timeline li { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.8rem; position: relative; }
@@ -349,6 +375,7 @@ img { max-width: 100%; display: block; }
 @media (max-width: 1024px) {
   .stats__grid { grid-template-columns: repeat(2, 1fr); }
   .cards--4, .cards--5 { grid-template-columns: repeat(2, 1fr); }
+  .steps { grid-template-columns: repeat(4, 1fr); }
 }
 @media (max-width: 860px) {
   .nav__toggle { display: flex; }
@@ -381,6 +408,7 @@ img { max-width: 100%; display: block; }
   .cards--2, .cards--3, .cards--4, .cards--5, .timeline, .footer__cols { grid-template-columns: 1fr; }
   .network__facts { grid-template-columns: 1fr; }
   .footer__bottom { flex-direction: column; }
+  .steps { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

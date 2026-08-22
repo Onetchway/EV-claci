@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "livanto-278b5"
+  },
+  "targets": {
+    "livanto-278b5": {
+      "hosting": {
+        "website": ["livanto-green-web"]
+      }
+    }
+  }
+}
