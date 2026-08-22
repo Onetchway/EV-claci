@@ -149,9 +149,15 @@ export function PaymentsPanel({
     setEditing(null);
   }
 
+  // A straight charger sale or EPC scope isn't a three-stage franchise
+  // quotation — there's no milestone schedule to reconcile against, just
+  // whatever payments actually get recorded against the deal as agreed.
+  const showCollectionSummary = lead.type !== "EPC" && lead.type !== "CHARGER_SALE";
+
   return (
     <div className="space-y-4">
       <div className={receiptFor ? "hidden print:hidden" : "space-y-4"}>
+      {showCollectionSummary && (
       <Card
         title="Collection summary"
         subtitle="Reconciled against the quotation's three-stage schedule."
@@ -216,8 +222,21 @@ export function PaymentsPanel({
           ))}
         </ul>
       </Card>
+      )}
 
-      <Card title="Payment ledger" subtitle={`${payments.length} entr${payments.length === 1 ? "y" : "ies"}`}>
+      <Card
+        title="Payment ledger"
+        subtitle={showCollectionSummary
+          ? `${payments.length} entr${payments.length === 1 ? "y" : "ies"}`
+          : "Recorded as per the amount agreed when this lead was added — add further records as payments come in."}
+        actions={
+          !showCollectionSummary && canEdit && payments.length > 0 && (
+            <Button size="sm" variant="primary" onClick={() => openNew("OTHER")}>
+              <Plus className="h-3.5 w-3.5" /> Add record
+            </Button>
+          )
+        }
+      >
         {loading ? (
           <p className="py-6 text-center text-sm text-ink-500">Loading…</p>
         ) : payments.length === 0 ? (

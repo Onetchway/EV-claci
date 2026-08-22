@@ -11,14 +11,19 @@ import {
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
 import {
-  BANKS, CHARGER_OEMS, COMMERCIAL_MODEL_LABEL, COMMERCIAL_MODELS,
+  BANKS, CHARGER_OEMS, CLIENT_ENTITY_TYPE_LABEL, CLIENT_ENTITY_TYPES,
+  COMMERCIAL_MODEL_LABEL, COMMERCIAL_MODELS,
   COMMERCIAL_MODEL_TYPES, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES,
-  LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL, LOCATION_TYPES,
+  LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL,
+  LOCATION_PROVIDER_LABEL, LOCATION_PROVIDERS, LOCATION_TYPES,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNERSHIP_TYPES, OWNER_TYPES,
-  OWNER_TYPE_LABEL, POWER_LOADS, POWER_LOAD_LABEL, SOURCES, SOURCE_LABEL,
+  OWNER_TYPE_LABEL, POWER_LOADS, POWER_LOAD_LABEL,
+  SITE_COMPENSATION_TYPE_LABEL, SITE_COMPENSATION_TYPES, SOURCES, SOURCE_LABEL,
   TYPES_WITHOUT_CHARGERS, TYPES_WITHOUT_FINANCING,
-  type CommercialModel, type FundingMode, type LandType, type LeadType,
-  type LocationType, type Ownership, type OwnerType, type PowerLoad, type Source,
+  type ClientEntityType, type CommercialModel, type FundingMode,
+  type LandType, type LeadType, type LocationProvider, type LocationType,
+  type Ownership, type OwnerType, type PowerLoad,
+  type SiteCompensationType, type Source,
 } from "@/lib/constants";
 import { DEFAULT_FINANCING, findDuplicateLeads } from "@/lib/db/leads";
 import { subscribePartners } from "@/lib/db/partners";
@@ -152,6 +157,9 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
   );
 
   const showChargers = !TYPES_WITHOUT_CHARGERS.includes(values.type);
+  /** RWA/Corporate/Government leads represent an institution, not an individual — the "client" fields are the POC on behalf of a society/organization that's always effectively a "firm" (company/PAN/GST relevant), so there's no Individual/Firm toggle to show. */
+  const isInstitutional = values.type === "RWA" || values.type === "CORPORATE" || values.type === "GOVERNMENT";
+  const showSiteDetails = values.type === "SITE" || values.type === "FRANCHISE" || isInstitutional;
 
   /** Same total the Charger configuration card below shows as "Total investment" — recomputed here too so the funding % option has something to work off before that card even renders (and stays in sync as it's edited). */
   const totalInvestment = useMemo(
@@ -257,9 +265,9 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
         </div>
       </Card>
 
-      <Card title="Client details">
+      <Card title={isInstitutional ? "Organization details" : "Client details"}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Client name" required error={errors["client.name"]}>
+          <Field label={isInstitutional ? "POC name" : "Client name"} required error={errors["client.name"]}>
             <Input value={values.client.name} onChange={(e) => setClient({ name: e.target.value })} placeholder="Shoyeb Khan" />
           </Field>
           <Field label="Phone number" required error={errors["client.phone"]}>
@@ -276,9 +284,6 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
           <Field label="Email" error={errors["client.email"]}>
             <Input type="email" value={values.client.email ?? ""} onChange={(e) => setClient({ email: e.target.value })} />
           </Field>
-          <Field label="Company / firm">
-            <Input value={values.client.company ?? ""} onChange={(e) => setClient({ company: e.target.value })} />
-          </Field>
           <Field label="City" required error={errors["client.city"]}>
             <Input value={values.client.city} onChange={(e) => setClient({ city: e.target.value })} placeholder="Vayusena Nagar" />
           </Field>
@@ -290,35 +295,59 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
               options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
             />
           </Field>
-          <Field label="PAN" error={errors["client.pan"]} hint="Format-checked only — not verified against Income Tax records.">
-            <div className="relative">
-              <Input
-                value={values.client.pan ?? ""}
-                onChange={(e) => setClient({ pan: e.target.value.toUpperCase() })}
-                placeholder="ABCDE1234F"
-                maxLength={10}
-                className="pr-24"
-              />
-              {values.client.pan && (
-                <span
-                  className={cn(
-                    "absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                    isValidPan(values.client.pan)
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-amber-100 text-amber-800",
-                  )}
-                >
-                  {isValidPan(values.client.pan) ? "Valid format" : "Check format"}
-                </span>
-              )}
-            </div>
-          </Field>
-          <Field label="GSTIN">
-            <Input value={values.client.gstin ?? ""} onChange={(e) => setClient({ gstin: e.target.value.toUpperCase() })} maxLength={15} />
-          </Field>
           <Field label="Address" className="sm:col-span-2 lg:col-span-3">
             <Textarea value={values.client.address ?? ""} onChange={(e) => setClient({ address: e.target.value })} rows={2} />
           </Field>
+
+          {isInstitutional ? (
+            <Field label={values.type === "RWA" ? "Society name" : "Organization name"} required className="sm:col-span-2 lg:col-span-3">
+              <Input value={values.client.company ?? ""} onChange={(e) => setClient({ company: e.target.value })} />
+            </Field>
+          ) : (
+            <Field label="Client type" className="sm:col-span-2 lg:col-span-3">
+              <Select
+                value={values.client.entityType ?? "INDIVIDUAL"}
+                onChange={(e) => setClient({ entityType: e.target.value as ClientEntityType })}
+                options={CLIENT_ENTITY_TYPES.map((t) => ({ value: t, label: CLIENT_ENTITY_TYPE_LABEL[t] }))}
+              />
+            </Field>
+          )}
+
+          {(isInstitutional || values.client.entityType === "FIRM") && (
+            <>
+              {!isInstitutional && (
+                <Field label="Company / firm name" className="sm:col-span-2 lg:col-span-3">
+                  <Input value={values.client.company ?? ""} onChange={(e) => setClient({ company: e.target.value })} />
+                </Field>
+              )}
+              <Field label="PAN" error={errors["client.pan"]} hint="Format-checked only — not verified against Income Tax records.">
+                <div className="relative">
+                  <Input
+                    value={values.client.pan ?? ""}
+                    onChange={(e) => setClient({ pan: e.target.value.toUpperCase() })}
+                    placeholder="ABCDE1234F"
+                    maxLength={10}
+                    className="pr-24"
+                  />
+                  {values.client.pan && (
+                    <span
+                      className={cn(
+                        "absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        isValidPan(values.client.pan)
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-amber-100 text-amber-800",
+                      )}
+                    >
+                      {isValidPan(values.client.pan) ? "Valid format" : "Check format"}
+                    </span>
+                  )}
+                </div>
+              </Field>
+              <Field label="GSTIN">
+                <Input value={values.client.gstin ?? ""} onChange={(e) => setClient({ gstin: e.target.value.toUpperCase() })} maxLength={15} />
+              </Field>
+            </>
+          )}
         </div>
 
         {duplicates.length > 0 && (
@@ -411,7 +440,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
         </div>
       </Card>
 
-      {(values.type === "SITE" || values.type === "FRANCHISE") && (
+      {showSiteDetails && (
         <Card
           title="Site details"
           subtitle="Everything needed to judge whether a charger can go here."
@@ -434,6 +463,65 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
             >
               <Textarea value={values.site.address ?? ""} onChange={(e) => setSite({ address: e.target.value })} rows={2} />
             </Field>
+
+            <Field label="Location provider">
+              <Select
+                placeholder="Select"
+                value={values.site.locationProvider ?? ""}
+                onChange={(e) => setSite({ locationProvider: (e.target.value || null) as LocationProvider | null })}
+                options={LOCATION_PROVIDERS.map((p) => ({ value: p, label: LOCATION_PROVIDER_LABEL[p] }))}
+              />
+            </Field>
+            <Field label="Site compensation">
+              <Select
+                placeholder="Select"
+                value={values.site.compensationType ?? ""}
+                onChange={(e) => setSite({ compensationType: (e.target.value || null) as SiteCompensationType | null })}
+                options={SITE_COMPENSATION_TYPES.map((t) => ({ value: t, label: SITE_COMPENSATION_TYPE_LABEL[t] }))}
+              />
+            </Field>
+            {values.site.compensationType && (
+              <Field label={values.site.compensationType === "RENTAL" ? "Rental amount (₹/month)" : "Revenue share (%)"}>
+                <Input
+                  type="number"
+                  min={0}
+                  max={values.site.compensationType === "REVENUE_SHARE" ? 100 : undefined}
+                  value={values.site.compensationAmount ?? ""}
+                  onChange={(e) => setSite({ compensationAmount: e.target.value === "" ? null : Number(e.target.value) })}
+                />
+              </Field>
+            )}
+            <Field label="Tenure (years)">
+              <Input
+                type="number"
+                min={0}
+                value={values.site.tenureYears ?? ""}
+                onChange={(e) => setSite({ tenureYears: e.target.value === "" ? null : Number(e.target.value) })}
+              />
+            </Field>
+            {isInstitutional && (
+              <>
+                <Field label="Electricity rate (₹/kWh)" hint="What this site pays its DISCOM.">
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={values.site.electricityRatePerKwh ?? ""}
+                    onChange={(e) => setSite({ electricityRatePerKwh: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Selling rate at site (₹/kWh)" hint="What Livanto charges end users here.">
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={values.site.sellingRatePerKwh ?? ""}
+                    onChange={(e) => setSite({ sellingRatePerKwh: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+              </>
+            )}
+
             <Field label="Property owner">
               <Select
                 placeholder="Select"

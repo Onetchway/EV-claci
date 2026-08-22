@@ -17,6 +17,7 @@ import { EoiPanel } from "@/components/lead/eoi-panel";
 import { FinancingPanel } from "@/components/lead/financing-panel";
 import { StageStepper } from "@/components/lead/stage-stepper";
 import { LeadForm, leadToFormValues, type LeadFormValues } from "@/components/lead-form";
+import { ChargingStationsPanel } from "@/components/lead/charging-stations-panel";
 import {
   Avatar, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select,
   Spinner, Textarea, useAsyncAction,
@@ -26,7 +27,8 @@ import {
   COMMERCIAL_MODEL_LABEL, FRANCHISE_LOI_TYPES, LAND_TYPE_LABEL, LEAD_TYPE_LABEL,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNER_TYPE_LABEL, POWER_LOAD_LABEL,
   REJECTION_LABEL, REJECTION_REASONS, SOURCE_LABEL, STAGE_META, STATUS_COLOR,
-  STATUS_LABEL, TYPES_WITHOUT_DOCUMENTS, TYPES_WITHOUT_FINANCING,
+  STATUS_LABEL, TYPES_WITHOUT_CHARGERS, TYPES_WITHOUT_DOCUMENTS,
+  TYPES_WITHOUT_FINANCING, TYPES_WITHOUT_PAYMENTS,
   type RejectionReason,
 } from "@/lib/constants";
 import {
@@ -96,7 +98,9 @@ export default function LeadDetailPage() {
     if (!lead) return;
     const hidden =
       (tab === "Letter of Intent" && !FRANCHISE_LOI_TYPES.includes(lead.type)) ||
+      (tab === "Quotation" && TYPES_WITHOUT_CHARGERS.includes(lead.type)) ||
       (tab === "Financing" && TYPES_WITHOUT_FINANCING.includes(lead.type)) ||
+      (tab === "Payments" && TYPES_WITHOUT_PAYMENTS.includes(lead.type)) ||
       (tab === "Documents" && TYPES_WITHOUT_DOCUMENTS.includes(lead.type));
     if (hidden) setTab("Overview");
   }, [lead, tab]);
@@ -287,7 +291,9 @@ export default function LeadDetailPage() {
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-ink-200 scroll-thin print:hidden">
         {TABS.filter((t) => {
           if (t === "Letter of Intent") return FRANCHISE_LOI_TYPES.includes(lead.type);
+          if (t === "Quotation") return !TYPES_WITHOUT_CHARGERS.includes(lead.type);
           if (t === "Financing") return !TYPES_WITHOUT_FINANCING.includes(lead.type);
+          if (t === "Payments") return !TYPES_WITHOUT_PAYMENTS.includes(lead.type);
           if (t === "Documents") return !TYPES_WITHOUT_DOCUMENTS.includes(lead.type);
           return true;
         }).map((t) => (
@@ -389,6 +395,12 @@ export default function LeadDetailPage() {
                 <Detail label="Remarks" value={lead.site?.remarks || "—"} />
               </dl>
             </Card>
+          )}
+
+          {actor && (
+            <div className="lg:col-span-3">
+              <ChargingStationsPanel lead={lead} actor={actor} canEdit={editable} />
+            </div>
           )}
         </div>
       )}

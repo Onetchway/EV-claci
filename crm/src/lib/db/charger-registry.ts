@@ -205,6 +205,19 @@ export function subscribeChargerRegistry(
   );
 }
 
+/** Chargers already linked to a lead (see leadId/leadCode above) — for the lead detail page's "Charging stations" card. */
+export function subscribeChargerRegistryForLead(
+  leadId: string,
+  cb: (rows: ChargerRegistration[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), CHARGER_REGISTRY), where("leadId", "==", leadId)),
+    (snap) => cb(snap.docs.map((d) => mapDoc(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export function subscribeChargerRegistration(
   id: string,
   cb: (row: ChargerRegistration | null) => void,

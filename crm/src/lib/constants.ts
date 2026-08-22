@@ -121,7 +121,6 @@ export const ORG_WIDE_ROLES: Role[] = [
 export const STAGES = [
   "NEW",
   "CONTACTED",
-  "INTRODUCTION",
   "EOI",
   "AGREEMENT",
   "COMMISSIONING",
@@ -147,14 +146,9 @@ export const STAGE_META: Record<Stage, StageMeta> = {
     color: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-400",
   },
   CONTACTED: {
-    key: "CONTACTED", label: "Contacted", short: "Contacted", probability: 0.15,
-    hint: "First call/message done, awaiting a real conversation.",
+    key: "CONTACTED", label: "Contacted", short: "Contacted", probability: 0.2,
+    hint: "First conversation done and the business model/investment deck presented.",
     color: "bg-sky-100 text-sky-800 ring-sky-200", dot: "bg-sky-500",
-  },
-  INTRODUCTION: {
-    key: "INTRODUCTION", label: "Introduction", short: "Intro", probability: 0.3,
-    hint: "Business model and investment deck presented.",
-    color: "bg-indigo-100 text-indigo-800 ring-indigo-200", dot: "bg-indigo-500",
   },
   EOI: {
     key: "EOI", label: "Expression of Interest", short: "EOI", probability: 0.55,
@@ -190,32 +184,30 @@ export const WON_STAGE: Stage = "HANDOVER";
  * isn't actually in its type's list (e.g. its type changed after the fact).
  */
 export const LEAD_TYPE_STAGES: Record<LeadType, Stage[]> = {
-  FRANCHISE: ["NEW", "CONTACTED", "INTRODUCTION", "EOI", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
-  SITE: ["NEW", "CONTACTED", "INTRODUCTION", "EOI", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
-  RWA: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
-  CORPORATE: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
-  GOVERNMENT: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
-  EPC: ["NEW", "CONTACTED", "INTRODUCTION", "COMMISSIONING", "HANDOVER"],
-  CHARGER_SALE: ["NEW", "CONTACTED", "INTRODUCTION", "COMMISSIONING", "HANDOVER"],
-  SOFTWARE: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "HANDOVER"],
-  OTHERS: ["NEW", "CONTACTED", "INTRODUCTION", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  FRANCHISE: ["NEW", "CONTACTED", "EOI", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  // A site/location-partner lead's job ends once the site agreement is
+  // signed — the physical build happens under a separate Franchise lead or
+  // project, so EOI/Commissioning/Handover don't apply here.
+  SITE: ["NEW", "CONTACTED", "AGREEMENT"],
+  RWA: ["NEW", "CONTACTED", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  CORPORATE: ["NEW", "CONTACTED", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  GOVERNMENT: ["NEW", "CONTACTED", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
+  EPC: ["NEW", "CONTACTED", "COMMISSIONING", "HANDOVER"],
+  CHARGER_SALE: ["NEW", "CONTACTED", "COMMISSIONING", "HANDOVER"],
+  SOFTWARE: ["NEW", "CONTACTED", "AGREEMENT", "HANDOVER"],
+  OTHERS: ["NEW", "CONTACTED", "AGREEMENT", "COMMISSIONING", "HANDOVER"],
 };
 
-/**
- * The "Introduction" stage means something different once it's not leading
- * into a Franchise EOI — it's the quotation for a straight charger sale or
- * EPC scope, and the proposal for an institutional buyer.
- */
+/** The stage that closes out a lead of this type — usually Handover, but a type whose sequence doesn't reach it (e.g. Site) is "won" once it hits its own last stage instead. */
+export function finalStageFor(type: LeadType): Stage {
+  const seq = LEAD_TYPE_STAGES[type];
+  return seq[seq.length - 1] ?? WON_STAGE;
+}
+
 export function stageLabelFor(type: LeadType, stage: Stage): string {
-  if (stage === "INTRODUCTION" && type !== "FRANCHISE" && type !== "SITE") {
-    return type === "CHARGER_SALE" || type === "EPC" ? "Quotation" : "Proposal";
-  }
   return STAGE_META[stage].label;
 }
 export function stageShortFor(type: LeadType, stage: Stage): string {
-  if (stage === "INTRODUCTION" && type !== "FRANCHISE" && type !== "SITE") {
-    return type === "CHARGER_SALE" || type === "EPC" ? "Quotation" : "Proposal";
-  }
   return STAGE_META[stage].short;
 }
 
@@ -288,16 +280,19 @@ export const B2B_LEAD_TYPES: LeadType[] = ["CORPORATE", "GOVERNMENT", "RWA", "SO
  * every tab for a hardcoded "FRANCHISE" check.
  */
 
-/** Only individual investors (Franchise/Site) take a personal loan against the purchase. */
+/** Only a Franchise investor takes a personal loan against the purchase — a Site/Location partner doesn't buy anything, they host it. */
 export const TYPES_WITHOUT_FINANCING: LeadType[] = [
-  "RWA", "EPC", "CHARGER_SALE", "CORPORATE", "GOVERNMENT", "SOFTWARE", "OTHERS",
+  "SITE", "RWA", "EPC", "CHARGER_SALE", "CORPORATE", "GOVERNMENT", "SOFTWARE", "OTHERS",
 ];
 
-/** Software-only deals have nothing to install — no DC charger basket, just priced line items. */
-export const TYPES_WITHOUT_CHARGERS: LeadType[] = ["SOFTWARE"];
+/** Software-only deals have nothing to install — no DC charger basket, just priced line items. A Site/Location partner lead is about the site itself, not a charger purchase — the config/quotation happens on the Franchise lead once one exists. */
+export const TYPES_WITHOUT_CHARGERS: LeadType[] = ["SOFTWARE", "SITE"];
 
 /** No KYC/site paperwork to collect — an institutional commercial decision, not an individual's. */
 export const TYPES_WITHOUT_DOCUMENTS: LeadType[] = ["RWA", "CORPORATE", "SOFTWARE", "OTHERS"];
+
+/** A Site/Location partner lead ends at a signed site agreement — there's no purchase to collect payment on. An RWA/institutional lead's commercial terms live on the site's rental/revenue-share fields, not a milestone payment schedule. */
+export const TYPES_WITHOUT_PAYMENTS: LeadType[] = ["SITE", "RWA", "CORPORATE", "GOVERNMENT"];
 
 export const COMMERCIAL_MODELS = ["OPEX", "CAPEX"] as const;
 export type CommercialModel = (typeof COMMERCIAL_MODELS)[number];
@@ -515,6 +510,27 @@ export const OWNERSHIP_LABEL: Record<Ownership, string> = {
   RENTED: "Rented",
   LEASED: "Leased",
   PARTNERSHIP: "Partnership / JV",
+};
+
+export const CLIENT_ENTITY_TYPES = ["INDIVIDUAL", "FIRM"] as const;
+export type ClientEntityType = (typeof CLIENT_ENTITY_TYPES)[number];
+export const CLIENT_ENTITY_TYPE_LABEL: Record<ClientEntityType, string> = {
+  INDIVIDUAL: "Individual",
+  FIRM: "Firm / Company",
+};
+
+export const LOCATION_PROVIDERS = ["SELF", "LIVANTO"] as const;
+export type LocationProvider = (typeof LOCATION_PROVIDERS)[number];
+export const LOCATION_PROVIDER_LABEL: Record<LocationProvider, string> = {
+  SELF: "Self — the client's own site",
+  LIVANTO: "Livanto — sourced/arranged by us",
+};
+
+export const SITE_COMPENSATION_TYPES = ["RENTAL", "REVENUE_SHARE"] as const;
+export type SiteCompensationType = (typeof SITE_COMPENSATION_TYPES)[number];
+export const SITE_COMPENSATION_TYPE_LABEL: Record<SiteCompensationType, string> = {
+  RENTAL: "Flat rental (₹/month)",
+  REVENUE_SHARE: "Revenue share (%)",
 };
 
 export const POWER_LOADS = ["NONE", "SINGLE_PHASE", "THREE_PHASE", "HT_LINE"] as const;

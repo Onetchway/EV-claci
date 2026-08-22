@@ -185,6 +185,8 @@ export interface ClientInfo {
   pan?: string;
   aadhaarLast4?: string;
   gstin?: string;
+  /** Individual investors have no company/PAN/GST to collect; a Firm does. Unset (older leads) is treated as Individual. */
+  entityType?: "INDIVIDUAL" | "FIRM";
 }
 
 export interface SiteInfo {
@@ -209,6 +211,18 @@ export interface SiteInfo {
   remarks?: string;
   /** A multi-charger hub rather than a single-configuration station. */
   isHub?: boolean;
+  /** Who provides the site: the investor's own premises, or one Livanto sources/arranges. */
+  locationProvider?: "SELF" | "LIVANTO" | null;
+  /** How the site host is compensated for hosting — a flat monthly rental, or a cut of session revenue. */
+  compensationType?: "RENTAL" | "REVENUE_SHARE" | null;
+  /** ₹/month if compensationType is RENTAL, a percentage if REVENUE_SHARE. */
+  compensationAmount?: number | null;
+  /** What this site pays its DISCOM per kWh — used for RWA/institutional deals to work out the margin on the selling rate below. */
+  electricityRatePerKwh?: number | null;
+  /** What Livanto charges end users at this site — the RWA/institutional commercial model is usually negotiated as a spread over the DISCOM rate above. */
+  sellingRatePerKwh?: number | null;
+  /** Lease/hosting agreement tenure, in years. */
+  tenureYears?: number | null;
 }
 
 export interface RejectionInfo {

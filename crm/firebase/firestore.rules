@@ -383,6 +383,12 @@ service cloud.firestore {
         && request.resource.data.active == false
         && request.resource.data.pendingApproval == true
         && request.resource.data.createdBy.uid == request.auth.uid;
+      // Linking/unlinking a charger to a CRM lead (charging-stations-panel.tsx)
+      // — a Sales role may touch only leadId/leadCode, and only to point at a
+      // lead they're allowed to edit (or to null, to unlink).
+      allow update: if canWriteLeads()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leadId', 'leadCode'])
+        && (request.resource.data.leadId == null || canEditLead(request.resource.data.leadId));
     }
 
     // Zone groupings + sanctioned load cap (monitoring, not active control).

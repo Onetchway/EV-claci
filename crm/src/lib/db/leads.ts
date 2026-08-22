@@ -7,7 +7,7 @@ import {
 } from "firebase/firestore";
 
 import {
-  LEAD_TYPE_CODE, STAGES, STAGE_META, WON_STAGE,
+  finalStageFor, LEAD_TYPE_CODE, STAGES, STAGE_META,
   type CommercialModel, type EoiStatus, type LeadStatus, type LeadType,
   type RejectionReason, type Source, type Stage,
 } from "../constants";
@@ -24,7 +24,12 @@ export const LEADS = "leads";
 const COUNTERS = "counters";
 
 function mapLead(id: string, data: Record<string, unknown>): Lead {
-  return { id, ...(data as Omit<Lead, "id">) };
+  const lead = { id, ...(data as Omit<Lead, "id">) };
+  // "Introduction" was merged into "Contacted" — any lead still stored with
+  // the old value (never migrated in Firestore) reads as Contacted instead
+  // of crashing every STAGE_META[lead.stage] lookup on an unknown key.
+  if ((lead.stage as string) === "INTRODUCTION") lead.stage = "CONTACTED";
+  return lead;
 }
 
 // ---------------------------------------------------------------------------
@@ -421,8 +426,8 @@ export async function changeStage(lead: Lead, stage: Stage, actor: Actor, note?:
     lastActivityAt: serverTimestamp(),
     lastActivityBy: actor.name,
   };
-  // Reaching handover closes the lead; moving back out of it reopens.
-  if (stage === WON_STAGE) update.status = "WON";
+  // Reaching this type's final stage closes the lead; moving back out reopens it.
+  if (stage === finalStageFor(lead.type)) update.status = "WON";
   else if (lead.status === "WON") update.status = "ACTIVE";
 
   await updateDoc(doc(db, LEADS, lead.id), update);
@@ -468,7 +473,7 @@ export async function rejectLead(
 
 export async function reopenLead(lead: Lead, actor: Actor, note?: string): Promise<void> {
   await updateDoc(doc(getDb(), LEADS, lead.id), {
-    status: lead.stage === WON_STAGE ? "WON" : "ACTIVE",
+    status: lead.stage === finalStageFor(lead.type) ? "WON" : "ACTIVE",
     rejection: null,
     updatedAt: serverTimestamp(),
     updatedBy: actor,

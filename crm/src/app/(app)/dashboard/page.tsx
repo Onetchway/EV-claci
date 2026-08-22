@@ -83,7 +83,7 @@ export default function DashboardPage() {
             l.status === "ACTIVE" &&
             !l.eoi &&
             (l.config ?? []).length > 0 &&
-            STAGES.indexOf(l.stage) >= STAGES.indexOf("INTRODUCTION"),
+            STAGES.indexOf(l.stage) >= STAGES.indexOf("CONTACTED"),
         )
         .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
         .slice(0, 6),
