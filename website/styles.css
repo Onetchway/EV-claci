@@ -74,7 +74,7 @@ img { max-width: 100%; display: block; }
 .nav.is-scrolled { border-color: var(--line); }
 .nav__inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .brand { display: inline-flex; align-items: center; }
-.brand img { height: 28px; width: auto; display: block; }
+.brand img { height: 42px; width: auto; display: block; }
 .nav__links { display: flex; align-items: center; gap: 2.1rem; }
 .nav__links > a:not(.btn) { font-weight: 500; font-size: .95rem; color: var(--ink-soft); transition: color .2s; position: relative; }
 .nav__links > a:not(.btn):hover { color: var(--green-2); }
@@ -317,13 +317,33 @@ img { max-width: 100%; display: block; }
 .footer__cta-side { display: flex; flex-direction: column; align-items: flex-start; gap: 1.2rem; }
 .footer__cta-side a.mail { color: #fff; font-weight: 700; font-size: 1.15rem; border-bottom: 2px solid var(--green); padding-bottom: .15rem; }
 
-.footer__inner { display: grid; grid-template-columns: 1.3fr .9fr .9fr .9fr; gap: 2.5rem; padding: 64px 0 3rem; border-bottom: 1px solid rgba(255,255,255,.1); }
-.footer .brand img { filter: brightness(0) invert(1); height: 24px; }
+.footer__inner { display: grid; grid-template-columns: 1.2fr .8fr .8fr .8fr 1fr; gap: 2.2rem; padding: 64px 0 3rem; border-bottom: 1px solid rgba(255,255,255,.1); }
+.footer .brand img { filter: brightness(0) invert(1); height: 34px; }
 .footer__brand p { margin-top: 1.2rem; max-width: 30ch; font-size: .92rem; line-height: 1.6; }
 .footer__cols h4 { color: #fff; font-size: .78rem; margin-bottom: 1.2rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
 .footer__cols a { display: block; font-size: .92rem; padding: .32rem 0; color: rgba(255,255,255,.62); transition: color .2s; }
 .footer__cols a:hover { color: var(--green); }
 .footer__bottom { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem; padding: 1.8rem 0; font-size: .82rem; color: rgba(255,255,255,.4); }
+
+/* app badges + social icons column */
+.footer__app-badges { display: grid; gap: .6rem; margin-bottom: 1.8rem; }
+.app-badge {
+  display: inline-flex; align-items: center; gap: .55rem; padding: .55rem .85rem;
+  border: 1px solid rgba(255,255,255,.22); border-radius: 10px; color: #fff;
+  transition: border-color .2s, background .2s;
+}
+.app-badge:hover { border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.06); }
+.app-badge svg { flex-shrink: 0; }
+.app-badge span { display: block; line-height: 1.2; }
+.app-badge .app-badge__sub { font-size: .62rem; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .04em; }
+.app-badge .app-badge__main { font-size: .86rem; font-weight: 600; }
+.footer__social { display: flex; gap: .7rem; }
+.footer__social a {
+  display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.22); color: rgba(255,255,255,.8);
+  transition: border-color .2s, color .2s, background .2s;
+}
+.footer__social a:hover { border-color: var(--green); color: var(--green); background: rgba(255,255,255,.06); }
 
 /* ---------- Scroll reveal ---------- */
 .reveal { opacity: 0; transform: translateY(20px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
