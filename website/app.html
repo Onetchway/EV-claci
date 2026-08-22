@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Software — Livanto Green</title>
-  <meta name="description" content="Livanto CMS — OCPI and OCPP 1.6J enabled charging station management, with dedicated Franchise and Client dashboards." />
+  <title>The Livanto Green App — Livanto Green</title>
+  <meta name="description" content="Find a charger, check live availability, start and monitor a session, and pay — all from the Livanto Green app." />
   <meta name="theme-color" content="#ffffff" />
   <link rel="preconnect" href="https://api.fontshare.com" />
   <link href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700,800&display=swap" rel="stylesheet" />
@@ -18,10 +18,10 @@
       <nav class="nav__links" id="navLinks" aria-label="Primary">
         <a href="solutions.html">Solutions</a>
         <a href="products.html">Products</a>
-        <a href="software.html" class="is-active">Software</a>
+        <a href="software.html">Software</a>
         <a href="network.html">Network</a>
         <a href="franchise.html">Franchise</a>
-        <a href="app.html">App</a>
+        <a href="app.html" class="is-active">App</a>
         <a href="about.html">About</a>
         <a class="btn--link" href="contact.html" style="margin-right:.6rem;">Contact</a>
         <a class="btn btn--primary nav__cta" href="apply.html"><span class="btn__chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Apply now</a>
@@ -31,73 +31,57 @@
   </header>
 
   <main>
-    <section class="pagehead">
-      <div class="container">
-        <p class="pagehead--crumb"><a href="index.html">Home</a> / Software</p>
-        <p class="pagehead__kicker">The software ecosystem</p>
-        <h1>One connected platform, from driver to franchise</h1>
-        <p>Built on the OCPP standard, so every charger — ours or a partner's — reports live status, sessions and faults back to one dashboard. OCPI and OCPP 1.6J enabled, secure API and data encryption throughout.</p>
+    <section class="apphero">
+      <div class="container apphero__inner">
+        <p class="pagehead--crumb"><a href="index.html">Home</a> / App</p>
+        <p class="pagehead__kicker">Coming soon</p>
+        <h1>Charging, in your pocket</h1>
+        <p>Find a station, check live availability, start a session and pay — the Livanto Green app puts the whole network in one screen.</p>
+        <div class="footer__app-badges apphero__badges">
+          <a class="app-badge" href="#" aria-label="Download on the App Store (coming soon)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.415 2.19-1.24 3.13-.995 1.13-2.2 1.78-3.51 1.67-.045-1.1.42-2.24 1.23-3.15.86-.97 2.24-1.68 3.4-1.65.03.34.045.66.12 1zM20.6 17.34c-.55 1.28-.82 1.85-1.53 2.98-1 1.58-2.4 3.54-4.15 3.56-1.55.02-1.95-1.01-4.05-1-2.1.01-2.54 1.02-4.09 1-1.75-.02-3.08-1.79-4.08-3.37-2.8-4.42-3.1-9.61-1.37-12.38 1.23-1.97 3.17-3.13 4.99-3.13 1.86 0 3.02 1.02 4.56 1.02 1.5 0 2.4-1.02 4.56-1.02 1.62 0 3.34.88 4.56 2.4-4.01 2.2-3.36 7.93.6 9.94z"/></svg>
+            <span><span class="app-badge__sub">Coming soon on the</span><span class="app-badge__main">App Store</span></span>
+          </a>
+          <a class="app-badge" href="#" aria-label="Get it on Google Play (coming soon)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3c-.4.2-.6.6-.6 1.1v17.2c0 .5.2.9.6 1.1l9.9-9.7L3.6 2.3zm11.4 9.7 2.6-2.6-9.9-5.7 7.3 8.3zm0 1.4-7.3 8.3 9.9-5.7-2.6-2.6zm1.4-1.4 3.2 1.9c.5.3.8.8.8 1.4s-.3 1.1-.8 1.4l-3.2 1.9L14 12z"/></svg>
+            <span><span class="app-badge__sub">Coming soon on</span><span class="app-badge__main">Google Play</span></span>
+          </a>
+        </div>
+      </div>
+      <div class="apphero__shot">
+        <img src="assets/app-showcase.png" alt="Livanto Green app screens: find charging stations, browse the station map, and track a live charging session" />
       </div>
     </section>
 
-    <section class="section software__inner container">
-      <div class="software__copy">
-        <div class="split">
-          <div class="split__col">
-            <h4>For drivers</h4>
-            <ul class="ticks">
-              <li>AI-driven charger discovery &amp; route planning</li>
-              <li>Real-time availability, by AC/DC or speed</li>
-              <li>Select multiple EVs on one account</li>
-              <li>Comprehensive charger filters (connector, speed)</li>
-              <li>Integrated with all major Indian payment gateways</li>
-              <li>Green kilometres travelled, tracked automatically</li>
-              <li>Manage tagged RFIDs</li>
-            </ul>
+    <section class="appflow">
+      <div class="container appflow__inner">
+        <div class="appflow__sticky">
+          <div class="appflow__track" aria-hidden="true">
+            <div class="appflow__fill" id="appflowFill"></div>
           </div>
-          <div class="split__col">
-            <h4>For operators &amp; franchises</h4>
-            <ul class="ticks">
-              <li>CMS — live stations, sessions &amp; revenue</li>
-              <li>Franchise Dashboard — your stations, payouts &amp; performance</li>
-              <li>Client Dashboard — real-time charger monitoring</li>
-              <li>Remote diagnostics &amp; over-the-air upgrades</li>
-              <li>Dynamic, data-driven pricing decisions</li>
-              <li>OCPI + OCPP 1.6J, secure API &amp; data encryption</li>
-            </ul>
+          <img src="assets/app-showcase.png" alt="" />
+        </div>
+        <div class="appflow__steps">
+          <div class="appflow__step" data-step="1">
+            <span class="appflow__num">01</span>
+            <h3>Find a charger</h3>
+            <p>Search by location or browse the live map — filter by connector type, speed and real-time availability, near you or along your route.</p>
           </div>
-        </div>
-      </div>
-
-      <div class="dashboard-card dashboard-card--shot">
-        <p class="dashboard-card__head">Livanto CMS — live dashboard</p>
-        <img src="assets/software-dashboard.jpg" alt="Livanto CMS dashboard showing online chargers, revenue, sessions and a live charger map" loading="lazy" />
-        <p class="dashboard-card__note">Actual screen from the Livanto CMS — the same console every Livanto station and franchise operator runs on.</p>
-      </div>
-    </section>
-
-    <section class="section section--alt">
-      <div class="container">
-        <div class="section-head">
-          <h2>Three dashboards, one platform</h2>
-          <p class="section-sub">Secure &amp; scalable, real-time monitoring, data-driven decisions — the same platform underneath every view.</p>
-        </div>
-        <div class="cards--2" style="grid-template-columns:repeat(3,1fr);">
-          <article class="model">
-            <h3 style="font-size:1.2rem;">CMS</h3>
-            <p class="model__full">Charging Station Management System</p>
-            <p>Total stations, active stations, live sessions and revenue — the operational control centre.</p>
-          </article>
-          <article class="model">
-            <h3 style="font-size:1.2rem;">Franchise Dashboard</h3>
-            <p class="model__full">Grow your network with confidence</p>
-            <p>My stations, transactions, payouts and performance — everything a franchise partner needs.</p>
-          </article>
-          <article class="model">
-            <h3 style="font-size:1.2rem;">Client Dashboard</h3>
-            <p class="model__full">Real-time charger monitoring</p>
-            <p>Find a charger, start a session, track wallet and charging history — the driver-facing app.</p>
-          </article>
+          <div class="appflow__step" data-step="2">
+            <span class="appflow__num">02</span>
+            <h3>Book your slot</h3>
+            <p>Reserve a bay in advance so it's free when you arrive — no circling the car park, no waiting on a queue.</p>
+          </div>
+          <div class="appflow__step" data-step="3">
+            <span class="appflow__num">03</span>
+            <h3>Track your charge</h3>
+            <p>Watch your session live — percentage complete, time remaining, and a one-tap pause whenever you need it.</p>
+          </div>
+          <div class="appflow__step" data-step="4">
+            <span class="appflow__num">04</span>
+            <h3>Pay &amp; go</h3>
+            <p>Integrated with all major Indian payment gateways, with green kilometres and charging history tracked automatically.</p>
+          </div>
         </div>
       </div>
     </section>

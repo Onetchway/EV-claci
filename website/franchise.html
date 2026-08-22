@@ -21,6 +21,7 @@
         <a href="software.html">Software</a>
         <a href="network.html">Network</a>
         <a href="franchise.html" class="is-active">Franchise</a>
+        <a href="app.html">App</a>
         <a href="about.html">About</a>
         <a class="btn--link" href="contact.html" style="margin-right:.6rem;">Contact</a>
         <a class="btn btn--primary nav__cta" href="apply.html"><span class="btn__chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Apply now</a>
@@ -68,6 +69,49 @@
           <div class="step"><span class="step__n">05</span><b>Operate</b><span>Livanto runs the network 24×7</span></div>
           <div class="step"><span class="step__n">06</span><b>Revenue</b><span>Transparent monthly share</span></div>
           <div class="step"><span class="step__n">07</span><b>Support</b><span>Ongoing training &amp; reviews</span></div>
+        </div>
+
+        <div class="calculator" id="calculator">
+          <div class="calculator__head">
+            <p class="pagehead__kicker" style="margin-bottom:.5rem;">Investment calculator</p>
+            <h3>Calculate your EV franchise returns</h3>
+            <p>Move the slider to a charger power and see the estimated investment, EOI, monthly income and payback — pulled straight from Livanto Green's franchise investment model.</p>
+          </div>
+          <div class="calculator__body">
+            <div class="calculator__control">
+              <div class="calculator__control-head">
+                <span>Charger power</span>
+                <span class="calculator__power" id="calcPowerLabel">120 kW</span>
+              </div>
+              <input type="range" id="calcPower" min="0" max="5" step="1" value="2" aria-label="Charger power" />
+              <div class="calculator__ticks">
+                <span>60</span><span>90</span><span>120</span><span>180</span><span>240</span><span>360</span>
+              </div>
+            </div>
+            <div class="calculator__results">
+              <div class="calculator__stat">
+                <span class="calculator__label">Total investment</span>
+                <span class="calculator__value" id="calcInvestment">₹25.5L</span>
+              </div>
+              <div class="calculator__stat">
+                <span class="calculator__label">Expression of Interest</span>
+                <span class="calculator__value" id="calcEoi">₹50,000</span>
+              </div>
+              <div class="calculator__stat calculator__stat--accent">
+                <span class="calculator__label">Projected monthly income*</span>
+                <span class="calculator__value" id="calcIncome">₹85,500</span>
+              </div>
+              <div class="calculator__stat">
+                <span class="calculator__label">Assured minimum (24 mo.)</span>
+                <span class="calculator__value" id="calcAssured">₹20,000</span>
+              </div>
+              <div class="calculator__stat">
+                <span class="calculator__label">Projected payback*</span>
+                <span class="calculator__value" id="calcPayback">~2.5 yrs</span>
+              </div>
+            </div>
+          </div>
+          <a class="btn btn--primary" href="apply.html" style="margin-top:1.6rem;"><span class="btn__chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Apply at this tier</a>
         </div>
 
         <div class="invest-table-wrap" id="investment">
@@ -138,6 +182,7 @@
         <a href="products.html">Products</a>
         <a href="software.html">Software</a>
         <a href="network.html">Network</a>
+        <a href="app.html">App</a>
       </div>
       <div class="footer__cols">
         <h4>Partner</h4>

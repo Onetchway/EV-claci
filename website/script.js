@@ -163,4 +163,56 @@
   /* footer year */
   const yr = document.getElementById("year");
   if (yr) yr.textContent = new Date().getFullYear();
+
+  /* franchise investment calculator */
+  const calcPower = document.getElementById("calcPower");
+  if (calcPower) {
+    const tiers = [
+      { kw: "60 kW", investment: "₹15.5L", eoi: "₹50,000", income: "₹57,000", assured: "₹15,000", payback: "~2.3 yrs" },
+      { kw: "90 kW", investment: "₹20.5L", eoi: "₹50,000", income: "₹71,250", assured: "₹15,000", payback: "~2.4 yrs" },
+      { kw: "120 kW", investment: "₹25.5L", eoi: "₹50,000", income: "₹85,500", assured: "₹20,000", payback: "~2.5 yrs" },
+      { kw: "180 kW", investment: "₹30L", eoi: "₹50,000", income: "₹1,18,125", assured: "₹20,000", payback: "~2.1 yrs" },
+      { kw: "240 kW", investment: "₹38L", eoi: "₹1,00,000", income: "₹1,32,000", assured: "₹30,000", payback: "~2.4 yrs" },
+      { kw: "360 kW", investment: "₹50L", eoi: "₹2,00,000", income: "₹1,81,500", assured: "₹40,000", payback: "~2.3 yrs" },
+    ];
+    const label = document.getElementById("calcPowerLabel");
+    const fields = {
+      investment: document.getElementById("calcInvestment"),
+      eoi: document.getElementById("calcEoi"),
+      income: document.getElementById("calcIncome"),
+      assured: document.getElementById("calcAssured"),
+      payback: document.getElementById("calcPayback"),
+    };
+    const render = () => {
+      const t = tiers[Number(calcPower.value)];
+      label.textContent = t.kw;
+      fields.investment.textContent = t.investment;
+      fields.eoi.textContent = t.eoi;
+      fields.income.textContent = t.income;
+      fields.assured.textContent = t.assured;
+      fields.payback.textContent = t.payback;
+    };
+    calcPower.addEventListener("input", render);
+    render();
+  }
+
+  /* app showcase page — scroll-driven step highlight */
+  const appSteps = document.querySelectorAll(".appflow__step");
+  const appFill = document.getElementById("appflowFill");
+  if (appSteps.length) {
+    const total = appSteps.length;
+    const aio = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          entry.target.classList.toggle("is-active", entry.isIntersecting);
+        });
+        const activeIdx = Array.from(appSteps).findIndex((s) => s.classList.contains("is-active"));
+        if (activeIdx > -1 && appFill) {
+          appFill.style.height = ((activeIdx + 1) / total) * 100 + "%";
+        }
+      },
+      { threshold: 0.5, rootMargin: "-20% 0px -20% 0px" }
+    );
+    appSteps.forEach((s) => aio.observe(s));
+  }
 })();
