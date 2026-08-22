@@ -5,35 +5,50 @@ an EV Charging Point Operator (CPO) building an AC/DC charging network across
 India — with a real "Apply now" form for franchise and site partnership
 enquiries, wired straight into the Livanto Green CRM.
 
-The design synthesises cues from leading EV-charging sites:
+The design follows the actual visual grammar of Electra, bp pulse and
+Statiq — reviewed directly from reference screenshots, not guessed from
+memory:
 
 | Reference | What we borrowed |
 |-----------|------------------|
-| [Ionity](https://www.ionity.eu/) | Premium dark hero, high-power emphasis, network focus |
-| [Electra](https://www.go-electra.com/en/) | Confident, product-led storytelling |
-| [Fastned](https://www.fastnedcharging.com/en) | Clean, driver-first UX, simple charger line-up |
-| [ChargeZone](https://www.chargezone.co.in/) | Indian CPO context, franchise/partnership focus |
+| [Electra](https://www.go-electra.com/en/) | Bold navy type on white, full-bleed real photography, pill buttons with a circular icon chip, no eyebrow-pill/card-grid template repeated on every section |
+| [Statiq](https://www.statiq.in/) | Franchise-page structure: numbered process steps, investment breakdown |
+| [bp pulse](https://www.bppulse.com/) | Real client-photography treatment, feature-grid pacing |
 
 ## Structure
 
+A real multi-page site — separate HTML files with their own URLs, not one
+page with anchor links:
+
 ```
 website/
-├── index.html      # single-page site (all sections, anchor nav)
-├── styles.css       # design system + responsive layout
-├── script.js        # nav, scroll-reveal, entity-type toggle, apply form
+├── index.html       # Home — hero, real client logos, stat band, teasers, footer CTA
+├── solutions.html    # Full solutions list (residential, highways, fleet, government)
+├── products.html      # Individual charger cards — Home/Wall/AC Dual/DC 60/120/240
+├── software.html      # Software ecosystem — driver & operator features, CMS preview
+├── network.html        # Live stations (Lucknow, Dehradun) + network facts
+├── franchise.html       # Franchise/site-partner models, 7-step process, investment table
+├── apply.html             # The lead-capture application form (see below)
+├── about.html              # Company + press/government-engagement strip
+├── contact.html             # Contact details + link to apply.html
+├── styles.css        # design system + responsive layout (single Inter typeface)
+├── script.js         # nav, scroll-reveal, entity-type toggle, apply form
 └── assets/
+    ├── logo.png                    # real Livanto Green logo
+    ├── hero-charging.jpg           # real Livanto charger + Tata Curvv.ev photo
+    ├── station-lucknow.jpg / station-dehradun.jpg   # real live station photos
+    ├── charger-*.jpg               # individual product photos, one per SKU
+    ├── clients-*.jpg               # real client logos, grouped by segment
     └── favicon.svg
 ```
 
-## Sections
-
-Hero · Who we serve · Why Livanto Green · Solutions · Products · Software
-ecosystem · Network · Why us · Sustainability · Franchise models · **Apply
-now (the lead-capture form)** · About · Contact.
+Every page shares the same header/footer markup (no build step, so it's
+duplicated per file — standard for a plain static site); update all nine
+files together when nav or footer links change.
 
 ## The "Apply now" form → CRM pipeline
 
-`#apply` is a single form covering all five ways someone can get in touch:
+`apply.html` carries a single form covering all five ways someone can get in touch:
 Franchise partnership, Site/land partnership, Bulk charger purchase,
 Corporate/fleet charging, and RWA/institutional. The selected option maps
 straight onto a **CRM lead type** (`FRANCHISE` / `SITE` / `CHARGER_SALE` /
@@ -80,7 +95,7 @@ python3 -m http.server 8080
 ```
 
 To test the form against a local CRM dev server instead of production, add
-before the `script.js` tag in `index.html`:
+before the `script.js` tag in `apply.html`:
 
 ```html
 <script>window.LIVANTO_APPLY_ENDPOINT = "http://localhost:3100/api/public/apply";</script>
@@ -115,11 +130,14 @@ hosting:website` from this directory.
 
 ## Notes
 
-- Pure HTML/CSS/vanilla JS, no dependencies (fonts via Google Fonts).
+- Pure HTML/CSS/vanilla JS, no dependencies, no build step (fonts via Google Fonts).
 - Accessible: semantic landmarks, keyboard-friendly nav, `prefers-reduced-motion`.
+- Real logos and photos are sourced from Livanto Green's own company profile
+  deck (client logo cards, live station photos, hardware line-up) — not
+  stock imagery or illustration.
 - All copy is deliberately honest/placeholder-free of unverified numbers —
-  swap in real traction stats, city coverage, and contact details
-  (`hello@livantogreen.com` is a placeholder) once you have them.
+  swap in real traction stats and city coverage once you have them.
+  `info@livantogreen.com` is the live contact address used throughout.
 - Deploy this as a static site (Firebase Hosting is the natural fit
   alongside the CRM's Firebase project) pointed at `livantogreen.com`,
   separate from the CRM's own `app.livantogreen.com` deployment.
