@@ -1,6 +1,11 @@
-/* Electriva marketing site — interactions */
+/* Livanto Green marketing site — interactions */
 (function () {
   "use strict";
+
+  /* Where the application form submits to — the CRM's public API.
+     Override by setting window.LIVANTO_APPLY_ENDPOINT before this script
+     runs (e.g. a small inline <script> tag) if the CRM ever moves. */
+  const APPLY_ENDPOINT = window.LIVANTO_APPLY_ENDPOINT || "https://app.livantogreen.com/api/public/apply";
 
   const nav = document.getElementById("nav");
   const toggle = document.getElementById("navToggle");
@@ -77,19 +82,81 @@
   );
   counters.forEach((el) => cio.observe(el));
 
-  /* lead form (demo handler) */
-  const form = document.getElementById("leadForm");
-  const note = document.getElementById("formNote");
-  if (form) {
-    form.addEventListener("submit", (e) => {
+  /* entity type toggle — Firm applicants get company/GSTIN fields */
+  const entityToggle = document.getElementById("entityToggle");
+  const firmFields = document.getElementById("firmFields");
+  if (entityToggle && firmFields) {
+    entityToggle.addEventListener("change", (e) => {
+      if (e.target.name === "entityType") {
+        firmFields.hidden = e.target.value !== "FIRM";
+      }
+    });
+  }
+
+  /* application form — submits straight to the CRM's public intake API */
+  const pageLoadedAt = Date.now();
+  const applyForm = document.getElementById("applyForm");
+  const applyNote = document.getElementById("applyNote");
+  const applySubmit = document.getElementById("applySubmit");
+
+  function showApplyNote(message, ok) {
+    if (!applyNote) return;
+    applyNote.textContent = message;
+    applyNote.hidden = false;
+    applyNote.className = "form-note " + (ok ? "form-note--ok" : "form-note--err");
+  }
+
+  if (applyForm) {
+    applyForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      if (!form.checkValidity()) {
-        form.reportValidity();
+      if (!applyForm.checkValidity()) {
+        applyForm.reportValidity();
         return;
       }
-      note.hidden = false;
-      form.reset();
-      setTimeout(() => (note.hidden = true), 5000);
+
+      const data = new FormData(applyForm);
+      // Honeypot: a real visitor never fills this in — bots that
+      // autofill every visible-looking field usually do.
+      if (data.get("website")) return;
+
+      const entityType = data.get("entityType") || "INDIVIDUAL";
+      const payload = {
+        interest: data.get("interest"),
+        name: data.get("name"),
+        phone: data.get("phone"),
+        email: data.get("email") || undefined,
+        city: data.get("city"),
+        state: data.get("state") || undefined,
+        message: data.get("message") || undefined,
+        entityType,
+        company: entityType === "FIRM" ? (data.get("company") || undefined) : undefined,
+        gstin: entityType === "FIRM" ? (data.get("gstin") || undefined) : undefined,
+        // Simple timing check server-side — a form submitted in under a
+        // couple of seconds of the page loading is almost certainly a bot.
+        loadedAtMs: pageLoadedAt,
+      };
+
+      applySubmit.disabled = true;
+      applySubmit.textContent = "Submitting…";
+      applyNote.hidden = true;
+
+      try {
+        const res = await fetch(APPLY_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || "Something went wrong. Please try again.");
+        showApplyNote("Thanks — your application is in. Our team will be in touch shortly.", true);
+        applyForm.reset();
+        firmFields && (firmFields.hidden = true);
+      } catch (err) {
+        showApplyNote(err.message || "Couldn't submit right now — please try again in a moment.", false);
+      } finally {
+        applySubmit.disabled = false;
+        applySubmit.textContent = "Submit application";
+      }
     });
   }
 

@@ -1,5 +1,5 @@
 /* ===================================================================
-   Electriva — marketing site
+   Livanto Green — marketing site
    Design language: clean & premium (Ionity), friendly software cards
    (Monta), segmented solutions (Blink), Indian green CPO energy (Statiq)
    =================================================================== */
@@ -161,7 +161,7 @@ img { max-width: 100%; display: block; }
 
 /* ---------- Stats ---------- */
 .stats { padding: 72px 0; background: var(--bg); }
-.stats__grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; }
+.stats__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
 .stat { text-align: center; padding: 1.6rem 1rem; border-radius: var(--radius-sm); background: var(--bg-alt); border: 1px solid var(--line); transition: transform .25s var(--ease), box-shadow .25s; }
 .stat:hover { transform: translateY(-4px); box-shadow: var(--shadow-soft); }
 .stat__num { display: block; font-family: "Sora"; font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; color: var(--green-2); }
@@ -288,22 +288,47 @@ img { max-width: 100%; display: block; }
 .timeline h3 { margin: .5rem 0 .5rem; font-size: 1.25rem; }
 .timeline p { color: var(--muted); font-size: .95rem; }
 
-/* ---------- CTA / Contact ---------- */
-.cta { background: var(--bg-alt); }
-.cta__inner { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
-.cta__copy h2 { font-size: clamp(1.8rem, 3.4vw, 2.5rem); margin-bottom: .9rem; }
-.cta__copy p { color: var(--muted); margin-bottom: 1.6rem; font-size: 1.05rem; }
-.cta__contacts { list-style: none; display: grid; gap: .8rem; }
-.cta__contacts a { color: var(--green-2); font-weight: 600; }
-.cta__form { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 2rem; box-shadow: var(--shadow-soft); display: grid; gap: 1rem; }
+/* ---------- Application form ---------- */
+.apply__inner { display: grid; grid-template-columns: .85fr 1.15fr; gap: 3rem; align-items: start; }
+.apply__copy h2 { font-size: clamp(1.8rem, 3.4vw, 2.5rem); margin-bottom: .8rem; }
+.apply__copy .section-sub { margin-bottom: 1.4rem; }
+.apply__form { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 2rem; box-shadow: var(--shadow-soft); display: grid; gap: 1.1rem; }
+
 .field { display: grid; gap: .4rem; }
-.field label { font-size: .85rem; font-weight: 600; color: var(--slate); }
+.field label, .field__legend { font-size: .85rem; font-weight: 600; color: var(--slate); }
 .field input, .field select, .field textarea {
   font: inherit; font-size: .95rem; padding: .75rem .9rem; border: 1px solid var(--line);
   border-radius: 12px; background: var(--bg-alt); color: var(--ink); transition: border-color .2s, box-shadow .2s; resize: vertical;
 }
 .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(18,183,106,.15); background: #fff; }
-.form-note { color: var(--green-2); font-weight: 600; font-size: .92rem; text-align: center; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+
+.radio-row { display: flex; gap: .7rem; flex-wrap: wrap; }
+.radio-pill {
+  display: inline-flex; align-items: center; gap: .5rem; font-size: .92rem; font-weight: 500; color: var(--ink);
+  padding: .6rem 1rem; border: 1px solid var(--line); border-radius: 999px; background: var(--bg-alt); cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.radio-pill:has(input:checked) { border-color: var(--green); background: rgba(18,183,106,.08); color: var(--green-2); }
+.radio-pill input { accent-color: var(--green); }
+
+.firm-fields[hidden] { display: none; }
+
+/* Honeypot — kept in the tab/DOM flow but visually and non-visually hidden from real visitors. */
+.hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+.form-note { font-weight: 600; font-size: .92rem; text-align: center; padding: .7rem 1rem; border-radius: 12px; }
+.form-note--ok { color: var(--green-2); background: rgba(18,183,106,.1); }
+.form-note--err { color: #b42318; background: rgba(180,35,24,.08); }
+.btn[disabled] { opacity: .6; cursor: not-allowed; transform: none !important; }
+
+/* ---------- CTA / Contact ---------- */
+.cta { background: var(--bg-alt); }
+.cta__inner-single { max-width: 640px; margin: 0 auto; text-align: center; }
+.cta__copy h2 { font-size: clamp(1.8rem, 3.4vw, 2.5rem); margin-bottom: .9rem; }
+.cta__copy p { color: var(--muted); margin-bottom: 1.6rem; font-size: 1.05rem; }
+.cta__contacts { list-style: none; display: grid; gap: .8rem; justify-items: center; margin-bottom: 1.8rem; }
+.cta__contacts a { color: var(--green-2); font-weight: 600; }
 
 /* ---------- Footer ---------- */
 .footer { background: var(--ink); color: #c3ddd1; padding: 64px 0 28px; }
@@ -322,7 +347,7 @@ img { max-width: 100%; display: block; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1024px) {
-  .stats__grid { grid-template-columns: repeat(3, 1fr); }
+  .stats__grid { grid-template-columns: repeat(2, 1fr); }
   .cards--4, .cards--5 { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 860px) {
@@ -340,7 +365,8 @@ img { max-width: 100%; display: block; }
   .nav.is-open .nav__toggle span:nth-child(2) { opacity: 0; }
   .nav.is-open .nav__toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-  .hero__inner, .software__inner, .sustain__inner, .network__grid, .cta__inner, .footer__inner { grid-template-columns: 1fr; }
+  .hero__inner, .software__inner, .sustain__inner, .network__grid, .apply__inner, .footer__inner { grid-template-columns: 1fr; }
+  .field-row { grid-template-columns: 1fr; }
   .hero { padding-top: 120px; text-align: center; }
   .hero__chips, .hero__actions { justify-content: center; }
   .lede { max-width: none; }
