@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apply — Livanto Green</title>
+  <meta name="description" content="Apply for a Livanto Green franchise, site partnership, bulk charger purchase, or corporate/RWA/government charging enquiry — one form, reviewed within 1-2 business days." />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+</head>
+<body>
+  <header class="nav" id="nav">
+    <div class="container nav__inner">
+      <a class="brand" href="index.html" aria-label="Livanto Green home"><img src="assets/logo.png" alt="Livanto Green" /></a>
+      <nav class="nav__links" id="navLinks" aria-label="Primary">
+        <a href="solutions.html">Solutions</a>
+        <a href="products.html">Products</a>
+        <a href="software.html">Software</a>
+        <a href="network.html">Network</a>
+        <a href="franchise.html">Franchise</a>
+        <a href="about.html">About</a>
+        <a class="btn--link" href="contact.html" style="margin-right:.6rem;">Contact</a>
+        <a class="btn btn--primary nav__cta is-active" href="apply.html"><span class="btn__chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Apply now</a>
+      </nav>
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="pagehead">
+      <div class="container">
+        <p class="pagehead--crumb"><a href="index.html">Home</a> / Apply</p>
+        <p class="pagehead__kicker">Apply now</p>
+        <h1>Tell us what you're looking for</h1>
+        <p>One form, five kinds of partnership. Pick what fits — our team will follow up with the right next step, whether that's a franchise quotation, a site visit, or a corporate proposal.</p>
+      </div>
+    </section>
+
+    <section class="section apply__inner container">
+      <div class="apply__copy">
+        <ul class="ticks">
+          <li>Reviewed by our sales team within 1–2 business days</li>
+          <li>No obligation — this only starts the conversation</li>
+          <li>Your details are used solely to get in touch about this enquiry</li>
+        </ul>
+        <div style="margin-top:2.4rem; padding-top:2rem; border-top:1px solid var(--line);">
+          <p style="font-weight:700; color:var(--ink); margin-bottom:.8rem;">Prefer to just ask a question?</p>
+          <a class="btn--link" href="mailto:info@livantogreen.com">info@livantogreen.com →</a>
+        </div>
+      </div>
+
+      <form class="apply__form" id="applyForm" novalidate>
+        <!-- Honeypot — hidden from real visitors via CSS, real bots tend to fill every field they see. -->
+        <div class="hp-field" aria-hidden="true">
+          <label for="website">Website</label>
+          <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label for="interest">I'm interested in</label>
+          <select id="interest" name="interest" required>
+            <option value="FRANCHISE">Franchise partnership — invest &amp; operate a station</option>
+            <option value="SITE">Site / land partnership — host a station</option>
+            <option value="CHARGER_SALE">Bulk charger purchase</option>
+            <option value="CORPORATE">Corporate / fleet charging</option>
+            <option value="RWA">Housing society / RWA charging</option>
+            <option value="GOVERNMENT">Government / institutional</option>
+          </select>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="name">Full name</label>
+            <input id="name" name="name" type="text" required placeholder="Your name" autocomplete="name" />
+          </div>
+          <div class="field">
+            <label for="phone">Phone number</label>
+            <input id="phone" name="phone" type="tel" required placeholder="10-digit mobile number" autocomplete="tel" inputmode="tel" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+
+        <div class="field">
+          <span class="field__legend">Are you applying as an individual or a firm?</span>
+          <div class="radio-row" id="entityToggle">
+            <label class="radio-pill"><input type="radio" name="entityType" value="INDIVIDUAL" checked /> Individual</label>
+            <label class="radio-pill"><input type="radio" name="entityType" value="FIRM" /> Firm / Company</label>
+          </div>
+        </div>
+
+        <div class="field-row firm-fields" id="firmFields" hidden>
+          <div class="field">
+            <label for="company">Company name</label>
+            <input id="company" name="company" type="text" placeholder="Registered company name" />
+          </div>
+          <div class="field">
+            <label for="gstin">GSTIN</label>
+            <input id="gstin" name="gstin" type="text" placeholder="15-character GSTIN" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="city">City</label>
+            <input id="city" name="city" type="text" required placeholder="City" autocomplete="address-level2" />
+          </div>
+          <div class="field">
+            <label for="state">State</label>
+            <input id="state" name="state" type="text" placeholder="State" autocomplete="address-level1" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="message">Tell us more</label>
+          <textarea id="message" name="message" rows="3" placeholder="Site size, number of chargers, budget, timeline — whatever's useful"></textarea>
+        </div>
+
+        <button class="btn btn--primary btn--lg" type="submit" id="applySubmit">
+          <span class="btn__chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          Submit application
+        </button>
+        <p class="form-note" id="applyNote" hidden></p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <a class="brand" href="index.html"><img src="assets/logo.png" alt="Livanto Green" /></a>
+        <p>Building a cleaner, smarter EV charging network across India — for homes, societies, businesses and highways.</p>
+      </div>
+      <div class="footer__cols">
+        <h4>Explore</h4>
+        <a href="solutions.html">Solutions</a>
+        <a href="products.html">Products</a>
+        <a href="software.html">Software</a>
+        <a href="network.html">Network</a>
+      </div>
+      <div class="footer__cols">
+        <h4>Partner</h4>
+        <a href="franchise.html">Franchise</a>
+        <a href="apply.html">Apply</a>
+        <a href="franchise.html#investment">Investment model</a>
+      </div>
+      <div class="footer__cols">
+        <h4>Company</h4>
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+        <a href="mailto:info@livantogreen.com">info@livantogreen.com</a>
+      </div>
+    </div>
+    <div class="container footer__bottom">
+      <span>© <span id="year">2026</span> Livanto Green</span>
+      <span>www.livantogreen.com</span>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

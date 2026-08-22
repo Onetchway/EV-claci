@@ -6,12 +6,9 @@
   <title>Livanto Green — EV Charging Network &amp; Franchise Opportunities</title>
   <meta name="description" content="Livanto Green builds and operates AC &amp; DC EV charging stations across India — for homes, RWAs, corporates, highways and fleets. Apply for a charging franchise, host a station on your land, or bring EV charging to your society or business." />
   <meta name="theme-color" content="#ffffff" />
-  <meta property="og:title" content="Livanto Green — EV Charging Network &amp; Franchise Opportunities" />
-  <meta property="og:description" content="Building a cleaner, smarter EV charging network across India — and inviting franchise &amp; site partners to grow it with us." />
-  <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
 </head>
@@ -19,21 +16,19 @@
   <!-- ───────────────────────── Header ───────────────────────── -->
   <header class="nav" id="nav">
     <div class="container nav__inner">
-      <a class="brand" href="#top" aria-label="Livanto Green home">
+      <a class="brand" href="index.html" aria-label="Livanto Green home">
         <img src="assets/logo.png" alt="Livanto Green" />
       </a>
-
       <nav class="nav__links" id="navLinks" aria-label="Primary">
-        <a href="#solutions">Solutions</a>
-        <a href="#products">Products</a>
-        <a href="#software">Software</a>
-        <a href="#network">Network</a>
-        <a href="#franchise">Franchise</a>
-        <a href="#about">About</a>
-        <a class="btn btn--ghost btn--ghost-nochip nav__cta" href="#contact">Contact</a>
-        <a class="btn btn--primary nav__cta" href="#apply"><span class="btn__chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Apply now</a>
+        <a href="solutions.html">Solutions</a>
+        <a href="products.html">Products</a>
+        <a href="software.html">Software</a>
+        <a href="network.html">Network</a>
+        <a href="franchise.html">Franchise</a>
+        <a href="about.html">About</a>
+        <a class="btn--link" href="contact.html" style="margin-right:.6rem;">Contact</a>
+        <a class="btn btn--primary nav__cta" href="apply.html"><span class="btn__chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Apply now</a>
       </nav>
-
       <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
@@ -43,9 +38,9 @@
   <main id="top">
     <!-- ───────────────────────── Hero ───────────────────────── -->
     <section class="hero">
-      <div class="container hero__inner">
-        <div class="hero__copy">
-          <span class="eyebrow">Powering Mobility, Driving Sustainability ⚡</span>
+      <div class="hero__grid">
+        <div class="container hero__copy">
+          <p class="hero__kicker">Powering Mobility, Driving Sustainability</p>
           <h1>Powering the future of <span class="grad">electric mobility</span>.</h1>
           <p class="lede">
             Livanto Green is an energy-tech company building and operating
@@ -53,11 +48,11 @@
             and inviting franchise and land partners to grow the network with us.
           </p>
           <div class="hero__actions">
-            <a class="btn btn--primary btn--lg" href="#apply">
+            <a class="btn btn--primary btn--lg" href="apply.html">
               <span class="btn__chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
               Apply for a franchise
             </a>
-            <a class="btn btn--ghost btn--ghost-nochip btn--lg" href="#solutions">Explore solutions</a>
+            <a class="btn--outline" href="solutions.html">Explore solutions</a>
           </div>
           <ul class="hero__chips">
             <li>AC &amp; DC fast charging up to 360 kW</li>
@@ -66,487 +61,177 @@
             <li>OCPI &amp; OCPP 1.6J enabled</li>
           </ul>
         </div>
-        <div class="hero__visual">
-          <div class="hero__photo">
-            <img src="assets/hero-charging.jpg" alt="A Livanto Green DC charging station charging a Tata Curvv.ev, city skyline behind" />
-          </div>
-          <div class="hero__pill pill--1"><span class="dot--live"></span> Live monitoring, 24×7</div>
-          <div class="hero__pill pill--2">⚡ Up to 360 kW DC</div>
+        <div class="hero__photo">
+          <img src="assets/hero-charging.jpg" alt="A Livanto Green DC charging station charging a Tata Curvv.ev, city skyline behind" />
+          <div class="hero__pill hero__pill--top"><span class="dot--live"></span> Live monitoring, 24×7</div>
+          <div class="hero__pill hero__pill--bottom">Up to 360 kW DC</div>
         </div>
       </div>
     </section>
 
-    <!-- ───────────────────────── Trust bar ───────────────────────── -->
+    <!-- ───────────────────────── Trust strip — real client logos ───────────────────────── -->
     <section class="trust">
       <div class="container">
-        <p class="trust__label">Trusted by fleets, automakers, hospitality &amp; commercial real estate</p>
-        <div class="trust__logos">
-          <span>BLU Smart</span><span>Zoomcar</span><span>Uber</span><span>Tata Motors</span>
-          <span>Hyundai</span><span>Ather</span><span>ITC Hotels</span><span>Crowne Plaza</span>
-          <span>DLF</span><span>GMR</span><span>Adani</span><span>JLL</span>
+        <p class="trust__label">A selection of the fleets, automakers, hospitality and real-estate brands we work alongside</p>
+        <div class="clients-grid">
+          <div class="clients-card"><img src="assets/clients-fleet.jpg" alt="Fleet clients: BLU Smart, Zoomcar, Uber and others" loading="lazy" /></div>
+          <div class="clients-card"><img src="assets/clients-automotive.jpg" alt="Automotive clients: Hyundai, Ather, Tata Motors and others" loading="lazy" /></div>
+          <div class="clients-card"><img src="assets/clients-hospitality.jpg" alt="Hospitality clients: ITC Hotels, Crowne Plaza and others" loading="lazy" /></div>
+          <div class="clients-card"><img src="assets/clients-commercial.jpg" alt="Commercial clients: DLF, GMR, Adani and others" loading="lazy" /></div>
+          <div class="clients-card"><img src="assets/clients-residential.jpg" alt="Residential clients: Unitech, DLF, Emaar and others" loading="lazy" /></div>
         </div>
       </div>
     </section>
 
-    <!-- ───────────────────────── Stats / Traction ───────────────────────── -->
-    <section class="stats" id="stats">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Why Livanto Green</span>
-          <h2>A network built on real infrastructure, not just an app</h2>
+    <!-- ───────────────────────── Stat band ───────────────────────── -->
+    <section class="statband" id="stats">
+      <div class="container statband__grid">
+        <div class="statband__item">
+          <span class="statband__num">Up to 360 kW</span>
+          <span class="statband__label">High-speed AC &amp; DC charging</span>
         </div>
-        <div class="stats__grid">
-          <div class="stat">
-            <strong class="stat__num">Up to 360 kW</strong>
-            <span>High-speed AC &amp; DC charging</span>
-          </div>
-          <div class="stat">
-            <strong class="stat__num">66.52%</strong>
-            <span>India's EV market CAGR, 2024–2030<br>(Source: Mordor Intelligence)</span>
-          </div>
-          <div class="stat">
-            <strong class="stat__num">20–35%</strong>
-            <span>Gross revenue share for partners</span>
-          </div>
-          <div class="stat">
-            <strong class="stat__num">Pan-India</strong>
-            <span>Franchise &amp; site-partner network</span>
-          </div>
+        <div class="statband__item">
+          <span class="statband__num">66.52%</span>
+          <span class="statband__label">India's EV market CAGR, 2024–2030 — Mordor Intelligence</span>
+        </div>
+        <div class="statband__item">
+          <span class="statband__num">20–35%</span>
+          <span class="statband__label">Gross revenue share for partners</span>
+        </div>
+        <div class="statband__item">
+          <span class="statband__num">Pan-India</span>
+          <span class="statband__label">Franchise &amp; site-partner network</span>
         </div>
       </div>
     </section>
 
-    <!-- ───────────────────────── Solutions ───────────────────────── -->
-    <section class="section solutions" id="solutions">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Solutions</span>
-          <h2>Charging infrastructure for every segment</h2>
-          <p class="section-sub">Charging solutions tailored to how each site actually gets used — built for high utilisation and dependable, long-term revenue.</p>
-        </div>
-        <div class="cards cards--4">
-          <article class="card">
-            <div class="card__icon" style="background:var(--green)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
-            </div>
-            <h3>Residential &amp; Commercial</h3>
-            <p>Home charging for RWAs alongside premium destination charging for hotels, corporate offices and public parking.</p>
-          </article>
-          <article class="card">
-            <div class="card__icon" style="background:var(--green)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20"/><path d="M6 12L2 8m4 4l-4 4"/><path d="M18 6l4 6-4 6"/></svg>
-            </div>
-            <h3>Transit &amp; Highways</h3>
-            <p>High-speed charging corridors engineered for public transport, logistics routes and inter-city travellers.</p>
-          </article>
-          <article class="card">
-            <div class="card__icon" style="background:var(--green)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 16V7a1 1 0 011-1h11v10"/><path d="M13 10h4l3 3v3h-7z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
-            </div>
-            <h3>Fleet Operators</h3>
-            <p>Strategic long-term agreements and dedicated captive hubs for last-mile, logistics and delivery fleets.</p>
-          </article>
-          <article class="card">
-            <div class="card__icon" style="background:var(--green)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 21V10l8-6 8 6v11"/><path d="M9 21v-6h6v6"/></svg>
-            </div>
-            <h3>Government &amp; OEMs</h3>
-            <p>Municipal bus fleets, public land MoUs and bundled OEM offerings backed by deep institutional partnerships.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── Products ───────────────────────── -->
-    <section class="section section--alt products" id="products">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Product portfolio</span>
-          <h2>Hardware designed in-house, backed by our own network software</h2>
-          <p class="section-sub">Built to withstand Indian heat, humidity and dust — from a 7.4 kW home unit to a 240 kW dual-gun DC fast charger.</p>
-        </div>
-        <div class="hardware-photo">
-          <img src="assets/hardware-lineup.jpg" alt="The Livanto hardware line-up: Livanto Home (7.4kW AC), Livanto Wall (7.4/22kW AC), Livanto AC Dual (22kW AC), Livanto DC 60, Livanto DC 120, and Livanto DC 240" />
-        </div>
-        <ul class="ticks" style="grid-template-columns: repeat(4, 1fr); display: grid; margin-top: 2rem;">
-          <li>OCPP-based, CSMS-integrated</li>
-          <li>Rated -20°C to 70°C operation</li>
-          <li>Over-the-air firmware upgrades</li>
-          <li>CCS2, dual-gun on DC models</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── Software ───────────────────────── -->
-    <section class="section software" id="software">
-      <div class="container software__inner">
-        <div class="software__copy">
+    <!-- ───────────────────────── Solutions teaser ───────────────────────── -->
+    <section class="section solutions">
+      <div class="container solutions__inner">
+        <div>
           <div class="section-head">
-            <span class="eyebrow eyebrow--dark">The software ecosystem</span>
-            <h2>One connected platform, from driver to franchise</h2>
-            <p class="section-sub">Built on the OCPP standard, so every charger — ours or a partner's — reports live status, sessions and faults back to one dashboard.</p>
+            <h2>Charging infrastructure for every segment</h2>
+            <p class="section-sub">Tailored to how each site actually gets used — residential, highways, fleets and government.</p>
           </div>
-
-          <div class="split">
-            <div class="split__col">
-              <h4>For drivers</h4>
-              <ul class="ticks">
-                <li>AI-driven charger discovery &amp; route planning</li>
-                <li>Real-time availability, by AC/DC or speed</li>
-                <li>Integrated with all major Indian payment gateways</li>
-                <li>Green kilometres travelled, tracked automatically</li>
-              </ul>
+          <div class="solutions__list">
+            <div class="solutions__row">
+              <span class="solutions__num">01</span>
+              <div><h3>Residential &amp; Commercial</h3><p>Home charging for RWAs alongside destination charging for hotels and offices.</p></div>
             </div>
-            <div class="split__col">
-              <h4>For operators &amp; franchises</h4>
-              <ul class="ticks">
-                <li>CMS — live stations, sessions &amp; revenue</li>
-                <li>Franchise Dashboard — your stations, payouts &amp; performance</li>
-                <li>Remote diagnostics &amp; over-the-air upgrades</li>
-                <li>OCPI + OCPP 1.6J, secure API &amp; data encryption</li>
-              </ul>
+            <div class="solutions__row">
+              <span class="solutions__num">02</span>
+              <div><h3>Transit &amp; Highways</h3><p>High-speed corridors for public transport, logistics and inter-city travel.</p></div>
+            </div>
+            <div class="solutions__row">
+              <span class="solutions__num">03</span>
+              <div><h3>Fleet &amp; Government</h3><p>Captive hubs for delivery fleets, municipal buses and institutional MoUs.</p></div>
             </div>
           </div>
+          <p style="margin-top:2rem;"><a class="btn--link" href="solutions.html">See all solutions →</a></p>
         </div>
-
-        <div class="software__preview" aria-hidden="true">
-          <div class="card" style="padding:2rem;">
-            <p style="font-family:'Poppins',sans-serif;font-weight:600;color:var(--ink);margin-bottom:1.2rem;">Livanto CMS — live view</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-              <div><span style="display:block;font-family:'Poppins',sans-serif;font-weight:700;font-size:1.5rem;color:var(--ink);">512</span><span style="color:var(--muted);font-size:.85rem;">Total stations</span></div>
-              <div><span style="display:block;font-family:'Poppins',sans-serif;font-weight:700;font-size:1.5rem;color:var(--green-2);">426</span><span style="color:var(--muted);font-size:.85rem;">Active now</span></div>
-              <div><span style="display:block;font-family:'Poppins',sans-serif;font-weight:700;font-size:1.5rem;color:var(--ink);">24.8K</span><span style="color:var(--muted);font-size:.85rem;">Sessions</span></div>
-              <div><span style="display:block;font-family:'Poppins',sans-serif;font-weight:700;font-size:1.5rem;color:var(--ink);">₹38.1L</span><span style="color:var(--muted);font-size:.85rem;">Revenue</span></div>
-            </div>
-            <p style="margin-top:1.4rem;font-size:.78rem;color:var(--muted);">Illustrative view of the Livanto CMS dashboard.</p>
-          </div>
+        <div class="solutions__photo">
+          <img src="assets/station-dehradun.jpg" alt="A Livanto Green EV charging station" />
         </div>
       </div>
     </section>
 
-    <!-- ───────────────────────── Network ───────────────────────── -->
-    <section class="section network" id="network">
+    <!-- ───────────────────────── Products teaser ───────────────────────── -->
+    <section class="section section--alt products">
       <div class="container">
         <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Our network</span>
-          <h2>Growing across India, one site at a time</h2>
-          <p class="section-sub">Every new station is either a Livanto-owned franchise or a partner's site — added to the same monitored network from day one.</p>
+          <h2>Hardware designed in-house, backed by our own network software</h2>
+          <p class="section-sub">From a 7.4 kW home unit to a 240 kW dual-gun DC fast charger — built to withstand Indian heat, humidity and dust.</p>
         </div>
-        <div class="network__grid">
-          <div class="station-card">
-            <img src="assets/station-lucknow.jpg" alt="Livanto Green EV charging station, live in Lucknow" />
+        <div class="charger-grid">
+          <div class="charger-card">
+            <div class="charger-card__photo"><img src="assets/charger-home.jpg" alt="Livanto Home charger" loading="lazy" /></div>
+            <div class="charger-card__tag">Home</div>
+            <h3>Livanto Home</h3>
+            <p class="charger-card__spec">7.4 kW AC · Type-2</p>
           </div>
-          <div class="station-card">
-            <img src="assets/station-dehradun.jpg" alt="Livanto Green EV charging station, live in Dehradun" />
+          <div class="charger-card">
+            <div class="charger-card__photo"><img src="assets/charger-dc-60.jpg" alt="Livanto DC 60 charger" loading="lazy" /></div>
+            <div class="charger-card__tag">DC Fast</div>
+            <h3>Livanto DC 60</h3>
+            <p class="charger-card__spec">60 kW DC · Dual Gun</p>
+          </div>
+          <div class="charger-card">
+            <div class="charger-card__photo"><img src="assets/charger-dc-240.jpg" alt="Livanto DC 240 charger" loading="lazy" /></div>
+            <div class="charger-card__tag">DC Hyper</div>
+            <h3>Livanto DC 240</h3>
+            <p class="charger-card__spec">240 kW DC · Dual Gun</p>
           </div>
         </div>
-        <div class="network__facts">
-          <div class="fact"><strong>You choose</strong><span>Franchise-invest, or host a station on your site</span></div>
-          <div class="fact"><strong>Rental or revenue-share</strong><span>Site partners are paid either way</span></div>
-          <div class="fact"><strong>We operate</strong><span>Installation, monitoring and support handled for you</span></div>
-          <div class="fact"><strong>Electric trucks &amp; buses</strong><span>Higher-power sites in development for commercial fleets</span></div>
-        </div>
+        <p style="margin-top:2.2rem;"><a class="btn--link" href="products.html">See the full hardware line-up →</a></p>
       </div>
     </section>
 
-    <!-- ───────────────────────── Why Livanto Green ───────────────────────── -->
-    <section class="section why" id="why">
+    <!-- ───────────────────────── Franchise teaser ───────────────────────── -->
+    <section class="section franchise">
       <div class="container">
         <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Why Livanto Green</span>
-          <h2>Five things we get right, every time</h2>
-        </div>
-        <div class="cards cards--5">
-          <article class="mini"><span class="mini__n">01</span><h3>Platform</h3><p>One CMS running every station, franchise or partner-hosted alike.</p></article>
-          <article class="mini"><span class="mini__n">02</span><h3>Hardware</h3><p>Reliable AC &amp; DC chargers, sized to the site.</p></article>
-          <article class="mini"><span class="mini__n">03</span><h3>Execution</h3><p>Site survey to commissioning, handled end to end.</p></article>
-          <article class="mini"><span class="mini__n">04</span><h3>Network</h3><p>A growing, standards-based charging network.</p></article>
-          <article class="mini"><span class="mini__n">05</span><h3>Partnerships</h3><p>Clear, structured franchise &amp; site-partner terms.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── Sustainability ───────────────────────── -->
-    <section class="section section--green sustain" id="sustainability">
-      <div class="container sustain__inner">
-        <div class="sustain__copy">
-          <span class="eyebrow">Sustainability</span>
-          <h2>Green by name, green by design</h2>
-          <p class="section-sub">Every session on our network is one less litre of fuel burned — that's the point of the name.</p>
-          <ul class="ticks ticks--light">
-            <li><b>Solar-ready sites</b> — designed to pair with on-site solar where possible</li>
-            <li><b>Efficient by design</b> — right-sized chargers, not over-provisioned ones</li>
-            <li><b>Responsible hardware</b> — durable equipment, sensibly maintained and reused</li>
-          </ul>
-        </div>
-        <div class="sustain__metric">
-          <div class="bigfig">
-            <strong class="stat__num">Every session</strong>
-            <span>is one less litre of fuel burned</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── Franchise / Apply ───────────────────────── -->
-    <section class="section franchise" id="franchise">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">Partner with us</span>
           <h2>Two ways to grow the network with us</h2>
-          <p class="section-sub">Invest and operate a Livanto Green franchise, or host a station on land or premises you already own — we handle the technology and operations either way.</p>
+          <p class="section-sub">Invest and operate a Livanto Green franchise, or host a station on land or premises you already own.</p>
         </div>
-        <div class="cards cards--2">
+        <div class="cards--2">
           <article class="model model--feature">
-            <div class="model__badge">Franchise · PoCo</div>
+            <div class="model__kicker">Franchise · PoCo</div>
             <h3>Franchise Partner</h3>
             <p class="model__full">You invest, Livanto Green operates</p>
-            <p>Own a Livanto Green-branded charging station — you provide the land and capital, we handle installation, software, monitoring and 24×7 operations.</p>
-            <div class="model__share">20–35% gross revenue share for standard models, plus a Livanto assured minimum for the first 24 months</div>
+            <p>Own a Livanto Green-branded charging station — we handle installation, software, monitoring and 24×7 operations.</p>
+            <div class="model__share">20–35% gross revenue share, plus a Livanto assured minimum for the first 24 months</div>
           </article>
           <article class="model">
             <h3>Site / Location Partner</h3>
             <p class="model__full">You host, we install &amp; operate</p>
-            <p>Have land, a parking lot, a society or a commercial premises with spare space? Host a Livanto Green station with no operating burden on you.</p>
-            <div class="model__share">
-              <b>Revenue share</b> — earn a per-unit cut of every kWh sold, ideal for high-traffic sites, or<br>
-              <b>Fixed rental</b> — a stable, lease-like income regardless of usage
-            </div>
+            <p>Have land, a parking lot, a society or a commercial premises with spare space? Host a station with no operating burden on you.</p>
+            <div class="model__share"><b>Revenue share</b> or <b>fixed rental</b> — you choose how you get paid</div>
           </article>
         </div>
-
-        <div class="steps">
-          <div class="step"><span class="step__n">1</span><b>Partner</b><span>Application &amp; screening</span></div>
-          <div class="step"><span class="step__n">2</span><b>Land</b><span>Site feasibility &amp; DISCOM check</span></div>
-          <div class="step"><span class="step__n">3</span><b>Invest</b><span>Sign-off &amp; capex</span></div>
-          <div class="step"><span class="step__n">4</span><b>Install</b><span>Turnkey EPC build</span></div>
-          <div class="step"><span class="step__n">5</span><b>Operate</b><span>Livanto runs the network 24×7</span></div>
-          <div class="step"><span class="step__n">6</span><b>Revenue</b><span>Transparent monthly share</span></div>
-          <div class="step"><span class="step__n">7</span><b>Support</b><span>Ongoing training &amp; reviews</span></div>
-        </div>
-
-        <div class="invest-table-wrap">
-          <div class="invest-table-scroll">
-          <table class="invest-table">
-            <caption>Franchise investment by charger power — figures from Livanto Green's franchise investment model</caption>
-            <thead>
-              <tr>
-                <th scope="col">Charger</th>
-                <th scope="col">60 kW</th>
-                <th scope="col">90 kW</th>
-                <th scope="col">120 kW</th>
-                <th scope="col">180 kW</th>
-                <th scope="col">240 kW</th>
-                <th scope="col">360 kW</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row">Total investment (excl. GST)</th>
-                <td>₹15.5L</td><td>₹20.5L</td><td>₹25.5L</td><td>₹30L</td><td>₹38L</td><td>₹50L</td>
-              </tr>
-              <tr>
-                <th scope="row">Expression of Interest</th>
-                <td>₹50,000</td><td>₹50,000</td><td>₹50,000</td><td>₹50,000</td><td>₹1,00,000</td><td>₹2,00,000</td>
-              </tr>
-              <tr>
-                <th scope="row">Projected monthly income*</th>
-                <td>₹57,000</td><td>₹71,250</td><td>₹85,500</td><td>₹1,18,125</td><td>₹1,32,000</td><td>₹1,81,500</td>
-              </tr>
-              <tr>
-                <th scope="row">Livanto assured minimum (first 24 mo.)</th>
-                <td>₹15,000</td><td>₹15,000</td><td>₹20,000</td><td>₹20,000</td><td>₹30,000</td><td>₹40,000</td>
-              </tr>
-              <tr>
-                <th scope="row">Projected payback*</th>
-                <td>~2.3 yrs</td><td>~2.4 yrs</td><td>~2.5 yrs</td><td>~2.1 yrs</td><td>~2.4 yrs</td><td>~2.3 yrs</td>
-              </tr>
-            </tbody>
-          </table>
-          </div>
-          <p class="invest-table__note">*Projections only, based on the utilisation assumptions in Livanto Green's franchise investment model — not guaranteed. The assured minimum for the first 24 months is the one contractual floor; bank financing (up to 70% LTV) is available to reduce the up-front outlay. Full figures shared with every application.</p>
-        </div>
+        <p style="margin-top:2.2rem;"><a class="btn--link" href="franchise.html">See investment tiers &amp; the full process →</a></p>
       </div>
     </section>
 
-    <!-- ───────────────────────── Application form ───────────────────────── -->
-    <section class="section section--alt apply" id="apply">
-      <div class="container apply__inner">
-        <div class="apply__copy">
-          <span class="eyebrow eyebrow--dark">Apply now</span>
-          <h2>Tell us what you're looking for</h2>
-          <p class="section-sub">One form, five kinds of partnership. Pick what fits — our team will follow up with the right next step, whether that's a franchise quotation, a site visit, or a corporate proposal.</p>
-          <ul class="ticks">
-            <li>Reviewed by our sales team within 1–2 business days</li>
-            <li>No obligation — this only starts the conversation</li>
-            <li>Your details are used solely to get in touch about this enquiry</li>
-          </ul>
-        </div>
-
-        <form class="apply__form" id="applyForm" novalidate>
-          <!-- Honeypot — hidden from real visitors via CSS, real bots tend to fill every field they see. -->
-          <div class="hp-field" aria-hidden="true">
-            <label for="website">Website</label>
-            <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
-          </div>
-
-          <div class="field">
-            <label for="interest">I'm interested in</label>
-            <select id="interest" name="interest" required>
-              <option value="FRANCHISE">Franchise partnership — invest &amp; operate a station</option>
-              <option value="SITE">Site / land partnership — host a station</option>
-              <option value="CHARGER_SALE">Bulk charger purchase</option>
-              <option value="CORPORATE">Corporate / fleet charging</option>
-              <option value="RWA">Housing society / RWA charging</option>
-              <option value="GOVERNMENT">Government / institutional</option>
-            </select>
-          </div>
-
-          <div class="field-row">
-            <div class="field">
-              <label for="name">Full name</label>
-              <input id="name" name="name" type="text" required placeholder="Your name" autocomplete="name" />
-            </div>
-            <div class="field">
-              <label for="phone">Phone number</label>
-              <input id="phone" name="phone" type="tel" required placeholder="10-digit mobile number" autocomplete="tel" inputmode="tel" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" />
-          </div>
-
-          <div class="field">
-            <span class="field__legend">Are you applying as an individual or a firm?</span>
-            <div class="radio-row" id="entityToggle">
-              <label class="radio-pill"><input type="radio" name="entityType" value="INDIVIDUAL" checked /> Individual</label>
-              <label class="radio-pill"><input type="radio" name="entityType" value="FIRM" /> Firm / Company</label>
-            </div>
-          </div>
-
-          <div class="field-row firm-fields" id="firmFields" hidden>
-            <div class="field">
-              <label for="company">Company name</label>
-              <input id="company" name="company" type="text" placeholder="Registered company name" />
-            </div>
-            <div class="field">
-              <label for="gstin">GSTIN</label>
-              <input id="gstin" name="gstin" type="text" placeholder="15-character GSTIN" />
-            </div>
-          </div>
-
-          <div class="field-row">
-            <div class="field">
-              <label for="city">City</label>
-              <input id="city" name="city" type="text" required placeholder="City" autocomplete="address-level2" />
-            </div>
-            <div class="field">
-              <label for="state">State</label>
-              <input id="state" name="state" type="text" placeholder="State" autocomplete="address-level1" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="message">Tell us more</label>
-            <textarea id="message" name="message" rows="3" placeholder="Site size, number of chargers, budget, timeline — whatever's useful"></textarea>
-          </div>
-
-          <button class="btn btn--primary btn--lg" type="submit" id="applySubmit">
-            <span class="btn__chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            Submit application
-          </button>
-          <p class="form-note" id="applyNote" hidden></p>
-        </form>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── About ───────────────────────── -->
-    <section class="section section--alt about" id="about">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow eyebrow--dark">About us</span>
-          <h2>An energy-tech company, built to be operated — not just installed</h2>
-          <p class="section-sub">Livanto is an emerging energy-tech company revolutionising the EV charging landscape with comprehensive, in-house-built solutions.</p>
-        </div>
-        <ol class="timeline">
-          <li>
-            <h3>Build &amp; operate</h3>
-            <p>We build and operate high-speed EV chargers — up to 360 kW — for rapid, reliable charging, with Pan-India reach and scalable infrastructure wherever it's needed.</p>
-          </li>
-          <li>
-            <h3>Franchise &amp; partner</h3>
-            <p>Two clear ways in: invest and operate a franchise station, or host one on your land and get paid for it — through the CoCo or PoCo model, whichever fits.</p>
-          </li>
-          <li>
-            <h3>Software</h3>
-            <p>A powerful EV software suite for OEMs and fleet operators to monitor and manage charging infrastructure — the same CMS every Livanto station runs on.</p>
-          </li>
-        </ol>
-
-        <div class="press-strip">
-          <p class="press-strip__label">In the press &amp; in dialogue with</p>
-          <div class="trust__logos">
-            <span>The Economic Times</span><span>The Times of India</span><span>NDTV</span>
-            <span>India Today</span><span>ANI</span><span>CII Partnership Summit</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── CTA / Contact ───────────────────────── -->
-    <section class="section cta" id="contact">
-      <div class="container cta__inner-single">
-        <div class="cta__copy">
-          <h2>Let's build the charging network of tomorrow</h2>
-          <p>Talk to us about public charging, franchise opportunities, site partnerships or EPC projects.</p>
-          <ul class="cta__contacts">
-            <li>🌐 <a href="https://www.livantogreen.com" target="_blank" rel="noopener">www.livantogreen.com</a></li>
-            <li>✉️ <a href="mailto:info@livantogreen.com">info@livantogreen.com</a></li>
-            <li>📍 India</li>
-          </ul>
-          <a class="btn btn--primary btn--lg" href="#apply">
-            <span class="btn__chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            Start your application
-          </a>
-        </div>
-      </div>
-    </section>
   </main>
 
   <!-- ───────────────────────── Footer ───────────────────────── -->
   <footer class="footer">
+    <div class="footer__cta">
+      <div class="container footer__cta-grid">
+        <h2>Ready to bring EV charging to your site?</h2>
+        <div class="footer__cta-side">
+          <a class="mail" href="mailto:info@livantogreen.com">info@livantogreen.com</a>
+          <a class="btn btn--primary" href="apply.html">
+            <span class="btn__chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+            Apply now
+          </a>
+        </div>
+      </div>
+    </div>
     <div class="container footer__inner">
       <div class="footer__brand">
-        <a class="brand" href="#top">
-          <img src="assets/logo.png" alt="Livanto Green" />
-        </a>
+        <a class="brand" href="index.html"><img src="assets/logo.png" alt="Livanto Green" /></a>
         <p>Building a cleaner, smarter EV charging network across India — for homes, societies, businesses and highways.</p>
       </div>
-      <nav class="footer__cols" aria-label="Footer">
-        <div>
-          <h4>Solutions</h4>
-          <a href="#solutions">Residential</a>
-          <a href="#solutions">Transit &amp; Highways</a>
-          <a href="#solutions">Fleet</a>
-          <a href="#solutions">Government</a>
-        </div>
-        <div>
-          <h4>Products</h4>
-          <a href="#products">AC Chargers</a>
-          <a href="#products">DC Fast</a>
-          <a href="#software">Software</a>
-          <a href="#network">Network</a>
-        </div>
-        <div>
-          <h4>Company</h4>
-          <a href="#about">About</a>
-          <a href="#franchise">Franchise</a>
-          <a href="#apply">Apply</a>
-          <a href="#contact">Contact</a>
-        </div>
-      </nav>
+      <div class="footer__cols">
+        <h4>Explore</h4>
+        <a href="solutions.html">Solutions</a>
+        <a href="products.html">Products</a>
+        <a href="software.html">Software</a>
+        <a href="network.html">Network</a>
+      </div>
+      <div class="footer__cols">
+        <h4>Partner</h4>
+        <a href="franchise.html">Franchise</a>
+        <a href="apply.html">Apply</a>
+        <a href="franchise.html#investment">Investment model</a>
+      </div>
+      <div class="footer__cols">
+        <h4>Company</h4>
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+        <a href="mailto:info@livantogreen.com">info@livantogreen.com</a>
+      </div>
     </div>
     <div class="container footer__bottom">
       <span>© <span id="year">2026</span> Livanto Green</span>

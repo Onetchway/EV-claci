@@ -32,7 +32,7 @@
 
   /* scroll reveal */
   const revealEls = document.querySelectorAll(
-    ".section-head, .card, .product, .mini, .stat, .model, .timeline li, .fact, .station-card, .software__preview, .hero__copy, .bigfig"
+    ".solutions__row, .solutions__photo, .charger-card, .clients-card, .dashboard-card, .station-card, .why__item, .sustain__metric, .model, .about__row"
   );
   revealEls.forEach((el) => el.classList.add("reveal"));
 
