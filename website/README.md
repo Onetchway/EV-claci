@@ -86,6 +86,33 @@ before the `script.js` tag in `index.html`:
 <script>window.LIVANTO_APPLY_ENDPOINT = "http://localhost:3100/api/public/apply";</script>
 ```
 
+## Deploying to livantogreen.com (Firebase Hosting)
+
+This folder has its own `firebase.json` + `.firebaserc`, targeting a
+dedicated Firebase Hosting site (`livanto-green-web`) in the same Firebase
+project as the CRM (`livanto-278b5`) — kept separate from the CRM's own App
+Hosting backend at `app.livantogreen.com`.
+
+One-time setup (Cloud Shell, from inside this `website/` directory):
+
+```bash
+firebase login --reauth
+firebase hosting:sites:create livanto-green-web --project livanto-278b5
+firebase deploy --only hosting:website
+```
+
+Then, in the [Firebase Console](https://console.firebase.google.com/project/livanto-278b5/hosting/sites) →
+Hosting → the `livanto-green-web` site → **Add custom domain**, add both
+`livantogreen.com` and `www.livantogreen.com`, and follow the verification
+steps shown there. Firebase will give you the DNS records (A records and/or
+a TXT verification record) to set at your domain registrar (GoDaddy) — this
+replaces whatever A records are currently there (a prior session found the
+domain's A records pointing at GoDaddy's own parking/forwarding service,
+which is why the domain wasn't resolving).
+
+To redeploy after future edits, just re-run `firebase deploy --only
+hosting:website` from this directory.
+
 ## Notes
 
 - Pure HTML/CSS/vanilla JS, no dependencies (fonts via Google Fonts).
