@@ -28,7 +28,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; overflow-x: hidden; max-width: 100%; }
 body {
   font-family: "Switzer", system-ui, -apple-system, sans-serif;
   color: var(--slate);
@@ -175,8 +175,8 @@ img { max-width: 100%; display: block; }
 
 /* ---------- Client logo cards — real logos, grouped by segment ---------- */
 .clients-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.2rem; }
-.clients-card { border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
-.clients-card img { width: 100%; display: block; }
+.clients-card { border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; aspect-ratio: 3/4; }
+.clients-card img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: top; }
 
 /* ---------- Software — split panel, flat (no bordered boxes competing
    with the dashboard preview) ---------- */
