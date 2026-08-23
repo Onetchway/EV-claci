@@ -30,9 +30,17 @@
     }
   });
 
-  /* scroll reveal */
+  /* scroll reveal — applied broadly so every section animates in, not just the homepage cards */
   const revealEls = document.querySelectorAll(
-    ".solutions__row, .solutions__photo, .charger-card, .clients-card, .dashboard-card, .station-card, .why__item, .sustain__metric, .model, .about__row"
+    [
+      ".solutions__row", ".solutions__photo", ".charger-card", ".clients-card", ".dashboard-card",
+      ".station-card", ".why__item", ".sustain__metric", ".model", ".about__row",
+      ".section-head", ".pagehead__kicker", ".pagehead h1", ".pagehead > .container > p:last-child",
+      ".findcharger__inner > div", ".findcharger__inner > a", ".appteaser__shot", ".appteaser__feature",
+      ".ctaband__item", ".whypartner__stat", ".swstats__stat", ".mission__statement", ".mission__body",
+      ".network-feat > div", ".network-feat > ul", ".symbol__inner", ".jointeam__inner",
+      ".calculator", ".legal__contact", ".step",
+    ].join(", ")
   );
   revealEls.forEach((el) => el.classList.add("reveal"));
 
