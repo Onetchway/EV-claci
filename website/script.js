@@ -10,6 +10,17 @@
     window.addEventListener("scroll", onScroll, { passive: true });
   }
 
+  /* ---- Active nav link — derived from the page filename, so the nav
+     partial stays byte-identical across every page (no per-page templating) ---- */
+  const page = location.pathname.split("/").pop().replace(".html", "") || "index";
+  document.querySelectorAll("[data-nav]").forEach((a) => {
+    if (a.dataset.nav === page) a.classList.add("is-active");
+  });
+
+  /* ---- Footer year ---- */
+  const yearEl = document.getElementById("year");
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
+
   /* ---- Mobile menu ---- */
   const toggle = document.getElementById("navToggle");
   const links = document.getElementById("navLinks");

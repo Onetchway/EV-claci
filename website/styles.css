@@ -163,6 +163,7 @@ p { line-height: 1.6; color: var(--ink-soft); margin: 0; }
 .nav__links > a:not(.btn).is-active { color: var(--ink); font-weight: 600; }
 .nav__links > a:not(.btn).is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 2px; background: var(--green); }
 .nav__btn { padding: 0.55rem 1.2rem; font-size: 0.88rem; }
+.nav__cta { padding: 0.55rem 1.2rem; font-size: 0.88rem; margin-left: 0.2rem; }
 .nav__toggle { display: none; flex-direction: column; gap: 5px; background: none; border: 0; cursor: pointer; padding: 6px; }
 .nav__toggle span { width: 24px; height: 2px; background: currentColor; border-radius: 2px; transition: 0.3s; }
 
