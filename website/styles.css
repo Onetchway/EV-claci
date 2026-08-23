@@ -1147,3 +1147,73 @@ img { max-width: 100%; display: block; }
   .journey__item, .journey__item--reverse { grid-template-columns: 1fr; gap: 1.6rem; }
   .journey__item--reverse .journey__photo, .journey__item--reverse .journey__copy { order: initial; }
 }
+
+/* ===================================================================
+   Site-wide motion system — custom cursor, magnetic buttons, marquee,
+   staggered word-reveal headlines, and clip-path image wipes.
+   All gated behind (hover:hover) and (prefers-reduced-motion: no-preference)
+   so touch devices and reduced-motion users get the plain, static version.
+   =================================================================== */
+
+/* ---- Custom cursor ---- */
+@media (hover: hover) and (pointer: fine) {
+  html.has-cursor, html.has-cursor * { cursor: none !important; }
+  .cursor-dot, .cursor-ring {
+    position: fixed; top: 0; left: 0; z-index: 9999; pointer-events: none;
+    border-radius: 50%; will-change: transform; transform: translate(-50%, -50%);
+  }
+  .cursor-dot { width: 7px; height: 7px; background: var(--green); transition: opacity .2s; }
+  .cursor-ring {
+    width: 34px; height: 34px; border: 1.5px solid rgba(63,163,77,.55);
+    transition: width .25s var(--ease), height .25s var(--ease), border-color .25s, background .25s, opacity .2s;
+  }
+  html.has-cursor .cursor-ring.is-active {
+    width: 58px; height: 58px; background: rgba(63,163,77,.1); border-color: var(--green);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .cursor-dot, .cursor-ring { display: none; }
+}
+
+/* ---- Magnetic buttons ---- */
+@media (hover: hover) and (pointer: fine) {
+  .btn--primary, .btn--outline, .btn--pill-light { will-change: transform; }
+}
+
+/* ---- Marquee ticker ---- */
+.marquee { overflow: hidden; background: var(--ink); padding: 1.1rem 0; }
+.marquee__track { display: flex; width: max-content; animation: marquee-scroll 26s linear infinite; }
+.marquee__track span {
+  display: inline-flex; align-items: center; white-space: nowrap; color: rgba(255,255,255,.82);
+  font-weight: 700; font-size: .95rem; letter-spacing: .02em; padding: 0 2.2rem;
+}
+.marquee__track span::after { content: "•"; color: var(--green); margin-left: 2.2rem; }
+@keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .marquee__track { animation: none; }
+}
+
+/* ---- Staggered word-reveal headlines (populated by script.js) ---- */
+.split-word { display: inline-block; overflow: hidden; vertical-align: top; }
+.split-word > span {
+  display: inline-block; transform: translateY(110%); transition: transform .7s var(--ease);
+  transition-delay: calc(var(--i, 0) * 45ms);
+}
+[data-split].is-in .split-word > span { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .split-word > span { transform: none; transition: none; }
+}
+
+/* ---- Clip-path image wipe on scroll ----
+   The clip-path lives on the inner .reveal-wipe img, never on the element
+   IntersectionObserver watches — self-clipping the observed element itself
+   makes it report zero intersection in this browser and the reveal never
+   fires. The observer watches the unclipped .journey__photo/.prow__photo
+   wrapper and toggles .is-in there instead. */
+.reveal-wipe {
+  clip-path: inset(0 0 100% 0); transition: clip-path 1.1s var(--ease);
+}
+.is-in .reveal-wipe { clip-path: inset(0 0 0% 0); }
+@media (prefers-reduced-motion: reduce) {
+  .reveal-wipe { clip-path: none; }
+}

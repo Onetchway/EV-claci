@@ -341,4 +341,72 @@
     );
     appSteps.forEach((s) => aio.observe(s));
   }
+
+  /* ---- custom cursor (desktop, fine-pointer only) ---- */
+  const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  if (canHover) {
+    document.documentElement.classList.add("has-cursor");
+    const cursorDot = document.createElement("div");
+    cursorDot.className = "cursor-dot";
+    const cursorRing = document.createElement("div");
+    cursorRing.className = "cursor-ring";
+    document.body.append(cursorDot, cursorRing);
+
+    let mx = 0, my = 0, rx = 0, ry = 0;
+    window.addEventListener("mousemove", (e) => {
+      mx = e.clientX;
+      my = e.clientY;
+      cursorDot.style.transform = "translate(" + mx + "px," + my + "px) translate(-50%,-50%)";
+    });
+    const cursorLoop = () => {
+      rx += (mx - rx) * 0.18;
+      ry += (my - ry) * 0.18;
+      cursorRing.style.transform = "translate(" + rx + "px," + ry + "px) translate(-50%,-50%)";
+      requestAnimationFrame(cursorLoop);
+    };
+    cursorLoop();
+
+    const hoverSelector = "a, button, .btn, .journey__item, .charger-card, .intentcard, .app-badge, input[type=range]";
+    document.addEventListener("mouseover", (e) => {
+      if (e.target.closest(hoverSelector)) cursorRing.classList.add("is-active");
+    });
+    document.addEventListener("mouseout", (e) => {
+      if (e.target.closest(hoverSelector)) cursorRing.classList.remove("is-active");
+    });
+
+    /* ---- magnetic buttons ---- */
+    document.querySelectorAll(".btn--primary, .btn--outline, .btn--pill-light").forEach((btn) => {
+      btn.addEventListener("mousemove", (e) => {
+        const r = btn.getBoundingClientRect();
+        const x = e.clientX - r.left - r.width / 2;
+        const y = e.clientY - r.top - r.height / 2;
+        btn.style.transform = "translate(" + x * 0.25 + "px," + y * 0.35 + "px)";
+      });
+      btn.addEventListener("mouseleave", () => { btn.style.transform = ""; });
+    });
+  }
+
+  /* ---- staggered word-reveal headlines: wraps each word, then scroll-reveals ---- */
+  document.querySelectorAll("[data-split]").forEach((el) => {
+    const words = el.textContent.trim().split(/\s+/);
+    el.innerHTML = words
+      .map((w, i) => '<span class="split-word"><span style="--i:' + i + '">' + w + "</span></span> ")
+      .join("");
+  });
+  /* .reveal-wipe elements are watched via their unclipped parent (see styles.css note) */
+  const motionEls = document.querySelectorAll("[data-split], .journey__photo, .prow__photo");
+  if (motionEls.length) {
+    const motionIo = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-in");
+            motionIo.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: "0px 0px -60px 0px" }
+    );
+    motionEls.forEach((el) => motionIo.observe(el));
+  }
 })();
