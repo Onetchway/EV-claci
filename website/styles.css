@@ -1350,6 +1350,27 @@ img { max-width: 100%; display: block; }
 }
 .iconpanel--dark svg { color: var(--green); }
 
+/* Spec card — replaces a product photo with the number that actually matters */
+.speccard {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--bg-alt); border-radius: var(--radius); overflow: hidden; text-align: center; gap: .6rem;
+}
+.speccard::before {
+  content: ""; position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(18,29,46,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(18,29,46,.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.section--dark .speccard { background: rgba(255,255,255,.05); }
+.section--dark .speccard::before {
+  background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
+}
+.speccard__num { position: relative; font-size: clamp(3.2rem, 7vw, 5rem); font-weight: 800; color: var(--ink); letter-spacing: -.02em; line-height: 1; }
+.section--dark .speccard__num { color: #fff; }
+.speccard__num span { font-size: .38em; font-weight: 700; color: var(--green-2); margin-left: .2rem; }
+.section--dark .speccard__num span { color: var(--green); }
+.speccard__icon { position: relative; width: 34px; height: 34px; color: var(--green-2); }
+.section--dark .speccard__icon { color: var(--green); }
+
 /* Wireframe phone mockup — stands in for an app screenshot (app isn't live yet) */
 .phonemock {
   position: relative; width: min(100%, 280px); aspect-ratio: 9/18.5; margin: 0 auto;
