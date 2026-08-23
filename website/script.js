@@ -70,15 +70,6 @@
   const hasGsap = !!(window.gsap && window.ScrollTrigger);
   if (hasGsap) gsap.registerPlugin(ScrollTrigger);
 
-  /* ---- Smooth scroll (Lenis), synced to ScrollTrigger — skipped entirely under
-     reduced-motion, and the site is fully usable without it if the CDN fails ---- */
-  if (hasGsap && !reduceMotion && window.Lenis) {
-    const lenis = new Lenis({ duration: 1.05, smoothWheel: true, syncTouch: false });
-    lenis.on("scroll", ScrollTrigger.update);
-    gsap.ticker.add((time) => lenis.raf(time * 1000));
-    gsap.ticker.lagSmoothing(0);
-  }
-
   /* ---- Scroll reveal — any element with .reveal/.reveal-mask/[data-split] animates in once.
      GSAP path: staggered per section, real easing, subtle scale-in for the plain .reveal
      items. CSS path (no GSAP / reduced-motion): the .is-in class transition in styles.css. ---- */
