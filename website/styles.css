@@ -598,7 +598,7 @@ img { max-width: 100%; display: block; }
   border-radius: 28px;
   background: radial-gradient(circle at 50% 35%, rgba(63,163,77,.12), transparent 68%);
 }
-.appflow__sticky img { width: min(100%, 480px); height: auto; filter: drop-shadow(0 22px 40px rgba(18,29,46,.16)); }
+.appflow__sticky img, .appflow__sticky .phonemock { width: min(100%, 280px); height: auto; filter: drop-shadow(0 22px 40px rgba(18,29,46,.16)); }
 .appflow__track { width: 4px; height: 46px; background: var(--line); border-radius: 999px; overflow: hidden; }
 .appflow__fill { width: 100%; height: 0%; background: var(--green); transition: height .3s var(--ease); }
 .appflow__steps { display: flex; flex-direction: column; gap: 3rem; padding: 2rem 0; }
