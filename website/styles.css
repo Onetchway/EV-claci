@@ -854,6 +854,13 @@ img { max-width: 100%; display: block; }
 .section--dark .pagehead__kicker { color: var(--green); }
 .section--dark .ticks li { color: rgba(255,255,255,.72); }
 .section--dark .charger-card__spec { color: rgba(255,255,255,.75); }
+.section--dark .mission__statement { color: #fff; }
+.section--dark .mission__body { color: rgba(255,255,255,.65); }
+.section--dark .trust__logos span { color: #fff; opacity: .55; }
+.section--dark .trust__logos span:hover { opacity: 1; }
+.section--dark .press-strip__label { color: rgba(255,255,255,.55); }
+.section--dark .press-strip { border-top-color: rgba(255,255,255,.15); }
+.section--dark .about__row p, .section--dark .symbol__inner p { color: rgba(255,255,255,.68); }
 .btn--link-light { color: #fff; border-bottom-color: rgba(255,255,255,.5); }
 .btn--link-light:hover { color: var(--green); border-color: var(--green); }
 
