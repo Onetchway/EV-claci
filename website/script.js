@@ -195,9 +195,11 @@
     });
   }
 
-  /* cinematic hero — subtle scroll parallax on the background wrap (separate element from the zoom-in animation) */
+  /* cinematic hero — subtle scroll parallax on the background wrap (separate element from the
+     zoom-in animation). Only runs as a fallback when GSAP/ScrollTrigger isn't available — the
+     GSAP block further down drives this same element with a smoother scrubbed tween instead. */
   const cineWrap = document.querySelector(".cinehero__bg-wrap");
-  if (cineWrap) {
+  if (cineWrap && !(window.gsap && window.ScrollTrigger)) {
     const onCineScroll = () => {
       const y = window.scrollY;
       if (y < window.innerHeight * 1.2) {
@@ -408,5 +410,50 @@
       { threshold: 0.2, rootMargin: "0px 0px -60px 0px" }
     );
     motionEls.forEach((el) => motionIo.observe(el));
+  }
+
+  /* ---- GSAP + Lenis: smooth scroll and a real scroll-pinned hero (progressive enhancement —
+     the site works fully without this if the CDN scripts fail to load) ---- */
+  if (window.gsap && window.ScrollTrigger) {
+    gsap.registerPlugin(ScrollTrigger);
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!reduceMotion && window.Lenis) {
+      const lenis = new Lenis({ duration: 1.1, smoothWheel: true, syncTouch: false });
+      lenis.on("scroll", ScrollTrigger.update);
+      gsap.ticker.add((time) => lenis.raf(time * 1000));
+      gsap.ticker.lagSmoothing(0);
+    }
+
+    if (!reduceMotion) {
+      const hero = document.getElementById("cinehero");
+      const heroBgWrap = hero && hero.querySelector(".cinehero__bg-wrap");
+      const heroContent = hero && hero.querySelector(".cinehero__content");
+      if (hero && heroBgWrap && heroContent) {
+        gsap.to(heroBgWrap, {
+          yPercent: 16,
+          ease: "none",
+          scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: true },
+        });
+        gsap.to(heroContent, {
+          opacity: 0,
+          y: -70,
+          scale: 0.96,
+          ease: "none",
+          scrollTrigger: { trigger: hero, start: "top top", end: "65% top", scrub: true },
+        });
+      }
+
+      /* subtle scroll-scrub parallax on cinematic hero photos elsewhere (Franchise, Network, etc.) */
+      document.querySelectorAll(".netherov__bg, .meshbg").forEach((bg) => {
+        const section = bg.closest(".netherov");
+        if (!section) return;
+        gsap.to(bg, {
+          yPercent: 10,
+          ease: "none",
+          scrollTrigger: { trigger: section, start: "top top", end: "bottom top", scrub: true },
+        });
+      });
+    }
   }
 })();
