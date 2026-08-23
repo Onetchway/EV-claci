@@ -14,6 +14,10 @@ concurrency:
   group: "firebase-hosting-website"
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  id-token: write # required for Workload Identity Federation — no service-account key needed
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -21,12 +25,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to Firebase Hosting (livanto-green-web)
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
         with:
-          repoToken: "${{ secrets.GITHUB_TOKEN }}"
-          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
-          projectId: livanto-278b5
-          target: website
-          entryPoint: website
-          channelId: live
+          workload_identity_provider: "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}"
+          service_account: "${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}"
+
+      - name: Deploy to Firebase Hosting (livanto-green-web)
+        working-directory: website
+        run: npx --yes firebase-tools@latest deploy --only hosting:website --project livanto-278b5 --non-interactive
