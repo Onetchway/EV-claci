@@ -1249,3 +1249,42 @@ img { max-width: 100%; display: block; }
 @media (prefers-reduced-motion: reduce) {
   .reveal-wipe { clip-path: none; }
 }
+
+/* ---- Franchise: eligibility grid + FAQ accordion ---- */
+.eligrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6rem; margin-top: 2.4rem; }
+.eligrid__item { padding: 1.8rem 1.7rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; }
+.eligrid__item h3 { font-size: 1.05rem; margin-bottom: .6rem; }
+.eligrid__item p { color: var(--muted); font-size: .92rem; }
+
+.faqlist { margin-top: 2.4rem; border-top: 1px solid var(--line); }
+.faqitem { border-bottom: 1px solid var(--line); padding: 1.4rem 0; }
+.faqitem summary {
+  cursor: pointer; list-style: none; font-weight: 600; color: var(--ink); font-size: 1.02rem;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+}
+.faqitem summary::-webkit-details-marker { display: none; }
+.faqitem summary::after {
+  content: "+"; font-size: 1.4rem; font-weight: 400; color: var(--green); flex-shrink: 0;
+  transition: transform .2s;
+}
+.faqitem[open] summary::after { transform: rotate(45deg); }
+.faqitem p { color: var(--muted); margin-top: 1rem; max-width: 68ch; font-size: .95rem; }
+
+@media (max-width: 780px) {
+  .eligrid { grid-template-columns: 1fr; }
+}
+
+/* ---- App page: rounded color-block section ---- */
+.appblock { padding: 0 var(--pad, 1.25rem) 4rem; margin-top: -2.4rem; position: relative; z-index: 1; }
+.appblock__inner {
+  max-width: var(--container); margin: 0 auto; background: var(--green-dark);
+  border-radius: 28px; padding: clamp(2.2rem, 4vw, 3.4rem);
+  display: flex; align-items: center; justify-content: space-between; gap: 2rem; flex-wrap: wrap;
+}
+.appblock__inner h2 { color: #fff; font-size: clamp(1.5rem, 2.6vw, 2.1rem); margin-bottom: .7rem; max-width: 20ch; }
+.appblock__inner p { color: rgba(255,255,255,.75); max-width: 52ch; }
+
+@media (max-width: 780px) {
+  .appblock { padding-left: 1rem; padding-right: 1rem; }
+  .appblock__inner { flex-direction: column; align-items: flex-start; }
+}
