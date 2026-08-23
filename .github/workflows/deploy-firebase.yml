@@ -1,0 +1,32 @@
+name: Deploy Livanto Green website to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main
+      - claude/ev-charger-crm-build-7ddmrn
+    paths:
+      - "website/**"
+      - ".github/workflows/deploy-firebase.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: "firebase-hosting-website"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Firebase Hosting (livanto-green-web)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          projectId: livanto-278b5
+          target: website
+          entryPoint: website
+          channelId: live
