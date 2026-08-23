@@ -543,6 +543,32 @@ p { line-height: 1.6; color: var(--ink-soft); margin: 0; }
   .selector__visual { aspect-ratio: 16/10; }
 }
 
+/* ---- App flow (Technology page) — pinned phone, screens change as you scroll ---- */
+.appflow__inner { display: grid; grid-template-columns: 1fr 0.85fr; gap: var(--sp-6); margin-top: var(--sp-5); align-items: start; }
+.appflow__steps .journey__step { opacity: 0.4; transition: opacity var(--dur-fast); min-height: 42vh; display: flex; flex-direction: column; justify-content: center; }
+.appflow__steps .journey__step.is-active { opacity: 1; }
+.appflow__steps .journey__step.is-active .journey__num { color: var(--green-2); }
+.appflow__sticky { position: sticky; top: 120px; display: flex; justify-content: center; }
+.appflow__phone {
+  width: 260px; aspect-ratio: 9/18.5; border-radius: 34px; background: var(--ink);
+  padding: 10px; box-shadow: 0 40px 80px -30px rgba(0,0,0,0.35);
+}
+.appflow__screen { position: relative; width: 100%; height: 100%; border-radius: 26px; background: linear-gradient(155deg, var(--surface-2), var(--surface)); overflow: hidden; }
+.appflow__screen-panel {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;
+  color: var(--green-2); opacity: 0; transform: scale(0.9); transition: opacity 0.45s var(--ease), transform 0.45s var(--ease);
+}
+.appflow__screen-panel span { font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+.appflow__phone[data-step="0"] .appflow__screen-panel[data-panel="0"],
+.appflow__phone[data-step="1"] .appflow__screen-panel[data-panel="1"],
+.appflow__phone[data-step="2"] .appflow__screen-panel[data-panel="2"],
+.appflow__phone[data-step="3"] .appflow__screen-panel[data-panel="3"] { opacity: 1; transform: scale(1); }
+@media (max-width: 900px) {
+  .appflow__inner { grid-template-columns: 1fr; }
+  .appflow__sticky { position: static; margin-top: var(--sp-4); }
+  .appflow__steps .journey__step { opacity: 1; min-height: 0; }
+}
+
 /* ---- Legal pages ---- */
 .legal { max-width: 76ch; }
 .legal h2 { font-size: 1.3rem; margin: 2.2rem 0 0.8rem; }

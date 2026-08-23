@@ -66,50 +66,149 @@
     });
   });
 
-  /* ---- Scroll reveal — any element with .reveal or [data-reveal] fades/slides in once ---- */
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const hasGsap = !!(window.gsap && window.ScrollTrigger);
+  if (hasGsap) gsap.registerPlugin(ScrollTrigger);
+
+  /* ---- Smooth scroll (Lenis), synced to ScrollTrigger — skipped entirely under
+     reduced-motion, and the site is fully usable without it if the CDN fails ---- */
+  if (hasGsap && !reduceMotion && window.Lenis) {
+    const lenis = new Lenis({ duration: 1.05, smoothWheel: true, syncTouch: false });
+    lenis.on("scroll", ScrollTrigger.update);
+    gsap.ticker.add((time) => lenis.raf(time * 1000));
+    gsap.ticker.lagSmoothing(0);
+  }
+
+  /* ---- Scroll reveal — any element with .reveal/.reveal-mask/[data-split] animates in once.
+     GSAP path: staggered per section, real easing, subtle scale-in for the plain .reveal
+     items. CSS path (no GSAP / reduced-motion): the .is-in class transition in styles.css. ---- */
   const revealEls = document.querySelectorAll(".reveal, .reveal-mask, [data-split]");
-  const io = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-in");
-          io.unobserve(entry.target);
-        }
+  if (hasGsap && !reduceMotion) {
+    revealEls.forEach((el) => el.classList.add("is-in")); // CSS end-state is the GSAP start-state's target; GSAP drives the actual motion
+    const groups = new Map();
+    revealEls.forEach((el) => {
+      const parent = el.closest("section") || el.parentElement;
+      if (!groups.has(parent)) groups.set(parent, []);
+      groups.get(parent).push(el);
+    });
+    groups.forEach((els) => {
+      const plain = els.filter((el) => el.classList.contains("reveal"));
+      const masks = els.filter((el) => el.classList.contains("reveal-mask") || el.hasAttribute("data-split"));
+      if (plain.length) {
+        gsap.fromTo(
+          plain,
+          { autoAlpha: 0, y: 26, scale: 0.985 },
+          {
+            autoAlpha: 1, y: 0, scale: 1, duration: 0.9, ease: "power3.out", stagger: 0.08,
+            scrollTrigger: { trigger: plain[0], start: "top 88%", once: true },
+          }
+        );
+      }
+      masks.forEach((el) => {
+        const words = el.querySelectorAll(".split-word > span");
+        const target = words.length ? words : el;
+        gsap.fromTo(
+          target,
+          { yPercent: 110 },
+          { yPercent: 0, duration: 0.85, ease: "power4.out", stagger: words.length ? 0.035 : 0,
+            scrollTrigger: { trigger: el, start: "top 90%", once: true } }
+        );
       });
-    },
-    { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
-  );
-  revealEls.forEach((el) => io.observe(el));
+    });
+  } else {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-in");
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+    );
+    revealEls.forEach((el) => io.observe(el));
+  }
+
+  /* ---- Ecosystem flow (homepage) — nodes pop in left-to-right, connecting arrows draw between them ---- */
+  const ecoFlow = document.querySelector(".ecosystem__flow");
+  if (ecoFlow && hasGsap && !reduceMotion) {
+    const items = Array.from(ecoFlow.children);
+    gsap.set(items, { autoAlpha: 0 });
+    gsap.set(ecoFlow.querySelectorAll(".ecosystem__node"), { autoAlpha: 0, y: 16, scale: 0.9 });
+    gsap.set(ecoFlow.querySelectorAll(".ecosystem__arrow svg"), { autoAlpha: 0, scaleX: 0, transformOrigin: "left center" });
+    const tl = gsap.timeline({ scrollTrigger: { trigger: ecoFlow, start: "top 82%", once: true } });
+    items.forEach((el, i) => {
+      const isNode = el.classList.contains("ecosystem__node");
+      if (isNode) {
+        tl.to(el, { autoAlpha: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.8)" }, i * 0.16);
+      } else {
+        tl.to(el, { autoAlpha: 1, duration: 0.15 }, i * 0.16)
+          .to(el.querySelector("svg"), { autoAlpha: 1, scaleX: 1, duration: 0.4, ease: "power2.out" }, i * 0.16);
+      }
+    });
+  }
 
   /* ---- Homepage hero: staged on-load entrance + scroll-scrubbed dissolve ---- */
   const hero = document.querySelector(".hero");
   if (hero) {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     requestAnimationFrame(() => requestAnimationFrame(() => hero.classList.add("is-loaded")));
 
     if (!reduceMotion) {
       const scene = hero.querySelector(".hero__scene");
       const content = hero.querySelector(".hero__content");
-      let ticking = false;
-      const update = () => {
-        const p = Math.min(Math.max(window.scrollY / hero.offsetHeight, 0), 1);
-        if (scene) scene.style.transform = `scale(${1 + p * 0.08}) translateY(${p * -30}px)`;
-        if (content) {
-          content.style.opacity = String(1 - p * 1.4);
-          content.style.transform = `translateY(${p * -40}px)`;
+      if (hasGsap) {
+        if (scene) {
+          gsap.to(scene, {
+            scale: 1.08, yPercent: -14, ease: "none",
+            scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: 0.6 },
+          });
         }
-        ticking = false;
-      };
-      window.addEventListener(
-        "scroll",
-        () => {
-          if (!ticking) {
-            requestAnimationFrame(update);
-            ticking = true;
+        if (content) {
+          gsap.to(content, {
+            autoAlpha: 0, y: -50, ease: "none",
+            scrollTrigger: { trigger: hero, start: "top top", end: "65% top", scrub: 0.6 },
+          });
+        }
+      } else {
+        let ticking = false;
+        const update = () => {
+          const p = Math.min(Math.max(window.scrollY / hero.offsetHeight, 0), 1);
+          if (scene) scene.style.transform = `scale(${1 + p * 0.08}) translateY(${p * -30}px)`;
+          if (content) {
+            content.style.opacity = String(1 - p * 1.4);
+            content.style.transform = `translateY(${p * -40}px)`;
           }
-        },
-        { passive: true }
-      );
+          ticking = false;
+        };
+        window.addEventListener("scroll", () => { if (!ticking) { requestAnimationFrame(update); ticking = true; } }, { passive: true });
+      }
     }
+  }
+
+  /* ---- Pinned scroll storytelling (Technology "App" section): phone stays fixed while
+     the active step highlights based on scroll position through the step list ---- */
+  const appflow = document.querySelector(".appflow");
+  if (appflow && hasGsap && !reduceMotion && window.innerWidth > 900) {
+    const steps = appflow.querySelectorAll(".journey__step");
+    const phone = appflow.querySelector(".appflow__phone");
+    steps.forEach((step, i) => {
+      ScrollTrigger.create({
+        trigger: step,
+        start: "top 55%",
+        end: "bottom 55%",
+        onToggle: (self) => {
+          step.classList.toggle("is-active", self.isActive);
+          if (phone) phone.dataset.step = self.isActive ? i : phone.dataset.step;
+        },
+      });
+    });
+  }
+
+  /* ---- Page-header parallax (dark pageheads + inner-page dark sections) ---- */
+  if (hasGsap && !reduceMotion) {
+    document.querySelectorAll(".pagehead--dark .pagehead__crumb, .pagehead--dark .type-eyebrow").forEach((el) => {
+      gsap.to(el, { yPercent: -60, ease: "none", scrollTrigger: { trigger: el.closest(".pagehead"), start: "top top", end: "bottom top", scrub: 0.6 } });
+    });
   }
 })();

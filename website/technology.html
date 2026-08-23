@@ -44,31 +44,55 @@
       </div>
     </section>
 
-    <!-- ───────────────────────── App ───────────────────────── -->
-    <section class="section" id="app">
+    <!-- ───────────────────────── App — pinned phone, screens change as you scroll ───────────────────────── -->
+    <section class="section appflow" id="app">
       <div class="container">
         <p class="type-eyebrow reveal">Livanto app</p>
         <h2 class="type-h1 reveal" style="margin-top:0.6rem;max-width:18ch;">Find. Charge. Monitor. Pay.</h2>
-        <div class="journey" style="margin-top:var(--sp-5);">
-          <div class="journey__step reveal">
+      </div>
+      <div class="container appflow__inner">
+        <div class="appflow__steps">
+          <div class="journey__step">
             <span class="journey__num">01</span>
             <div><h3>Find nearby chargers</h3><p>Locate charging stations in real time, filtered by connector type and speed.</p></div>
           </div>
-          <div class="journey__step reveal">
+          <div class="journey__step">
             <span class="journey__num">02</span>
             <div><h3>Start a session</h3><p>OTP-based smart charging — secure authentication for every session, no card swipe required.</p></div>
           </div>
-          <div class="journey__step reveal">
+          <div class="journey__step">
             <span class="journey__num">03</span>
             <div><h3>Monitor, live</h3><p>Watch a session progress in real time from the app, wherever you are.</p></div>
           </div>
-          <div class="journey__step reveal">
+          <div class="journey__step">
             <span class="journey__num">04</span>
             <div><h3>Pay your way</h3><p>Multiple payment modes — cards, UPI or an integrated wallet you top up and manage in the app.</p></div>
           </div>
         </div>
-        <p class="reveal" style="margin-top:2rem;color:var(--ink-faint);font-size:0.9rem;">The Livanto app is in development — these are the capabilities it's built around, not yet a public download.</p>
+        <div class="appflow__sticky">
+          <div class="appflow__phone" data-step="0">
+            <div class="appflow__screen">
+              <div class="appflow__screen-panel" data-panel="0">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z"/></svg>
+                <span>Nearby chargers</span>
+              </div>
+              <div class="appflow__screen-panel" data-panel="1">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="10" rx="2"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></svg>
+                <span>OTP verified</span>
+              </div>
+              <div class="appflow__screen-panel" data-panel="2">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+                <span>62% charged</span>
+              </div>
+              <div class="appflow__screen-panel" data-panel="3">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                <span>Payment complete</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+      <p class="container reveal" style="margin-top:2rem;color:var(--ink-faint);font-size:0.9rem;">The Livanto app is in development — these are the capabilities it's built around, not yet a public download.</p>
     </section>
 
     <!-- ───────────────────────── Software / CMS ───────────────────────── -->
@@ -181,6 +205,9 @@
   </footer>
 <!-- /FOOTER -->
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
