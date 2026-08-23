@@ -811,6 +811,7 @@ img { max-width: 100%; display: block; }
 .section--dark .section-sub { color: rgba(255,255,255,.62); }
 .section--dark .pagehead__kicker { color: var(--green); }
 .section--dark .ticks li { color: rgba(255,255,255,.72); }
+.section--dark .charger-card__spec { color: rgba(255,255,255,.75); }
 .btn--link-light { color: #fff; border-bottom-color: rgba(255,255,255,.5); }
 .btn--link-light:hover { color: var(--green); border-color: var(--green); }
 
@@ -929,4 +930,32 @@ img { max-width: 100%; display: block; }
 @media (max-width: 520px) {
   .soltiles { grid-template-columns: 1fr; }
   .soltiles__tile { aspect-ratio: 16/10; }
+}
+
+/* ---- Dark pagehead variant ---- */
+.pagehead--dark { border-bottom-color: rgba(255,255,255,.1); }
+.pagehead--dark .pagehead--crumb { color: rgba(255,255,255,.5); }
+.pagehead--dark .pagehead--crumb a { color: rgba(255,255,255,.8); }
+.pagehead--dark p:not(.pagehead--crumb):not(.pagehead__kicker) { color: rgba(255,255,255,.62); }
+
+/* ---- Product rows — large alternating image/copy, not grid cards ---- */
+.prow {
+  display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(2rem, 5vw, 4rem); align-items: center;
+  padding: clamp(2.6rem, 5vw, 4rem) 0; border-top: 1px solid var(--line);
+}
+.section--dark .prow { border-top-color: rgba(255,255,255,.1); }
+.prow:first-of-type { border-top: 0; padding-top: 2.4rem; }
+.prow--reverse { grid-template-columns: .9fr 1.1fr; }
+.prow--reverse .prow__photo { order: 2; }
+.prow--reverse .prow__copy { order: 1; }
+.prow__photo { border-radius: var(--radius); overflow: hidden; background: var(--bg-alt); display: grid; place-items: center; aspect-ratio: 16/11; }
+.section--dark .prow__photo { background: rgba(255,255,255,.04); }
+.prow__photo img { width: 72%; height: 72%; object-fit: contain; }
+.prow__copy h3 { font-size: clamp(1.7rem, 3vw, 2.3rem); margin-bottom: .6rem; }
+.prow__copy .charger-card__spec { font-size: 1rem; margin-bottom: 1rem; }
+.prow__copy p:last-child { max-width: 46ch; }
+
+@media (max-width: 780px) {
+  .prow, .prow--reverse { grid-template-columns: 1fr; }
+  .prow--reverse .prow__photo, .prow--reverse .prow__copy { order: initial; }
 }
