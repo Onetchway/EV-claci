@@ -24,10 +24,12 @@
         <a href="solutions.html" data-nav="solutions">Solutions</a>
         <a href="products.html" data-nav="products">Products</a>
         <a href="technology.html" data-nav="technology">Technology</a>
-        <a href="network.html" data-nav="network">Network</a>
         <a href="franchise.html" data-nav="franchise">Franchise</a>
         <a href="about.html" data-nav="about">About</a>
-        <a class="btn btn--outline nav__btn" href="network.html#find">Find a Charger <span class="btn__arrow">→</span></a>
+        <a class="btn btn--charger nav__btn" href="network.html#find">
+          <span class="btn__icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.4"/></svg></span>
+          Find a Charger
+        </a>
         <a class="btn btn--primary nav__cta" href="contact.html" data-nav="contact">Contact <span class="btn__arrow">→</span></a>
       </nav>
       <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false"><span></span><span></span><span></span></button>
@@ -36,8 +38,195 @@
 <!-- /NAV -->
 
   <main>
-    <!-- Step 5: Homepage hero goes here -->
-    <!-- Step 6: remaining homepage sections go here -->
+    <section class="hero section--dark" id="hero">
+      <div class="hero__scene" aria-hidden="true">
+        <div class="hero__grid"></div>
+        <div class="hero__pulse">
+          <div class="hero__pulse-ring"></div>
+          <div class="hero__pulse-ring"></div>
+          <div class="hero__pulse-ring"></div>
+          <div class="hero__pulse-core">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+          </div>
+        </div>
+        <div class="hero__chip hero__chip--1 datachip"><b>7.4–240 kW</b><span>Charging range</span></div>
+        <div class="hero__chip hero__chip--2 datachip datachip--live"><b>LIVE</b><span>Network monitoring</span></div>
+      </div>
+      <div class="container hero__content">
+        <p class="type-eyebrow hero__eyebrow">Livanto Green</p>
+        <h1 class="type-hero hero__headline" data-split data-delay-base="350">Charging the way forward.</h1>
+        <p class="type-sub hero__sub">Intelligent EV charging infrastructure connecting people, places and the future of mobility.</p>
+        <div class="hero__cta">
+          <a class="btn btn--primary" href="solutions.html">Explore Solutions <span class="btn__arrow">→</span></a>
+          <a class="btn btn--outline" href="network.html">Explore Network <span class="btn__arrow">→</span></a>
+        </div>
+      </div>
+      <div class="hero__scrollcue" aria-hidden="true"><span></span></div>
+    </section>
+
+    <!-- ───────────────────────── Ecosystem ───────────────────────── -->
+    <section class="section">
+      <div class="container">
+        <div class="ecosystem__head">
+          <p class="type-eyebrow reveal">Ecosystem</p>
+          <h2 class="type-h1 reveal" style="margin-top:0.6rem;">One ecosystem. Every charging need.</h2>
+          <p class="type-body-lg reveal" style="margin-top:1rem;">Livanto isn't just hardware — the charger, the cloud, the software and the app all report to the same network, in real time.</p>
+        </div>
+        <div class="ecosystem__flow">
+          <div class="ecosystem__node reveal"><div class="ecosystem__node-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div><b>Hardware</b><span>AC &amp; DC chargers</span></div>
+          <div class="ecosystem__arrow reveal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="ecosystem__node reveal"><div class="ecosystem__node-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4-1.5A4.5 4.5 0 0 0 6.5 19h11z"/></svg></div><b>Cloud</b><span>OCPP-connected</span></div>
+          <div class="ecosystem__arrow reveal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="ecosystem__node reveal"><div class="ecosystem__node-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg></div><b>Software</b><span>Livanto CMS</span></div>
+          <div class="ecosystem__arrow reveal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="ecosystem__node reveal"><div class="ecosystem__node-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="2"/><line x1="10" y1="18" x2="14" y2="18"/></svg></div><b>App</b><span>Find, charge, pay</span></div>
+          <div class="ecosystem__arrow reveal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="ecosystem__node reveal"><div class="ecosystem__node-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div><b>Driver</b><span>On the road</span></div>
+          <div class="ecosystem__arrow reveal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="ecosystem__node reveal"><div class="ecosystem__node-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg></div><b>Network</b><span>Back to the network</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Solutions ───────────────────────── -->
+    <section class="section section--surface">
+      <div class="container">
+        <p class="type-eyebrow reveal">Solutions</p>
+        <h2 class="type-h1 reveal" style="margin-top:0.6rem;max-width:20ch;">Charging built around how you actually use it.</h2>
+
+        <div class="solrow">
+          <div>
+            <span class="type-eyebrow solrow__eyebrow reveal">01 — Home</span>
+            <h3 class="type-h2 reveal">Charge where you live.</h3>
+            <p class="type-body-lg reveal" style="margin-top:1rem;max-width:44ch;">Low-footprint AC charging for homes and residential societies — simple to install, simple to meter per resident.</p>
+            <p class="reveal" style="margin-top:1.4rem;"><a class="btn--text" href="solutions.html#home">Explore home charging →</a></p>
+          </div>
+          <div class="solrow__visual reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></div>
+        </div>
+
+        <div class="solrow solrow--rev">
+          <div>
+            <span class="type-eyebrow solrow__eyebrow reveal">02 — Workplace &amp; commercial</span>
+            <h3 class="type-h2 reveal">Charge while you work.</h3>
+            <p class="type-body-lg reveal" style="margin-top:1rem;max-width:44ch;">Turn office car parks, malls and hospitality parking into charging destinations, with dynamic pricing built in.</p>
+            <p class="reveal" style="margin-top:1.4rem;"><a class="btn--text" href="solutions.html#commercial">Explore commercial charging →</a></p>
+          </div>
+          <div class="solrow__visual reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1"/></svg></div>
+        </div>
+
+        <div class="solrow">
+          <div>
+            <span class="type-eyebrow solrow__eyebrow reveal">03 — Fleet</span>
+            <h3 class="type-h2 reveal">Keep your fleet moving.</h3>
+            <p class="type-body-lg reveal" style="margin-top:1rem;max-width:44ch;">Depot and captive charging for last-mile, logistics and delivery fleets — built for predictable, overnight charging at scale.</p>
+            <p class="reveal" style="margin-top:1.4rem;"><a class="btn--text" href="solutions.html#fleet">Explore fleet charging →</a></p>
+          </div>
+          <div class="solrow__visual reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg></div>
+        </div>
+
+        <div class="solrow solrow--rev">
+          <div>
+            <span class="type-eyebrow solrow__eyebrow reveal">04 — Public &amp; highway</span>
+            <h3 class="type-h2 reveal">Fast charging for the open road.</h3>
+            <p class="type-body-lg reveal" style="margin-top:1rem;max-width:44ch;">High-speed DC corridors for highways and public parking, where a short stop matters more than a low upfront cost.</p>
+            <p class="reveal" style="margin-top:1.4rem;"><a class="btn--text" href="solutions.html#public">Explore public charging →</a></p>
+          </div>
+          <div class="solrow__visual reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 21M16 3l4 18M12 3v4M12 10v4M12 17v4"/></svg></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Products ───────────────────────── -->
+    <section class="section">
+      <div class="container">
+        <p class="type-eyebrow reveal">Products</p>
+        <h2 class="type-h1 reveal" style="margin-top:0.6rem;max-width:18ch;">Hardware built for the real world.</h2>
+        <div style="margin-top:var(--sp-5);">
+          <div class="prodrow reveal">
+            <div><div class="prodrow__name">7.4 kW AC Charger</div><div class="prodrow__meta">Type-2 connector · smart charging</div></div>
+            <div class="prodrow__power">7.4 kW</div>
+          </div>
+          <div class="prodrow reveal">
+            <div><div class="prodrow__name">30 kW DC Charger</div><div class="prodrow__meta">CCS2 connector · fast charging</div></div>
+            <div class="prodrow__power">30 kW</div>
+          </div>
+          <div class="prodrow reveal">
+            <div><div class="prodrow__name">60 kW DC Charger</div><div class="prodrow__meta">ARAI certified · dual CCS2 · dynamic load balancing</div></div>
+            <div class="prodrow__power">60 kW</div>
+          </div>
+          <div class="prodrow reveal">
+            <div><div class="prodrow__name">240 kW DC Charger</div><div class="prodrow__meta">Dual CCS2 · industry-leading speed</div></div>
+            <div class="prodrow__power">240 kW</div>
+          </div>
+          <div class="prodrow reveal">
+            <div><div class="prodrow__name">22 kW AD Wall Charger</div><div class="prodrow__meta">15.6&quot; HD display · advertising-enabled</div></div>
+            <div class="prodrow__power">22 kW</div>
+          </div>
+          <div class="prodrow reveal">
+            <div><div class="prodrow__name">Whitelabel Solutions</div><div class="prodrow__meta">Custom branding · API access for resellers</div></div>
+            <div class="prodrow__power">Custom</div>
+          </div>
+        </div>
+        <p class="reveal" style="margin-top:2.4rem;"><a class="btn btn--primary" href="products.html">See all products <span class="btn__arrow">→</span></a></p>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Technology ───────────────────────── -->
+    <section class="section section--dark">
+      <div class="container techteaser">
+        <div>
+          <p class="type-eyebrow reveal">Technology</p>
+          <h2 class="type-h1 reveal" style="margin-top:0.6rem;">Charging is more than hardware.</h2>
+          <p class="type-body-lg reveal" style="margin-top:1.2rem;max-width:42ch;">The Livanto app finds, starts and pays for a session. Livanto CMS runs the network behind it — OCPP-based real-time monitoring, payments and analytics.</p>
+          <p class="reveal" style="margin-top:1.6rem;"><a class="btn btn--outline" href="technology.html">Explore Technology <span class="btn__arrow">→</span></a></p>
+        </div>
+        <div class="techteaser__visual reveal" aria-hidden="true">
+          <div class="hero__pulse" style="position:absolute;right:-10%;top:50%;width:70%;">
+            <div class="hero__pulse-ring"></div>
+            <div class="hero__pulse-core"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="2" width="10" height="20" rx="2"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Network ───────────────────────── -->
+    <section class="section section--dark">
+      <div class="container">
+        <p class="type-eyebrow reveal">Network</p>
+        <h2 class="type-h1 reveal" style="margin-top:0.6rem;max-width:18ch;">A network built for movement.</h2>
+        <p class="type-body-lg reveal" style="margin-top:1rem;max-width:46ch;">Every Livanto station reports live — so the network you see is the network that's actually there.</p>
+        <div class="netstats">
+          <div class="netstat reveal"><b>AC &amp; DC</b><span>Hardware across the network</span></div>
+          <div class="netstat reveal"><b>24×7</b><span>Real-time monitoring</span></div>
+          <div class="netstat reveal"><b>Pan-India</b><span>Growing station footprint</span></div>
+        </div>
+        <p class="reveal" style="margin-top:2rem;"><a class="btn btn--outline" href="network.html">Explore the network <span class="btn__arrow">→</span></a></p>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Franchise ───────────────────────── -->
+    <section class="section section--surface">
+      <div class="container solrow" style="border:0;padding:0;">
+        <div>
+          <p class="type-eyebrow reveal">Franchise</p>
+          <h2 class="type-h1 reveal" style="margin-top:0.6rem;max-width:16ch;">Build the future of mobility.</h2>
+          <p class="type-body-lg reveal" style="margin-top:1rem;max-width:42ch;">Build and operate an EV charging business with Livanto — hardware, software, brand and support, on your site.</p>
+          <p class="reveal" style="margin-top:1.6rem;"><a class="btn btn--primary" href="franchise.html">Become a Livanto Partner <span class="btn__arrow">→</span></a></p>
+        </div>
+        <div class="solrow__visual reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.4"/></svg></div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Final CTA ───────────────────────── -->
+    <section class="section section--dark finalcta">
+      <div class="container">
+        <h2 class="type-hero reveal-mask"><span data-split style="display:block;">The road ahead is electric.</span></h2>
+        <p class="type-body-lg reveal">Whether it's a home charger, a fleet depot or a franchise — let's build it together.</p>
+        <div class="hero__cta reveal">
+          <a class="btn btn--primary" href="contact.html">Let's build it together <span class="btn__arrow">→</span></a>
+        </div>
+      </div>
+    </section>
   </main>
 
 <!-- FOOTER -->
@@ -65,17 +254,35 @@
           <a href="refund-cancellation.html">Refund Policy</a>
           <a href="shipping-policy.html">Shipping &amp; Delivery</a>
         </div>
-        <div class="footer__col">
-          <h4>Social</h4>
-          <a href="#" aria-label="LinkedIn">LinkedIn</a>
-          <a href="#" aria-label="Instagram">Instagram</a>
+        <div class="footer__col footer__col--app">
+          <h4>Download our app</h4>
+          <div class="footer__badges">
+            <a class="footer__badge" href="#" aria-label="Download on the App Store — coming soon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.415 2.19-1.24 3.13-.995 1.13-2.2 1.78-3.51 1.67-.045-1.1.42-2.24 1.23-3.15.86-.97 2.24-1.68 3.4-1.65.03.34.045.66.12 1zM20.6 17.34c-.55 1.28-.82 1.85-1.53 2.98-1 1.58-2.4 3.54-4.15 3.56-1.55.02-1.95-1.01-4.05-1-2.1.01-2.54 1.02-4.09 1-1.75-.02-3.08-1.79-4.08-3.37-2.8-4.42-3.1-9.61-1.37-12.38 1.23-1.97 3.17-3.13 4.99-3.13 1.86 0 3.02 1.02 4.56 1.02 1.5 0 2.4-1.02 4.56-1.02 1.62 0 3.34.88 4.56 2.4-4.01 2.2-3.36 7.93.6 9.94z"/></svg>
+              <span><b>Coming soon</b>App Store</span>
+            </a>
+            <a class="footer__badge" href="#" aria-label="Get it on Google Play — coming soon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3c-.4.2-.6.6-.6 1.1v17.2c0 .5.2.9.6 1.1l9.9-9.7L3.6 2.3zm11.4 9.7 2.6-2.6-9.9-5.7 7.3 8.3zm0 1.4-7.3 8.3 9.9-5.7-2.6-2.6zm1.4-1.4 3.2 1.9c.5.3.8.8.8 1.4s-.3 1.1-.8 1.4l-3.2 1.9L14 12z"/></svg>
+              <span><b>Coming soon</b>Google Play</span>
+            </a>
+          </div>
+          <h4 class="footer__follow-h">Follow us</h4>
+          <div class="footer__social">
+            <a href="#" aria-label="LinkedIn"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M6.94 5a2 2 0 11-4-.002 2 2 0 014 .002zM7 8.48H3V21h4V8.48zm6.32 0H9.34V21h3.94v-6.57c0-3.66 4.77-3.96 4.77 0V21H22v-7.93c0-6.17-7.06-5.94-8.68-2.91V8.48z"/></svg></a>
+            <a href="#" aria-label="Instagram"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.65-.07-4.85s.02-3.58.07-4.85c.15-3.23 1.67-4.77 4.92-4.92 1.27-.06 1.65-.07 4.85-.07zm0 2c-3.15 0-3.5.01-4.73.07-2.17.1-3.18 1.13-3.28 3.28-.06 1.23-.07 1.58-.07 4.73s.01 3.5.07 4.73c.1 2.15 1.11 3.18 3.28 3.28 1.23.06 1.58.07 4.73.07s3.5-.01 4.73-.07c2.17-.1 3.18-1.13 3.28-3.28.06-1.23.07-1.58.07-4.73s-.01-3.5-.07-4.73c-.1-2.15-1.11-3.18-3.28-3.28-1.23-.06-1.58-.07-4.73-.07zm0 3.38a4.46 4.46 0 110 8.92 4.46 4.46 0 010-8.92zm0 2a2.46 2.46 0 100 4.92 2.46 2.46 0 000-4.92zm4.7-2.62a1.04 1.04 0 110 2.08 1.04 1.04 0 010-2.08z"/></svg></a>
+          </div>
         </div>
       </div>
       <div class="footer__bottom">
-        <span>© <span id="year">2026</span> Livanto Green</span>
+        <div class="footer__bottom-brand">
+          <img src="assets/favicon.svg" alt="" class="footer__bottom-mark" />
+          <span>livanto green.</span>
+          <span class="footer__bottom-copy">© Copyright <span id="year">2026</span> Livanto Green. All rights reserved.</span>
+        </div>
         <div class="footer__bottom-legal">
-          <a href="privacy.html">Privacy</a>
-          <a href="terms.html">Terms</a>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="terms.html">Terms of Service</a>
+          <a href="refund-cancellation.html">Refund Policy</a>
         </div>
       </div>
     </div>
