@@ -566,11 +566,22 @@ img { max-width: 100%; display: block; }
 }
 .apphero__badges { margin: 0; grid-auto-flow: column; grid-template-columns: none; display: inline-flex; gap: .8rem; }
 .apphero__shot {
-  display: flex; justify-content: center; align-items: center; padding: 3.2rem 1rem;
-  border-radius: 28px;
-  background: radial-gradient(circle at 50% 40%, rgba(63,163,77,.22), transparent 65%);
+  position: relative; display: flex; justify-content: center; align-items: center; padding: 3.2rem 1rem;
 }
-.apphero__shot img { width: min(100%, 640px); height: auto; display: block; filter: drop-shadow(0 30px 60px rgba(0,0,0,.45)); }
+.apphero__shot::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle at 55% 45%, rgba(63,163,77,.4), transparent 60%);
+  animation: apphero-glow-pulse 7s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes apphero-glow-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: .78; }
+}
+.apphero__shot img {
+  position: relative; width: min(100%, 640px); height: auto; display: block;
+  filter: drop-shadow(0 30px 60px rgba(0,0,0,.5));
+}
 
 @media (max-width: 980px) {
   .apphero { grid-template-columns: 1fr; padding-top: 128px; }
@@ -1111,6 +1122,27 @@ img { max-width: 100%; display: block; }
 .netherov__content { position: relative; z-index: 1; padding: 168px 0 4rem; max-width: 760px; }
 .netherov__content h1 { color: #fff; font-size: clamp(2.4rem, 5vw, 4rem); margin: 1rem 0 1.2rem; }
 .netherov__content p:not(.pagehead--crumb):not(.pagehead__kicker) { color: rgba(255,255,255,.78); font-size: 1.08rem; max-width: 56ch; }
+
+/* Floating stat cards over a cinematic hero (Franchise) */
+.netherov__floatstats {
+  position: relative; z-index: 1; display: flex; gap: 1rem; flex-wrap: wrap;
+  margin-top: 2.4rem;
+}
+.floatstat {
+  background: rgba(18,29,46,.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.16); border-radius: 16px; padding: 1.1rem 1.4rem;
+  min-width: 170px;
+}
+.floatstat b { display: block; font-size: 1.5rem; font-weight: 800; color: #fff; letter-spacing: -.01em; }
+.floatstat span { font-size: .8rem; color: rgba(255,255,255,.68); }
+.floatstat--accent { border-color: rgba(63,163,77,.55); background: rgba(63,163,77,.18); }
+.floatstat--accent b { color: var(--green); }
+
+@media (max-width: 780px) {
+  .netherov__floatstats { padding-bottom: 2rem; }
+  .floatstat { min-width: 140px; padding: .9rem 1.1rem; }
+  .floatstat b { font-size: 1.25rem; }
+}
 
 .netstats { background: var(--bg-alt); padding: 3.2rem 0; }
 .netstats__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; }
