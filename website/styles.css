@@ -58,7 +58,8 @@ img { max-width: 100%; display: block; }
 .btn--primary { background: var(--ink); color: #fff; }
 .btn--primary .btn__chip { background: var(--green); color: #fff; }
 .btn--primary:hover { background: var(--ink-soft); transform: translateY(-2px); box-shadow: var(--shadow-soft); }
-.btn--outline { background: transparent; border-color: var(--ink); color: var(--ink); padding: .68rem 1.5rem; border-radius: 999px; }
+.btn--outline { display: inline-flex; align-items: center; background: transparent; border: 1.5px solid var(--ink); color: var(--ink); padding: .68rem 1.5rem; border-radius: 999px; font-weight: 600; font-size: .96rem; transition: background .2s, color .2s, transform .2s; }
+.btn--outline:hover { transform: translateY(-2px); }
 .btn--outline:hover { background: var(--ink); color: #fff; }
 .btn--link { color: var(--ink); font-weight: 600; padding: 0; border-bottom: 2px solid var(--ink); border-radius: 0; }
 .btn--link:hover { color: var(--green-2); border-color: var(--green-2); }
@@ -697,3 +698,11 @@ img { max-width: 100%; display: block; }
   .hero__content { padding: 128px 0 72px; }
   .hero__pill--float { left: 20px; bottom: 20px; font-size: .78rem; }
 }
+
+/* ---- Homepage: closing mission band (bp pulse "Moving electric transportation forward") ---- */
+.mission-close { background: var(--ink); padding: 4.4rem 0; }
+.mission-close__inner {
+  display: flex; justify-content: space-between; align-items: center; gap: 2.4rem; flex-wrap: wrap;
+}
+.mission-close__inner h2 { color: #fff; font-size: clamp(1.7rem, 2.8vw, 2.3rem); max-width: 16ch; margin-bottom: .8rem; }
+.mission-close__inner p { color: rgba(255,255,255,.65); max-width: 52ch; }
