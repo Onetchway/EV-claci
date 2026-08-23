@@ -40,6 +40,7 @@
       ".ctaband__item", ".whypartner__stat", ".swstats__stat", ".mission__statement", ".mission__body",
       ".network-feat > div", ".network-feat > ul", ".symbol__inner", ".jointeam__inner",
       ".calculator", ".legal__contact", ".step",
+      ".journey__item", ".featgrid__card", ".eligrid__item", ".intentcard", ".faqitem",
     ].join(", ")
   );
   revealEls.forEach((el) => el.classList.add("reveal"));
