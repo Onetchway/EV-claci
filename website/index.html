@@ -36,68 +36,91 @@
   </header>
 
   <main id="top">
-    <!-- ───────────────────────── Hero — full-bleed, bp pulse-style ───────────────────────── -->
-    <section class="hero hero--full">
-      <img class="hero__bg" src="assets/hero-charging.jpg" alt="A Livanto Green DC charging station charging a Tata Curvv.ev, city skyline behind" />
-      <div class="hero__scrim"></div>
-      <div class="container hero__content">
-        <p class="hero__kicker">Powering Mobility, Driving Sustainability</p>
-        <h1>EV charging that keeps <span class="grad">India</span> moving.</h1>
-        <p class="lede">
-          Livanto Green builds and operates <strong>high-speed AC &amp; DC EV chargers</strong> —
-          up to 360 kW — with Pan-India reach, and franchise partners growing the network with us.
+    <!-- ───────────────────────── Hero — centered, bp pulse-style ───────────────────────── -->
+    <section class="herov2">
+      <img class="herov2__side herov2__side--left" src="assets/charger-home.jpg" alt="" aria-hidden="true" />
+      <img class="herov2__side herov2__side--right" src="assets/charger-dc-120.jpg" alt="" aria-hidden="true" />
+      <div class="container herov2__content">
+        <h1>EV chargers to keep <span class="grad">India</span> going</h1>
+        <p class="lede" style="margin-left:auto;margin-right:auto;">
+          Plug in, power up and get back on the road with our high-speed AC &amp; DC charging stations across India.
         </p>
-        <div class="hero__actions">
-          <a class="btn btn--primary btn--lg" href="apply.html">
-            <span class="btn__chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            Apply for a franchise
-          </a>
-          <a class="btn--outline btn--outline-light" href="solutions.html">Explore solutions</a>
-        </div>
-      </div>
-      <div class="hero__pill hero__pill--float"><span class="dot--live"></span> Live monitoring, 24×7 · Up to 360 kW DC</div>
-    </section>
-
-    <!-- ───────────────────────── Find a charger ───────────────────────── -->
-    <section class="findcharger">
-      <img class="findcharger__bg" src="assets/station-lucknow.jpg" alt="A Livanto Green charging station" loading="lazy" />
-      <div class="findcharger__scrim"></div>
-      <div class="container findcharger__inner">
-        <div>
-          <p class="pagehead__kicker" style="color:#fff;">Public charging</p>
-          <h2>Find a Livanto Green station near you</h2>
-          <p>Live status, real-time availability and turn-by-turn directions to every station on the network — growing across India, one site at a time.</p>
-        </div>
-        <a class="btn btn--primary btn--lg" href="network.html"><span class="btn__chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>View the network</a>
+        <a class="btn btn--primary btn--lg" href="network.html">
+          <span class="btn__chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          Find a charger
+        </a>
       </div>
     </section>
 
-    <!-- ───────────────────────── App teaser ───────────────────────── -->
-    <section class="section appteaser">
-      <div class="container appteaser__inner">
-        <div>
-          <div class="section-head" style="margin-bottom:1.8rem;">
-            <h2>Your EV travel buddy</h2>
-            <p class="section-sub">Search for stations, get directions from where you are, and keep a custom map of favourite chargers — the Livanto Green app puts the whole network in one screen.</p>
-          </div>
-          <div class="appteaser__features">
-            <div class="appteaser__feature">
-              <h4>Filter chargers</h4>
-              <p>Filter by connector type or charging speed to find a station that meets your needs.</p>
-            </div>
-            <div class="appteaser__feature">
-              <h4>Choose your payment method</h4>
-              <p>Manage and store multiple payment options, integrated with all major Indian gateways.</p>
-            </div>
-            <div class="appteaser__feature">
-              <h4>Manage your charging</h4>
-              <p>Track live sessions, see your charging history, and view receipts.</p>
-            </div>
-          </div>
-          <p style="margin-top:1.8rem;"><a class="btn--link" href="app.html">See how the app works →</a></p>
+    <!-- ───────────────────────── Fit charging around your everyday ───────────────────────── -->
+    <section class="section fitcharging">
+      <div class="container">
+        <div class="fitcharging__head">
+          <h2>Fit <span class="grad">charging</span> around your everyday</h2>
+          <p>Whether you're commuting to work, going on a road trip, or just topping up at home — we're here to power your journey.</p>
         </div>
-        <div class="appteaser__shot">
-          <img src="assets/app-showcase.png" alt="Livanto Green app screens: find charging stations, browse the station map, and track a live charging session" loading="lazy" />
+        <div class="fitcharging__row">
+          <div class="fitcharging__photo">
+            <img src="assets/station-lucknow.jpg" alt="A Livanto Green EV charging station" loading="lazy" />
+          </div>
+          <div>
+            <h3>Plug in, power up and go!</h3>
+            <p>Plug into fast chargers in convenient locations. Explore our network to find your nearest Livanto Green station.</p>
+            <a class="btn--outline" href="network.html" style="margin-top:1.2rem;">Find a charger</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Make charging easier (app promo) ───────────────────────── -->
+    <section class="section">
+      <div class="container">
+        <div class="makeeasier">
+          <div>
+            <h3>Make charging easier</h3>
+            <p>Download our app to find chargers, plan routes, check real-time availability, start a charge and manage your sessions.</p>
+            <div class="makeeasier__actions">
+              <a class="btn btn--primary" href="app.html"><span class="btn__chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>See the app</a>
+              <a class="btn--link" href="network.html">Find a charger</a>
+            </div>
+          </div>
+          <div class="makeeasier__shot">
+            <img src="assets/app-showcase.png" alt="Livanto Green app on a phone, showing the station map" loading="lazy" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Your EV travel buddy — feature grid ───────────────────────── -->
+    <section class="section section--alt">
+      <div class="container">
+        <div class="featgrid">
+          <div class="featgrid__card featgrid__card--wide">
+            <div class="featgrid__shot"><img src="assets/app-showcase.png" alt="" loading="lazy" /></div>
+            <h4>Your EV travel buddy</h4>
+            <p>Search for charging stations, get directions from your current location, and create a custom map of favourite chargers.</p>
+          </div>
+          <div class="featgrid__card">
+            <div class="featgrid__icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21V8l8-5 8 5v13M4 21h16M9 21v-6h6v6"/></svg></div>
+            <h4>Filter chargers</h4>
+            <p>Filter by charging speed or connector type to find an EV charger that meets your needs.</p>
+          </div>
+          <div class="featgrid__card">
+            <div class="featgrid__icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+            <h4>Choose your payment method</h4>
+            <p>Manage and store multiple payment options for a faster checkout every time.</p>
+          </div>
+          <div class="featgrid__card">
+            <div class="featgrid__icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
+            <h4>Manage your charging</h4>
+            <p>Track sessions, see your charging history, and view receipts — all in one place.</p>
+          </div>
+          <div class="featgrid__card featgrid__card--dark">
+            <div class="footer__badge" aria-hidden="true" style="position:static;margin-bottom:1.2rem;"><img src="assets/favicon.svg" alt="" /></div>
+            <h4>Livanto Green app</h4>
+            <p>Coming soon for iOS and Android.</p>
+            <a class="btn--outline btn--outline-light" href="app.html" style="margin-top:1rem;">See how it works</a>
+          </div>
         </div>
       </div>
     </section>
@@ -279,21 +302,14 @@
 
   <!-- ───────────────────────── Footer ───────────────────────── -->
   <footer class="footer">
-    <div class="footer__cta">
-      <div class="container footer__cta-grid">
-        <h2>Ready to bring EV charging to your site?</h2>
-        <div class="footer__cta-side">
-          <a class="mail" href="mailto:info@livantogreen.com">info@livantogreen.com</a>
-          <a class="btn btn--primary" href="apply.html"><span class="btn__chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Apply now</a>
-        </div>
+    <div class="footer__news-wrap">
+      <div class="container footer__news">
+        <p>Stay updated on Livanto Green's network, offers and station openings</p>
+        <a class="btn--pill-light" href="mailto:info@livantogreen.com?subject=Sign%20up%20for%20updates">Sign up for news</a>
       </div>
     </div>
     <div class="container footer__inner">
       <div class="footer__badge" aria-hidden="true"><img src="assets/favicon.svg" alt="" /></div>
-      <div class="footer__brand">
-        <a class="brand" href="index.html"><img src="assets/logo.png" alt="Livanto Green" /></a>
-        <p>Building a cleaner, smarter EV charging network across India — for homes, societies, businesses and highways.</p>
-      </div>
       <div class="footer__cols">
         <h4>Explore</h4>
         <a href="solutions.html">Solutions</a>
