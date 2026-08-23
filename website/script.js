@@ -104,6 +104,16 @@
   /* application form — submits straight to the CRM's public intake API */
   const pageLoadedAt = Date.now();
   const applyForm = document.getElementById("applyForm");
+
+  /* preselect "I'm interested in" when arriving from a Contact-page intent link, e.g. apply.html?interest=FRANCHISE */
+  const interestSelect = document.getElementById("interest");
+  if (interestSelect) {
+    const requested = new URLSearchParams(location.search).get("interest");
+    if (requested && [...interestSelect.options].some((o) => o.value === requested)) {
+      interestSelect.value = requested;
+    }
+  }
+
   const applyNote = document.getElementById("applyNote");
   const applySubmit = document.getElementById("applySubmit");
 

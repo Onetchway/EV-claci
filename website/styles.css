@@ -181,8 +181,24 @@ img { max-width: 100%; display: block; }
 /* ---------- Software — split panel, flat (no bordered boxes competing
    with the dashboard preview) ---------- */
 .software__inner { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
-.split { display: grid; gap: 2rem; }
-.split__col h4 { font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 1rem; color: var(--green-2); }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem; }
+.split__col {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 2.2rem 2rem 2.4rem; box-shadow: var(--shadow);
+}
+.split__icon {
+  width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  background: rgba(63,163,77,.12); color: var(--green-2); margin-bottom: 1.2rem;
+}
+.split__col h4 {
+  font-size: 1.15rem; font-weight: 800; text-transform: none; letter-spacing: 0; color: var(--ink);
+  margin-bottom: 1.3rem; padding-bottom: 1.1rem; border-bottom: 1px solid var(--line);
+}
+.split__col .ticks { gap: .9rem; }
+
+@media (max-width: 780px) {
+  .split { grid-template-columns: 1fr; }
+}
 .ticks { list-style: none; display: grid; gap: .7rem; }
 .ticks li { position: relative; padding-left: 1.5rem; font-size: .97rem; color: var(--slate); }
 .ticks li::before { content: ""; position: absolute; left: 0; top: .55em; width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
@@ -884,6 +900,24 @@ img { max-width: 100%; display: block; }
 .section--dark .about__row p, .section--dark .symbol__inner p { color: rgba(255,255,255,.68); }
 .section--dark .pagehead--crumb { color: rgba(255,255,255,.5); }
 .section--dark .pagehead--crumb a { color: rgba(255,255,255,.8); }
+
+/* ---- Contact page — intent picker ---- */
+.intentgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4rem; margin-top: 2.4rem; }
+.intentcard {
+  display: block; padding: 1.8rem 1.7rem; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.intentcard:hover { border-color: var(--green); transform: translateY(-3px); box-shadow: var(--shadow); }
+.intentcard__n { display: block; font-weight: 800; color: var(--green); font-size: .85rem; margin-bottom: .8rem; }
+.intentcard h3 { font-size: 1.08rem; margin-bottom: .5rem; color: var(--ink); }
+.intentcard p { color: var(--muted); font-size: .9rem; }
+
+@media (max-width: 900px) {
+  .intentgrid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .intentgrid { grid-template-columns: 1fr; }
+}
 .btn--link-light { color: #fff; border-bottom-color: rgba(255,255,255,.5); }
 .btn--link-light:hover { color: var(--green); border-color: var(--green); }
 
@@ -1039,6 +1073,15 @@ img { max-width: 100%; display: block; }
   animation: techdash-float 6s ease-in-out infinite;
 }
 @keyframes techdash-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.techdash__phone {
+  position: absolute; right: -3%; bottom: -8%; width: min(30%, 260px);
+  border-radius: 18px; box-shadow: 0 20px 50px rgba(18,29,46,.28); display: block;
+  animation: techdash-float 7s ease-in-out infinite; animation-delay: .5s;
+  border: 6px solid #fff;
+}
+@media (max-width: 900px) {
+  .techdash__phone { position: static; width: min(60%, 220px); margin: 1.4rem auto 0; }
+}
 .techdash__badge {
   position: absolute; display: flex; flex-direction: column; padding: .85rem 1.2rem;
   background: #fff; border-radius: 14px; box-shadow: var(--shadow-soft); border: 1px solid var(--line);
@@ -1057,7 +1100,10 @@ img { max-width: 100%; display: block; }
 
 /* ---- Network page: cinematic hero + animated counters ---- */
 .netherov { position: relative; min-height: 70vh; display: flex; align-items: flex-end; overflow: hidden; background: var(--ink); }
-.netherov__bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.netherov__bg {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  will-change: transform; animation: cinehero-zoom 18s ease-out forwards;
+}
 .netherov__scrim {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, rgba(18,29,46,.35) 0%, rgba(18,29,46,.55) 55%, rgba(18,29,46,.94) 100%);
