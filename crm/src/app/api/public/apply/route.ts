@@ -82,6 +82,34 @@ async function nextLeadCode(type: LeadType): Promise<string> {
   return `LG-${prefix}-${String(seq).padStart(6, "0")}`;
 }
 
+/**
+ * Round-robins every new website lead across active Agents, so nothing sits
+ * in "Unassigned" waiting for a Sales Manager to notice it. A single shared
+ * counter (not per-agent state) keeps the rotation simple and collision-safe
+ * under concurrent submissions — the transaction just claims the next slot.
+ * No orderBy in the query: array-contains + orderBy needs a composite index
+ * this project doesn't ship, so agents are sorted in memory instead.
+ */
+async function nextAssignedAgent(): Promise<{ id: string; name: string } | null> {
+  const db = adminDb();
+  const snap = await db.collection("users").where("roles", "array-contains", "AGENT").get();
+  const agents = snap.docs
+    .map((d) => ({ id: d.id, name: (d.data().name as string) || "Agent", active: d.data().active !== false }))
+    .filter((a) => a.active)
+    .sort((a, b) => a.id.localeCompare(b.id));
+  if (agents.length === 0) return null;
+
+  const ref = db.collection("counters").doc("leadAssignment");
+  const idx = await db.runTransaction(async (tx) => {
+    const cSnap = await tx.get(ref);
+    const current = (cSnap.exists ? (cSnap.data()?.next as number | undefined) : undefined) ?? 0;
+    tx.set(ref, { next: current + 1 }, { merge: true });
+    return current % agents.length;
+  });
+
+  return { id: agents[idx]!.id, name: agents[idx]!.name };
+}
+
 export async function POST(req: Request) {
   const headers = corsHeaders(req.headers.get("origin"));
 
@@ -111,6 +139,9 @@ export async function POST(req: Request) {
   const code = await nextLeadCode(type);
   const ref = db.collection("leads").doc();
   const now = FieldValue.serverTimestamp();
+  // Best-effort — a hiccup here shouldn't fail the whole submission; the
+  // lead just lands Unassigned and a Sales Manager can assign it by hand.
+  const agent = await nextAssignedAgent().catch(() => null);
 
   const client = {
     name: body.name,
@@ -152,8 +183,8 @@ export async function POST(req: Request) {
     partnerId: null,
     partnerName: null,
     site: { remarks: remarksParts.join(" ") },
-    ownerId: "",
-    ownerName: "Unassigned (website)",
+    ownerId: agent?.id ?? "",
+    ownerName: agent?.name ?? "Unassigned (website)",
     tags: ["website-inquiry", ...(suspiciouslyFast ? ["flag:fast-submit"] : [])],
     paidAmount: 0,
     dueAmount: 0,
@@ -167,11 +198,13 @@ export async function POST(req: Request) {
 
   await db.collection("activities").add({
     leadId: ref.id,
-    ownerId: "",
+    ownerId: agent?.id ?? "",
     leadCode: code,
     leadName: body.name,
     type: "CREATED",
-    message: `New enquiry submitted via livantogreen.com (${LEAD_TYPE_LABEL[type]}).`,
+    message: agent
+      ? `New enquiry submitted via livantogreen.com (${LEAD_TYPE_LABEL[type]}) — auto-assigned to ${agent.name}.`
+      : `New enquiry submitted via livantogreen.com (${LEAD_TYPE_LABEL[type]}).`,
     changes: [],
     actor: { uid: "website", name: "livantogreen.com", role: "AGENT" },
     at: now,

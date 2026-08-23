@@ -488,6 +488,48 @@ img { max-width: 100%; display: block; }
   .calculator__results { grid-template-columns: 1fr 1fr; }
 }
 
+.calculator__qty {
+  display: flex; align-items: center; gap: .9rem; margin-top: 1.6rem;
+}
+.calculator__qty-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: #fff;
+  font-size: 1.1rem; font-weight: 700; color: var(--ink); cursor: pointer; line-height: 1;
+  display: flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s;
+}
+.calculator__qty-btn:hover { background: var(--bg-alt); border-color: var(--green); }
+.calculator__qty-val { font-weight: 800; font-size: 1.1rem; min-width: 1.6rem; text-align: center; }
+
+/* ---- Loan / financing estimator ---- */
+.loanest {
+  margin-top: 1.8rem; padding-top: 1.8rem; border-top: 1px dashed var(--line);
+}
+.loanest__head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+.loanest__head h4 { font-size: 1.05rem; }
+.loanest__head p { font-size: .82rem; color: var(--muted); margin: 0; }
+.loanest__grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.6rem; margin-bottom: 1.6rem; }
+.loanest__ctrl label { display: flex; justify-content: space-between; font-size: .85rem; font-weight: 600; color: var(--ink); margin-bottom: .5rem; }
+.loanest__ctrl label span:last-child { color: var(--green); font-weight: 800; }
+.loanest__results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+
+@media (max-width: 780px) {
+  .loanest__grid { grid-template-columns: 1fr; }
+  .loanest__results { grid-template-columns: 1fr; }
+}
+
+@media print {
+  .nav, .footer, .calculator__control, .loanest, .cards--2, .journey__list, .netherov,
+  .whypartner, .section--dark:not(#printSummary), .btn, a.btn, .steps, .no-print { display: none !important; }
+  body { background: #fff; }
+  #printSummary { display: block !important; }
+  .container { max-width: 100%; }
+}
+#printSummary { display: none; }
+#printSummary h2 { font-size: 1.4rem; margin-bottom: .3rem; }
+#printSummary p.loanest__head-sub { color: var(--muted); font-size: .85rem; margin-bottom: 1.4rem; }
+#printSummary table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+#printSummary th, #printSummary td { text-align: left; padding: .5rem 0; border-bottom: 1px solid var(--line); font-size: .92rem; }
+#printSummary td:last-child, #printSummary th:last-child { text-align: right; font-weight: 700; }
+
 /* ---- App showcase page ---- */
 .apphero {
   padding: 168px 0 0;

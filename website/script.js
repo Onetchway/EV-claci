@@ -201,18 +201,31 @@
   const yr = document.getElementById("year");
   if (yr) yr.textContent = new Date().getFullYear();
 
-  /* franchise investment calculator */
+  /* franchise investment calculator — figures are Livanto Green's real franchise
+     investment model (per charger); quantity/loan maths below are plain
+     arithmetic over those real figures, never invented numbers. */
   const calcPower = document.getElementById("calcPower");
   if (calcPower) {
     const tiers = [
-      { kw: "60 kW", investment: "₹15.5L", eoi: "₹50,000", income: "₹57,000", assured: "₹15,000", payback: "~2.3 yrs" },
-      { kw: "90 kW", investment: "₹20.5L", eoi: "₹50,000", income: "₹71,250", assured: "₹15,000", payback: "~2.4 yrs" },
-      { kw: "120 kW", investment: "₹25.5L", eoi: "₹50,000", income: "₹85,500", assured: "₹20,000", payback: "~2.5 yrs" },
-      { kw: "180 kW", investment: "₹30L", eoi: "₹50,000", income: "₹1,18,125", assured: "₹20,000", payback: "~2.1 yrs" },
-      { kw: "240 kW", investment: "₹38L", eoi: "₹1,00,000", income: "₹1,32,000", assured: "₹30,000", payback: "~2.4 yrs" },
-      { kw: "360 kW", investment: "₹50L", eoi: "₹2,00,000", income: "₹1,81,500", assured: "₹40,000", payback: "~2.3 yrs" },
+      { kw: "60 kW", investment: 1550000, eoi: 50000, income: 57000, assured: 15000, payback: "~2.3 yrs" },
+      { kw: "90 kW", investment: 2050000, eoi: 50000, income: 71250, assured: 15000, payback: "~2.4 yrs" },
+      { kw: "120 kW", investment: 2550000, eoi: 50000, income: 85500, assured: 20000, payback: "~2.5 yrs" },
+      { kw: "180 kW", investment: 3000000, eoi: 50000, income: 118125, assured: 20000, payback: "~2.1 yrs" },
+      { kw: "240 kW", investment: 3800000, eoi: 100000, income: 132000, assured: 30000, payback: "~2.4 yrs" },
+      { kw: "360 kW", investment: 5000000, eoi: 200000, income: 181500, assured: 40000, payback: "~2.3 yrs" },
     ];
+
+    const rupees = (n) => "₹" + Math.round(n).toLocaleString("en-IN");
+    const rupeesLakh = (n) => {
+      if (n >= 10000000) return "₹" + (n / 10000000).toFixed(2).replace(/\.00$/, "") + "Cr";
+      if (n >= 100000) return "₹" + (n / 100000).toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1") + "L";
+      return rupees(n);
+    };
+
     const label = document.getElementById("calcPowerLabel");
+    const qtyVal = document.getElementById("calcQtyVal");
+    const qtyMinus = document.getElementById("calcQtyMinus");
+    const qtyPlus = document.getElementById("calcQtyPlus");
     const fields = {
       investment: document.getElementById("calcInvestment"),
       eoi: document.getElementById("calcEoi"),
@@ -220,16 +233,82 @@
       assured: document.getElementById("calcAssured"),
       payback: document.getElementById("calcPayback"),
     };
+    const loanDown = document.getElementById("loanDown");
+    const loanRate = document.getElementById("loanRate");
+    const loanTenure = document.getElementById("loanTenure");
+    const loanDownLabel = document.getElementById("loanDownLabel");
+    const loanRateLabel = document.getElementById("loanRateLabel");
+    const loanTenureLabel = document.getElementById("loanTenureLabel");
+    const loanAmountEl = document.getElementById("loanAmount");
+    const loanEmiEl = document.getElementById("loanEmi");
+    const loanInterestEl = document.getElementById("loanInterest");
+    const printBody = document.getElementById("printSummaryBody");
+    const printDate = document.getElementById("printDate");
+
+    let qty = 1;
+
+    const currentTier = () => tiers[Number(calcPower.value)];
+
     const render = () => {
-      const t = tiers[Number(calcPower.value)];
+      const t = currentTier();
+      const investment = t.investment * qty;
+      const eoi = t.eoi * qty;
+      const income = t.income * qty;
+      const assured = t.assured * qty;
+
       label.textContent = t.kw;
-      fields.investment.textContent = t.investment;
-      fields.eoi.textContent = t.eoi;
-      fields.income.textContent = t.income;
-      fields.assured.textContent = t.assured;
+      qtyVal.textContent = String(qty);
+      fields.investment.textContent = rupeesLakh(investment);
+      fields.eoi.textContent = rupees(eoi);
+      fields.income.textContent = rupees(income);
+      fields.assured.textContent = rupees(assured);
       fields.payback.textContent = t.payback;
+
+      // loan / EMI estimate — standard reducing-balance EMI formula over the
+      // total investment, at whatever down payment/rate/tenure the visitor picks
+      const downPct = Number(loanDown.value);
+      const ratePct = Number(loanRate.value);
+      const years = Number(loanTenure.value);
+      loanDownLabel.textContent = downPct + "%";
+      loanRateLabel.textContent = ratePct + "%";
+      loanTenureLabel.textContent = years + (years === 1 ? " yr" : " yrs");
+
+      const principal = investment * (1 - downPct / 100);
+      const monthlyRate = ratePct / 100 / 12;
+      const months = years * 12;
+      const emi = monthlyRate === 0
+        ? principal / months
+        : (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+      const totalInterest = emi * months - principal;
+
+      loanAmountEl.textContent = rupeesLakh(principal);
+      loanEmiEl.textContent = rupees(emi);
+      loanInterestEl.textContent = rupeesLakh(Math.max(totalInterest, 0));
+
+      if (printBody) {
+        printDate.textContent = "Generated " + new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+        printBody.innerHTML = [
+          ["Charger power", t.kw], ["Number of chargers", String(qty)],
+          ["Total investment", rupeesLakh(investment)], ["Expression of Interest", rupees(eoi)],
+          ["Projected monthly income*", rupees(income)], ["Assured minimum (24 mo.)*", rupees(assured)],
+          ["Projected payback*", t.payback],
+          ["Down payment", downPct + "%"], ["Loan amount", rupeesLakh(principal)],
+          ["Interest rate (p.a.)", ratePct + "%"], ["Loan tenure", years + " yrs"],
+          ["Estimated EMI / month", rupees(emi)], ["Total interest payable", rupeesLakh(Math.max(totalInterest, 0))],
+        ].map(([k, v]) => `<tr><th scope="row">${k}</th><td>${v}</td></tr>`).join("");
+      }
     };
+
     calcPower.addEventListener("input", render);
+    loanDown.addEventListener("input", render);
+    loanRate.addEventListener("input", render);
+    loanTenure.addEventListener("input", render);
+    qtyMinus.addEventListener("click", () => { qty = Math.max(1, qty - 1); render(); });
+    qtyPlus.addEventListener("click", () => { qty = Math.min(10, qty + 1); render(); });
+
+    const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+    if (downloadPdfBtn) downloadPdfBtn.addEventListener("click", () => window.print());
+
     render();
   }
 
