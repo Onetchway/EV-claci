@@ -445,3 +445,107 @@ p { line-height: 1.6; color: var(--ink-soft); margin: 0; }
 .finalcta h2 { max-width: 16ch; }
 .finalcta p { margin-top: 1.2rem; max-width: 42ch; }
 .finalcta .hero__cta { opacity: 1; transform: none; }
+
+/* ===================================================================
+   Inner pages
+   =================================================================== */
+
+/* ---- Page header — lighter-weight hero for every non-homepage page ---- */
+.pagehead { padding: 168px 0 var(--sp-6); }
+.pagehead--dark { background: var(--dark-bg); color: #fff; }
+.pagehead__crumb { display: block; font-size: 0.85rem; color: var(--ink-faint); margin-bottom: 1.2rem; }
+.pagehead__crumb a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.pagehead--dark .pagehead__crumb { color: var(--dark-ink-faint); }
+.pagehead h1 { max-width: 20ch; }
+.pagehead p.type-sub { margin-top: 1.2rem; max-width: 48ch; color: var(--ink-soft); }
+.pagehead--dark p.type-sub { color: var(--dark-ink-soft); }
+
+/* ---- Stat band (reused across inner pages, light) ---- */
+.statband { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); padding: var(--sp-5) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.statband__item b { display: block; font-size: clamp(1.6rem, 2.2vw, 2.3rem); font-weight: 700; }
+.statband__item span { display: block; color: var(--ink-faint); font-size: 0.88rem; margin-top: 0.3rem; }
+@media (max-width: 700px) { .statband { grid-template-columns: 1fr 1fr; } }
+
+/* ---- Journey / process steps (Franchise, Technology connectivity) ---- */
+.journey { counter-reset: step; }
+.journey__step { display: grid; grid-template-columns: 90px 1fr; gap: var(--sp-3); padding: var(--sp-4) 0; border-top: 1px solid var(--line); }
+.journey__step:last-child { border-bottom: 1px solid var(--line); }
+.journey__num { font-size: 1.6rem; font-weight: 700; color: var(--green-2); }
+.journey__step h3 { font-size: clamp(1.2rem, 1.4vw, 1.6rem); }
+.journey__step p { margin-top: 0.5rem; max-width: 56ch; }
+@media (max-width: 700px) { .journey__step { grid-template-columns: 1fr; gap: 0.5rem; } }
+
+/* ---- Simple two-up feature split (used on Technology/Franchise) ---- */
+.splitcol { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-5); }
+.splitcol__col h4 { font-size: 1.05rem; margin-bottom: 1rem; }
+.splitcol__col ul { display: flex; flex-direction: column; gap: 0.6rem; }
+.splitcol__col li { padding-left: 1.4rem; position: relative; color: var(--ink-soft); }
+.splitcol__col li::before { content: ""; position: absolute; left: 0; top: 0.5em; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.section--dark .splitcol__col li::before { background: var(--mint); }
+@media (max-width: 700px) { .splitcol { grid-template-columns: 1fr; gap: var(--sp-4); } }
+
+/* ---- Editorial (About) — big alternating text blocks, minimal visual ---- */
+.editorial__block { padding: var(--sp-6) 0; border-top: 1px solid var(--line); }
+.editorial__block:last-child { border-bottom: 1px solid var(--line); }
+.editorial__block h2 { max-width: 18ch; }
+.editorial__block p { margin-top: 1.2rem; max-width: 56ch; font-size: 1.1rem; }
+
+/* ---- Contact: intent picker + form ---- */
+.intentgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: var(--sp-4); }
+.intentcard { display: block; padding: 1.6rem; border-radius: var(--r-md); border: 1px solid var(--line); transition: border-color var(--dur-fast), transform var(--dur-fast); }
+.intentcard:hover { border-color: var(--green); transform: translateY(-3px); }
+.intentcard b { display: block; font-size: 1.05rem; margin-bottom: 0.3rem; }
+.intentcard span { color: var(--ink-faint); font-size: 0.88rem; }
+@media (max-width: 800px) { .intentgrid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 500px) { .intentgrid { grid-template-columns: 1fr; } }
+
+.form-field { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.2rem; }
+.form-field label { font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); }
+.form-field input, .form-field select, .form-field textarea {
+  font: inherit; padding: 0.85rem 1rem; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink);
+}
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus { outline: 2px solid var(--green); outline-offset: 1px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+.form-note { font-size: 0.82rem; color: var(--ink-faint); margin-top: 0.6rem; }
+.form-success { display: none; padding: 1.2rem; border-radius: var(--r-md); background: var(--green-light); color: var(--green-2); font-weight: 600; }
+.form-success.is-visible { display: block; }
+
+/* ---- Product selector (Products page) — CSS-only radio tabs, no JS ---- */
+.selector__radio { position: absolute; opacity: 0; pointer-events: none; }
+.selector__tabs { display: flex; flex-wrap: wrap; gap: 0.6rem; border-bottom: 1px solid var(--line); padding-bottom: var(--sp-4); margin-bottom: var(--sp-5); }
+.selector__tabs label {
+  padding: 0.6rem 1.3rem; border-radius: var(--r-pill); border: 1px solid var(--line);
+  font-weight: 600; font-size: 0.92rem; cursor: pointer; transition: all var(--dur-fast);
+}
+.selector__tabs label:hover { border-color: var(--ink-faint); }
+.selector__panel { display: none; grid-template-columns: 0.9fr 1.1fr; gap: var(--sp-5); align-items: center; }
+.selector__visual {
+  aspect-ratio: 4/5; border-radius: var(--r-lg); background: linear-gradient(155deg, var(--surface-2), var(--surface));
+  display: flex; align-items: center; justify-content: center;
+}
+.selector__visual svg { width: 42%; height: 42%; color: var(--green-2); }
+#p-ac74:checked ~ .selector__tabs label[for="p-ac74"],
+#p-dc30:checked ~ .selector__tabs label[for="p-dc30"],
+#p-dc60:checked ~ .selector__tabs label[for="p-dc60"],
+#p-dc240:checked ~ .selector__tabs label[for="p-dc240"],
+#p-adwall:checked ~ .selector__tabs label[for="p-adwall"],
+#p-white:checked ~ .selector__tabs label[for="p-white"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+#p-ac74:checked ~ .selector__panels #panel-ac74,
+#p-dc30:checked ~ .selector__panels #panel-dc30,
+#p-dc60:checked ~ .selector__panels #panel-dc60,
+#p-dc240:checked ~ .selector__panels #panel-dc240,
+#p-adwall:checked ~ .selector__panels #panel-adwall,
+#p-white:checked ~ .selector__panels #panel-white { display: grid; }
+@media (max-width: 800px) {
+  .selector__panel { grid-template-columns: 1fr; }
+  .selector__visual { aspect-ratio: 16/10; }
+}
+
+/* ---- Legal pages ---- */
+.legal { max-width: 76ch; }
+.legal h2 { font-size: 1.3rem; margin: 2.2rem 0 0.8rem; }
+.legal p, .legal li { color: var(--ink-soft); margin-bottom: 0.9rem; }
+.legal ul { padding-left: 1.4rem; list-style: disc; }
+.legal__updated { color: var(--ink-faint); font-size: 0.88rem; margin-bottom: 2rem; }
