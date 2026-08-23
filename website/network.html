@@ -33,7 +33,12 @@
   <main>
     <!-- Cinematic network hero -->
     <section class="netherov">
-      <img class="netherov__bg" src="assets/station-lucknow.jpg" alt="A live Livanto Green charging station in Lucknow" />
+      <div class="meshbg" aria-hidden="true">
+        <div class="meshbg__spot meshbg__spot--1"></div>
+        <div class="meshbg__spot meshbg__spot--2"></div>
+        <div class="meshbg__spot meshbg__spot--3"></div>
+        <div class="meshbg__grid"></div>
+      </div>
       <div class="netherov__scrim"></div>
       <div class="container netherov__content">
         <p class="pagehead--crumb" style="color:rgba(255,255,255,.6);"><a href="index.html" style="color:rgba(255,255,255,.85);">Home</a> / Network</p>
@@ -72,8 +77,20 @@
           <h2>On the ground, right now</h2>
         </div>
         <div class="network__grid">
-          <div class="station-card"><img src="assets/station-lucknow.jpg" alt="Livanto Green EV charging station, live in Lucknow" loading="lazy" /><p class="station-card__label">Lucknow, Uttar Pradesh</p></div>
-          <div class="station-card"><img src="assets/station-dehradun.jpg" alt="Livanto Green EV charging station, live in Dehradun" loading="lazy" /><p class="station-card__label">Dehradun, Uttarakhand</p></div>
+          <div class="station-card">
+            <div class="livecard" role="img" aria-label="Live Livanto Green station in Lucknow">
+              <span class="livecard__badge">LIVE</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.2 7-12a7 7 0 10-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/></svg>
+            </div>
+            <p class="station-card__label">Lucknow, Uttar Pradesh</p>
+          </div>
+          <div class="station-card">
+            <div class="livecard" role="img" aria-label="Live Livanto Green station in Dehradun">
+              <span class="livecard__badge">LIVE</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.2 7-12a7 7 0 10-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/></svg>
+            </div>
+            <p class="station-card__label">Dehradun, Uttarakhand</p>
+          </div>
         </div>
         <div class="network__facts">
           <div><strong>You choose</strong><span>Franchise-invest, or host a station on your site</span></div>

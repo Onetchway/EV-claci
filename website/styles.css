@@ -1371,6 +1371,42 @@ img { max-width: 100%; display: block; }
 .speccard__icon { position: relative; width: 34px; height: 34px; color: var(--green-2); }
 .section--dark .speccard__icon { color: var(--green); }
 
+/* Wireframe dashboard mockup — replaces a CMS screenshot */
+.dashmock {
+  width: 100%; height: 100%; border-radius: 16px; overflow: hidden;
+  background: linear-gradient(165deg, #16202f, var(--ink) 65%); display: flex; flex-direction: column;
+}
+.dashmock__bar { display: flex; align-items: center; gap: 6px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.dashmock__bar span { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.18); }
+.dashmock__body { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 16px; }
+.dashmock__chart { background: rgba(255,255,255,.05); border-radius: 10px; display: flex; align-items: flex-end; gap: 4px; padding: 10px; }
+.dashmock__chart b { flex: 1; background: linear-gradient(180deg, var(--green), rgba(63,163,77,.3)); border-radius: 3px 3px 0 0; }
+.dashmock__map { grid-column: span 3; background: rgba(255,255,255,.05); border-radius: 10px; position: relative;
+  background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 20px 20px; min-height: 60px;
+}
+.dashmock__map i { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(63,163,77,.22); }
+
+/* Live-station status card — replaces a station photo */
+.livecard {
+  position: relative; aspect-ratio: 4/3; border-radius: var(--radius-sm); overflow: hidden;
+  background: linear-gradient(155deg, #16202f, var(--ink) 70%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .8rem;
+}
+.livecard::before {
+  content: ""; position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+.livecard__badge {
+  position: absolute; top: 14px; left: 14px; display: inline-flex; align-items: center; gap: .4rem;
+  background: rgba(63,163,77,.16); border: 1px solid rgba(63,163,77,.5); color: var(--green);
+  font-size: .74rem; font-weight: 700; padding: .3rem .7rem; border-radius: 999px;
+}
+.livecard__badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: livecard-pulse 1.6s ease-in-out infinite; }
+@keyframes livecard-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.livecard svg { position: relative; width: 30%; color: var(--green); }
+
 /* Wireframe phone mockup — stands in for an app screenshot (app isn't live yet) */
 .phonemock {
   position: relative; width: min(100%, 280px); aspect-ratio: 9/18.5; margin: 0 auto;

@@ -273,13 +273,9 @@
     <!-- ───────────────────────── Trust strip — real client logos ───────────────────────── -->
     <section class="trust">
       <div class="container">
-        <p class="trust__label">A selection of the fleets, automakers, hospitality and real-estate brands we work alongside</p>
-        <div class="clients-grid">
-          <div class="clients-card"><img src="assets/clients-fleet.jpg" alt="Fleet clients: BLU Smart, Zoomcar, Uber and others" loading="lazy" /></div>
-          <div class="clients-card"><img src="assets/clients-automotive.jpg" alt="Automotive clients: Hyundai, Ather, Tata Motors and others" loading="lazy" /></div>
-          <div class="clients-card"><img src="assets/clients-hospitality.jpg" alt="Hospitality clients: ITC Hotels, Crowne Plaza and others" loading="lazy" /></div>
-          <div class="clients-card"><img src="assets/clients-commercial.jpg" alt="Commercial clients: DLF, GMR, Adani and others" loading="lazy" /></div>
-          <div class="clients-card"><img src="assets/clients-residential.jpg" alt="Residential clients: Unitech, DLF, Emaar and others" loading="lazy" /></div>
+        <p class="trust__label">Segments we serve — fleets, automotive, hospitality, commercial and residential sites</p>
+        <div class="trust__logos">
+          <span>Fleet operators</span><span>Automotive &amp; OEM</span><span>Hospitality</span><span>Commercial real estate</span><span>Residential &amp; RWA</span>
         </div>
       </div>
     </section>
@@ -315,19 +311,19 @@
         </div>
         <div class="charger-grid">
           <div class="charger-card">
-            <div class="charger-card__photo"><img src="assets/charger-home.jpg" alt="Livanto Home charger" loading="lazy" /></div>
+            <div class="charger-card__photo"><div class="speccard" style="width:100%;height:100%;"><svg class="speccard__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v4M15 2v4M6 8h12v11a2 2 0 01-2 2H8a2 2 0 01-2-2V8z"/></svg><div class="speccard__num">7.4<span>kW</span></div></div></div>
             <div class="charger-card__tag">Home</div>
             <h3>Livanto Home</h3>
             <p class="charger-card__spec">7.4 kW AC · Type-2</p>
           </div>
           <div class="charger-card">
-            <div class="charger-card__photo"><img src="assets/charger-dc-60.jpg" alt="Livanto DC 60 charger" loading="lazy" /></div>
+            <div class="charger-card__photo"><div class="speccard" style="width:100%;height:100%;"><svg class="speccard__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg><div class="speccard__num">60<span>kW</span></div></div></div>
             <div class="charger-card__tag">DC Fast</div>
             <h3>Livanto DC 60</h3>
             <p class="charger-card__spec">60 kW DC · Dual Gun</p>
           </div>
           <div class="charger-card">
-            <div class="charger-card__photo"><img src="assets/charger-dc-240.jpg" alt="Livanto DC 240 charger" loading="lazy" /></div>
+            <div class="charger-card__photo"><div class="speccard" style="width:100%;height:100%;"><svg class="speccard__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg><div class="speccard__num">240<span>kW</span></div></div></div>
             <div class="charger-card__tag">DC Hyper</div>
             <h3>Livanto DC 240</h3>
             <p class="charger-card__spec">240 kW DC · Dual Gun</p>
@@ -356,8 +352,16 @@
       </div>
       <div class="dashboard-card dashboard-card--shot">
         <p class="dashboard-card__head">Livanto CMS — live dashboard</p>
-        <img src="assets/software-dashboard.jpg" alt="Livanto CMS dashboard showing online chargers, revenue, sessions and a live charger map" loading="lazy" />
-        <p class="dashboard-card__note">Actual screen from the Livanto CMS — the same console every Livanto station and franchise operator runs on.</p>
+        <div class="dashmock" style="aspect-ratio:16/10;">
+          <div class="dashmock__bar"><span></span><span></span><span></span></div>
+          <div class="dashmock__body">
+            <div class="dashmock__chart"><b style="height:45%;"></b><b style="height:75%;"></b><b style="height:55%;"></b><b style="height:90%;"></b></div>
+            <div class="dashmock__chart"><b style="height:65%;"></b><b style="height:35%;"></b><b style="height:80%;"></b><b style="height:50%;"></b></div>
+            <div class="dashmock__chart"><b style="height:55%;"></b><b style="height:95%;"></b><b style="height:40%;"></b><b style="height:70%;"></b></div>
+            <div class="dashmock__map"><i style="top:30%;left:20%;"></i><i style="top:55%;left:55%;"></i><i style="top:70%;left:80%;"></i></div>
+          </div>
+        </div>
+        <p class="dashboard-card__note">The same console every Livanto station and franchise operator runs on.</p>
       </div>
     </div>
     </section>
