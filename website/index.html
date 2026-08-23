@@ -39,7 +39,12 @@
     <!-- ───────────────────────── Hero — cinematic, full-viewport ───────────────────────── -->
     <section class="cinehero" id="cinehero">
       <div class="cinehero__bg-wrap">
-        <img class="cinehero__bg" id="cineheroImg" src="assets/hero-charging.jpg" alt="A Livanto Green DC charging station charging a Tata Curvv.ev, city skyline behind" />
+        <div class="meshbg" id="cineheroImg" aria-hidden="true">
+          <div class="meshbg__spot meshbg__spot--1"></div>
+          <div class="meshbg__spot meshbg__spot--2"></div>
+          <div class="meshbg__spot meshbg__spot--3"></div>
+          <div class="meshbg__grid"></div>
+        </div>
       </div>
       <div class="cinehero__scrim"></div>
       <div class="container cinehero__content">
@@ -78,7 +83,7 @@
           <p>Whether it's an overnight top-up at home, a quick stop at the office, or a fast charge on a highway run — we're built to power your day, not interrupt it.</p>
         </div>
         <div class="fitcharging__row">
-          <div class="fitcharging__photo"><img src="assets/charger-home.jpg" alt="Livanto Home charger, plugged into an EV overnight" loading="lazy" /></div>
+          <div class="fitcharging__photo iconpanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
           <div>
             <h3>Plug in, power up, go.</h3>
             <p>From a 7.4 kW home unit to a 240 kW dual-gun DC fast charger — the right power for wherever your day takes you, all on one network.</p>
@@ -116,35 +121,35 @@
           </div>
           <div class="ecosystem__panels">
             <div class="ecosystem__panel is-active" id="panel-home">
-              <img src="assets/charger-home.jpg" alt="Livanto Home charger" loading="lazy" />
+              <div class="iconpanel iconpanel--dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></div>
               <div class="ecosystem__panel-copy">
                 <h3>Charge smarter at home</h3>
                 <p>A compact, wall-mounted 7.4 kW unit sized for RWA and society parking bays — simple to install, simple to meter.</p>
               </div>
             </div>
             <div class="ecosystem__panel" id="panel-workplace">
-              <img src="assets/charger-ac-dual.jpg" alt="Livanto AC Dual charger" loading="lazy" />
+              <div class="iconpanel iconpanel--dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1"/></svg></div>
               <div class="ecosystem__panel-copy">
                 <h3>Power your workplace</h3>
                 <p>Dual-gun AC charging for offices and destination parking — two vehicles at once, built for daily commuter traffic.</p>
               </div>
             </div>
             <div class="ecosystem__panel" id="panel-fleet">
-              <img src="assets/charger-dc-240.jpg" alt="Livanto DC 240 charger" loading="lazy" />
+              <div class="iconpanel iconpanel--dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg></div>
               <div class="ecosystem__panel-copy">
                 <h3>Centralised fleet charging</h3>
                 <p>High-throughput DC hubs for delivery fleets and logistics depots — engineered for overnight and midday turnaround.</p>
               </div>
             </div>
             <div class="ecosystem__panel" id="panel-highway">
-              <img src="assets/charger-dc-120.jpg" alt="Livanto DC 120 charger" loading="lazy" />
+              <div class="iconpanel iconpanel--dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 21M16 3l4 18M12 3v4M12 10v4M12 17v4"/></svg></div>
               <div class="ecosystem__panel-copy">
                 <h3>Fast charging on the highway</h3>
                 <p>120 kW dual-gun DC, sized for a quick stop — for transit corridors and inter-city travellers who can't wait around.</p>
               </div>
             </div>
             <div class="ecosystem__panel" id="panel-public">
-              <img src="assets/station-lucknow.jpg" alt="A live Livanto Green public charging station" loading="lazy" />
+              <div class="iconpanel iconpanel--dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.2 7-12a7 7 0 10-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/></svg></div>
               <div class="ecosystem__panel-copy">
                 <h3>Reliable public charging</h3>
                 <p>Live stations monitored 24×7 through the Livanto CMS — the same network every franchise and site partner runs on.</p>
@@ -157,16 +162,20 @@
 
     <!-- ───────────────────────── Solution tiles — large, image-driven ───────────────────────── -->
     <section class="soltiles">
-      <a class="soltiles__tile" href="solutions.html#residential" style="--tile-img: url('assets/charger-home.jpg');">
+      <a class="soltiles__tile" href="solutions.html#residential" style="--tile-grad: linear-gradient(155deg, #1B4A22, #121D2E 75%);">
+        <svg class="soltiles__tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
         <div class="soltiles__copy"><span>01</span><h3>Home Charging</h3><p>Charge smarter at home, on your own schedule.</p></div>
       </a>
-      <a class="soltiles__tile" href="solutions.html#fleet" style="--tile-img: url('assets/charger-dc-240.jpg');">
+      <a class="soltiles__tile" href="solutions.html#fleet" style="--tile-grad: linear-gradient(155deg, #2F8A3D, #121D2E 75%);">
+        <svg class="soltiles__tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg>
         <div class="soltiles__copy"><span>02</span><h3>Fleet Charging</h3><p>Centralised charging for commercial fleets.</p></div>
       </a>
-      <a class="soltiles__tile" href="network.html" style="--tile-img: url('assets/station-dehradun.jpg');">
+      <a class="soltiles__tile" href="network.html" style="--tile-grad: linear-gradient(155deg, #24344C, #121D2E 75%);">
+        <svg class="soltiles__tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.2 7-12a7 7 0 10-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/></svg>
         <div class="soltiles__copy"><span>03</span><h3>Public Charging</h3><p>Reliable infrastructure for high-demand locations.</p></div>
       </a>
-      <a class="soltiles__tile" href="solutions.html#highway" style="--tile-img: url('assets/charger-dc-120.jpg');">
+      <a class="soltiles__tile" href="solutions.html#highway" style="--tile-grad: linear-gradient(155deg, #3FA34D, #121D2E 75%);">
+        <svg class="soltiles__tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 21M16 3l4 18M12 3v4M12 10v4M12 17v4"/></svg>
         <div class="soltiles__copy"><span>04</span><h3>Highway Charging</h3><p>Fast charging where mobility meets the road.</p></div>
       </a>
     </section>
@@ -184,7 +193,21 @@
             </div>
           </div>
           <div class="makeeasier__shot">
-            <img src="assets/app-showcase.png" alt="Livanto Green app on a phone, showing the station map" loading="lazy" />
+            <div class="phonemock" role="img" aria-label="Livanto Green app mockup showing a station map">
+              <div class="phonemock__screen">
+                <div class="phonemock__notch"></div>
+                <div class="phonemock__bar"></div>
+                <div class="phonemock__map">
+                  <div class="phonemock__pin phonemock__pin--1"></div>
+                  <div class="phonemock__pin phonemock__pin--2"></div>
+                  <div class="phonemock__pin phonemock__pin--3"></div>
+                </div>
+                <div class="phonemock__card">
+                  <div class="phonemock__card-line"></div>
+                  <div class="phonemock__card-line"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -195,7 +218,13 @@
       <div class="container">
         <div class="featgrid">
           <div class="featgrid__card featgrid__card--wide">
-            <div class="featgrid__shot"><img src="assets/app-showcase.png" alt="" loading="lazy" /></div>
+            <div class="featgrid__shot" style="aspect-ratio:16/9;">
+              <div class="mappreview">
+                <div class="mappreview__pin mappreview__pin--1"></div>
+                <div class="mappreview__pin mappreview__pin--2"></div>
+                <div class="mappreview__pin mappreview__pin--3"></div>
+              </div>
+            </div>
             <h4>Your EV travel buddy</h4>
             <p>Search for charging stations, get directions from your current location, and create a custom map of favourite chargers.</p>
           </div>

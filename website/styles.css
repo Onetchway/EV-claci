@@ -875,8 +875,8 @@ img { max-width: 100%; display: block; }
 .featgrid__card--dark { background: var(--ink); border-color: transparent; color: #fff; align-items: flex-start; justify-content: center; }
 .featgrid__card--dark h4 { color: #fff; }
 .featgrid__card--dark p { color: rgba(255,255,255,.65); }
-.featgrid__shot { border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 1.4rem; background: var(--bg-alt); display: grid; place-items: center; aspect-ratio: 16/9; }
-.featgrid__shot img { width: 70%; height: auto; }
+.featgrid__shot { border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 1.4rem; background: var(--bg-alt); display: flex; aspect-ratio: 16/9; }
+.featgrid__shot img { width: 70%; height: auto; margin: auto; }
 .featgrid__icon { width: 48px; height: 48px; border-radius: 12px; background: var(--green-tint); color: var(--green-2); display: grid; place-items: center; margin-bottom: 1.2rem; }
 .featgrid__card h4 { font-size: 1.1rem; margin-bottom: .5rem; }
 .featgrid__card p { color: var(--muted); font-size: .92rem; }
@@ -1012,23 +1012,27 @@ img { max-width: 100%; display: block; }
 }
 .ecosystem__panel.is-active { display: grid; }
 @keyframes ecosystem-fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.ecosystem__panel img { width: 100%; border-radius: var(--radius); aspect-ratio: 4/3; object-fit: cover; background: rgba(255,255,255,.04); }
+.ecosystem__panel img, .ecosystem__panel .iconpanel { width: 100%; border-radius: var(--radius); aspect-ratio: 4/3; object-fit: cover; background: rgba(255,255,255,.04); }
 .ecosystem__panel-copy h3 { font-size: clamp(1.4rem, 2.4vw, 1.9rem); margin-bottom: .8rem; }
 .ecosystem__panel-copy p { color: rgba(255,255,255,.62); max-width: 40ch; }
 
 @media (max-width: 780px) {
   .ecosystem__panel { grid-template-columns: 1fr; }
-  .ecosystem__panel img { aspect-ratio: 16/10; }
+  .ecosystem__panel img, .ecosystem__panel .iconpanel { aspect-ratio: 16/10; }
 }
 
 /* ---- Solution tiles — large image-driven ---- */
 .soltiles { display: grid; grid-template-columns: repeat(4, 1fr); }
 .soltiles__tile {
   position: relative; aspect-ratio: 3/4; overflow: hidden; display: flex; align-items: flex-end;
-  background-image: var(--tile-img); background-size: cover; background-position: center;
-  transition: background-size .6s var(--ease);
+  background: var(--tile-grad, var(--ink)); transition: transform .5s var(--ease);
 }
-.soltiles__tile:hover { background-size: 112% auto; }
+.soltiles__tile:hover { transform: scale(1.02); }
+.soltiles__tile__icon {
+  position: absolute; top: 8%; right: 8%; width: 42%; height: 42%; color: rgba(255,255,255,.16);
+  transition: color .3s, transform .5s var(--ease);
+}
+.soltiles__tile:hover .soltiles__tile__icon { color: rgba(255,255,255,.26); transform: scale(1.08); }
 .soltiles__tile::before {
   content: ""; position: absolute; inset: 0;
   background: linear-gradient(180deg, rgba(18,29,46,0) 40%, rgba(18,29,46,.88) 100%);
@@ -1039,7 +1043,6 @@ img { max-width: 100%; display: block; }
 .soltiles__copy span { display: block; font-size: .78rem; font-weight: 700; color: rgba(255,255,255,.6); margin-bottom: .5rem; }
 .soltiles__copy h3 { color: #fff; font-size: clamp(1.15rem, 1.6vw, 1.35rem); margin-bottom: .4rem; }
 .soltiles__copy p { color: rgba(255,255,255,.72); font-size: .88rem; max-width: 26ch; }
-.soltiles__tile img { display: none; }
 
 @media (max-width: 900px) {
   .soltiles { grid-template-columns: repeat(2, 1fr); }
@@ -1288,3 +1291,104 @@ img { max-width: 100%; display: block; }
   .appblock { padding-left: 1rem; padding-right: 1rem; }
   .appblock__inner { flex-direction: column; align-items: flex-start; }
 }
+
+/* ===================================================================
+   Abstract visual system — replaces AI-generated photography.
+   Gradient-mesh backgrounds + line-art icon panels, honest about being
+   graphic design rather than photos of real hardware/sites/screens.
+   =================================================================== */
+
+.meshbg { position: absolute; inset: 0; overflow: hidden; background: var(--ink); }
+.meshbg__spot {
+  position: absolute; border-radius: 50%; filter: blur(70px);
+  animation: mesh-drift 22s ease-in-out infinite;
+}
+.meshbg__spot--1 { width: 46vw; height: 46vw; top: -12%; left: -8%; background: radial-gradient(circle, rgba(63,163,77,.55), transparent 70%); animation-delay: 0s; }
+.meshbg__spot--2 { width: 38vw; height: 38vw; bottom: -14%; right: -6%; background: radial-gradient(circle, rgba(63,163,77,.32), transparent 70%); animation-delay: -7s; }
+.meshbg__spot--3 { width: 30vw; height: 30vw; top: 30%; right: 18%; background: radial-gradient(circle, rgba(255,255,255,.08), transparent 70%); animation-delay: -14s; }
+.meshbg__grid {
+  position: absolute; inset: 0; opacity: .35;
+  background-image:
+    linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at 50% 40%, black, transparent 75%);
+}
+@keyframes mesh-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(3%, -4%) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .meshbg__spot { animation: none; }
+}
+
+/* Line-art icon panel — stands in for a product/segment photo */
+.iconpanel {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  background: var(--bg-alt); border-radius: var(--radius-sm); overflow: hidden;
+}
+.iconpanel svg { width: 34%; height: 34%; color: var(--green-2); }
+.iconpanel::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(18,29,46,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18,29,46,.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.section--dark .iconpanel { background: rgba(255,255,255,.05); }
+.section--dark .iconpanel::before {
+  background-image:
+    linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
+}
+.section--dark .iconpanel svg { color: var(--green); }
+.iconpanel--dark { background: var(--ink); }
+.iconpanel--dark::before {
+  background-image:
+    linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
+}
+.iconpanel--dark svg { color: var(--green); }
+
+/* Wireframe phone mockup — stands in for an app screenshot (app isn't live yet) */
+.phonemock {
+  position: relative; width: min(100%, 280px); aspect-ratio: 9/18.5; margin: 0 auto;
+  background: var(--ink); border-radius: 32px; padding: 10px;
+  box-shadow: var(--shadow);
+}
+.phonemock__screen {
+  position: relative; width: 100%; height: 100%; border-radius: 24px; overflow: hidden;
+  background: linear-gradient(165deg, #16202f, var(--ink) 60%);
+}
+.phonemock__notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 40%; height: 20px; background: var(--ink); border-radius: 0 0 12px 12px; z-index: 2; }
+.phonemock__bar { margin: 34px 14px 0; height: 34px; border-radius: 10px; background: rgba(255,255,255,.08); display: flex; align-items: center; padding: 0 12px; gap: 8px; }
+.phonemock__bar::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.35); flex-shrink: 0; }
+.phonemock__bar::after { content: ""; flex: 1; height: 7px; border-radius: 4px; background: rgba(255,255,255,.18); }
+.phonemock__map { margin: 14px; height: 58%; border-radius: 16px; background:
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(165deg, #1b2b40, #10192a);
+  background-size: 22px 22px, 22px 22px, 100% 100%;
+  position: relative;
+}
+.phonemock__pin { position: absolute; width: 14px; height: 14px; border-radius: 50% 50% 50% 0; background: var(--green); transform: rotate(-45deg); box-shadow: 0 0 0 5px rgba(63,163,77,.22); }
+.phonemock__pin--1 { top: 28%; left: 30%; }
+.phonemock__pin--2 { top: 52%; left: 62%; width: 18px; height: 18px; box-shadow: 0 0 0 7px rgba(63,163,77,.28); }
+.phonemock__pin--3 { top: 70%; left: 22%; }
+.phonemock__card { margin: 12px 14px 0; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.06); }
+.phonemock__card-line { height: 8px; border-radius: 4px; background: rgba(255,255,255,.18); margin-bottom: 8px; width: 70%; }
+.phonemock__card-line:last-child { width: 45%; margin-bottom: 0; background: var(--green); opacity: .8; }
+
+/* Wide map-preview panel — same wireframe language, for wide feature cards */
+.mappreview {
+  position: relative; width: 100%; height: 100%; background:
+    linear-gradient(rgba(18,29,46,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18,29,46,.05) 1px, transparent 1px),
+    var(--bg-alt);
+  background-size: 24px 24px, 24px 24px, 100% 100%;
+}
+.mappreview__pin { position: absolute; width: 14px; height: 14px; border-radius: 50% 50% 50% 0; background: var(--green-2); transform: rotate(-45deg); box-shadow: 0 0 0 5px rgba(63,163,77,.16); }
+.mappreview__pin--1 { top: 30%; left: 22%; }
+.mappreview__pin--2 { top: 45%; left: 52%; width: 18px; height: 18px; box-shadow: 0 0 0 7px rgba(63,163,77,.2); }
+.mappreview__pin--3 { top: 68%; left: 74%; }
+.mappreview__route { position: absolute; inset: 0; }
