@@ -36,40 +36,113 @@
   </header>
 
   <main id="top">
-    <!-- ───────────────────────── Hero — centered, bp pulse-style ───────────────────────── -->
-    <section class="herov2">
-      <img class="herov2__side herov2__side--left" src="assets/charger-home.jpg" alt="" aria-hidden="true" />
-      <img class="herov2__side herov2__side--right" src="assets/charger-dc-120.jpg" alt="" aria-hidden="true" />
-      <div class="container herov2__content">
-        <h1>EV chargers to keep <span class="grad">India</span> going</h1>
-        <p class="lede" style="margin-left:auto;margin-right:auto;">
-          Plug in, power up and get back on the road with our high-speed AC &amp; DC charging stations across India.
-        </p>
-        <a class="btn btn--primary btn--lg" href="network.html">
-          <span class="btn__chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-          Find a charger
-        </a>
+    <!-- ───────────────────────── Hero — cinematic, full-viewport ───────────────────────── -->
+    <section class="cinehero" id="cinehero">
+      <div class="cinehero__bg-wrap">
+        <img class="cinehero__bg" id="cineheroImg" src="assets/hero-charging.jpg" alt="A Livanto Green DC charging station charging a Tata Curvv.ev, city skyline behind" />
+      </div>
+      <div class="cinehero__scrim"></div>
+      <div class="container cinehero__content">
+        <p class="cinehero__kicker">Powering Mobility, Driving Sustainability</p>
+        <h1>Powering the<br>way forward.</h1>
+        <p class="cinehero__lede">Intelligent EV charging infrastructure built for homes, businesses, fleets and the road ahead.</p>
+        <div class="cinehero__actions">
+          <a class="btn btn--primary btn--lg" href="solutions.html">
+            <span class="btn__chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+            Explore solutions
+          </a>
+          <a class="btn--outline btn--outline-light" href="network.html">Explore our network</a>
+        </div>
+      </div>
+      <div class="cinehero__stats">
+        <div class="cinehero__stat"><b>Up to 360 kW</b><span>AC &amp; DC charging</span></div>
+        <div class="cinehero__stat"><b>24×7</b><span>Live monitoring</span></div>
+        <div class="cinehero__stat"><b>Pan-India</b><span>Franchise network</span></div>
+      </div>
+      <div class="cinehero__scroll" aria-hidden="true"><span></span>Scroll</div>
+    </section>
+
+    <!-- ───────────────────────── Ecosystem — interactive segment tabs ───────────────────────── -->
+    <section class="ecosystem section section--dark">
+      <div class="container">
+        <div class="ecosystem__head">
+          <p class="pagehead__kicker">The Livanto ecosystem</p>
+          <h2>One platform.<br>Every charging need.</h2>
+          <p class="ecosystem__sub">Hardware, software and a growing network — built as one connected system, not a single product.</p>
+        </div>
+        <div class="ecosystem__body">
+          <div class="ecosystem__tabs" role="tablist" aria-label="Charging segments">
+            <button class="ecosystem__tab is-active" data-target="home" role="tab" aria-selected="true">
+              <span class="ecosystem__tab-n">01</span>Home
+            </button>
+            <button class="ecosystem__tab" data-target="workplace" role="tab" aria-selected="false">
+              <span class="ecosystem__tab-n">02</span>Workplace
+            </button>
+            <button class="ecosystem__tab" data-target="fleet" role="tab" aria-selected="false">
+              <span class="ecosystem__tab-n">03</span>Fleet
+            </button>
+            <button class="ecosystem__tab" data-target="highway" role="tab" aria-selected="false">
+              <span class="ecosystem__tab-n">04</span>Highway
+            </button>
+            <button class="ecosystem__tab" data-target="public" role="tab" aria-selected="false">
+              <span class="ecosystem__tab-n">05</span>Public
+            </button>
+          </div>
+          <div class="ecosystem__panels">
+            <div class="ecosystem__panel is-active" id="panel-home">
+              <img src="assets/charger-home.jpg" alt="Livanto Home charger" loading="lazy" />
+              <div class="ecosystem__panel-copy">
+                <h3>Charge smarter at home</h3>
+                <p>A compact, wall-mounted 7.4 kW unit sized for RWA and society parking bays — simple to install, simple to meter.</p>
+              </div>
+            </div>
+            <div class="ecosystem__panel" id="panel-workplace">
+              <img src="assets/charger-ac-dual.jpg" alt="Livanto AC Dual charger" loading="lazy" />
+              <div class="ecosystem__panel-copy">
+                <h3>Power your workplace</h3>
+                <p>Dual-gun AC charging for offices and destination parking — two vehicles at once, built for daily commuter traffic.</p>
+              </div>
+            </div>
+            <div class="ecosystem__panel" id="panel-fleet">
+              <img src="assets/charger-dc-240.jpg" alt="Livanto DC 240 charger" loading="lazy" />
+              <div class="ecosystem__panel-copy">
+                <h3>Centralised fleet charging</h3>
+                <p>High-throughput DC hubs for delivery fleets and logistics depots — engineered for overnight and midday turnaround.</p>
+              </div>
+            </div>
+            <div class="ecosystem__panel" id="panel-highway">
+              <img src="assets/charger-dc-120.jpg" alt="Livanto DC 120 charger" loading="lazy" />
+              <div class="ecosystem__panel-copy">
+                <h3>Fast charging on the highway</h3>
+                <p>120 kW dual-gun DC, sized for a quick stop — for transit corridors and inter-city travellers who can't wait around.</p>
+              </div>
+            </div>
+            <div class="ecosystem__panel" id="panel-public">
+              <img src="assets/station-lucknow.jpg" alt="A live Livanto Green public charging station" loading="lazy" />
+              <div class="ecosystem__panel-copy">
+                <h3>Reliable public charging</h3>
+                <p>Live stations monitored 24×7 through the Livanto CMS — the same network every franchise and site partner runs on.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- ───────────────────────── Fit charging around your everyday ───────────────────────── -->
-    <section class="section fitcharging">
-      <div class="container">
-        <div class="fitcharging__head">
-          <h2>Fit <span class="grad">charging</span> around your everyday</h2>
-          <p>Whether you're commuting to work, going on a road trip, or just topping up at home — we're here to power your journey.</p>
-        </div>
-        <div class="fitcharging__row">
-          <div class="fitcharging__photo">
-            <img src="assets/station-lucknow.jpg" alt="A Livanto Green EV charging station" loading="lazy" />
-          </div>
-          <div>
-            <h3>Plug in, power up and go!</h3>
-            <p>Plug into fast chargers in convenient locations. Explore our network to find your nearest Livanto Green station.</p>
-            <a class="btn--outline" href="network.html" style="margin-top:1.2rem;">Find a charger</a>
-          </div>
-        </div>
-      </div>
+    <!-- ───────────────────────── Solution tiles — large, image-driven ───────────────────────── -->
+    <section class="soltiles">
+      <a class="soltiles__tile" href="solutions.html#residential" style="--tile-img: url('assets/charger-home.jpg');">
+        <div class="soltiles__copy"><span>01</span><h3>Home Charging</h3><p>Charge smarter at home, on your own schedule.</p></div>
+      </a>
+      <a class="soltiles__tile" href="solutions.html#fleet" style="--tile-img: url('assets/charger-dc-240.jpg');">
+        <div class="soltiles__copy"><span>02</span><h3>Fleet Charging</h3><p>Centralised charging for commercial fleets.</p></div>
+      </a>
+      <a class="soltiles__tile" href="network.html" style="--tile-img: url('assets/station-dehradun.jpg');">
+        <div class="soltiles__copy"><span>03</span><h3>Public Charging</h3><p>Reliable infrastructure for high-demand locations.</p></div>
+      </a>
+      <a class="soltiles__tile" href="solutions.html#highway" style="--tile-img: url('assets/charger-dc-120.jpg');">
+        <div class="soltiles__copy"><span>04</span><h3>Highway Charging</h3><p>Fast charging where mobility meets the road.</p></div>
+      </a>
     </section>
 
     <!-- ───────────────────────── Make charging easier (app promo) ───────────────────────── -->
@@ -178,36 +251,6 @@
       </div>
     </section>
 
-    <!-- ───────────────────────── Solutions teaser ───────────────────────── -->
-    <section class="section solutions">
-      <div class="container solutions__inner">
-        <div>
-          <div class="section-head">
-            <h2>Charging infrastructure for every segment</h2>
-            <p class="section-sub">Tailored to how each site actually gets used — residential, highways, fleets and government.</p>
-          </div>
-          <div class="solutions__list">
-            <div class="solutions__row">
-              <span class="solutions__num">01</span>
-              <div><h3>Residential &amp; Commercial</h3><p>Home charging for RWAs alongside destination charging for hotels and offices.</p></div>
-            </div>
-            <div class="solutions__row">
-              <span class="solutions__num">02</span>
-              <div><h3>Transit &amp; Highways</h3><p>High-speed corridors for public transport, logistics and inter-city travel.</p></div>
-            </div>
-            <div class="solutions__row">
-              <span class="solutions__num">03</span>
-              <div><h3>Fleet &amp; Government</h3><p>Captive hubs for delivery fleets, municipal buses and institutional MoUs.</p></div>
-            </div>
-          </div>
-          <p style="margin-top:2rem;"><a class="btn--link" href="solutions.html">See all solutions →</a></p>
-        </div>
-        <div class="solutions__photo">
-          <img src="assets/station-dehradun.jpg" alt="A Livanto Green EV charging station" />
-        </div>
-      </div>
-    </section>
-
     <!-- ───────────────────────── Products teaser ───────────────────────── -->
     <section class="section section--alt products">
       <div class="container">
@@ -239,9 +282,11 @@
       </div>
     </section>
 
-    <!-- ───────────────────────── Software teaser ───────────────────────── -->
-    <section class="section software__inner container">
+    <!-- ───────────────────────── Software teaser — Technology, dark ───────────────────────── -->
+    <section class="section section--dark">
+    <div class="software__inner container">
       <div class="software__copy">
+        <p class="pagehead__kicker">Technology</p>
         <div class="section-head">
           <h2>One connected platform, from driver to franchise</h2>
           <p class="section-sub">Built on the OCPP standard, so every charger — ours or a partner's — reports live status, sessions and faults back to one dashboard.</p>
@@ -252,13 +297,14 @@
           <li>Remote diagnostics &amp; over-the-air upgrades</li>
           <li>OCPI + OCPP 1.6J, secure API &amp; data encryption</li>
         </ul>
-        <p style="margin-top:1.6rem;"><a class="btn--link" href="software.html">See the full software ecosystem →</a></p>
+        <p style="margin-top:1.6rem;"><a class="btn--link btn--link-light" href="software.html">See the full software ecosystem →</a></p>
       </div>
       <div class="dashboard-card dashboard-card--shot">
         <p class="dashboard-card__head">Livanto CMS — live dashboard</p>
         <img src="assets/software-dashboard.jpg" alt="Livanto CMS dashboard showing online chargers, revenue, sessions and a live charger map" loading="lazy" />
         <p class="dashboard-card__note">Actual screen from the Livanto CMS — the same console every Livanto station and franchise operator runs on.</p>
       </div>
+    </div>
     </section>
 
     <!-- ───────────────────────── Franchise teaser ───────────────────────── -->

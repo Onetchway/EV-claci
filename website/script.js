@@ -168,6 +168,35 @@
     });
   }
 
+  /* ecosystem interactive tabs (homepage) */
+  const ecoTabs = document.querySelectorAll(".ecosystem__tab");
+  if (ecoTabs.length) {
+    ecoTabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const target = tab.dataset.target;
+        ecoTabs.forEach((t) => {
+          t.classList.toggle("is-active", t === tab);
+          t.setAttribute("aria-selected", String(t === tab));
+        });
+        document.querySelectorAll(".ecosystem__panel").forEach((p) => {
+          p.classList.toggle("is-active", p.id === "panel-" + target);
+        });
+      });
+    });
+  }
+
+  /* cinematic hero — subtle scroll parallax on the background wrap (separate element from the zoom-in animation) */
+  const cineWrap = document.querySelector(".cinehero__bg-wrap");
+  if (cineWrap) {
+    const onCineScroll = () => {
+      const y = window.scrollY;
+      if (y < window.innerHeight * 1.2) {
+        cineWrap.style.transform = "translateY(" + y * 0.18 + "px)";
+      }
+    };
+    window.addEventListener("scroll", onCineScroll, { passive: true });
+  }
+
   /* footer year */
   const yr = document.getElementById("year");
   if (yr) yr.textContent = new Date().getFullYear();
