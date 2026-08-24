@@ -708,12 +708,12 @@ function LoiLetterArticle({
       <footer className="mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
         <p>{company.legalName}</p>
         <p>
-          {[
-            company.gstin && `GSTN. ${company.gstin}`,
-            company.cin && `CIN. ${company.cin}`,
-            company.address,
-          ].filter(Boolean).join(" | ")}
+          {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`]
+            .filter(Boolean)
+            .join(" | ")}
         </p>
+        <p>Registered address: {company.registeredAddress}</p>
+        <p>Office address: {company.officeAddress}</p>
       </footer>
     </article>
   );

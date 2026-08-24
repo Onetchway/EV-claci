@@ -205,11 +205,18 @@ export default function SettingsPage() {
                 onChange={(e) => set("company", { ...form.company, phone: e.target.value })}
               />
             </Field>
-            <Field label="Registered address" className="sm:col-span-2 lg:col-span-3">
+            <Field label="Registered address" hint="The CIN's registered office." className="sm:col-span-2 lg:col-span-3">
               <Textarea
                 rows={2}
-                value={form.company.address}
-                onChange={(e) => set("company", { ...form.company, address: e.target.value })}
+                value={form.company.registeredAddress}
+                onChange={(e) => set("company", { ...form.company, registeredAddress: e.target.value })}
+              />
+            </Field>
+            <Field label="Office address" hint="Where the team actually works — shown alongside the registered address." className="sm:col-span-2 lg:col-span-3">
+              <Textarea
+                rows={2}
+                value={form.company.officeAddress}
+                onChange={(e) => set("company", { ...form.company, officeAddress: e.target.value })}
               />
             </Field>
             <Field

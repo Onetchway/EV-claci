@@ -1293,7 +1293,10 @@ export interface AppSettings {
   company: {
     legalName: string;
     shortName: string;
-    address: string;
+    /** Building No: G08-B, Loni Bhopura Road, Ghaziabad, Uttar Pradesh, 201005 — the CIN's registered office. */
+    registeredAddress: string;
+    /** 8th Floor, Infinity Techno Park, C56A/16, Block-C, Sector 62, Noida, Uttar Pradesh, 201309 — where the team actually works. */
+    officeAddress: string;
     gstin: string;
     cin: string;
     email: string;

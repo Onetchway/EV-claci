@@ -508,7 +508,7 @@ function PaymentReceipt({
 }: {
   lead: Lead;
   payment: Payment;
-  company: { legalName: string; shortName: string; address: string; gstin: string; cin: string; email: string; website: string; logoUrl: string };
+  company: { legalName: string; shortName: string; registeredAddress: string; officeAddress: string; gstin: string; cin: string; email: string; website: string; logoUrl: string };
   onClose: () => void;
 }) {
   const receiptNo = `RCPT-${lead.code}-${payment.id.slice(0, 6).toUpperCase()}`;
@@ -555,6 +555,7 @@ function PaymentReceipt({
             <p className="font-medium text-ink-900">{lead.client?.name}</p>
             {lead.client?.company && <p className="text-ink-600">{lead.client.company}</p>}
             <p className="text-ink-600">{lead.client?.phone}</p>
+            {lead.client?.gstin && <p className="text-ink-600">GSTIN: {lead.client.gstin}</p>}
           </div>
           <div className="text-right">
             <p className="text-xs text-ink-500">Lead / Client code</p>
@@ -614,12 +615,12 @@ function PaymentReceipt({
         <footer className="mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
           <p>{company.legalName}</p>
           <p>
-            {[
-              company.gstin && `GSTN. ${company.gstin}`,
-              company.cin && `CIN. ${company.cin}`,
-              company.address,
-            ].filter(Boolean).join(" | ")}
+            {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`]
+              .filter(Boolean)
+              .join(" | ")}
           </p>
+          <p>Registered address: {company.registeredAddress}</p>
+          <p>Office address: {company.officeAddress}</p>
         </footer>
       </article>
     </div>

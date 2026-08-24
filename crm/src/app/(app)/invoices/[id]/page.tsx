@@ -239,7 +239,7 @@ function InvoiceDocument({
   inv, company, onClose,
 }: {
   inv: Invoice;
-  company: { legalName: string; shortName: string; address: string; gstin: string; cin: string; logoUrl: string };
+  company: { legalName: string; shortName: string; registeredAddress: string; officeAddress: string; gstin: string; cin: string; logoUrl: string };
   onClose: () => void;
 }) {
   return (
@@ -296,7 +296,9 @@ function InvoiceDocument({
 
         <footer className="mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
           <p>{company.legalName}</p>
-          <p>{[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`, company.address].filter(Boolean).join(" | ")}</p>
+          <p>{[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`].filter(Boolean).join(" | ")}</p>
+          <p>Registered address: {company.registeredAddress}</p>
+          <p>Office address: {company.officeAddress}</p>
         </footer>
       </article>
     </div>

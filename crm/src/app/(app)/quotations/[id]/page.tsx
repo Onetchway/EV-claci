@@ -142,7 +142,7 @@ function QuotationDocument({
   q, company, onClose,
 }: {
   q: Quotation;
-  company: { legalName: string; shortName: string; address: string; gstin: string; cin: string; email: string; website: string; logoUrl: string };
+  company: { legalName: string; shortName: string; registeredAddress: string; officeAddress: string; gstin: string; cin: string; email: string; website: string; logoUrl: string };
   onClose: () => void;
 }) {
   return (
@@ -234,9 +234,11 @@ function QuotationDocument({
         <footer className="mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
           <p>{company.legalName}</p>
           <p>
-            {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`, company.address]
+            {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`]
               .filter(Boolean).join(" | ")}
           </p>
+          <p>Registered address: {company.registeredAddress}</p>
+          <p>Office address: {company.officeAddress}</p>
         </footer>
       </article>
     </div>

@@ -21,7 +21,8 @@ export function defaultSettings(): AppSettings {
     company: {
       legalName: COMPANY.legalName,
       shortName: COMPANY.shortName,
-      address: COMPANY.address,
+      registeredAddress: COMPANY.registeredAddress,
+      officeAddress: COMPANY.officeAddress,
       gstin: COMPANY.gstin,
       cin: COMPANY.cin,
       email: COMPANY.email,
