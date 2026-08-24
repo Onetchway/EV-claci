@@ -55,6 +55,7 @@ export const DEFAULT_PAGE_ACCESS: Record<string, Role[]> = {
   "/sites": ["ADMIN", "SALES_MANAGER", "AGENT", "VIEWER"],
   "/partners": ["ADMIN", "SALES_MANAGER", "VIEWER"],
   "/quotations": ["ADMIN", "SALES_MANAGER", "VIEWER"],
+  "/proforma-invoices": ["ADMIN", "SALES_MANAGER", "VIEWER"],
   "/catalog": ["ADMIN", "SALES_MANAGER", "AGENT", "VIEWER"],
   // Operations
   "/projects": ["ADMIN", "OPERATIONS", "VIEWER"],
@@ -99,6 +100,7 @@ export const PAGE_LABEL: Record<string, string> = {
   "/sites": "Site Enquiries",
   "/partners": "Channel Partners",
   "/quotations": "Create Quotation",
+  "/proforma-invoices": "Proforma Invoices",
   "/catalog": "Charger Catalogue",
   "/projects": "Project Management",
   "/vendors": "Vendor Management",

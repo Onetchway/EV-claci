@@ -83,6 +83,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/sites", label: "Site Enquiries", icon: MapPin },
       { href: "/partners", label: "Channel Partners", icon: Handshake },
       { href: "/quotations", label: "Create Quotation", icon: FileSignature },
+      { href: "/proforma-invoices", label: "Proforma Invoices", icon: FileSpreadsheet },
       { href: "/catalog", label: "Charger Catalogue", icon: Package },
     ],
   },

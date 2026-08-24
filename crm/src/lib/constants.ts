@@ -935,6 +935,31 @@ export const QUOTATION_STATUS_COLOR: Record<QuotationStatus, string> = {
   CONVERTED: "bg-indigo-100 text-indigo-800 ring-indigo-200",
 };
 
+// ------------------------------------------------------ proforma invoices
+
+export const PROFORMA_INVOICE_STATUSES = [
+  "DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CONVERTED",
+] as const;
+export type ProformaInvoiceStatus = (typeof PROFORMA_INVOICE_STATUSES)[number];
+
+export const PROFORMA_INVOICE_STATUS_LABEL: Record<ProformaInvoiceStatus, string> = {
+  DRAFT: "Draft",
+  SENT: "Sent to client",
+  ACCEPTED: "Accepted",
+  REJECTED: "Rejected",
+  EXPIRED: "Expired",
+  CONVERTED: "Converted to invoice",
+};
+
+export const PROFORMA_INVOICE_STATUS_COLOR: Record<ProformaInvoiceStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  SENT: "bg-sky-100 text-sky-800 ring-sky-200",
+  ACCEPTED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  REJECTED: "bg-rose-100 text-rose-800 ring-rose-200",
+  EXPIRED: "bg-amber-100 text-amber-800 ring-amber-200",
+  CONVERTED: "bg-indigo-100 text-indigo-800 ring-indigo-200",
+};
+
 // -------------------------------------------------------- charger tickets
 
 export const TICKET_TYPES = ["OFFLINE", "FAULT", "MANUAL"] as const;

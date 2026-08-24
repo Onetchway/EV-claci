@@ -7,7 +7,7 @@ import type {
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
   EmspUserType, InvoiceBillToType, InvoiceStatus, PaymentStatus, PoStatus, PowerLoad,
-  ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
+  ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
   TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
   WebhookEvent, Workstream,
@@ -497,6 +497,37 @@ export interface Quotation {
   status: QuotationStatus;
   leadId?: string | null;
   leadCode?: string | null;
+  client: ClientInfo;
+  items: ConfigItem[];
+  extras: ExtraItem[];
+  discount: number;
+  /** Snapshot of the computed totals at last save — the printed document's source of truth. */
+  totals: Pick<Quote, "subtotal" | "discount" | "taxableValue" | "gst" | "grandTotal" | "effectiveGstPct" | "totalKw" | "unitCount">;
+  validUntil?: TS;
+  notes?: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+/**
+ * A Proforma Invoice — a formal pre-sale bill sent before the actual tax
+ * Invoice, so a client can arrange payment/import approvals against fixed
+ * numbers. Same shape as a Quotation (same pricing engine, same client
+ * snapshot) but with its own numbering series and status lifecycle since
+ * it's a distinct document with its own paper trail, not just a quotation
+ * relabeled.
+ */
+export interface ProformaInvoice {
+  id: string;
+  /** Human-friendly reference, e.g. LG-PI-000012. */
+  piNumber: string;
+  status: ProformaInvoiceStatus;
+  leadId?: string | null;
+  leadCode?: string | null;
+  quotationId?: string | null;
+  quoteNumber?: string | null;
   client: ClientInfo;
   items: ConfigItem[];
   extras: ExtraItem[];

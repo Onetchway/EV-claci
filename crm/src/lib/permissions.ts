@@ -178,6 +178,10 @@ export const canSelfServeRegisterCharger = (viewer: Viewer) =>
 export const canManageQuotations = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
 
+// Proforma invoices — same bar as quotations, since it's the same pricing decision.
+export const canManageProformaInvoices = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+
 // Charger fault tickets and RFID allow-listing — same bar as chargers themselves.
 export const canManageTickets = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
