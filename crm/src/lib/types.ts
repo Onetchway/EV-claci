@@ -389,6 +389,8 @@ export interface Partner {
   createdBy?: Actor | null;
   updatedAt?: TS;
   updatedBy?: Actor | null;
+  deletedAt?: TS | null;
+  deletedBy?: Actor | null;
 }
 
 export interface PartnerCommission {
@@ -430,6 +432,8 @@ export interface Vendor {
   createdBy?: Actor | null;
   updatedAt?: TS;
   updatedBy?: Actor | null;
+  deletedAt?: TS | null;
+  deletedBy?: Actor | null;
 }
 
 export interface PoItem {
@@ -1120,6 +1124,8 @@ export interface Asset {
   createdBy?: Actor | null;
   updatedAt?: TS;
   updatedBy?: Actor | null;
+  deletedAt?: TS | null;
+  deletedBy?: Actor | null;
 }
 
 export interface AppNotification {

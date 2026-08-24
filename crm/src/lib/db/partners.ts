@@ -9,7 +9,7 @@
  */
 
 import {
-  collection, doc, getDoc, getDocs, limit as fsLimit, onSnapshot, orderBy,
+  collection, deleteDoc, doc, getDoc, getDocs, limit as fsLimit, onSnapshot, orderBy,
   query, runTransaction, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 
@@ -95,13 +95,41 @@ export async function updatePartner(
   });
 }
 
+/** Moves a partner to Trash — hidden from normal views, recoverable until permanently deleted. */
+export async function trashPartner(partner: Partner, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), PARTNERS, partner.id), {
+    deletedAt: serverTimestamp(),
+    deletedBy: actor,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+export async function restorePartner(partner: Partner, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), PARTNERS, partner.id), {
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+/** Super-admin only, from the Trash page. */
+export async function deletePartner(partner: Partner): Promise<void> {
+  await deleteDoc(doc(getDb(), PARTNERS, partner.id));
+}
+
 export function subscribePartners(
   cb: (rows: Partner[]) => void,
   onError?: (e: Error) => void,
+  opts?: { includeTrashed?: boolean },
 ): () => void {
   return onSnapshot(
     query(collection(getDb(), PARTNERS), orderBy("name", "asc")),
-    (snap) => cb(snap.docs.map((d) => mapPartner(d.id, d.data()))),
+    (snap) => {
+      const rows = snap.docs.map((d) => mapPartner(d.id, d.data()));
+      cb(rows.filter((p) => (opts?.includeTrashed ? !!p.deletedAt : !p.deletedAt)));
+    },
     (err) => onError?.(err as Error),
   );
 }

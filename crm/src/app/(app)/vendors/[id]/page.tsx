@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -15,19 +15,21 @@ import {
   VENDOR_STATUSES, type VendorCategory, type VendorStatus,
 } from "@/lib/constants";
 import { subscribePurchaseOrders } from "@/lib/db/purchase-orders";
-import { subscribeVendor, updateVendor } from "@/lib/db/vendors";
-import { canManageVendors } from "@/lib/permissions";
+import { subscribeVendor, trashVendor, updateVendor } from "@/lib/db/vendors";
+import { canManageVendors, canTrash } from "@/lib/permissions";
 import type { PurchaseOrder, Vendor } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
 export default function VendorDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const { actor } = useAuth();
   const viewer = useViewer();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [form, setForm] = useState<Partial<Vendor>>({});
   const { busy, run } = useAsyncAction();
 
@@ -75,9 +77,41 @@ export default function VendorDetailPage() {
                 <Button variant="primary"><Plus className="h-4 w-4" /> New PO</Button>
               </Link>
             )}
+            {canTrash(viewer) && (
+              <Button variant="danger" onClick={() => setTrashOpen(true)}>
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            )}
           </>
         }
       />
+
+      <Modal
+        open={trashOpen}
+        onClose={() => setTrashOpen(false)}
+        title="Delete this vendor"
+        description="Moves it to Trash — it disappears from every list, but an admin can restore it from Trash at any time. Nothing is permanently deleted."
+        footer={
+          <>
+            <Button onClick={() => setTrashOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  await trashVendor(vendor, actor!);
+                  setTrashOpen(false);
+                  router.push("/vendors");
+                }, "Vendor moved to Trash.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Move to Trash
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">{vendor.name} ({vendor.code})</p>
+      </Modal>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Vendor details" className="lg:col-span-2">

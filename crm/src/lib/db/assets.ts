@@ -8,7 +8,7 @@
  */
 
 import {
-  collection, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
+  collection, deleteDoc, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
   Timestamp, updateDoc,
 } from "firebase/firestore";
 
@@ -99,13 +99,41 @@ export async function updateAsset(
   await updateDoc(doc(getDb(), ASSETS, id), update);
 }
 
+/** Moves an asset to Trash — hidden from normal views, recoverable until permanently deleted. */
+export async function trashAsset(asset: Asset, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), ASSETS, asset.id), {
+    deletedAt: serverTimestamp(),
+    deletedBy: actor,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+export async function restoreAsset(asset: Asset, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), ASSETS, asset.id), {
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+/** Super-admin only, from the Trash page. */
+export async function deleteAsset(asset: Asset): Promise<void> {
+  await deleteDoc(doc(getDb(), ASSETS, asset.id));
+}
+
 export function subscribeAssets(
   cb: (rows: Asset[]) => void,
   onError?: (e: Error) => void,
+  opts?: { includeTrashed?: boolean },
 ): () => void {
   return onSnapshot(
     query(collection(getDb(), ASSETS), orderBy("createdAt", "desc")),
-    (snap) => cb(snap.docs.map((d) => mapAsset(d.id, d.data()))),
+    (snap) => {
+      const rows = snap.docs.map((d) => mapAsset(d.id, d.data()));
+      cb(rows.filter((a) => (opts?.includeTrashed ? !!a.deletedAt : !a.deletedAt)));
+    },
     (err) => onError?.(err as Error),
   );
 }

@@ -7,7 +7,7 @@
  */
 
 import {
-  collection, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
+  collection, deleteDoc, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
   setDoc, updateDoc,
 } from "firebase/firestore";
 
@@ -86,13 +86,41 @@ export async function updateVendor(
   await updateDoc(doc(getDb(), VENDORS, id), update);
 }
 
+/** Moves a vendor to Trash — hidden from normal views, recoverable until permanently deleted. */
+export async function trashVendor(vendor: Vendor, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), VENDORS, vendor.id), {
+    deletedAt: serverTimestamp(),
+    deletedBy: actor,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+export async function restoreVendor(vendor: Vendor, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), VENDORS, vendor.id), {
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+/** Super-admin only, from the Trash page. */
+export async function deleteVendor(vendor: Vendor): Promise<void> {
+  await deleteDoc(doc(getDb(), VENDORS, vendor.id));
+}
+
 export function subscribeVendors(
   cb: (rows: Vendor[]) => void,
   onError?: (e: Error) => void,
+  opts?: { includeTrashed?: boolean },
 ): () => void {
   return onSnapshot(
     query(collection(getDb(), VENDORS), orderBy("name", "asc")),
-    (snap) => cb(snap.docs.map((d) => mapVendor(d.id, d.data()))),
+    (snap) => {
+      const rows = snap.docs.map((d) => mapVendor(d.id, d.data()));
+      cb(rows.filter((v) => (opts?.includeTrashed ? !!v.deletedAt : !v.deletedAt)));
+    },
     (err) => onError?.(err as Error),
   );
 }

@@ -2,13 +2,13 @@
 
 import { collection, getDocs, limit as fsLimit, query, where } from "firebase/firestore";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CheckCircle2, Clock, IndianRupee } from "lucide-react";
+import { CheckCircle2, Clock, IndianRupee, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, Spinner,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner,
   StatCard, Textarea, useAsyncAction,
 } from "@/components/ui";
 import {
@@ -18,15 +18,16 @@ import {
 } from "@/lib/constants";
 import { getDb } from "@/lib/firebase/client";
 import {
-  setCommissionStatus, subscribePartner, subscribePartnerCommissions, updatePartner,
+  setCommissionStatus, subscribePartner, subscribePartnerCommissions, trashPartner, updatePartner,
 } from "@/lib/db/partners";
 import { LEADS } from "@/lib/db/leads";
-import { canManageCommissions, canManagePartners } from "@/lib/permissions";
+import { canManageCommissions, canManagePartners, canTrash } from "@/lib/permissions";
 import type { Lead, Partner, PartnerCommission } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
 
 export default function PartnerDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const { actor } = useAuth();
   const viewer = useViewer();
   const [partner, setPartner] = useState<Partner | null>(null);
@@ -34,6 +35,7 @@ export default function PartnerDetailPage() {
   const [commissions, setCommissions] = useState<PartnerCommission[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [editing, setEditing] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [form, setForm] = useState<Partial<Partner>>({});
   const { busy, run } = useAsyncAction();
 
@@ -88,9 +90,43 @@ export default function PartnerDetailPage() {
         title={partner.name}
         description={`${partner.code} · ${PARTNER_CATEGORY_LABEL[partner.category]} · ${partner.phone}`}
         actions={
-          editable && !editing ? <Button onClick={startEdit}>Edit</Button> : undefined
+          <>
+            {editable && !editing && <Button onClick={startEdit}>Edit</Button>}
+            {canTrash(viewer) && (
+              <Button variant="danger" onClick={() => setTrashOpen(true)}>
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            )}
+          </>
         }
       />
+
+      <Modal
+        open={trashOpen}
+        onClose={() => setTrashOpen(false)}
+        title="Delete this partner"
+        description="Moves it to Trash — it disappears from every list, but an admin can restore it from Trash at any time. Nothing is permanently deleted."
+        footer={
+          <>
+            <Button onClick={() => setTrashOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  await trashPartner(partner, actor!);
+                  setTrashOpen(false);
+                  router.push("/partners");
+                }, "Partner moved to Trash.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Move to Trash
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">{partner.name} ({partner.code})</p>
+      </Modal>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge className={PARTNER_TIER_COLOR[partner.tier]}>

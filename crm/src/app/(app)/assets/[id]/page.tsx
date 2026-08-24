@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -14,18 +15,20 @@ import {
   ASSET_STATUSES, DEPRECIATION_METHODS, DEPRECIATION_METHOD_LABEL,
   type AssetCategory, type AssetStatus, type DepreciationMethod,
 } from "@/lib/constants";
-import { subscribeAsset, updateAsset } from "@/lib/db/assets";
+import { subscribeAsset, trashAsset, updateAsset } from "@/lib/db/assets";
 import { calcDepreciation, depreciationSchedule } from "@/lib/depreciation";
-import { canManageAssets } from "@/lib/permissions";
+import { canManageAssets, canTrash } from "@/lib/permissions";
 import type { Asset } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
 export default function AssetDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const { actor } = useAuth();
   const viewer = useViewer();
   const [asset, setAsset] = useState<Asset | null | undefined>(undefined);
   const [editing, setEditing] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [form, setForm] = useState<Partial<Asset>>({});
   const { busy, run } = useAsyncAction();
 
@@ -57,9 +60,41 @@ export default function AssetDetailPage() {
           <>
             <Badge className={ASSET_STATUS_COLOR[asset.status]}>{ASSET_STATUS_LABEL[asset.status]}</Badge>
             {canManageAssets(viewer) && <Button onClick={startEdit}>Edit</Button>}
+            {canTrash(viewer) && (
+              <Button variant="danger" onClick={() => setTrashOpen(true)}>
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            )}
           </>
         }
       />
+
+      <Modal
+        open={trashOpen}
+        onClose={() => setTrashOpen(false)}
+        title="Delete this asset"
+        description="Moves it to Trash — it disappears from every list, but an admin can restore it from Trash at any time. Nothing is permanently deleted."
+        footer={
+          <>
+            <Button onClick={() => setTrashOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  await trashAsset(asset, actor!);
+                  setTrashOpen(false);
+                  router.push("/assets");
+                }, "Asset moved to Trash.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Move to Trash
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">{asset.name} ({asset.assetTag})</p>
+      </Modal>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Details" className="lg:col-span-2">
