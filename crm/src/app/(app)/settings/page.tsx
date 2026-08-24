@@ -411,7 +411,7 @@ export default function SettingsPage() {
                 {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
               </select>
             </Field>
-            <Field label="GST mode" hint="Standard locks lines at the fixed rates; Blended lets a user override per line. New leads, quotations, proforma invoices and projects start in this mode.">
+            <Field label="GST mode" hint="Standard applies one flat, editable GST rate to the whole basket. Blended taxes chargers at 5% and everything else at 18%, editable per line. New leads, quotations and proforma invoices start in this mode.">
               <select
                 value={form.finance.defaultGstMode}
                 onChange={(e) => set("finance", { ...form.finance, defaultGstMode: e.target.value as typeof form.finance.defaultGstMode })}

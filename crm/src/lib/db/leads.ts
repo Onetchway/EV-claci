@@ -287,7 +287,7 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
     config,
     extras,
     discount,
-    gstMode: draft.gstMode ?? "STANDARD",
+    gstMode: draft.gstMode ?? "BLENDED",
     oem: draft.oem ?? null,
     commercialModel: draft.commercialModel ?? null,
     quote: snapshot,

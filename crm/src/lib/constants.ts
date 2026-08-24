@@ -770,17 +770,17 @@ export const GST_SLABS = [0, 5, 18, 28] as const;
 export type GstSlab = (typeof GST_SLABS)[number];
 
 /**
- * Standard = the GST rates are fixed (5% chargers, per-preset rate for
- * everything else) and locked against editing. Blended = the same fields
- * stay visible and start at those defaults, but a sales/finance user can
- * override any line's rate for a negotiated or bundled deal.
+ * Standard = one flat GST% applied to the whole basket (chargers and
+ * civil/electrical items alike) — a single editable field, defaulting to
+ * 18%. Blended = the itemized split — chargers taxed at 5%, everything
+ * else at 18%, each line still individually editable.
  */
 export const GST_MODES = ["STANDARD", "BLENDED"] as const;
 export type GstMode = (typeof GST_MODES)[number];
 
 export const GST_MODE_LABEL: Record<GstMode, string> = {
-  STANDARD: "Standard (5% charger / 18% rest)",
-  BLENDED: "Blended (editable per line)",
+  STANDARD: "Standard (one flat GST rate)",
+  BLENDED: "Blended (5% charger / 18% rest, per line)",
 };
 
 /** Non-charger line items that commonly appear on a participation summary. */

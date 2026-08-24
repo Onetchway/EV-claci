@@ -66,7 +66,7 @@ const emptyValues = (ownerId: string, ownerName: string): LeadFormValues => ({
   config: [],
   extras: [],
   discount: 0,
-  gstMode: "STANDARD",
+  gstMode: "BLENDED",
   oem: null,
   financing: { ...DEFAULT_FINANCING },
   site: { locationName: "", mapsLink: "", locationTypes: [], ownership: null, commercialModelInterested: false, powerLoad: null, sanctionedLoadKva: null, spaceAvailableSqft: null, nearbyLandmark: "", remarks: "" },
@@ -94,7 +94,7 @@ export function leadToFormValues(lead: Lead): LeadFormValues {
     config: lead.config ?? [],
     extras: lead.extras ?? [],
     discount: lead.discount ?? 0,
-    gstMode: lead.gstMode ?? "STANDARD",
+    gstMode: lead.gstMode ?? "BLENDED",
     oem: lead.oem ?? null,
     financing: lead.financing ?? { ...DEFAULT_FINANCING },
     site: {

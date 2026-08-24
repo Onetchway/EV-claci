@@ -33,14 +33,14 @@ export default function QuotationDetailPage() {
   const [items, setItems] = useState<ConfigItem[]>([]);
   const [extras, setExtras] = useState<ExtraItem[]>([]);
   const [discount, setDiscount] = useState(0);
-  const [gstMode, setGstMode] = useState<GstMode>("STANDARD");
+  const [gstMode, setGstMode] = useState<GstMode>("BLENDED");
   const [notes, setNotes] = useState("");
 
   useEffect(() => subscribeQuotation(id, (row) => {
     setQ(row);
     if (row) {
       setItems(row.items); setExtras(row.extras); setDiscount(row.discount);
-      setGstMode(row.gstMode ?? "STANDARD"); setNotes(row.notes ?? "");
+      setGstMode(row.gstMode ?? "BLENDED"); setNotes(row.notes ?? "");
     }
   }), [id]);
 
