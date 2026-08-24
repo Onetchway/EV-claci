@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  Badge, Button, Card, Field, Input, Modal, ProgressBar, Select, Textarea,
+  Badge, Button, Card, Checkbox, Field, Input, Modal, ProgressBar, Select, Textarea,
   useAsyncAction,
 } from "@/components/ui";
 import {
@@ -65,6 +65,13 @@ export function FinancingPanel({
   }, [form.sanctionedAmount, form.requestedAmount, form.interestRate, form.tenureYears]);
 
   const coverage = lead.value > 0 ? Math.min(100, ((form.sanctionedAmount ?? 0) / lead.value) * 100) : 0;
+
+  // What the bank is covering vs. what the investor still has to pay out of pocket —
+  // sanctioned beats requested (it's the confirmed number once the bank has approved it),
+  // and any subsidy further reduces the investor's own share.
+  const financedAmount = form.sanctionedAmount ?? form.requestedAmount ?? 0;
+  const subsidyAmount = form.subsidyEnabled ? form.subsidyAmount ?? 0 : 0;
+  const clientContribution = Math.max(0, lead.value - financedAmount - subsidyAmount);
 
   useEffect(() => {
     if (!linkOpen) return;
@@ -281,8 +288,42 @@ export function FinancingPanel({
           )}
         </div>
 
+        <div className="mt-4 rounded-lg border border-ink-200 px-4 py-3">
+          <Checkbox
+            checked={Boolean(form.subsidyEnabled)}
+            disabled={!editable}
+            onChange={(v) => set("subsidyEnabled", v)}
+            label="Government / scheme subsidy applies"
+          />
+          {form.subsidyEnabled && (
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <Field label="Subsidy amount (₹)">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={form.subsidyAmount ?? ""}
+                  disabled={!editable}
+                  onChange={(e) => set("subsidyAmount", e.target.value === "" ? null : Number(e.target.value))}
+                />
+              </Field>
+              <Field label="Subsidy (%)" hint="Recorded alongside the amount — either can be filled in independently.">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  value={form.subsidyPct ?? ""}
+                  disabled={!editable}
+                  onChange={(e) => set("subsidyPct", e.target.value === "" ? null : Number(e.target.value))}
+                />
+              </Field>
+            </div>
+          )}
+        </div>
+
         {usesLoan && (
-          <div className="mt-4 grid gap-4 rounded-lg bg-ink-50 px-4 py-3 sm:grid-cols-3">
+          <div className="mt-4 grid gap-4 rounded-lg bg-ink-50 px-4 py-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="text-xs uppercase tracking-wide text-ink-500">Loan stage</p>
               <Badge className={`mt-1 ${LOAN_STAGE_COLOR[form.stage]}`}>{LOAN_STAGE_LABEL[form.stage]}</Badge>
@@ -304,6 +345,15 @@ export function FinancingPanel({
                 <ProgressBar pct={coverage} className="flex-1" />
                 <span className="text-xs tabular-nums">{Math.round(coverage)}%</span>
               </div>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink-500">Client pays (rest is bank finance)</p>
+              <p className="mt-1 text-sm font-semibold tabular-nums text-brand-700">{formatINR(clientContribution)}</p>
+              <p className="mt-0.5 text-[11px] text-ink-500">
+                {formatINR(lead.value)} total
+                {financedAmount > 0 && <> − {formatINR(financedAmount)} financed</>}
+                {subsidyAmount > 0 && <> − {formatINR(subsidyAmount)} subsidy</>}
+              </p>
             </div>
           </div>
         )}

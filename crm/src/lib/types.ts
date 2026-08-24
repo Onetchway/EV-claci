@@ -111,6 +111,10 @@ export interface FinancingInfo {
    */
   cibilScore?: number | null;
   cibilCheckedAt?: TS;
+  /** A government/scheme subsidy reducing the investor's own contribution — independent of any bank loan. */
+  subsidyEnabled?: boolean;
+  subsidyAmount?: number | null;
+  subsidyPct?: number | null;
 }
 
 /** A single row of the LOI's Participation Summary — fully editable. */
@@ -142,6 +146,9 @@ export interface EoiDoc {
   siteLandType?: string;
   /** Amount to be bank-financed, from the lead's Funding tab. 0 if self-funded or not yet financed. */
   amountFinanced?: number;
+  /** Set only when the lead's Funding tab has a subsidy enabled. */
+  subsidyAmount?: number;
+  subsidyPct?: number;
   capacityLabel: string;
   extraEquipment?: string;
   subject: string;

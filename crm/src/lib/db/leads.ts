@@ -262,6 +262,9 @@ export const DEFAULT_FINANCING: FinancingInfo = {
   note: "",
   cibilScore: null,
   cibilCheckedAt: null,
+  subsidyEnabled: false,
+  subsidyAmount: null,
+  subsidyPct: null,
 };
 
 export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> {

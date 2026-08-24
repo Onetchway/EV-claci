@@ -553,7 +553,7 @@ function LoiLetterArticle({
       )}
 
       {/* Site & funding details — pulled from the lead at generation time, editable like everything else */}
-      {(!readOnly || eoi.siteLocationProvider || eoi.siteLandType || eoi.siteCompensation || eoi.siteMapsLink || eoi.amountFinanced) && (
+      {(!readOnly || eoi.siteLocationProvider || eoi.siteLandType || eoi.siteCompensation || eoi.siteMapsLink || eoi.amountFinanced || eoi.subsidyAmount) && (
         <>
           <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Site & Funding Details</h2>
           <table className="mt-2 w-full border-collapse text-sm">
@@ -646,6 +646,30 @@ function LoiLetterArticle({
                       className="w-28"
                       aria-label="Amount to be financed"
                     />
+                  </td>
+                </tr>
+              ) : null}
+              {(eoi.subsidyAmount ? eoi.subsidyAmount > 0 : false) || !readOnly ? (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Subsidy</td>
+                  <td className="px-2 py-1.5">
+                    Rs.{" "}
+                    <EditableNumber
+                      readOnly={readOnly}
+                      value={eoi.subsidyAmount ?? 0}
+                      onChange={(v) => onPatch({ subsidyAmount: v })}
+                      className="w-28"
+                      aria-label="Subsidy amount"
+                    />
+                    {" "}(
+                    <EditableNumber
+                      readOnly={readOnly}
+                      value={eoi.subsidyPct ?? 0}
+                      onChange={(v) => onPatch({ subsidyPct: v })}
+                      className="w-14"
+                      aria-label="Subsidy percentage"
+                    />
+                    %)
                   </td>
                 </tr>
               ) : null}

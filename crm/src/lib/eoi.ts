@@ -100,6 +100,8 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
         : "";
   // Sanctioned beats requested — it's the confirmed number once the bank has approved it.
   const amountFinanced = lead.financing?.sanctionedAmount ?? lead.financing?.requestedAmount ?? 0;
+  const subsidyAmount = lead.financing?.subsidyEnabled ? lead.financing.subsidyAmount ?? 0 : 0;
+  const subsidyPct = lead.financing?.subsidyEnabled ? lead.financing.subsidyPct ?? 0 : 0;
 
   // The schedule mirrors the quotation's milestones. When GST is broken out,
   // the tranches carry pre-GST figures and tax gets its own row — which is how
@@ -152,6 +154,8 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     siteCompensation,
     siteLandType,
     amountFinanced,
+    subsidyAmount,
+    subsidyPct,
     capacityLabel,
     extraEquipment: opts.extraEquipment ?? "",
     subject: defaultSubject(capacityLabel, siteName, opts.extraEquipment),
