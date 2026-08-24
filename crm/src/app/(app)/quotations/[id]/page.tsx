@@ -11,7 +11,7 @@ import {
 } from "@/components/ui";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  QUOTATION_STATUS_COLOR, QUOTATION_STATUS_LABEL, QUOTATION_STATUSES, type QuotationStatus,
+  QUOTATION_STATUS_COLOR, QUOTATION_STATUS_LABEL, QUOTATION_STATUSES, type GstMode, type QuotationStatus,
 } from "@/lib/constants";
 import { subscribeQuotation, updateQuotation, updateQuotationStatus } from "@/lib/db/quotations";
 import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
@@ -33,11 +33,15 @@ export default function QuotationDetailPage() {
   const [items, setItems] = useState<ConfigItem[]>([]);
   const [extras, setExtras] = useState<ExtraItem[]>([]);
   const [discount, setDiscount] = useState(0);
+  const [gstMode, setGstMode] = useState<GstMode>("STANDARD");
   const [notes, setNotes] = useState("");
 
   useEffect(() => subscribeQuotation(id, (row) => {
     setQ(row);
-    if (row) { setItems(row.items); setExtras(row.extras); setDiscount(row.discount); setNotes(row.notes ?? ""); }
+    if (row) {
+      setItems(row.items); setExtras(row.extras); setDiscount(row.discount);
+      setGstMode(row.gstMode ?? "STANDARD"); setNotes(row.notes ?? "");
+    }
   }), [id]);
 
   const canEdit = canManageQuotations(viewer);
@@ -47,7 +51,7 @@ export default function QuotationDetailPage() {
   async function saveDraft() {
     if (!q || !actor) return;
     await run(() => updateQuotation(q.id, {
-      leadId: q.leadId, leadCode: q.leadCode, client: q.client, items, extras, discount,
+      leadId: q.leadId, leadCode: q.leadCode, client: q.client, items, extras, discount, gstMode,
       validUntil: q.validUntil?.toDate?.() ?? null, notes,
     }, actor), "Quotation updated.");
   }
@@ -109,6 +113,8 @@ export default function QuotationDetailPage() {
               allowDiscount={canApplyDiscount(viewer)}
               allowPriceOverride={canOverridePrice(viewer)}
               disabled={!canEdit || !isDraft}
+              gstMode={gstMode}
+              onGstModeChange={setGstMode}
             />
           </Card>
 

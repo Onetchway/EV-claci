@@ -9,7 +9,9 @@ import { useMemo, useState } from "react";
 
 import { type ChargerSpec } from "@/lib/catalog";
 import { useChargerCatalog } from "@/hooks/use-catalog";
-import { CHARGER_OEMS, EXTRA_ITEM_PRESETS, GST_SLABS } from "@/lib/constants";
+import {
+  CHARGER_OEMS, EXTRA_ITEM_PRESETS, GST_MODE_LABEL, GST_MODES, GST_SLABS, type GstMode,
+} from "@/lib/constants";
 import {
   buildQuote, clampGst, normaliseConfig, type ConfigItem, type ExtraItem,
 } from "@/lib/pricing";
@@ -39,6 +41,9 @@ interface Props {
   disabled?: boolean;
   /** Some lead types (software, corporate...) price purely off extras/line items, not the franchise DC-charger basket. */
   showChargers?: boolean;
+  /** Standard locks every GST select at its default; Blended leaves them editable. Omit to leave GST always editable (existing behaviour), e.g. for callers that don't track a mode. */
+  gstMode?: GstMode;
+  onGstModeChange?: (mode: GstMode) => void;
 }
 
 const DROP_ID = "charger-basket";
@@ -93,12 +98,13 @@ function PaletteCard({ spec, disabled, onAdd }: { spec: ChargerSpec; disabled?: 
 }
 
 function BasketRow({
-  item, index, spec, disabled, allowPriceOverride, onPatch, onRemove,
+  item, index, spec, disabled, gstLocked, allowPriceOverride, onPatch, onRemove,
 }: {
   item: ConfigItem;
   index: number;
   spec: ChargerSpec;
   disabled?: boolean;
+  gstLocked?: boolean;
   allowPriceOverride?: boolean;
   onPatch: (patch: Partial<ConfigItem>) => void;
   onRemove: () => void;
@@ -198,7 +204,7 @@ function BasketRow({
           <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">GST</span>
           <select
             value={gstPct}
-            disabled={disabled}
+            disabled={disabled || gstLocked}
             onChange={(e) => onPatch({ gstPct: clampGst(e.target.value) })}
             className="input py-1 text-sm"
             aria-label={`GST rate for ${spec.label}`}
@@ -228,10 +234,11 @@ function BasketRow({
 }
 
 function ExtrasEditor({
-  extras, disabled, onChange,
+  extras, disabled, gstLocked, onChange,
 }: {
   extras: ExtraItem[];
   disabled?: boolean;
+  gstLocked?: boolean;
   onChange: (next: ExtraItem[]) => void;
 }) {
   const [preset, setPreset] = useState("");
@@ -305,7 +312,7 @@ function ExtrasEditor({
                 <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">GST</span>
                 <select
                   value={e.gstPct}
-                  disabled={disabled}
+                  disabled={disabled || gstLocked}
                   onChange={(ev) => patch(e.id, { gstPct: clampGst(ev.target.value) })}
                   className="input py-1 text-sm"
                 >
@@ -332,11 +339,13 @@ function ExtrasEditor({
 export function ChargerConfigurator({
   value, onChange, extras = [], onExtrasChange, discount = 0, onDiscountChange,
   allowDiscount, allowPriceOverride, defaultOem, disabled, showChargers = true,
+  gstMode, onGstModeChange,
 }: Props) {
   const [dragging, setDragging] = useState<ChargerSpec | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const { setNodeRef, isOver } = useDroppable({ id: DROP_ID, disabled });
   const { all: CATALOG_LIST } = useChargerCatalog();
+  const gstLocked = gstMode === "STANDARD";
 
   const config = useMemo(() => normaliseConfig(value), [value]);
   const quote = useMemo(() => buildQuote(config, { discount, extras }), [config, discount, extras]);
@@ -391,6 +400,41 @@ export function ChargerConfigurator({
         )}
 
         <div>
+          {onGstModeChange && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2">
+              <div>
+                <p className="text-xs font-semibold text-ink-700">GST mode</p>
+                <p className="text-[11px] text-ink-500">
+                  {gstLocked
+                    ? "Standard — locked at 5% (charger) / 18% (rest)."
+                    : "Blended — every line's GST rate can be edited."}
+                </p>
+              </div>
+              <div className="flex shrink-0 overflow-hidden rounded-lg border border-ink-200 text-xs font-medium">
+                {GST_MODES.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      onGstModeChange(m);
+                      // Switching to Standard clears any per-line charger override so the
+                      // basket actually falls back to the fixed 5% default, not a stale edit.
+                      if (m === "STANDARD") onChange(config.map((c) => ({ ...c, gstPct: null })));
+                    }}
+                    className={cn(
+                      "px-3 py-1.5 transition disabled:cursor-not-allowed disabled:opacity-50",
+                      (gstMode ?? "STANDARD") === m ? "bg-brand-600 text-white" : "bg-white text-ink-600 hover:bg-ink-100",
+                    )}
+                    title={GST_MODE_LABEL[m]}
+                  >
+                    {m === "STANDARD" ? "Standard" : "Blended"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {showChargers && (
             <>
               <p className="label">Franchise configuration</p>
@@ -421,6 +465,7 @@ export function ChargerConfigurator({
                           index={i}
                           spec={spec}
                           disabled={disabled}
+                          gstLocked={gstLocked}
                           allowPriceOverride={allowPriceOverride}
                           onPatch={(p) => patchAt(i, p)}
                           onRemove={() => removeAt(i)}
@@ -434,7 +479,7 @@ export function ChargerConfigurator({
           )}
 
           {onExtrasChange && (
-            <ExtrasEditor extras={extras} disabled={disabled} onChange={onExtrasChange} />
+            <ExtrasEditor extras={extras} disabled={disabled} gstLocked={gstLocked} onChange={onExtrasChange} />
           )}
 
           {(config.length > 0 || extras.length > 0) && (

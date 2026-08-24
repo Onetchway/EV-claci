@@ -10,7 +10,7 @@ import {
   useAsyncAction,
 } from "@/components/ui";
 import {
-  FOLLOWUP_TYPE_LABEL, FOLLOWUP_TYPES, GST_SLABS, INDIAN_STATES, type FollowupType,
+  FOLLOWUP_TYPE_LABEL, FOLLOWUP_TYPES, GST_MODE_LABEL, GST_MODES, GST_SLABS, INDIAN_STATES, type FollowupType,
 } from "@/lib/constants";
 import { defaultSettings, saveSettings, subscribeSettings } from "@/lib/db/settings";
 import { saveSequence, subscribeSequences } from "@/lib/db/tasks";
@@ -409,6 +409,15 @@ export default function SettingsPage() {
                 className="input"
               >
                 {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
+              </select>
+            </Field>
+            <Field label="GST mode" hint="Standard locks lines at the fixed rates; Blended lets a user override per line. New leads, quotations, proforma invoices and projects start in this mode.">
+              <select
+                value={form.finance.defaultGstMode}
+                onChange={(e) => set("finance", { ...form.finance, defaultGstMode: e.target.value as typeof form.finance.defaultGstMode })}
+                className="input"
+              >
+                {GST_MODES.map((m) => <option key={m} value={m}>{GST_MODE_LABEL[m]}</option>)}
               </select>
             </Field>
             <Field label="Bank funding (LTV)" hint="Share of the total a bank typically funds.">

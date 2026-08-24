@@ -11,7 +11,8 @@ import {
 } from "@/components/ui";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  PROFORMA_INVOICE_STATUS_COLOR, PROFORMA_INVOICE_STATUS_LABEL, PROFORMA_INVOICE_STATUSES, type ProformaInvoiceStatus,
+  PROFORMA_INVOICE_STATUS_COLOR, PROFORMA_INVOICE_STATUS_LABEL, PROFORMA_INVOICE_STATUSES,
+  type GstMode, type ProformaInvoiceStatus,
 } from "@/lib/constants";
 import { subscribeProformaInvoice, updateProformaInvoice, updateProformaInvoiceStatus } from "@/lib/db/proforma-invoices";
 import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
@@ -33,11 +34,15 @@ export default function ProformaInvoiceDetailPage() {
   const [items, setItems] = useState<ConfigItem[]>([]);
   const [extras, setExtras] = useState<ExtraItem[]>([]);
   const [discount, setDiscount] = useState(0);
+  const [gstMode, setGstMode] = useState<GstMode>("STANDARD");
   const [notes, setNotes] = useState("");
 
   useEffect(() => subscribeProformaInvoice(id, (row) => {
     setPi(row);
-    if (row) { setItems(row.items); setExtras(row.extras); setDiscount(row.discount); setNotes(row.notes ?? ""); }
+    if (row) {
+      setItems(row.items); setExtras(row.extras); setDiscount(row.discount);
+      setGstMode(row.gstMode ?? "STANDARD"); setNotes(row.notes ?? "");
+    }
   }), [id]);
 
   const canEdit = canManageProformaInvoices(viewer);
@@ -48,7 +53,7 @@ export default function ProformaInvoiceDetailPage() {
     if (!pi || !actor) return;
     await run(() => updateProformaInvoice(pi.id, {
       leadId: pi.leadId, leadCode: pi.leadCode, quotationId: pi.quotationId, quoteNumber: pi.quoteNumber,
-      client: pi.client, items, extras, discount,
+      client: pi.client, items, extras, discount, gstMode,
       validUntil: pi.validUntil?.toDate?.() ?? null, notes,
     }, actor), "Proforma invoice updated.");
   }
@@ -110,6 +115,8 @@ export default function ProformaInvoiceDetailPage() {
               allowDiscount={canApplyDiscount(viewer)}
               allowPriceOverride={canOverridePrice(viewer)}
               disabled={!canEdit || !isDraft}
+              gstMode={gstMode}
+              onGstModeChange={setGstMode}
             />
           </Card>
 

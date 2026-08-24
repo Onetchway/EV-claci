@@ -48,6 +48,7 @@ export function defaultSettings(): AppSettings {
     },
     finance: {
       defaultGstPct: 5,
+      defaultGstMode: "STANDARD",
       loanToValue: 0.7,
       defaultInterestRate: 9,
       defaultTenureYears: 5,

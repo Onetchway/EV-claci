@@ -23,6 +23,7 @@ export default function NewLeadPage() {
         config: values.config,
         extras: values.extras,
         discount: values.discount,
+        gstMode: values.gstMode,
         oem: values.oem,
         financing: values.financing,
         site: values.site,

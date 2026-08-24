@@ -7,7 +7,7 @@ import type {
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
   EmspUserType, InvoiceBillToType, InvoiceStatus, PaymentStatus, PoStatus, PowerLoad,
-  ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
+  GstMode, ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
   TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
   WebhookEvent, Workstream,
@@ -253,6 +253,8 @@ export interface Lead {
   /** Civil work, LT panel, DISCOM deposit and other non-charger lines. */
   extras?: ExtraItem[];
   discount?: number;
+  /** STANDARD locks line GST at the fixed 5%/18% defaults; BLENDED allows per-line overrides. Every downstream document (quotation, EOI, payment, loan) reads its GST straight off this lead's items/extras, so nothing else needs to know the mode explicitly. */
+  gstMode?: GstMode;
   /** Default charger manufacturer; individual lines may override it. */
   oem?: string | null;
   /** Denormalised quote snapshot so lists/reports never recompute. */
@@ -501,6 +503,8 @@ export interface Quotation {
   items: ConfigItem[];
   extras: ExtraItem[];
   discount: number;
+  /** STANDARD locks line GST at the fixed 5%/18% defaults; BLENDED allows per-line overrides. Inherited from the lead when quoted off one. */
+  gstMode?: GstMode;
   /** Snapshot of the computed totals at last save — the printed document's source of truth. */
   totals: Pick<Quote, "subtotal" | "discount" | "taxableValue" | "gst" | "grandTotal" | "effectiveGstPct" | "totalKw" | "unitCount">;
   validUntil?: TS;
@@ -532,6 +536,8 @@ export interface ProformaInvoice {
   items: ConfigItem[];
   extras: ExtraItem[];
   discount: number;
+  /** STANDARD locks line GST at the fixed 5%/18% defaults; BLENDED allows per-line overrides. Inherited from the lead/quotation when raised off one. */
+  gstMode?: GstMode;
   /** Snapshot of the computed totals at last save — the printed document's source of truth. */
   totals: Pick<Quote, "subtotal" | "discount" | "taxableValue" | "gst" | "grandTotal" | "effectiveGstPct" | "totalKw" | "unitCount">;
   validUntil?: TS;
@@ -1286,6 +1292,8 @@ export interface Project {
   config: ConfigItem[];
   extras?: ExtraItem[];
   discount?: number;
+  /** STANDARD locks line GST at the fixed 5%/18% defaults; BLENDED allows per-line overrides. */
+  gstMode?: GstMode;
   /** Investment for a franchise; capital outlay for a COCO station. */
   value: number;
   totalKw: number;
@@ -1353,6 +1361,8 @@ export interface AppSettings {
   };
   finance: {
     defaultGstPct: number;
+    /** Which GST mode new leads/quotations/proforma invoices/projects start in. */
+    defaultGstMode: GstMode;
     loanToValue: number;
     defaultInterestRate: number;
     defaultTenureYears: number;

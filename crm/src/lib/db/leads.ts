@@ -8,7 +8,7 @@ import {
 
 import {
   finalStageFor, LEAD_TYPE_CODE, STAGES, STAGE_META,
-  type CommercialModel, type EoiStatus, type LeadStatus, type LeadType,
+  type CommercialModel, type EoiStatus, type GstMode, type LeadStatus, type LeadType,
   type RejectionReason, type Source, type Stage,
 } from "../constants";
 import { diffLead, summariseChanges } from "../diff";
@@ -197,6 +197,7 @@ export interface LeadDraft {
   config?: ConfigItem[];
   extras?: ExtraItem[];
   discount?: number;
+  gstMode?: GstMode;
   oem?: string | null;
   financing?: FinancingInfo;
   site?: SiteInfo;
@@ -286,6 +287,7 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
     config,
     extras,
     discount,
+    gstMode: draft.gstMode ?? "STANDARD",
     oem: draft.oem ?? null,
     commercialModel: draft.commercialModel ?? null,
     quote: snapshot,
@@ -336,6 +338,7 @@ export interface LeadPatch {
   config?: ConfigItem[];
   extras?: ExtraItem[];
   discount?: number;
+  gstMode?: GstMode;
   oem?: string | null;
   financing?: FinancingInfo;
   site?: SiteInfo;
@@ -384,6 +387,7 @@ export async function updateLead(lead: Lead, patch: LeadPatch, actor: Actor): Pr
     update.value = value;
     update.dueAmount = Math.max(0, value - (lead.paidAmount ?? 0));
   }
+  if (patch.gstMode !== undefined) update.gstMode = patch.gstMode;
 
   const changes = diffLead(lead, update);
   if (!changes.length) return;
@@ -795,6 +799,30 @@ export async function findLinkCandidates(lead: Lead, search: string): Promise<Le
     .filter((l) => {
       if (!needle) return true;
       const hay = [l.code, l.client?.name, l.client?.phone, l.client?.city, l.site?.locationName]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    })
+    .slice(0, 25);
+}
+
+/**
+ * Any lead that already carries site details — a site enquiry, or a
+ * franchise/RWA/corporate/government lead where the site was filled in
+ * directly. Backs the "map an existing location" picker on Site details, so
+ * a second lead for the same address doesn't need everything retyped.
+ */
+export async function findSiteCandidates(search: string, excludeLeadId?: string): Promise<Lead[]> {
+  const snap = await getDocs(query(collection(getDb(), LEADS), fsLimit(500)));
+  const needle = search.trim().toLowerCase();
+
+  return snap.docs
+    .map((d) => mapLead(d.id, d.data()))
+    .filter((l) => l.id !== excludeLeadId && !!l.site?.locationName?.trim())
+    .filter((l) => {
+      if (!needle) return true;
+      const hay = [l.code, l.site?.locationName, l.site?.address, l.client?.name, l.client?.city]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();

@@ -4,17 +4,19 @@ import { AlertTriangle, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { MapPin } from "lucide-react";
+
 import { ChargerConfigurator } from "@/components/charger-configurator";
 import { useAuth } from "@/components/auth-provider";
 import {
-  Button, Card, Checkbox, Field, Input, Select, Textarea, useToast,
+  Button, Card, Checkbox, Field, Input, Modal, Select, Textarea, useToast,
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
 import {
   BANKS, CHARGER_OEMS, CLIENT_ENTITY_TYPE_LABEL, CLIENT_ENTITY_TYPES,
   COMMERCIAL_MODEL_LABEL, COMMERCIAL_MODELS,
   COMMERCIAL_MODEL_TYPES, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES,
-  LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL,
+  LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL, type GstMode,
   LOCATION_PROVIDER_LABEL, LOCATION_PROVIDERS, LOCATION_TYPES,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNERSHIP_TYPES, OWNER_TYPES,
   OWNER_TYPE_LABEL, POWER_LOADS, POWER_LOAD_LABEL,
@@ -25,7 +27,7 @@ import {
   type Ownership, type OwnerType, type PowerLoad,
   type SiteCompensationType, type Source,
 } from "@/lib/constants";
-import { DEFAULT_FINANCING, findDuplicateLeads } from "@/lib/db/leads";
+import { DEFAULT_FINANCING, findDuplicateLeads, findSiteCandidates } from "@/lib/db/leads";
 import { subscribePartners } from "@/lib/db/partners";
 import { canApplyDiscount, canOverridePrice, canReassign } from "@/lib/permissions";
 import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
@@ -42,6 +44,7 @@ export interface LeadFormValues {
   config: ConfigItem[];
   extras: ExtraItem[];
   discount: number;
+  gstMode: GstMode;
   oem: string | null;
   financing: FinancingInfo;
   site: SiteInfo;
@@ -63,6 +66,7 @@ const emptyValues = (ownerId: string, ownerName: string): LeadFormValues => ({
   config: [],
   extras: [],
   discount: 0,
+  gstMode: "STANDARD",
   oem: null,
   financing: { ...DEFAULT_FINANCING },
   site: { locationName: "", mapsLink: "", locationTypes: [], ownership: null, commercialModelInterested: false, powerLoad: null, sanctionedLoadKva: null, spaceAvailableSqft: null, nearbyLandmark: "", remarks: "" },
@@ -90,6 +94,7 @@ export function leadToFormValues(lead: Lead): LeadFormValues {
     config: lead.config ?? [],
     extras: lead.extras ?? [],
     discount: lead.discount ?? 0,
+    gstMode: lead.gstMode ?? "STANDARD",
     oem: lead.oem ?? null,
     financing: lead.financing ?? { ...DEFAULT_FINANCING },
     site: {
@@ -150,6 +155,10 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
   const [duplicates, setDuplicates] = useState<Lead[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [fundingInputMode, setFundingInputMode] = useState<"AMOUNT" | "PERCENT">("AMOUNT");
+  const [siteMapOpen, setSiteMapOpen] = useState(false);
+  const [siteSearch, setSiteSearch] = useState("");
+  const [siteCandidates, setSiteCandidates] = useState<Lead[]>([]);
+  const [siteSearching, setSiteSearching] = useState(false);
 
   const viewer = useMemo(
     () => ({ uid: profile?.uid ?? "", role: role ?? "AGENT" as const }),
@@ -200,6 +209,24 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
 
   const [partners, setPartners] = useState<{ id: string; code: string; name: string }[]>([]);
   useEffect(() => subscribePartners((rows) => setPartners(rows.filter((p) => p.status === "ACTIVE"))), []);
+
+  // Existing-location search for the "map an existing location" picker below.
+  useEffect(() => {
+    if (!siteMapOpen) return;
+    let cancelled = false;
+    setSiteSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const rows = await findSiteCandidates(siteSearch, currentLeadId);
+        if (!cancelled) setSiteCandidates(rows);
+      } catch {
+        /* advisory only */
+      } finally {
+        if (!cancelled) setSiteSearching(false);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [siteMapOpen, siteSearch, currentLeadId]);
 
   const ownerOptions = users.map((u) => ({ value: u.uid, label: `${u.name} (${u.role.replace("_", " ").toLowerCase()})` }));
 
@@ -445,6 +472,13 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
           title="Site details"
           subtitle="Everything needed to judge whether a charger can go here."
         >
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2">
+            <p className="text-xs text-ink-600">Already have this location in the CRM? Map it instead of retyping everything.</p>
+            <Button type="button" onClick={() => { setSiteSearch(""); setSiteMapOpen(true); }}>
+              <MapPin className="h-4 w-4" /> Map existing location
+            </Button>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Location name" required error={errors["site.locationName"]}>
               <Input value={values.site.locationName ?? ""} onChange={(e) => setSite({ locationName: e.target.value })} placeholder="Kkal Layadi" />
@@ -769,6 +803,8 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
           allowPriceOverride={canOverridePrice(viewer)}
           defaultOem={values.oem}
           showChargers={showChargers}
+          gstMode={values.gstMode}
+          onGstModeChange={(m) => set("gstMode", m)}
         />
       </Card>
 
@@ -776,6 +812,53 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
         {onCancel && <Button type="button" onClick={onCancel}>Cancel</Button>}
         <Button type="submit" variant="primary" loading={busy}>{submitLabel}</Button>
       </div>
+
+      <Modal
+        open={siteMapOpen}
+        onClose={() => setSiteMapOpen(false)}
+        title="Map an existing location"
+        description="Pick a site already in the CRM — its address, GPS link, ownership and other site details fill in below."
+        wide
+        footer={<Button type="button" onClick={() => setSiteMapOpen(false)}>Close</Button>}
+      >
+        <Input
+          value={siteSearch}
+          onChange={(e) => setSiteSearch(e.target.value)}
+          placeholder="Search by location name, address, client name or city"
+          className="mb-3"
+        />
+        {siteSearching ? (
+          <p className="py-6 text-center text-sm text-ink-500">Searching…</p>
+        ) : siteCandidates.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-500">No matching locations found.</p>
+        ) : (
+          <ul className="divide-y divide-ink-100">
+            {siteCandidates.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink-900">{c.site?.locationName}</p>
+                  <p className="truncate text-xs text-ink-500">
+                    {c.code} · {c.client?.name}
+                    {c.client?.city ? ` · ${c.client.city}` : ""}
+                    {c.site?.address ? ` · ${c.site.address}` : ""}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  onClick={() => {
+                    if (c.site) setSite(c.site);
+                    setSiteMapOpen(false);
+                  }}
+                >
+                  Use this
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
     </form>
   );
 }
