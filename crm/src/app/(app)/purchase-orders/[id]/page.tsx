@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Boxes, Plus } from "lucide-react";
+import { Boxes, Plus, Printer } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select,
   Spinner, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
+import { useSettings } from "@/hooks/use-settings";
 import {
   PAYMENT_MODES, PO_STATUS_COLOR, PO_STATUS_LABEL, PO_STATUSES, type PaymentMode,
 } from "@/lib/constants";
@@ -18,8 +19,9 @@ import {
   addVendorPayment, subscribePurchaseOrder, subscribeVendorPayments,
   updatePurchaseOrderStatus,
 } from "@/lib/db/purchase-orders";
+import { subscribeVendor } from "@/lib/db/vendors";
 import { canManageAssets, canManageVendors } from "@/lib/permissions";
-import type { PoItem, PurchaseOrder, VendorPayment } from "@/lib/types";
+import type { PoItem, PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
 interface PaymentDraft {
@@ -38,16 +40,23 @@ export default function PurchaseOrderDetailPage() {
   const params = useParams<{ id: string }>();
   const { actor } = useAuth();
   const viewer = useViewer();
+  const { settings } = useSettings();
   const [po, setPo] = useState<PurchaseOrder | null | undefined>(undefined);
+  const [vendor, setVendor] = useState<Vendor | null>(null);
   const [payments, setPayments] = useState<VendorPayment[]>([]);
   const [draft, setDraft] = useState<PaymentDraft | null>(null);
   const [registeredItemIds, setRegisteredItemIds] = useState<Set<string>>(new Set());
+  const [printMode, setPrintMode] = useState(false);
   const { busy, run } = useAsyncAction();
   const { push } = useToast();
   const canEdit = canManageVendors(viewer);
 
   useEffect(() => subscribePurchaseOrder(params.id, setPo), [params.id]);
   useEffect(() => subscribeVendorPayments(params.id, setPayments), [params.id]);
+  useEffect(() => {
+    if (!po?.vendorId) return;
+    return subscribeVendor(po.vendorId, setVendor);
+  }, [po?.vendorId]);
 
   async function registerAsset(item: PoItem) {
     if (!actor || !po) return;
@@ -72,6 +81,12 @@ export default function PurchaseOrderDetailPage() {
   if (po === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (!po) {
     return <EmptyState title="Purchase order not found" action={<Link href="/purchase-orders"><Button>Back to purchase orders</Button></Link>} />;
+  }
+
+  if (printMode) {
+    return (
+      <PurchaseOrderDocument po={po} vendor={vendor} company={settings.company} onClose={() => setPrintMode(false)} />
+    );
   }
 
   async function save() {
@@ -105,6 +120,7 @@ export default function PurchaseOrderDetailPage() {
             ) : (
               <Badge className={PO_STATUS_COLOR[po.status]}>{PO_STATUS_LABEL[po.status]}</Badge>
             )}
+            <Button onClick={() => setPrintMode(true)}><Printer className="h-4 w-4" /> Print / PDF</Button>
             {canEdit && (
               <Button variant="primary" onClick={() => setDraft(blankPayment())}>
                 <Plus className="h-4 w-4" /> Record payment
@@ -253,5 +269,112 @@ export default function PurchaseOrderDetailPage() {
         )}
       </Modal>
     </>
+  );
+}
+
+function PurchaseOrderDocument({
+  po, vendor, company, onClose,
+}: {
+  po: PurchaseOrder;
+  vendor: Vendor | null;
+  company: { legalName: string; shortName: string; registeredAddress: string; officeAddress: string; gstin: string; cin: string; email: string; website: string; logoUrl: string };
+  onClose: () => void;
+}) {
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between print:hidden">
+        <Button onClick={onClose}>&larr; Back</Button>
+        <Button variant="primary" onClick={() => window.print()}>
+          <Printer className="h-4 w-4" /> Print / Save as PDF
+        </Button>
+      </div>
+
+      <article className="loi-sheet mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
+        <div className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
+          {company.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={company.logoUrl}
+              alt={company.shortName}
+              width={197}
+              height={40}
+              className="h-10 w-auto shrink-0"
+            />
+          ) : (
+            <p className="text-lg font-bold tracking-tight text-ink-900">{company.legalName}</p>
+          )}
+          <div className="text-right">
+            <p className="text-xs text-ink-500">Purchase Order &middot; {po.poNumber}</p>
+            <p className="mt-1 text-[11px] text-ink-400">{formatDate(po.createdAt)}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-ink-500">Vendor</p>
+            <p className="font-medium text-ink-900">{po.vendorName}</p>
+            {vendor?.contactName && <p className="text-ink-600">{vendor.contactName}</p>}
+            {vendor?.phone && <p className="text-ink-600">{vendor.phone}</p>}
+            {vendor?.address && <p className="text-ink-600">{vendor.address}</p>}
+            {vendor?.gstin && <p className="text-ink-600">GSTIN: {vendor.gstin}</p>}
+          </div>
+          <div className="text-right">
+            {po.linkedProjectCode && (<><p className="text-xs text-ink-500">Project / station</p><p className="text-ink-900">{po.linkedProjectCode}</p></>)}
+            {po.expectedDeliveryAt && (<><p className="mt-2 text-xs text-ink-500">Expected delivery</p><p className="text-ink-900">{formatDate(po.expectedDeliveryAt)}</p></>)}
+          </div>
+        </div>
+
+        <div className="mt-6 overflow-x-auto scroll-thin">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
+                <th className="pb-2">Description</th>
+                <th className="pb-2 text-right">Qty</th>
+                <th className="pb-2 text-right">Unit price</th>
+                <th className="pb-2 text-right">GST</th>
+                <th className="pb-2 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {po.items.map((it) => {
+                const base = it.qty * it.unitPrice;
+                const gst = Math.round(base * (it.gstPct / 100));
+                return (
+                  <tr key={it.id} className="border-b border-ink-100">
+                    <td className="py-2">{it.description}</td>
+                    <td className="py-2 text-right tabular-nums">{it.qty}</td>
+                    <td className="py-2 text-right tabular-nums">{formatINR(it.unitPrice)}</td>
+                    <td className="py-2 text-right tabular-nums text-ink-600">{it.gstPct}%</td>
+                    <td className="py-2 text-right tabular-nums">{formatINR(base + gst)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <dl className="w-56 space-y-1.5 text-sm">
+            <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(po.subtotal)}</dd></div>
+            <div className="flex justify-between"><dt className="text-ink-600">GST</dt><dd className="tabular-nums">{formatINR(po.gst)}</dd></div>
+            <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(po.total)}</dd></div>
+          </dl>
+        </div>
+
+        {po.notes && (
+          <div className="mt-6 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{po.notes}</div>
+        )}
+
+        <footer className="mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
+          <p>{company.legalName}</p>
+          <p>
+            {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`]
+              .filter(Boolean).join(" | ")}
+          </p>
+          <p>Registered address: {company.registeredAddress}</p>
+          <p>Office address: {company.officeAddress}</p>
+        </footer>
+      </article>
+    </div>
   );
 }
