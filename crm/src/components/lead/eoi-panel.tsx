@@ -552,6 +552,108 @@ function LoiLetterArticle({
         </button>
       )}
 
+      {/* Site & funding details — pulled from the lead at generation time, editable like everything else */}
+      {(!readOnly || eoi.siteLocationProvider || eoi.siteLandType || eoi.siteCompensation || eoi.siteMapsLink || eoi.amountFinanced) && (
+        <>
+          <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Site & Funding Details</h2>
+          <table className="mt-2 w-full border-collapse text-sm">
+            <tbody>
+              <tr className="border-y border-ink-200 break-inside-avoid">
+                <td className="w-1/2 bg-ink-50 px-2 py-1.5 font-medium">Location</td>
+                <td className="px-2 py-1.5">
+                  <EditableInline
+                    readOnly={readOnly}
+                    value={eoi.siteName}
+                    onChange={(v) => onPatch({ siteName: v })}
+                    className="w-full"
+                    aria-label="Site location"
+                  />
+                </td>
+              </tr>
+              {(eoi.siteLocationProvider || !readOnly) && (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Location Provider</td>
+                  <td className="px-2 py-1.5">
+                    <EditableInline
+                      readOnly={readOnly}
+                      value={eoi.siteLocationProvider ?? ""}
+                      onChange={(v) => onPatch({ siteLocationProvider: v })}
+                      className="w-full"
+                      aria-label="Location provider"
+                    />
+                  </td>
+                </tr>
+              )}
+              {(eoi.siteLandType || !readOnly) && (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Land Type</td>
+                  <td className="px-2 py-1.5">
+                    <EditableInline
+                      readOnly={readOnly}
+                      value={eoi.siteLandType ?? ""}
+                      onChange={(v) => onPatch({ siteLandType: v })}
+                      className="w-full"
+                      aria-label="Land type"
+                    />
+                  </td>
+                </tr>
+              )}
+              {(eoi.siteCompensation || !readOnly) && (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Site Compensation</td>
+                  <td className="px-2 py-1.5">
+                    <EditableInline
+                      readOnly={readOnly}
+                      value={eoi.siteCompensation ?? ""}
+                      onChange={(v) => onPatch({ siteCompensation: v })}
+                      className="w-full"
+                      aria-label="Site compensation"
+                    />
+                  </td>
+                </tr>
+              )}
+              {(eoi.siteMapsLink || !readOnly) && (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Google Maps Link</td>
+                  <td className="px-2 py-1.5">
+                    {readOnly ? (
+                      eoi.siteMapsLink ? (
+                        <a href={eoi.siteMapsLink} target="_blank" rel="noreferrer" className="text-brand-700 underline break-all">
+                          {eoi.siteMapsLink}
+                        </a>
+                      ) : null
+                    ) : (
+                      <EditableInline
+                        readOnly={false}
+                        value={eoi.siteMapsLink ?? ""}
+                        onChange={(v) => onPatch({ siteMapsLink: v })}
+                        className="w-full break-all"
+                        aria-label="Google Maps link"
+                      />
+                    )}
+                  </td>
+                </tr>
+              )}
+              {(eoi.amountFinanced ? eoi.amountFinanced > 0 : false) || !readOnly ? (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Amount to be Financed</td>
+                  <td className="px-2 py-1.5">
+                    Rs.{" "}
+                    <EditableNumber
+                      readOnly={readOnly}
+                      value={eoi.amountFinanced ?? 0}
+                      onChange={(v) => onPatch({ amountFinanced: v })}
+                      className="w-28"
+                      aria-label="Amount to be financed"
+                    />
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </>
+      )}
+
       {/* Scope */}
       <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Scope of {company.shortName}&apos;s Obligations</h2>
       <ul className="mt-2 space-y-1">

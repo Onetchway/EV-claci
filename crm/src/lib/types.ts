@@ -135,6 +135,13 @@ export interface EoiDoc {
   investorName: string;
   investorAddress: string;
   siteName: string;
+  /** Site facts pulled from the lead's Site details tab at generation time, so the letter reflects exactly what was configured — not re-typed by hand. */
+  siteLocationProvider?: string;
+  siteMapsLink?: string;
+  siteCompensation?: string;
+  siteLandType?: string;
+  /** Amount to be bank-financed, from the lead's Funding tab. 0 if self-funded or not yet financed. */
+  amountFinanced?: number;
   capacityLabel: string;
   extraEquipment?: string;
   subject: string;
