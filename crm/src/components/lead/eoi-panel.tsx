@@ -46,7 +46,6 @@ export function EoiPanel({
   const [draft, setDraft] = useState<EoiDoc | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [regenerateOpen, setRegenerateOpen] = useState(false);
-  const [gstSeparate, setGstSeparate] = useState(true);
   const [extraEquipment, setExtraEquipment] = useState("");
   const [versions, setVersions] = useState<EoiVersion[]>([]);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -70,7 +69,6 @@ export function EoiPanel({
     const number = await nextEoiNumber();
     const built = buildEoiFromLead(lead, {
       number,
-      gstShownSeparately: gstSeparate,
       extraEquipment: extraEquipment.trim() || undefined,
       settings,
     });
@@ -84,7 +82,6 @@ export function EoiPanel({
     const number = await nextEoiNumber();
     const built = buildEoiFromLead(lead, {
       number,
-      gstShownSeparately: gstSeparate,
       extraEquipment: extraEquipment.trim() || undefined,
       settings,
     });
@@ -151,8 +148,6 @@ export function EoiPanel({
           title="Draft Letter of Intent"
           description="Built from the charger configuration and payment schedule on this lead."
           confirmLabel="Generate draft"
-          gstSeparate={gstSeparate}
-          setGstSeparate={setGstSeparate}
           extraEquipment={extraEquipment}
           setExtraEquipment={setExtraEquipment}
           hasConfig={(lead.config ?? []).length > 0}
@@ -269,8 +264,6 @@ export function EoiPanel({
         title="Regenerate Letter of Intent"
         description={`This archives the current letter (${eoi.number}) and builds a fresh one from this lead's current client, site and quotation details. The archived copy stays available under "Previous versions."`}
         confirmLabel="Regenerate"
-        gstSeparate={gstSeparate}
-        setGstSeparate={setGstSeparate}
         extraEquipment={extraEquipment}
         setExtraEquipment={setExtraEquipment}
         hasConfig={(lead.config ?? []).length > 0}
@@ -312,7 +305,7 @@ function VersionList({ versions, onView }: { versions: EoiVersion[]; onView: (v:
 }
 
 function CreateOrRegenerateModal({
-  open, onClose, title, description, confirmLabel, gstSeparate, setGstSeparate,
+  open, onClose, title, description, confirmLabel,
   extraEquipment, setExtraEquipment, hasConfig, busy, onConfirm,
 }: {
   open: boolean;
@@ -320,8 +313,6 @@ function CreateOrRegenerateModal({
   title: string;
   description: string;
   confirmLabel: string;
-  gstSeparate: boolean;
-  setGstSeparate: (v: boolean) => void;
   extraEquipment: string;
   setExtraEquipment: (v: string) => void;
   hasConfig: boolean;
@@ -342,16 +333,6 @@ function CreateOrRegenerateModal({
       }
     >
       <div className="space-y-4">
-        <Field label="How should GST appear?">
-          <Select
-            value={gstSeparate ? "SEPARATE" : "INCLUSIVE"}
-            onChange={(e) => setGstSeparate(e.target.value === "SEPARATE")}
-            options={[
-              { value: "SEPARATE", label: "As its own row in the summary" },
-              { value: "INCLUSIVE", label: "Folded into each tranche amount" },
-            ]}
-          />
-        </Field>
         <Field
           label="Complimentary or bundled equipment"
           hint="Appears in the subject line and scope, e.g. “one complimentary 7.4 kW AC Charger”."

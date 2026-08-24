@@ -3,10 +3,16 @@
  *
  * The result is a *starting point*, not the final letter — every field is
  * editable before issue. That is deliberate: the letters Livanto actually
- * sends vary in tranche count, in whether GST is broken out as its own row or
- * folded into the amounts, and in what equipment is bundled. Hard-coding one
- * shape would mean re-typing the letter outside the CRM, which is exactly the
- * problem this is meant to solve.
+ * sends vary in tranche count and in what equipment is bundled. Hard-coding
+ * one shape would mean re-typing the letter outside the CRM, which is
+ * exactly the problem this is meant to solve.
+ *
+ * The payment schedule mirrors the quotation's own line items rather than a
+ * separate proportional split: an Advance token, then an installment for
+ * Electrical & Civil Work (the quote's 18%-rate lines), then an installment
+ * for the Charger Equipment (the 5%-rate lines) — the same two-line GST
+ * split shown everywhere else in the CRM, so the letter and the quotation
+ * never disagree about what's taxed at what rate.
  */
 
 import {
@@ -17,7 +23,8 @@ import {
   amountInWords, DEFAULT_CLOSING, defaultIntro, defaultSubject, LOI_CLAUSES,
   renderTemplate,
 } from "./loi-template";
-import { buildQuote, describeCapacity } from "./pricing";
+import { getSpec } from "./catalog";
+import { buildQuote, describeCapacity, type QuoteLine } from "./pricing";
 import type { AppSettings, EoiDoc, EoiScheduleRow, Lead } from "./types";
 import { formatINR } from "./utils";
 
@@ -53,8 +60,6 @@ export function scheduleSentence(rows: EoiScheduleRow[]): string {
 
 export interface BuildEoiOptions {
   number: string;
-  /** Show GST as its own row instead of folding it into each tranche. */
-  gstShownSeparately?: boolean;
   tenureYears?: number;
   payoutMonths?: number;
   extraEquipment?: string;
@@ -69,7 +74,6 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
   });
 
   const capacityLabel = describeCapacity(lead.config) || "DC";
-  const gstSeparate = opts.gstShownSeparately ?? true;
   // The site's own negotiated tenure (if set) beats the company-wide default —
   // it's the number that was actually agreed for this deal.
   const tenureYears = opts.tenureYears ?? lead.site?.tenureYears ?? opts.settings?.loi.tenureYears ?? DEFAULT_TENURE_YEARS;
@@ -103,22 +107,38 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
   const subsidyAmount = lead.financing?.subsidyEnabled ? lead.financing.subsidyAmount ?? 0 : 0;
   const subsidyPct = lead.financing?.subsidyEnabled ? lead.financing.subsidyPct ?? 0 : 0;
 
-  // The schedule mirrors the quotation's milestones. When GST is broken out,
-  // the tranches carry pre-GST figures and tax gets its own row — which is how
-  // the 90 kW letters read.
-  const schedule: EoiScheduleRow[] = quote.milestones
-    .filter((m) => m.base > 0 || m.key === "EOI")
-    .map((m, i) => ({
-      id: `s${i}`,
-      description: m.label,
-      amount: gstSeparate ? m.base : m.total,
-    }));
+  // Three stages, each GST-inclusive and matching what's actually taxed at
+  // that rate — Advance (a fixed booking token), then Electrical & Civil
+  // Work (the quote's 18%-rate lines), then Charger Equipment (the 5%-rate
+  // lines). Scaled by the same keepRatio buildQuote() itself uses, so a
+  // discount reduces every stage proportionally and the three always add
+  // back up to the grand total.
+  const keepRatio = quote.subtotal > 0 ? quote.taxableValue / quote.subtotal : 0;
+  const scaledTotal = (l: QuoteLine) => Math.round(l.total * keepRatio);
+  const isCivilLine = (l: QuoteLine) => (l.kind === "EXTRA" ? l.gstPct === 18 : l.key.endsWith("-civil"));
 
-  if (gstSeparate && quote.gst > 0) {
+  const civilTotal = quote.lines.filter(isCivilLine).reduce((a, l) => a + scaledTotal(l), 0);
+  const equipmentTotal = quote.lines.filter((l) => !isCivilLine(l)).reduce((a, l) => a + scaledTotal(l), 0);
+
+  const advanceRaw = (lead.config ?? []).reduce((a, it) => a + (getSpec(it.sku)?.stage1EOI ?? 0) * it.qty, 0);
+  const advance = Math.min(advanceRaw, civilTotal);
+
+  const schedule: EoiScheduleRow[] = [];
+  if (advance > 0) {
+    schedule.push({ id: "s0", description: "Advance (EOI) — payable on execution of this LOI", amount: advance });
+  }
+  if (civilTotal - advance > 0) {
     schedule.push({
-      id: "sgst",
-      description: `GST @ ${quote.effectiveGstPct.toFixed(0)}% on the above`,
-      amount: quote.gst,
+      id: "s1",
+      description: "1st Installment — towards Electrical & Civil Work (inclusive of 18% GST)",
+      amount: civilTotal - advance,
+    });
+  }
+  if (equipmentTotal > 0) {
+    schedule.push({
+      id: "s2",
+      description: "2nd Installment — towards Charger Equipment (inclusive of 5% GST)",
+      amount: equipmentTotal,
     });
   }
 
@@ -162,7 +182,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     intro: defaultIntro(capacityLabel, opts.extraEquipment),
     schedule,
     totalAmount: quote.grandTotal,
-    gstShownSeparately: gstSeparate,
+    gstShownSeparately: false,
     scopeItems: [...scopeItems],
     tenureYears,
     payoutMonths,
