@@ -151,4 +151,39 @@ body {
   .loi-sheet h2 {
     page-break-after: avoid;
   }
+
+  /*
+   * Repeating letterhead + footer on every printed page of the EOI.
+   * `position: fixed` inside @page-margined print output repeats the fixed
+   * element at the same spot on each page in every major browser's print
+   * engine — the standard cross-browser trick for a running header/footer,
+   * since CSS's own @page margin-box content has poor/no support. The body
+   * gets matching padding so page 1's content doesn't start underneath the
+   * fixed header, and enough bottom padding that the last line of content
+   * never lands under the fixed footer.
+   */
+  .loi-letter {
+    position: relative;
+  }
+
+  .loi-letter .loi-print-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+  }
+
+  .loi-letter .loi-print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+  }
+
+  .loi-letter .loi-print-body {
+    padding-top: 26mm;
+    padding-bottom: 20mm;
+  }
 }

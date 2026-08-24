@@ -373,8 +373,8 @@ function LoiLetterArticle({
   }
 
   return (
-    <article className="loi-sheet rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
-      <div className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
+    <article className="loi-sheet loi-letter rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
+      <div className="loi-print-header mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
         {company.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -399,6 +399,7 @@ function LoiLetterArticle({
         </div>
       </div>
 
+      <div className="loi-print-body">
       <EditableLine
         readOnly={readOnly}
         label="Date"
@@ -877,8 +878,9 @@ function LoiLetterArticle({
           <div className="mt-10 border-t border-ink-400 pt-1 text-xs">&nbsp;</div>
         </div>
       </div>
+      </div>
 
-      <footer className="mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
+      <footer className="loi-print-footer mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
         <p>{company.legalName}</p>
         <p>
           {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`]
