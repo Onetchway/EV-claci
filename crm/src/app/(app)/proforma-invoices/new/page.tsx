@@ -8,8 +8,6 @@ import { ChargerConfigurator } from "@/components/charger-configurator";
 import {
   Button, Card, Field, Input, PageHeader, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
-import { useSettings } from "@/hooks/use-settings";
-import type { GstMode } from "@/lib/constants";
 import { getLead } from "@/lib/db/leads";
 import { createProformaInvoice } from "@/lib/db/proforma-invoices";
 import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
@@ -26,14 +24,12 @@ function NewProformaInvoiceInner() {
   const searchParams = useSearchParams();
   const leadId = searchParams.get("leadId");
   const { busy, run } = useAsyncAction();
-  const { settings } = useSettings();
 
   const [client, setClient] = useState<ClientInfo>(blankClient);
   const [leadCode, setLeadCode] = useState<string | null>(null);
   const [items, setItems] = useState<ConfigItem[]>([]);
   const [extras, setExtras] = useState<ExtraItem[]>([]);
   const [discount, setDiscount] = useState(0);
-  const [gstMode, setGstMode] = useState<GstMode>(settings.finance.defaultGstMode);
   const [validUntil, setValidUntil] = useState("");
   const [notes, setNotes] = useState("");
   const [loadingLead, setLoadingLead] = useState(!!leadId);
@@ -46,7 +42,6 @@ function NewProformaInvoiceInner() {
       setClient(lead.client);
       setLeadCode(lead.code);
       setItems(lead.config);
-      if (lead.gstMode) setGstMode(lead.gstMode);
     }).finally(() => { if (!cancelled) setLoadingLead(false); });
     return () => { cancelled = true; };
   }, [leadId]);
@@ -67,7 +62,6 @@ function NewProformaInvoiceInner() {
         items,
         extras,
         discount,
-        gstMode,
         validUntil: validUntil ? new Date(validUntil) : null,
         notes,
       }, actor);
@@ -124,8 +118,6 @@ function NewProformaInvoiceInner() {
               onDiscountChange={setDiscount}
               allowDiscount={canApplyDiscount(viewer)}
               allowPriceOverride={canOverridePrice(viewer)}
-              gstMode={gstMode}
-              onGstModeChange={setGstMode}
             />
           </Card>
 

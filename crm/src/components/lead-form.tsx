@@ -16,7 +16,7 @@ import {
   BANKS, CHARGER_OEMS, CLIENT_ENTITY_TYPE_LABEL, CLIENT_ENTITY_TYPES,
   COMMERCIAL_MODEL_LABEL, COMMERCIAL_MODELS,
   COMMERCIAL_MODEL_TYPES, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES,
-  LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL, type GstMode,
+  LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL,
   LOCATION_PROVIDER_LABEL, LOCATION_PROVIDERS, LOCATION_TYPES,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNERSHIP_TYPES, OWNER_TYPES,
   OWNER_TYPE_LABEL, POWER_LOADS, POWER_LOAD_LABEL,
@@ -44,7 +44,6 @@ export interface LeadFormValues {
   config: ConfigItem[];
   extras: ExtraItem[];
   discount: number;
-  gstMode: GstMode;
   oem: string | null;
   financing: FinancingInfo;
   site: SiteInfo;
@@ -66,7 +65,6 @@ const emptyValues = (ownerId: string, ownerName: string): LeadFormValues => ({
   config: [],
   extras: [],
   discount: 0,
-  gstMode: "BLENDED",
   oem: null,
   financing: { ...DEFAULT_FINANCING },
   site: { locationName: "", mapsLink: "", locationTypes: [], ownership: null, commercialModelInterested: false, powerLoad: null, sanctionedLoadKva: null, spaceAvailableSqft: null, nearbyLandmark: "", remarks: "" },
@@ -94,7 +92,6 @@ export function leadToFormValues(lead: Lead): LeadFormValues {
     config: lead.config ?? [],
     extras: lead.extras ?? [],
     discount: lead.discount ?? 0,
-    gstMode: lead.gstMode ?? "BLENDED",
     oem: lead.oem ?? null,
     financing: lead.financing ?? { ...DEFAULT_FINANCING },
     site: {
@@ -803,8 +800,6 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
           allowPriceOverride={canOverridePrice(viewer)}
           defaultOem={values.oem}
           showChargers={showChargers}
-          gstMode={values.gstMode}
-          onGstModeChange={(m) => set("gstMode", m)}
         />
       </Card>
 

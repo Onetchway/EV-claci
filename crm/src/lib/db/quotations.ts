@@ -14,7 +14,7 @@ import {
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
-import type { GstMode, QuotationStatus } from "../constants";
+import type { QuotationStatus } from "../constants";
 import { getDb } from "../firebase/client";
 import { buildQuote, type ConfigItem, type ExtraItem } from "../pricing";
 import type { Actor, ClientInfo, Quotation } from "../types";
@@ -43,7 +43,6 @@ export interface QuotationDraft {
   items: ConfigItem[];
   extras: ExtraItem[];
   discount: number;
-  gstMode?: GstMode;
   validUntil?: Date | null;
   notes?: string;
 }
@@ -75,7 +74,6 @@ export async function createQuotation(draft: QuotationDraft, actor: Actor): Prom
       items: draft.items,
       extras: draft.extras,
       discount: draft.discount,
-      gstMode: draft.gstMode ?? "BLENDED",
       totals: computeTotals(draft),
       validUntil: draft.validUntil ? Timestamp.fromDate(draft.validUntil) : null,
       notes: draft.notes ?? "",
@@ -102,7 +100,6 @@ export async function updateQuotation(id: string, draft: QuotationDraft, actor: 
     items: draft.items,
     extras: draft.extras,
     discount: draft.discount,
-    gstMode: draft.gstMode ?? "BLENDED",
     totals: computeTotals(draft),
     validUntil: draft.validUntil ? Timestamp.fromDate(draft.validUntil) : null,
     notes: draft.notes ?? "",

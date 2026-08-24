@@ -48,9 +48,6 @@ export function defaultSettings(): AppSettings {
     },
     finance: {
       defaultGstPct: 5,
-      // Blended (itemized 5% charger / 18% rest) by default — the legally correct split;
-      // Standard's single flat rate is an opt-in for a specific negotiated deal.
-      defaultGstMode: "BLENDED",
       loanToValue: 0.7,
       defaultInterestRate: 9,
       defaultTenureYears: 5,

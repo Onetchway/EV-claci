@@ -13,7 +13,7 @@ import {
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
-import type { GstMode, ProformaInvoiceStatus } from "../constants";
+import type { ProformaInvoiceStatus } from "../constants";
 import { getDb } from "../firebase/client";
 import { buildQuote, type ConfigItem, type ExtraItem } from "../pricing";
 import type { Actor, ClientInfo, ProformaInvoice } from "../types";
@@ -44,7 +44,6 @@ export interface ProformaInvoiceDraft {
   items: ConfigItem[];
   extras: ExtraItem[];
   discount: number;
-  gstMode?: GstMode;
   validUntil?: Date | null;
   notes?: string;
 }
@@ -78,7 +77,6 @@ export async function createProformaInvoice(draft: ProformaInvoiceDraft, actor: 
       items: draft.items,
       extras: draft.extras,
       discount: draft.discount,
-      gstMode: draft.gstMode ?? "BLENDED",
       totals: computeTotals(draft),
       validUntil: draft.validUntil ? Timestamp.fromDate(draft.validUntil) : null,
       notes: draft.notes ?? "",
@@ -107,7 +105,6 @@ export async function updateProformaInvoice(id: string, draft: ProformaInvoiceDr
     items: draft.items,
     extras: draft.extras,
     discount: draft.discount,
-    gstMode: draft.gstMode ?? "BLENDED",
     totals: computeTotals(draft),
     validUntil: draft.validUntil ? Timestamp.fromDate(draft.validUntil) : null,
     notes: draft.notes ?? "",

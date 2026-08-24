@@ -6,20 +6,21 @@
  * DISCOM deposit…). Everything downstream is derived from that basket so the
  * numbers can never drift out of sync with what the agent actually configured.
  *
+ * A DC charger's catalogue price is itself a bundled BOM figure — hardware
+ * (HSN 8504 EVSE, 5% GST) plus its electrical connection, panel, wiring and
+ * civil work (18% GST) — so one ConfigItem always renders as up to two
+ * QuoteLines: an "Equipment" line and an "Electrical & Civil Work" line, each
+ * independently priced and taxed. A custom charger with no equipmentPrice on
+ * record has nothing to split, so it stays a single line at 5%.
+ *
  * Three things are deliberately per-line rather than global, because the real
  * letters Livanto issues vary deal by deal:
  *
- *   • unit price   — negotiated prices differ from the catalogue
- *   • GST rate     — a DC charger's catalogue price bundles the hardware
- *                    (HSN 8504 EVSE, 5%) with its electrical/civil BOM
- *                    build-out (18%), so its default GST is the two split
- *                    and summed, not one flat rate on the whole line. An
- *                    explicit per-line gstPct overrides that split with one
- *                    flat rate instead — used for a negotiated single rate,
- *                    or Standard mode's one flat rate for the whole basket.
- *                    Non-charger extras (civil work, LT panel, DISCOM
- *                    deposit…) are simpler — 18% by default, 0% for a
- *                    deposit, still one explicit rate per line.
+ *   • unit price   — negotiated prices differ from the catalogue, for either
+ *                    the equipment slice or the electrical/civil slice
+ *   • GST rate     — set independently per slice; non-charger extras (civil
+ *                    work, LT panel, DISCOM deposit…) are simpler — 18% by
+ *                    default, 0% for a deposit, one explicit rate per line
  *   • OEM          — which manufacturer's charger is being supplied
  */
 
@@ -28,10 +29,14 @@ import { CATALOG, FINANCING, GST_RATE, REST_GST_RATE, getSpec, type ChargerSpec 
 export interface ConfigItem {
   sku: string;
   qty: number;
-  /** Negotiated per-unit price, excluding GST. Falls back to the catalogue. */
+  /** Negotiated per-unit equipment/hardware price, excluding GST. Falls back to the catalogue's equipment slice. */
   unitPrice?: number | null;
-  /** Explicit GST override for this line — one flat rate on the whole line. Unset, it falls back to the BOM split (5% equipment / 18% electrical & civil). */
+  /** GST for the equipment line. Falls back to 5%. */
   gstPct?: number | null;
+  /** Negotiated per-unit electrical & civil work price, excluding GST. Falls back to the catalogue's (basePrice − equipmentPrice) slice. */
+  civilPrice?: number | null;
+  /** GST for the electrical & civil work line. Falls back to 18%. */
+  civilGstPct?: number | null;
   /** Charger manufacturer for this line. */
   oem?: string | null;
 }
@@ -123,7 +128,9 @@ export function normaliseConfig(items: ConfigItem[] | undefined | null): ConfigI
     if (qty === 0) continue;
 
     // Lines with different negotiated terms stay separate; identical ones merge.
-    const key = [it.sku, it.unitPrice ?? "", it.gstPct ?? "", it.oem ?? ""].join("|");
+    const key = [
+      it.sku, it.unitPrice ?? "", it.gstPct ?? "", it.civilPrice ?? "", it.civilGstPct ?? "", it.oem ?? "",
+    ].join("|");
     const existing = merged.get(key);
     if (existing) existing.qty += qty;
     else {
@@ -132,6 +139,8 @@ export function normaliseConfig(items: ConfigItem[] | undefined | null): ConfigI
         qty,
         unitPrice: it.unitPrice ?? null,
         gstPct: it.gstPct ?? null,
+        civilPrice: it.civilPrice ?? null,
+        civilGstPct: it.civilGstPct ?? null,
         oem: it.oem ?? null,
       });
     }
@@ -183,44 +192,56 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
   const extras = normaliseExtras(opts.extras);
   const defaultGstPct = clampGst((opts.gstRate ?? GST_RATE) * 100);
 
-  const chargerLines: QuoteLine[] = config.map((it, i) => {
+  const chargerLines: QuoteLine[] = config.flatMap((it, i) => {
     const s = getSpec(it.sku) as ChargerSpec;
-    const unitBase = it.unitPrice != null && it.unitPrice >= 0 ? Math.round(it.unitPrice) : s.basePrice;
-    const base = unitBase * it.qty;
+    const equipDefault = s.equipmentPrice ?? s.basePrice;
+    const civilDefault = Math.max(0, s.basePrice - equipDefault);
 
-    let gstPct: number;
-    let gst: number;
-    if (it.gstPct != null) {
-      // Explicit override — one flat rate for the whole line (a negotiated single rate, or Standard mode).
-      gstPct = clampGst(it.gstPct);
-      gst = rupee(base * (gstPct / 100));
-    } else {
-      // Default: the catalogue price bundles hardware (5%) with its electrical/civil BOM build-out
-      // (18%) — split it in the same proportion the BOM defines, not one flat rate on the whole line.
-      // A charger without a defined equipmentPrice (a custom, non-BOM entry) falls back to 5% on the whole line.
-      const equipRatio = s.equipmentPrice != null && s.basePrice > 0 ? s.equipmentPrice / s.basePrice : 1;
-      const equipBase = base * equipRatio;
-      const restBase = base - equipBase;
-      gst = rupee(equipBase * GST_RATE + restBase * REST_GST_RATE);
-      gstPct = base > 0 ? round2((gst / base) * 100) : clampGst(defaultGstPct);
-    }
-
-    return {
+    const equipUnit = it.unitPrice != null && it.unitPrice >= 0 ? Math.round(it.unitPrice) : equipDefault;
+    const equipBase = equipUnit * it.qty;
+    const equipGstPct = it.gstPct != null ? clampGst(it.gstPct) : clampGst(defaultGstPct);
+    const equipLine: QuoteLine = {
       kind: "CHARGER",
-      key: `c${i}-${s.sku}`,
+      key: `c${i}-${s.sku}-equip`,
       label: `${s.label} DC Fast Charger`,
       sku: s.sku,
       kw: s.kw,
       oem: it.oem ?? null,
       qty: it.qty,
-      unitBase,
-      catalogueUnitBase: s.basePrice,
-      overridden: unitBase !== s.basePrice,
-      base,
-      gstPct,
-      gst,
-      total: rupee(base + gst),
+      unitBase: equipUnit,
+      catalogueUnitBase: equipDefault,
+      overridden: equipUnit !== equipDefault,
+      base: equipBase,
+      gstPct: equipGstPct,
+      gst: rupee(equipBase * (equipGstPct / 100)),
+      total: rupee(equipBase * (1 + equipGstPct / 100)),
     };
+
+    // A charger with no BOM equipment/civil split (a custom, non-DC-investment-model entry)
+    // has nothing to bill separately, so it stays a single equipment-only line.
+    if (civilDefault <= 0 && it.civilPrice == null) return [equipLine];
+
+    const civilUnit = it.civilPrice != null && it.civilPrice >= 0 ? Math.round(it.civilPrice) : civilDefault;
+    const civilBase = civilUnit * it.qty;
+    const civilGstPct = it.civilGstPct != null ? clampGst(it.civilGstPct) : clampGst(REST_GST_RATE * 100);
+    const civilLine: QuoteLine = {
+      kind: "CHARGER",
+      key: `c${i}-${s.sku}-civil`,
+      label: `${s.label} DC Fast Charger — Electrical & Civil Work`,
+      sku: s.sku,
+      kw: s.kw,
+      oem: it.oem ?? null,
+      qty: it.qty,
+      unitBase: civilUnit,
+      catalogueUnitBase: civilDefault,
+      overridden: civilUnit !== civilDefault,
+      base: civilBase,
+      gstPct: civilGstPct,
+      gst: rupee(civilBase * (civilGstPct / 100)),
+      total: rupee(civilBase * (1 + civilGstPct / 100)),
+    };
+
+    return [equipLine, civilLine];
   });
 
   const extraLines: QuoteLine[] = extras.map((e) => ({

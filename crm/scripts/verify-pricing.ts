@@ -80,6 +80,16 @@ for (const spec of CATALOG_LIST) {
   console.log(`  ✓ ${spec.label}`);
 }
 
+// Every DC option renders as two lines — Equipment (5%) and Electrical & Civil Work (18%) —
+// summing back to the catalogue's bundled price and its blended GST.
+const split = buildQuote([{ sku: "DC-60", qty: 1 }]);
+check("DC-60 renders as two lines", split.chargerLines.length, 2);
+check("DC-60 equipment line base", split.chargerLines[0]!.base, 600_000);
+check("DC-60 equipment line GST", split.chargerLines[0]!.gstPct, 5);
+check("DC-60 civil line base", split.chargerLines[1]!.base, 950_000);
+check("DC-60 civil line GST", split.chargerLines[1]!.gstPct, 18);
+console.log("  ✓ charger line renders as Equipment + Electrical & Civil Work");
+
 // A mixed basket — the "2 × 60 kW + 2 × 120 kW" case from the brief.
 const mixed = buildQuote([
   { sku: "DC-60", qty: 2 },
@@ -112,12 +122,12 @@ console.log("  ✓ discounted quotation");
 
 // --- per-line overrides, mixed GST slabs and material lines -----------------
 
-// A negotiated price must replace the catalogue price, not sit alongside it.
-// The BOM's equipment/rest split still applies (proportionally, to the negotiated price), since
-// this line carries no explicit gstPct override — only a per-line gstPct would flatten it to one rate.
+// A negotiated price replaces only the equipment slice, not the whole line — the electrical &
+// civil work line is a separate, independently priced line that keeps its own BOM default
+// (₹9,50,000 for DC-60) unless it's overridden too.
 const negotiated = buildQuote([{ sku: "DC-60", qty: 1, unitPrice: 1_400_000 }]);
-check("negotiated unit price", negotiated.subtotal, 1_400_000);
-check("negotiated total", negotiated.grandTotal, 1_581_548);
+check("negotiated subtotal", negotiated.subtotal, 1_400_000 + 950_000);
+check("negotiated total", negotiated.grandTotal, 2_591_000);
 check("negotiated schedule reconciles",
   negotiated.milestones.reduce((a, m) => a + m.total, 0), negotiated.grandTotal);
 // The advance stays the catalogue token; the discount lands in the later stages.

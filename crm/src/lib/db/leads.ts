@@ -8,7 +8,7 @@ import {
 
 import {
   finalStageFor, LEAD_TYPE_CODE, STAGES, STAGE_META,
-  type CommercialModel, type EoiStatus, type GstMode, type LeadStatus, type LeadType,
+  type CommercialModel, type EoiStatus, type LeadStatus, type LeadType,
   type RejectionReason, type Source, type Stage,
 } from "../constants";
 import { diffLead, summariseChanges } from "../diff";
@@ -197,7 +197,6 @@ export interface LeadDraft {
   config?: ConfigItem[];
   extras?: ExtraItem[];
   discount?: number;
-  gstMode?: GstMode;
   oem?: string | null;
   financing?: FinancingInfo;
   site?: SiteInfo;
@@ -287,7 +286,6 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
     config,
     extras,
     discount,
-    gstMode: draft.gstMode ?? "BLENDED",
     oem: draft.oem ?? null,
     commercialModel: draft.commercialModel ?? null,
     quote: snapshot,
@@ -338,7 +336,6 @@ export interface LeadPatch {
   config?: ConfigItem[];
   extras?: ExtraItem[];
   discount?: number;
-  gstMode?: GstMode;
   oem?: string | null;
   financing?: FinancingInfo;
   site?: SiteInfo;
@@ -387,7 +384,6 @@ export async function updateLead(lead: Lead, patch: LeadPatch, actor: Actor): Pr
     update.value = value;
     update.dueAmount = Math.max(0, value - (lead.paidAmount ?? 0));
   }
-  if (patch.gstMode !== undefined) update.gstMode = patch.gstMode;
 
   const changes = diffLead(lead, update);
   if (!changes.length) return;

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  QUOTATION_STATUS_COLOR, QUOTATION_STATUS_LABEL, QUOTATION_STATUSES, type GstMode, type QuotationStatus,
+  QUOTATION_STATUS_COLOR, QUOTATION_STATUS_LABEL, QUOTATION_STATUSES, type QuotationStatus,
 } from "@/lib/constants";
 import { subscribeQuotation, updateQuotation, updateQuotationStatus } from "@/lib/db/quotations";
 import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
@@ -33,15 +33,11 @@ export default function QuotationDetailPage() {
   const [items, setItems] = useState<ConfigItem[]>([]);
   const [extras, setExtras] = useState<ExtraItem[]>([]);
   const [discount, setDiscount] = useState(0);
-  const [gstMode, setGstMode] = useState<GstMode>("BLENDED");
   const [notes, setNotes] = useState("");
 
   useEffect(() => subscribeQuotation(id, (row) => {
     setQ(row);
-    if (row) {
-      setItems(row.items); setExtras(row.extras); setDiscount(row.discount);
-      setGstMode(row.gstMode ?? "BLENDED"); setNotes(row.notes ?? "");
-    }
+    if (row) { setItems(row.items); setExtras(row.extras); setDiscount(row.discount); setNotes(row.notes ?? ""); }
   }), [id]);
 
   const canEdit = canManageQuotations(viewer);
@@ -51,7 +47,7 @@ export default function QuotationDetailPage() {
   async function saveDraft() {
     if (!q || !actor) return;
     await run(() => updateQuotation(q.id, {
-      leadId: q.leadId, leadCode: q.leadCode, client: q.client, items, extras, discount, gstMode,
+      leadId: q.leadId, leadCode: q.leadCode, client: q.client, items, extras, discount,
       validUntil: q.validUntil?.toDate?.() ?? null, notes,
     }, actor), "Quotation updated.");
   }
@@ -113,8 +109,6 @@ export default function QuotationDetailPage() {
               allowDiscount={canApplyDiscount(viewer)}
               allowPriceOverride={canOverridePrice(viewer)}
               disabled={!canEdit || !isDraft}
-              gstMode={gstMode}
-              onGstModeChange={setGstMode}
             />
           </Card>
 
@@ -151,6 +145,8 @@ function QuotationDocument({
   company: { legalName: string; shortName: string; registeredAddress: string; officeAddress: string; gstin: string; cin: string; email: string; website: string; logoUrl: string };
   onClose: () => void;
 }) {
+  const quote = buildQuote(q.items, { discount: q.discount, extras: q.extras });
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between print:hidden">
@@ -205,17 +201,13 @@ function QuotationDocument({
             </tr>
           </thead>
           <tbody>
-            {[...q.items.map((it, i) => ({
-              key: `c${i}`, desc: it.sku, qty: it.qty, price: it.unitPrice ?? 0, gst: it.gstPct ?? 5,
-            })), ...q.extras.map((e, i) => ({
-              key: `e${i}`, desc: e.label, qty: 1, price: e.amount, gst: e.gstPct,
-            }))].map((line) => (
+            {quote.lines.map((line) => (
               <tr key={line.key} className="border-b border-ink-100">
-                <td className="py-2">{line.desc}</td>
+                <td className="py-2">{line.label}</td>
                 <td className="py-2 text-right tabular-nums">{line.qty}</td>
-                <td className="py-2 text-right tabular-nums">{formatINR(line.price)}</td>
-                <td className="py-2 text-right tabular-nums text-ink-600">{line.gst}%</td>
-                <td className="py-2 text-right tabular-nums">{formatINR(line.qty * line.price)}</td>
+                <td className="py-2 text-right tabular-nums">{formatINR(line.unitBase)}</td>
+                <td className="py-2 text-right tabular-nums text-ink-600">{line.gstPct}%</td>
+                <td className="py-2 text-right tabular-nums">{formatINR(line.base)}</td>
               </tr>
             ))}
           </tbody>
