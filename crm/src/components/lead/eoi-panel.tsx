@@ -536,7 +536,7 @@ function LoiLetterArticle({
       {/* Site & funding details — pulled from the lead at generation time. Only rows with an
           actual value show; there's nothing to fill in here that wasn't already set on the lead. */}
       {(eoi.siteLocationProvider || eoi.siteLandType || eoi.siteCompensation || eoi.siteMapsLink
-        || (eoi.amountFinanced ?? 0) > 0 || (eoi.subsidyAmount ?? 0) > 0) && (
+        || (eoi.amountFinanced ?? 0) > 0 || eoi.loanOpted || (eoi.subsidyAmount ?? 0) > 0) && (
         <>
           <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Site & Funding Details</h2>
           <table className="mt-2 w-full border-collapse text-sm">
@@ -617,7 +617,7 @@ function LoiLetterArticle({
               )}
               {(eoi.amountFinanced ?? 0) > 0 && (
                 <tr className="border-b border-ink-200 break-inside-avoid">
-                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Amount to be Financed</td>
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Amount to be Financed (Bank)</td>
                   <td className="px-2 py-1.5">
                     Rs.{" "}
                     <EditableNumber
@@ -627,6 +627,22 @@ function LoiLetterArticle({
                       className="w-28"
                       aria-label="Amount to be financed"
                     />
+                  </td>
+                </tr>
+              )}
+              {eoi.loanOpted && (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Client Payment (Balance)</td>
+                  <td className="px-2 py-1.5">
+                    Rs.{" "}
+                    <EditableNumber
+                      readOnly={readOnly}
+                      value={eoi.clientPayment ?? 0}
+                      onChange={(v) => onPatch({ clientPayment: v })}
+                      className="w-28"
+                      aria-label="Client payment"
+                    />
+                    <span className="ml-1 text-xs text-ink-500">— payable by the Investor; the rest is bank finance</span>
                   </td>
                 </tr>
               )}

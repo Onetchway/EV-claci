@@ -144,8 +144,12 @@ export interface EoiDoc {
   siteMapsLink?: string;
   siteCompensation?: string;
   siteLandType?: string;
+  /** True when the lead's Funding tab has a loan mode other than SELF. */
+  loanOpted?: boolean;
   /** Amount to be bank-financed, from the lead's Funding tab. 0 if self-funded or not yet financed. */
   amountFinanced?: number;
+  /** What the investor pays out of pocket once the bank's share (and any subsidy) is netted out. Only meaningful when loanOpted. */
+  clientPayment?: number;
   /** Set only when the lead's Funding tab has a subsidy enabled. */
   subsidyAmount?: number;
   subsidyPct?: number;

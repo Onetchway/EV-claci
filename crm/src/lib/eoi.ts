@@ -103,9 +103,12 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
         ? SITE_COMPENSATION_TYPE_LABEL[lead.site.compensationType]
         : "";
   // Sanctioned beats requested — it's the confirmed number once the bank has approved it.
+  const loanOpted = Boolean(lead.financing && lead.financing.mode !== "SELF");
   const amountFinanced = lead.financing?.sanctionedAmount ?? lead.financing?.requestedAmount ?? 0;
   const subsidyAmount = lead.financing?.subsidyEnabled ? lead.financing.subsidyAmount ?? 0 : 0;
   const subsidyPct = lead.financing?.subsidyEnabled ? lead.financing.subsidyPct ?? 0 : 0;
+  // What's left for the investor to pay themselves once the bank's share (and any subsidy) is netted out.
+  const clientPayment = loanOpted ? Math.max(0, quote.grandTotal - amountFinanced - subsidyAmount) : 0;
 
   // Per-unit earning assumptions — only meaningful once the site's own selling rate is set.
   const sellingRatePerKwh = lead.site?.sellingRatePerKwh ?? 0;
@@ -183,7 +186,9 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     siteMapsLink,
     siteCompensation,
     siteLandType,
+    loanOpted,
     amountFinanced,
+    clientPayment,
     subsidyAmount,
     subsidyPct,
     sellingRatePerKwh,
