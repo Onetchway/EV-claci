@@ -200,7 +200,7 @@ function QuotationDocument({
           </thead>
           <tbody>
             {[...q.items.map((it, i) => ({
-              key: `c${i}`, desc: it.sku, qty: it.qty, price: it.unitPrice ?? 0, gst: it.gstPct ?? 18,
+              key: `c${i}`, desc: it.sku, qty: it.qty, price: it.unitPrice ?? 0, gst: it.gstPct ?? 5,
             })), ...q.extras.map((e, i) => ({
               key: `e${i}`, desc: e.label, qty: 1, price: e.amount, gst: e.gstPct,
             }))].map((line) => (

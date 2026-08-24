@@ -10,8 +10,9 @@
  * letters Livanto issues vary deal by deal:
  *
  *   • unit price   — negotiated prices differ from the catalogue
- *   • GST rate     — chargers are 18%, but civil/site work can be 5% or 12%,
- *                    and a DISCOM security deposit carries none at all
+ *   • GST rate     — chargers are 5% (HSN 8504 EVSE), civil/electrical/other
+ *                    BOM items are 18%, and a DISCOM security deposit
+ *                    carries none at all
  *   • OEM          — which manufacturer's charger is being supplied
  */
 

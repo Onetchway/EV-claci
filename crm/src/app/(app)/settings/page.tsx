@@ -395,7 +395,7 @@ export default function SettingsPage() {
       {tab === "Finance" && (
         <Card title="Financial defaults" subtitle="Starting values for new quotations and loan estimates.">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="Default GST %" hint="Chargers are normally 18%.">
+            <Field label="Default GST %" hint="Chargers are 5% (HSN 8504 EVSE); civil/electrical items are 18%.">
               <select
                 value={form.finance.defaultGstPct}
                 onChange={(e) => set("finance", { ...form.finance, defaultGstPct: Number(e.target.value) })}

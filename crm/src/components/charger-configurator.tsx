@@ -77,7 +77,7 @@ function PaletteCard({ spec, disabled, onAdd }: { spec: ChargerSpec; disabled?: 
           </p>
           <p className="mt-0.5 text-[11px] text-ink-500">{spec.vehicleType} · {spec.guns} guns · {spec.portType}</p>
           <p className="mt-1.5 text-xs font-medium text-ink-700">{formatCompactINR(spec.basePrice)}</p>
-          <p className="text-[11px] text-ink-400">+ GST · {formatCompactINR(spec.basePrice * 1.18)} all-in</p>
+          <p className="text-[11px] text-ink-400">+ GST · {formatCompactINR(spec.basePrice * 1.05)} all-in</p>
         </div>
       </div>
       <button
@@ -104,7 +104,7 @@ function BasketRow({
   onRemove: () => void;
 }) {
   const unitPrice = item.unitPrice ?? spec.basePrice;
-  const gstPct = item.gstPct ?? 18;
+  const gstPct = item.gstPct ?? 5;
   const overridden = unitPrice !== spec.basePrice;
   const lineBase = unitPrice * item.qty;
 

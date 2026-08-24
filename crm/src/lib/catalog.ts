@@ -7,7 +7,8 @@
  * against the workbook for all six options).
  */
 
-export const GST_RATE = 0.18;
+/** GST on the charger hardware itself (HSN 8504 EVSE) — 5%, not the general 18% slab. */
+export const GST_RATE = 0.05;
 
 export type ChargerSku =
   | "DC-60"

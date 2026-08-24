@@ -761,11 +761,12 @@ export const CHARGER_OEMS = [
 ] as const;
 
 /**
- * GST slabs the business actually bills at. Chargers are 18%; some civil and
- * electrical materials fall in the lower slabs, which is why this is per-line
- * rather than a single global rate.
+ * GST slabs the business actually bills at. Chargers (HSN 8504 EVSE) are 5%;
+ * civil, electrical and other BOM items are 18%, which is why this is
+ * per-line rather than a single global rate. 0% is kept for pass-through
+ * items like a DISCOM security deposit that aren't a taxable supply at all.
  */
-export const GST_SLABS = [0, 5, 12, 18, 28] as const;
+export const GST_SLABS = [0, 5, 18, 28] as const;
 export type GstSlab = (typeof GST_SLABS)[number];
 
 /** Non-charger line items that commonly appear on a participation summary. */
@@ -776,15 +777,15 @@ export const EXTRA_ITEM_PRESETS = [
   { label: "DISCOM demand note & security deposit", gstPct: 0 },
   { label: "Transformer / HT works", gstPct: 18 },
   { label: "Cabling & earthing", gstPct: 18 },
-  { label: "3.3 kW AC charger", gstPct: 18 },
-  { label: "7.4 kW AC charger", gstPct: 18 },
-  { label: "10 kW AC charger", gstPct: 18 },
-  { label: "11 kW AC charger", gstPct: 18 },
-  { label: "15 kW AC charger", gstPct: 18 },
-  { label: "22 kW AC charger", gstPct: 18 },
-  { label: "30 kW AC charger", gstPct: 18 },
-  { label: "Signage & branding", gstPct: 12 },
-  { label: "Site development / levelling", gstPct: 5 },
+  { label: "3.3 kW AC charger", gstPct: 5 },
+  { label: "7.4 kW AC charger", gstPct: 5 },
+  { label: "10 kW AC charger", gstPct: 5 },
+  { label: "11 kW AC charger", gstPct: 5 },
+  { label: "15 kW AC charger", gstPct: 5 },
+  { label: "22 kW AC charger", gstPct: 5 },
+  { label: "30 kW AC charger", gstPct: 5 },
+  { label: "Signage & branding", gstPct: 18 },
+  { label: "Site development / levelling", gstPct: 18 },
   { label: "Other", gstPct: 18 },
 ] as const;
 

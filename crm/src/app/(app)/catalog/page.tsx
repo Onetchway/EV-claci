@@ -72,7 +72,7 @@ export default function CatalogPage() {
   const comparison = useMemo(
     () =>
       CATALOG_LIST.map((s) => {
-        const total = Math.round(s.basePrice * 1.18);
+        const total = Math.round(s.basePrice * 1.05);
         const fd5 = total * Math.pow(1 + BENCHMARKS.fdRate, 5);
         const mf5 = total * Math.pow(1 + BENCHMARKS.mutualFundRate, 5);
         return {
@@ -161,7 +161,7 @@ export default function CatalogPage() {
                   <th className="th">Charger</th>
                   <th className="th">Type</th>
                   <th className="th text-right">Price (excl. GST)</th>
-                  <th className="th text-right">All-in (18% GST)</th>
+                  <th className="th text-right">All-in (5% GST)</th>
                   <th className="th text-right">Stage 1</th>
                   <th className="th text-right">Stage 2</th>
                   <th className="th text-right">Stage 3</th>
@@ -174,7 +174,7 @@ export default function CatalogPage() {
                     <td className="td font-semibold">{s.label}</td>
                     <td className="td"><Badge className="bg-ink-100 text-ink-700 ring-ink-200">{s.chargerType}</Badge></td>
                     <td className="td text-right tabular-nums">{formatINR(s.basePrice)}</td>
-                    <td className="td text-right font-semibold tabular-nums">{formatINR(Math.round(s.basePrice * 1.18))}</td>
+                    <td className="td text-right font-semibold tabular-nums">{formatINR(Math.round(s.basePrice * 1.05))}</td>
                     <td className="td text-right tabular-nums">{formatINR(s.stage1EOI)}</td>
                     <td className="td text-right tabular-nums">{formatINR(s.stage2Infra)}</td>
                     <td className="td text-right tabular-nums">{formatINR(s.stage3Commissioning)}</td>
@@ -214,7 +214,7 @@ export default function CatalogPage() {
                 <th className="th">Option</th>
                 <th className="th">Vehicle</th>
                 <th className="th text-right">Investment</th>
-                <th className="th text-right">GST 18%</th>
+                <th className="th text-right">GST 5%</th>
                 <th className="th text-right">All-in</th>
                 <th className="th text-right">Stage 1 (EOI)</th>
                 <th className="th text-right">Stage 2</th>
@@ -227,8 +227,8 @@ export default function CatalogPage() {
                   <td className="td font-semibold">{s.label}</td>
                   <td className="td text-ink-600">{s.vehicleType}</td>
                   <td className="td text-right tabular-nums">{formatINR(s.basePrice)}</td>
-                  <td className="td text-right tabular-nums text-ink-500">{formatINR(s.basePrice * 0.18)}</td>
-                  <td className="td text-right font-semibold tabular-nums">{formatINR(s.basePrice * 1.18)}</td>
+                  <td className="td text-right tabular-nums text-ink-500">{formatINR(s.basePrice * 0.05)}</td>
+                  <td className="td text-right font-semibold tabular-nums">{formatINR(s.basePrice * 1.05)}</td>
                   <td className="td text-right tabular-nums">{formatINR(s.stage1EOI)}</td>
                   <td className="td text-right tabular-nums">{formatINR(s.stage2Infra)}</td>
                   <td className="td text-right tabular-nums">{formatINR(s.stage3Commissioning)}</td>

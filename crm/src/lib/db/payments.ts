@@ -34,7 +34,7 @@ export interface PaymentDraft {
   milestone: PaymentMilestone;
   /** Amount excluding GST — GST is derived from gstPct, never typed in directly. */
   baseAmount: number;
-  /** GST rate as a fraction (0.18 = 18%). Defaults to the standard 18% rate. */
+  /** GST rate as a fraction (0.05 = 5%). Defaults to GST_RATE — the charger rate, since most milestone payments are against charger hardware. */
   gstPct?: number;
   mode: PaymentMode;
   reference?: string;

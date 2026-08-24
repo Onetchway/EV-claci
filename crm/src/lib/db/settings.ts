@@ -46,7 +46,7 @@ export function defaultSettings(): AppSettings {
       closing: DEFAULT_CLOSING,
     },
     finance: {
-      defaultGstPct: 18,
+      defaultGstPct: 5,
       loanToValue: 0.7,
       defaultInterestRate: 9,
       defaultTenureYears: 5,
