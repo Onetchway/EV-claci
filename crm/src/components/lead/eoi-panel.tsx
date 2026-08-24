@@ -11,11 +11,11 @@ import {
   EOI_STATUSES, EOI_STATUS_COLOR, EOI_STATUS_LABEL, type EoiStatus,
 } from "@/lib/constants";
 import {
-  issueEoi, nextEoiNumber, regenerateEoi, saveEoi, setEoiStatus, subscribeEoiVersions,
+  deleteEoi, issueEoi, nextEoiNumber, regenerateEoi, saveEoi, setEoiStatus, subscribeEoiVersions,
 } from "@/lib/db/leads";
 import { buildEoiFromLead, scheduleTotal } from "@/lib/eoi";
 import { useSettings } from "@/hooks/use-settings";
-import { canIssueEoi, type Viewer } from "@/lib/permissions";
+import { canDeleteEoi, canIssueEoi, type Viewer } from "@/lib/permissions";
 import type { Actor, AppSettings, EoiDoc, EoiScheduleRow, EoiVersion, Lead } from "@/lib/types";
 import { cn, formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
@@ -46,6 +46,7 @@ export function EoiPanel({
   const [draft, setDraft] = useState<EoiDoc | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [regenerateOpen, setRegenerateOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [extraEquipment, setExtraEquipment] = useState("");
   const [versions, setVersions] = useState<EoiVersion[]>([]);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -236,6 +237,16 @@ export function EoiPanel({
                 options={EOI_STATUSES.map((s) => ({ value: s, label: EOI_STATUS_LABEL[s] }))}
               />
             )}
+
+            {canDeleteEoi(viewer) && (
+              <Button
+                onClick={() => setDeleteOpen(true)}
+                title="Removes this letter — archived to Previous versions first, not lost."
+                className="text-rose-700 hover:bg-rose-50"
+              >
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            )}
           </div>
         </div>
 
@@ -278,6 +289,35 @@ export function EoiPanel({
         description="Every letter this lead has had before the current one — each stays exactly as it was when superseded."
       >
         <VersionList versions={versions} onView={(v) => { setVersionsOpen(false); setViewingVersion(v); }} />
+      </Modal>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete this letter?"
+        description={`${eoi.number} will be archived under "Previous versions" — reversible for now, but this lead will show no current Letter of Intent until a new one is drafted.`}
+        footer={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  await deleteEoi(lead, actor);
+                  setDraft(null);
+                  setDeleteOpen(false);
+                }, "Letter deleted.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Delete letter
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">
+          {eoi.investorName} · {formatINR(eoi.totalAmount)}
+        </p>
       </Modal>
     </div>
   );

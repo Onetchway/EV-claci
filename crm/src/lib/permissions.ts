@@ -116,6 +116,9 @@ export function canDraftEoi(viewer: Viewer, lead: Pick<Lead, "ownerId" | "status
 export const canIssueEoi = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "FINANCE");
 
+/** Deleting a letter is at least as consequential as issuing one — same bar. */
+export const canDeleteEoi = canIssueEoi;
+
 export const canEditFinancing = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "FINANCE", "AGENT");
 

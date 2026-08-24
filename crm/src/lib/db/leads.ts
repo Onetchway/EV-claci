@@ -969,6 +969,41 @@ export async function issueEoi(lead: Lead, actor: Actor): Promise<void> {
   });
 }
 
+/**
+ * Removes the lead's current letter, archiving it to leads/{id}/eoiVersions
+ * first (same as regenerating) so it stays retrievable under "Previous
+ * versions" rather than vanishing — this is meant for "I drafted the wrong
+ * thing, start over," not for erasing the record that a letter existed.
+ */
+export async function deleteEoi(lead: Lead, actor: Actor): Promise<void> {
+  if (!lead.eoi) return;
+  const db = getDb();
+
+  await addDoc(collection(db, LEADS, lead.id, EOI_VERSIONS), {
+    ...lead.eoi,
+    archivedAt: serverTimestamp(),
+    archivedBy: actor,
+  });
+
+  await updateDoc(doc(db, LEADS, lead.id), {
+    eoi: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  });
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "EOI_DELETED",
+    message: `Letter of Intent ${lead.eoi.number} deleted`,
+    actor,
+  });
+}
+
 export async function setEoiStatus(lead: Lead, status: EoiStatus, actor: Actor): Promise<void> {
   if (!lead.eoi) return;
 
