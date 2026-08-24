@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  Badge, Button, Card, Checkbox, Field, Input, Modal, ProgressBar, Select, Textarea,
+  Badge, Button, Card, Field, Input, Modal, ProgressBar, Select, Textarea,
   useAsyncAction,
 } from "@/components/ui";
 import {
@@ -285,40 +285,6 @@ export function FinancingPanel({
                 />
               </Field>
             </>
-          )}
-        </div>
-
-        <div className="mt-4 rounded-lg border border-ink-200 px-4 py-3">
-          <Checkbox
-            checked={Boolean(form.subsidyEnabled)}
-            disabled={!editable}
-            onChange={(v) => set("subsidyEnabled", v)}
-            label="Government / scheme subsidy applies"
-          />
-          {form.subsidyEnabled && (
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              <Field label="Subsidy amount (₹)">
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={form.subsidyAmount ?? ""}
-                  disabled={!editable}
-                  onChange={(e) => set("subsidyAmount", e.target.value === "" ? null : Number(e.target.value))}
-                />
-              </Field>
-              <Field label="Subsidy (%)" hint="Recorded alongside the amount — either can be filled in independently.">
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  value={form.subsidyPct ?? ""}
-                  disabled={!editable}
-                  onChange={(e) => set("subsidyPct", e.target.value === "" ? null : Number(e.target.value))}
-                />
-              </Field>
-            </div>
           )}
         </div>
 

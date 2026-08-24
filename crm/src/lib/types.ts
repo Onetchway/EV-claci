@@ -149,6 +149,13 @@ export interface EoiDoc {
   /** Set only when the lead's Funding tab has a subsidy enabled. */
   subsidyAmount?: number;
   subsidyPct?: number;
+  /** Per-unit earning assumptions from the site's tariff fields — set only where the lead has them. */
+  sellingRatePerKwh?: number;
+  discomRatePerKwh?: number;
+  siteOwnerSharePerKwh?: number;
+  livantoEarningPerKwh?: number;
+  franchiseEarningPerKwh?: number;
+  b2bRatePerKwh?: number;
   capacityLabel: string;
   extraEquipment?: string;
   subject: string;
@@ -231,10 +238,16 @@ export interface SiteInfo {
   compensationType?: "RENTAL" | "REVENUE_SHARE" | null;
   /** ₹/month if compensationType is RENTAL, a percentage if REVENUE_SHARE. */
   compensationAmount?: number | null;
-  /** What this site pays its DISCOM per kWh — used for RWA/institutional deals to work out the margin on the selling rate below. */
+  /** What this site pays its DISCOM per kWh — varies state to state and DISCOM to DISCOM, so it's negotiated per site rather than assumed from the catalogue. */
   electricityRatePerKwh?: number | null;
-  /** What Livanto charges end users at this site — the RWA/institutional commercial model is usually negotiated as a spread over the DISCOM rate above. */
+  /** What the customer is charged per kWh at this site (retail rate — the separate B2B rate below is a different pricing track). */
   sellingRatePerKwh?: number | null;
+  /** The site host's cut, ₹/kWh — separate from any flat rental/revenue-share compensation above. */
+  siteOwnerSharePerKwh?: number | null;
+  /** Livanto's own margin, ₹/kWh. */
+  livantoEarningPerKwh?: number | null;
+  /** Bulk/B2B customer rate, ₹/kWh — priced separately from the retail selling rate above. */
+  b2bRatePerKwh?: number | null;
   /** Lease/hosting agreement tenure, in years. */
   tenureYears?: number | null;
 }

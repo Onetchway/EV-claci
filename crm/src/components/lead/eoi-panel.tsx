@@ -533,8 +533,10 @@ function LoiLetterArticle({
         </button>
       )}
 
-      {/* Site & funding details — pulled from the lead at generation time, editable like everything else */}
-      {(!readOnly || eoi.siteLocationProvider || eoi.siteLandType || eoi.siteCompensation || eoi.siteMapsLink || eoi.amountFinanced || eoi.subsidyAmount) && (
+      {/* Site & funding details — pulled from the lead at generation time. Only rows with an
+          actual value show; there's nothing to fill in here that wasn't already set on the lead. */}
+      {(eoi.siteLocationProvider || eoi.siteLandType || eoi.siteCompensation || eoi.siteMapsLink
+        || (eoi.amountFinanced ?? 0) > 0 || (eoi.subsidyAmount ?? 0) > 0) && (
         <>
           <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Site & Funding Details</h2>
           <table className="mt-2 w-full border-collapse text-sm">
@@ -551,13 +553,13 @@ function LoiLetterArticle({
                   />
                 </td>
               </tr>
-              {(eoi.siteLocationProvider || !readOnly) && (
+              {eoi.siteLocationProvider && (
                 <tr className="border-b border-ink-200 break-inside-avoid">
                   <td className="bg-ink-50 px-2 py-1.5 font-medium">Location Provider</td>
                   <td className="px-2 py-1.5">
                     <EditableInline
                       readOnly={readOnly}
-                      value={eoi.siteLocationProvider ?? ""}
+                      value={eoi.siteLocationProvider}
                       onChange={(v) => onPatch({ siteLocationProvider: v })}
                       className="w-full"
                       aria-label="Location provider"
@@ -565,13 +567,13 @@ function LoiLetterArticle({
                   </td>
                 </tr>
               )}
-              {(eoi.siteLandType || !readOnly) && (
+              {eoi.siteLandType && (
                 <tr className="border-b border-ink-200 break-inside-avoid">
                   <td className="bg-ink-50 px-2 py-1.5 font-medium">Land Type</td>
                   <td className="px-2 py-1.5">
                     <EditableInline
                       readOnly={readOnly}
-                      value={eoi.siteLandType ?? ""}
+                      value={eoi.siteLandType}
                       onChange={(v) => onPatch({ siteLandType: v })}
                       className="w-full"
                       aria-label="Land type"
@@ -579,13 +581,13 @@ function LoiLetterArticle({
                   </td>
                 </tr>
               )}
-              {(eoi.siteCompensation || !readOnly) && (
+              {eoi.siteCompensation && (
                 <tr className="border-b border-ink-200 break-inside-avoid">
                   <td className="bg-ink-50 px-2 py-1.5 font-medium">Site Compensation</td>
                   <td className="px-2 py-1.5">
                     <EditableInline
                       readOnly={readOnly}
-                      value={eoi.siteCompensation ?? ""}
+                      value={eoi.siteCompensation}
                       onChange={(v) => onPatch({ siteCompensation: v })}
                       className="w-full"
                       aria-label="Site compensation"
@@ -593,20 +595,18 @@ function LoiLetterArticle({
                   </td>
                 </tr>
               )}
-              {(eoi.siteMapsLink || !readOnly) && (
+              {eoi.siteMapsLink && (
                 <tr className="border-b border-ink-200 break-inside-avoid">
                   <td className="bg-ink-50 px-2 py-1.5 font-medium">Google Maps Link</td>
                   <td className="px-2 py-1.5">
                     {readOnly ? (
-                      eoi.siteMapsLink ? (
-                        <a href={eoi.siteMapsLink} target="_blank" rel="noreferrer" className="text-brand-700 underline break-all">
-                          {eoi.siteMapsLink}
-                        </a>
-                      ) : null
+                      <a href={eoi.siteMapsLink} target="_blank" rel="noreferrer" className="text-brand-700 underline break-all">
+                        {eoi.siteMapsLink}
+                      </a>
                     ) : (
                       <EditableInline
                         readOnly={false}
-                        value={eoi.siteMapsLink ?? ""}
+                        value={eoi.siteMapsLink}
                         onChange={(v) => onPatch({ siteMapsLink: v })}
                         className="w-full break-all"
                         aria-label="Google Maps link"
@@ -615,7 +615,7 @@ function LoiLetterArticle({
                   </td>
                 </tr>
               )}
-              {(eoi.amountFinanced ? eoi.amountFinanced > 0 : false) || !readOnly ? (
+              {(eoi.amountFinanced ?? 0) > 0 && (
                 <tr className="border-b border-ink-200 break-inside-avoid">
                   <td className="bg-ink-50 px-2 py-1.5 font-medium">Amount to be Financed</td>
                   <td className="px-2 py-1.5">
@@ -629,8 +629,8 @@ function LoiLetterArticle({
                     />
                   </td>
                 </tr>
-              ) : null}
-              {(eoi.subsidyAmount ? eoi.subsidyAmount > 0 : false) || !readOnly ? (
+              )}
+              {(eoi.subsidyAmount ?? 0) > 0 && (
                 <tr className="border-b border-ink-200 break-inside-avoid">
                   <td className="bg-ink-50 px-2 py-1.5 font-medium">Subsidy</td>
                   <td className="px-2 py-1.5">
@@ -642,20 +642,70 @@ function LoiLetterArticle({
                       className="w-28"
                       aria-label="Subsidy amount"
                     />
-                    {" "}(
-                    <EditableNumber
-                      readOnly={readOnly}
-                      value={eoi.subsidyPct ?? 0}
-                      onChange={(v) => onPatch({ subsidyPct: v })}
-                      className="w-14"
-                      aria-label="Subsidy percentage"
-                    />
-                    %)
+                    {(eoi.subsidyPct ?? 0) > 0 && (
+                      <>
+                        {" "}(
+                        <EditableNumber
+                          readOnly={readOnly}
+                          value={eoi.subsidyPct ?? 0}
+                          onChange={(v) => onPatch({ subsidyPct: v })}
+                          className="w-14"
+                          aria-label="Subsidy percentage"
+                        />
+                        %)
+                      </>
+                    )}
                   </td>
                 </tr>
-              ) : null}
+              )}
             </tbody>
           </table>
+        </>
+      )}
+
+      {/* Earnings & assumptions — per-unit tariff economics from the site's own rates, not the catalogue defaults. */}
+      {(eoi.sellingRatePerKwh ?? 0) > 0 && (
+        <>
+          <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Earnings & Assumptions (per kWh)</h2>
+          <table className="mt-2 w-full border-collapse text-sm">
+            <tbody>
+              <tr className="border-y border-ink-200 break-inside-avoid">
+                <td className="w-1/2 bg-ink-50 px-2 py-1.5 font-medium">Customer Selling Rate</td>
+                <td className="px-2 py-1.5 tabular-nums">Rs. {eoi.sellingRatePerKwh?.toFixed(2)}</td>
+              </tr>
+              {(eoi.discomRatePerKwh ?? 0) > 0 && (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">DISCOM Rate</td>
+                  <td className="px-2 py-1.5 tabular-nums">Rs. {eoi.discomRatePerKwh?.toFixed(2)}</td>
+                </tr>
+              )}
+              {(eoi.siteOwnerSharePerKwh ?? 0) > 0 && (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">Site Owner Revenue Share</td>
+                  <td className="px-2 py-1.5 tabular-nums">Rs. {eoi.siteOwnerSharePerKwh?.toFixed(2)}</td>
+                </tr>
+              )}
+              {(eoi.livantoEarningPerKwh ?? 0) > 0 && (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">{company.shortName} Earning</td>
+                  <td className="px-2 py-1.5 tabular-nums">Rs. {eoi.livantoEarningPerKwh?.toFixed(2)}</td>
+                </tr>
+              )}
+              <tr className="border-b-2 border-ink-400 font-bold break-inside-avoid">
+                <td className="bg-ink-50 px-2 py-1.5">Franchise Earning</td>
+                <td className="px-2 py-1.5 tabular-nums">Rs. {eoi.franchiseEarningPerKwh?.toFixed(2)}</td>
+              </tr>
+              {(eoi.b2bRatePerKwh ?? 0) > 0 && (
+                <tr className="border-b border-ink-200 break-inside-avoid">
+                  <td className="bg-ink-50 px-2 py-1.5 font-medium">B2B Rate (separate track)</td>
+                  <td className="px-2 py-1.5 tabular-nums">Rs. {eoi.b2bRatePerKwh?.toFixed(2)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <p className="mt-1 text-[11px] text-ink-500">
+            Indicative — DISCOM and customer rates vary by state, DISCOM and site, and are re-confirmed at commissioning.
+          </p>
         </>
       )}
 

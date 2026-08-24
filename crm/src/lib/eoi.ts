@@ -107,6 +107,16 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
   const subsidyAmount = lead.financing?.subsidyEnabled ? lead.financing.subsidyAmount ?? 0 : 0;
   const subsidyPct = lead.financing?.subsidyEnabled ? lead.financing.subsidyPct ?? 0 : 0;
 
+  // Per-unit earning assumptions — only meaningful once the site's own selling rate is set.
+  const sellingRatePerKwh = lead.site?.sellingRatePerKwh ?? 0;
+  const discomRatePerKwh = lead.site?.electricityRatePerKwh ?? 0;
+  const siteOwnerSharePerKwh = lead.site?.siteOwnerSharePerKwh ?? 0;
+  const livantoEarningPerKwh = lead.site?.livantoEarningPerKwh ?? 0;
+  const franchiseEarningPerKwh = sellingRatePerKwh > 0
+    ? Math.round((sellingRatePerKwh - siteOwnerSharePerKwh - livantoEarningPerKwh - discomRatePerKwh) * 100) / 100
+    : 0;
+  const b2bRatePerKwh = lead.site?.b2bRatePerKwh ?? 0;
+
   // Three stages, each GST-inclusive and matching what's actually taxed at
   // that rate — Advance (a fixed booking token), then Electrical & Civil
   // Work (the quote's 18%-rate lines), then Charger Equipment (the 5%-rate
@@ -176,6 +186,12 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     amountFinanced,
     subsidyAmount,
     subsidyPct,
+    sellingRatePerKwh,
+    discomRatePerKwh,
+    siteOwnerSharePerKwh,
+    livantoEarningPerKwh,
+    franchiseEarningPerKwh,
+    b2bRatePerKwh,
     capacityLabel,
     extraEquipment: opts.extraEquipment ?? "",
     subject: defaultSubject(capacityLabel, siteName, opts.extraEquipment),

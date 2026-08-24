@@ -530,9 +530,18 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 onChange={(e) => setSite({ tenureYears: e.target.value === "" ? null : Number(e.target.value) })}
               />
             </Field>
-            {isInstitutional && (
+            {(isInstitutional || values.type === "FRANCHISE") && (
               <>
-                <Field label="Electricity rate (₹/kWh)" hint="What this site pays its DISCOM.">
+                <Field label="Customer selling rate (₹/kWh)" hint="Retail rate charged to the EV driver at this site." required>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={values.site.sellingRatePerKwh ?? ""}
+                    onChange={(e) => setSite({ sellingRatePerKwh: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="DISCOM rate (₹/kWh)" hint="What this site pays its DISCOM — varies state to state and DISCOM to DISCOM.">
                   <Input
                     type="number"
                     min={0}
@@ -541,13 +550,45 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                     onChange={(e) => setSite({ electricityRatePerKwh: e.target.value === "" ? null : Number(e.target.value) })}
                   />
                 </Field>
-                <Field label="Selling rate at site (₹/kWh)" hint="What Livanto charges end users here.">
+                <Field label="Site owner revenue share (₹/kWh)">
                   <Input
                     type="number"
                     min={0}
                     step="0.01"
-                    value={values.site.sellingRatePerKwh ?? ""}
-                    onChange={(e) => setSite({ sellingRatePerKwh: e.target.value === "" ? null : Number(e.target.value) })}
+                    value={values.site.siteOwnerSharePerKwh ?? ""}
+                    onChange={(e) => setSite({ siteOwnerSharePerKwh: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Livanto earning (₹/kWh)">
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={values.site.livantoEarningPerKwh ?? ""}
+                    onChange={(e) => setSite({ livantoEarningPerKwh: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+                <Field
+                  label="Franchise earning (₹/kWh)"
+                  hint="Selling rate minus site owner share, Livanto's earning and the DISCOM rate."
+                >
+                  <p className="input flex items-center bg-ink-50 font-semibold tabular-nums text-ink-900">
+                    ₹{(
+                      (values.site.sellingRatePerKwh ?? 0)
+                      - (values.site.siteOwnerSharePerKwh ?? 0)
+                      - (values.site.livantoEarningPerKwh ?? 0)
+                      - (values.site.electricityRatePerKwh ?? 0)
+                    ).toFixed(2)}
+                  </p>
+                </Field>
+                <Field label="B2B rate (₹/kWh)" hint="Priced separately from the retail customer rate above — bulk/fleet customers." className="sm:col-span-2 lg:col-span-3">
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className="max-w-xs"
+                    value={values.site.b2bRatePerKwh ?? ""}
+                    onChange={(e) => setSite({ b2bRatePerKwh: e.target.value === "" ? null : Number(e.target.value) })}
                   />
                 </Field>
               </>
@@ -763,6 +804,49 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 </p>
               </div>
             </>
+          )}
+        </div>
+
+        <div className="mt-4 rounded-lg border border-ink-200 px-4 py-3">
+          <Checkbox
+            checked={Boolean(values.financing.subsidyEnabled)}
+            onChange={(v) =>
+              set("financing", { ...values.financing, subsidyEnabled: v })
+            }
+            label="Government / scheme subsidy applies"
+          />
+          {values.financing.subsidyEnabled && (
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <Field label="Subsidy amount (₹)">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={values.financing.subsidyAmount ?? ""}
+                  onChange={(e) =>
+                    set("financing", {
+                      ...values.financing,
+                      subsidyAmount: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                />
+              </Field>
+              <Field label="Subsidy (%)" hint="Recorded alongside the amount — either can be filled in independently.">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  value={values.financing.subsidyPct ?? ""}
+                  onChange={(e) =>
+                    set("financing", {
+                      ...values.financing,
+                      subsidyPct: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                />
+              </Field>
+            </div>
           )}
         </div>
       </Card>
