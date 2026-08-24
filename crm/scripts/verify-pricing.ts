@@ -90,6 +90,14 @@ check("DC-60 civil line base", split.chargerLines[1]!.base, 950_000);
 check("DC-60 civil line GST", split.chargerLines[1]!.gstPct, 18);
 console.log("  ✓ charger line renders as Equipment + Electrical & Civil Work");
 
+// Blended mode collapses the same charger to one combined line at one flat rate.
+const blended = buildQuote([{ sku: "DC-60", qty: 1, blended: true }]);
+check("DC-60 blended renders as one line", blended.chargerLines.length, 1);
+check("DC-60 blended line base", blended.chargerLines[0]!.base, 1_550_000);
+check("DC-60 blended default GST snaps to nearest slab", blended.chargerLines[0]!.gstPct, 18);
+check("DC-60 blended total", blended.grandTotal, Math.round(1_550_000 * 1.18));
+console.log("  ✓ blended charger line collapses to one combined rate");
+
 // A mixed basket — the "2 × 60 kW + 2 × 120 kW" case from the brief.
 const mixed = buildQuote([
   { sku: "DC-60", qty: 2 },

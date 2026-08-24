@@ -8,10 +8,12 @@
  *
  * A DC charger's catalogue price is itself a bundled BOM figure — hardware
  * (HSN 8504 EVSE, 5% GST) plus its electrical connection, panel, wiring and
- * civil work (18% GST) — so one ConfigItem always renders as up to two
- * QuoteLines: an "Equipment" line and an "Electrical & Civil Work" line, each
- * independently priced and taxed. A custom charger with no equipmentPrice on
- * record has nothing to split, so it stays a single line at 5%.
+ * civil work (18% GST). Standard (the default) renders one ConfigItem as two
+ * QuoteLines — "Equipment" and "Electrical & Civil Work" — each independently
+ * priced and taxed. Blended collapses the same line back into one combined
+ * price at one editable rate, for a deal quoted as a single all-in number. A
+ * custom charger with no equipmentPrice on record has nothing to split
+ * either way, so it stays a single line at 5%.
  *
  * Three things are deliberately per-line rather than global, because the real
  * letters Livanto issues vary deal by deal:
@@ -37,6 +39,8 @@ export interface ConfigItem {
   civilPrice?: number | null;
   /** GST for the electrical & civil work line. Falls back to 18%. */
   civilGstPct?: number | null;
+  /** Blended mode — one combined line (equipment + electrical/civil together) at one flat rate, instead of the two-line Standard split. `unitPrice`/`gstPct` then describe that single combined line; `civilPrice`/`civilGstPct` are unused. */
+  blended?: boolean | null;
   /** Charger manufacturer for this line. */
   oem?: string | null;
 }
@@ -129,7 +133,8 @@ export function normaliseConfig(items: ConfigItem[] | undefined | null): ConfigI
 
     // Lines with different negotiated terms stay separate; identical ones merge.
     const key = [
-      it.sku, it.unitPrice ?? "", it.gstPct ?? "", it.civilPrice ?? "", it.civilGstPct ?? "", it.oem ?? "",
+      it.sku, it.unitPrice ?? "", it.gstPct ?? "", it.civilPrice ?? "", it.civilGstPct ?? "",
+      it.blended ?? "", it.oem ?? "",
     ].join("|");
     const existing = merged.get(key);
     if (existing) existing.qty += qty;
@@ -141,6 +146,7 @@ export function normaliseConfig(items: ConfigItem[] | undefined | null): ConfigI
         gstPct: it.gstPct ?? null,
         civilPrice: it.civilPrice ?? null,
         civilGstPct: it.civilGstPct ?? null,
+        blended: it.blended ?? null,
         oem: it.oem ?? null,
       });
     }
@@ -167,6 +173,20 @@ export function clampGst(pct: unknown): number {
   const n = Number(pct);
   if (!Number.isFinite(n)) return 18;
   return Math.min(28, Math.max(0, Math.round(n)));
+}
+
+const GST_SLAB_VALUES = [0, 5, 18, 28];
+
+/** Snaps a computed blended % (e.g. 12.97) to the nearest real GST slab, so a Blended line's default always lands on a selectable option. */
+export function nearestGstSlab(pct: number): number {
+  return GST_SLAB_VALUES.reduce((closest, g) => (Math.abs(g - pct) < Math.abs(closest - pct) ? g : closest), GST_SLAB_VALUES[0]!);
+}
+
+/** The default flat rate for a Blended charger line — equipment and civil work's rates, weighted by their share of the bundled price, snapped to the nearest slab. */
+export function defaultBlendedGstPct(equipmentPrice: number, civilPrice: number): number {
+  const total = equipmentPrice + civilPrice;
+  if (total <= 0) return 18;
+  return nearestGstSlab((equipmentPrice * GST_RATE * 100 + civilPrice * REST_GST_RATE * 100) / total);
 }
 
 /** Flat EMI on a reducing-balance loan. */
@@ -196,6 +216,31 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
     const s = getSpec(it.sku) as ChargerSpec;
     const equipDefault = s.equipmentPrice ?? s.basePrice;
     const civilDefault = Math.max(0, s.basePrice - equipDefault);
+
+    if (it.blended) {
+      // One combined line — equipment and electrical/civil work billed together at one flat rate,
+      // defaulting to their weighted-average rate snapped to the nearest real slab.
+      const unit = it.unitPrice != null && it.unitPrice >= 0 ? Math.round(it.unitPrice) : s.basePrice;
+      const base = unit * it.qty;
+      const gstPct = it.gstPct != null ? clampGst(it.gstPct) : defaultBlendedGstPct(equipDefault, civilDefault);
+      const blendedLine: QuoteLine = {
+        kind: "CHARGER",
+        key: `c${i}-${s.sku}-blended`,
+        label: `${s.label} DC Fast Charger`,
+        sku: s.sku,
+        kw: s.kw,
+        oem: it.oem ?? null,
+        qty: it.qty,
+        unitBase: unit,
+        catalogueUnitBase: s.basePrice,
+        overridden: unit !== s.basePrice,
+        base,
+        gstPct,
+        gst: rupee(base * (gstPct / 100)),
+        total: rupee(base * (1 + gstPct / 100)),
+      };
+      return [blendedLine];
+    }
 
     const equipUnit = it.unitPrice != null && it.unitPrice >= 0 ? Math.round(it.unitPrice) : equipDefault;
     const equipBase = equipUnit * it.qty;

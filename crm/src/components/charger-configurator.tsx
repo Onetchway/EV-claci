@@ -11,7 +11,7 @@ import { catalogueAllIn, type ChargerSpec } from "@/lib/catalog";
 import { useChargerCatalog } from "@/hooks/use-catalog";
 import { CHARGER_OEMS, EXTRA_ITEM_PRESETS, GST_SLABS } from "@/lib/constants";
 import {
-  buildQuote, clampGst, normaliseConfig, type ConfigItem, type ExtraItem,
+  buildQuote, clampGst, defaultBlendedGstPct, normaliseConfig, type ConfigItem, type ExtraItem,
 } from "@/lib/pricing";
 import { cn, formatCompactINR, formatINR } from "@/lib/utils";
 
@@ -177,12 +177,18 @@ function BasketRow({
   const equipDefault = spec.equipmentPrice ?? spec.basePrice;
   const civilDefault = hasSplit ? Math.max(0, spec.basePrice - equipDefault) : 0;
 
+  const blended = Boolean(item.blended);
+
   const equipUnit = item.unitPrice ?? equipDefault;
   const equipGstPct = item.gstPct ?? 5;
   const civilUnit = item.civilPrice ?? civilDefault;
   const civilGstPct = item.civilGstPct ?? 18;
 
-  const lineBase = (equipUnit + (hasSplit ? civilUnit : 0)) * item.qty;
+  const combinedDefault = equipDefault + civilDefault;
+  const blendedUnit = item.unitPrice ?? combinedDefault;
+  const blendedGstPct = item.gstPct ?? defaultBlendedGstPct(equipDefault, civilDefault);
+
+  const lineBase = (blended ? blendedUnit : equipUnit + (hasSplit ? civilUnit : 0)) * item.qty;
 
   return (
     <li className="rounded-lg border border-ink-200 bg-white px-3 py-2.5">
@@ -233,32 +239,76 @@ function BasketRow({
       </div>
 
       <div className="mt-2 space-y-2 border-t border-ink-100 pt-2">
-        <PriceGstRow
-          title="Equipment"
-          unit={equipUnit}
-          gstPct={equipGstPct}
-          catalogUnit={equipDefault}
-          disabled={disabled}
-          allowPriceOverride={allowPriceOverride}
-          onPriceChange={(v) => onPatch({ unitPrice: v })}
-          onResetPrice={() => onPatch({ unitPrice: null })}
-          onGstChange={(v) => onPatch({ gstPct: v })}
-          ariaLabel={`Equipment for ${spec.label}`}
-        />
-
         {hasSplit && (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-400">
+              {blended ? "Blended — one combined line, one flat rate" : "Standard — equipment and civil work billed separately"}
+            </p>
+            <div className="flex shrink-0 overflow-hidden rounded-lg border border-ink-200 text-[11px] font-medium">
+              {(["STANDARD", "BLENDED"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => {
+                    if (m === "BLENDED") onPatch({ blended: true, unitPrice: null, gstPct: null });
+                    else onPatch({ blended: false, unitPrice: null, gstPct: null, civilPrice: null, civilGstPct: null });
+                  }}
+                  className={cn(
+                    "px-2.5 py-1 transition disabled:cursor-not-allowed disabled:opacity-50",
+                    (blended ? "BLENDED" : "STANDARD") === m ? "bg-brand-600 text-white" : "bg-white text-ink-600 hover:bg-ink-100",
+                  )}
+                >
+                  {m === "STANDARD" ? "Standard" : "Blended"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {blended ? (
           <PriceGstRow
-            title="Electrical & Civil Work"
-            unit={civilUnit}
-            gstPct={civilGstPct}
-            catalogUnit={civilDefault}
+            title="Charger (all-in)"
+            unit={blendedUnit}
+            gstPct={blendedGstPct}
+            catalogUnit={combinedDefault}
             disabled={disabled}
             allowPriceOverride={allowPriceOverride}
-            onPriceChange={(v) => onPatch({ civilPrice: v })}
-            onResetPrice={() => onPatch({ civilPrice: null })}
-            onGstChange={(v) => onPatch({ civilGstPct: v })}
-            ariaLabel={`Electrical & civil work for ${spec.label}`}
+            onPriceChange={(v) => onPatch({ unitPrice: v })}
+            onResetPrice={() => onPatch({ unitPrice: null })}
+            onGstChange={(v) => onPatch({ gstPct: v })}
+            ariaLabel={`${spec.label} all-in`}
           />
+        ) : (
+          <>
+            <PriceGstRow
+              title="Equipment"
+              unit={equipUnit}
+              gstPct={equipGstPct}
+              catalogUnit={equipDefault}
+              disabled={disabled}
+              allowPriceOverride={allowPriceOverride}
+              onPriceChange={(v) => onPatch({ unitPrice: v })}
+              onResetPrice={() => onPatch({ unitPrice: null })}
+              onGstChange={(v) => onPatch({ gstPct: v })}
+              ariaLabel={`Equipment for ${spec.label}`}
+            />
+
+            {hasSplit && (
+              <PriceGstRow
+                title="Electrical & Civil Work"
+                unit={civilUnit}
+                gstPct={civilGstPct}
+                catalogUnit={civilDefault}
+                disabled={disabled}
+                allowPriceOverride={allowPriceOverride}
+                onPriceChange={(v) => onPatch({ civilPrice: v })}
+                onResetPrice={() => onPatch({ civilPrice: null })}
+                onGstChange={(v) => onPatch({ civilGstPct: v })}
+                ariaLabel={`Electrical & civil work for ${spec.label}`}
+              />
+            )}
+          </>
         )}
 
         <label className="block max-w-xs">
@@ -397,12 +447,13 @@ export function ChargerConfigurator({
 
   const add = (sku: string) => {
     if (disabled) return;
-    const idx = config.findIndex((c) => c.sku === sku && c.unitPrice == null && c.gstPct == null && c.civilPrice == null && c.civilGstPct == null);
+    const idx = config.findIndex((c) =>
+      c.sku === sku && c.unitPrice == null && c.gstPct == null && c.civilPrice == null && c.civilGstPct == null && !c.blended);
     const next =
       idx >= 0
         ? config.map((c, i) => (i === idx ? { ...c, qty: c.qty + 1 } : c))
         : [...config, {
-          sku, qty: 1, unitPrice: null, gstPct: null, civilPrice: null, civilGstPct: null, oem: defaultOem ?? null,
+          sku, qty: 1, unitPrice: null, gstPct: null, civilPrice: null, civilGstPct: null, blended: null, oem: defaultOem ?? null,
         }];
     onChange(next);
   };
