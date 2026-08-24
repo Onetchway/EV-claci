@@ -10,7 +10,7 @@ import {
   useAsyncAction,
 } from "@/components/ui";
 import { useChargerCatalog } from "@/hooks/use-catalog";
-import { BENCHMARKS, CATALOG_LIST, type ChargerSpec } from "@/lib/catalog";
+import { BENCHMARKS, CATALOG_LIST, catalogueAllIn, catalogueGst, type ChargerSpec } from "@/lib/catalog";
 import { addCustomCharger, archiveCustomCharger, type CustomChargerDoc } from "@/lib/db/catalog";
 import { canManageCatalog } from "@/lib/permissions";
 import type { ConfigItem } from "@/lib/pricing";
@@ -72,7 +72,7 @@ export default function CatalogPage() {
   const comparison = useMemo(
     () =>
       CATALOG_LIST.map((s) => {
-        const total = Math.round(s.basePrice * 1.05);
+        const total = catalogueAllIn(s);
         const fd5 = total * Math.pow(1 + BENCHMARKS.fdRate, 5);
         const mf5 = total * Math.pow(1 + BENCHMARKS.mutualFundRate, 5);
         return {
@@ -214,7 +214,7 @@ export default function CatalogPage() {
                 <th className="th">Option</th>
                 <th className="th">Vehicle</th>
                 <th className="th text-right">Investment</th>
-                <th className="th text-right">GST 5%</th>
+                <th className="th text-right">GST (5% equip. / 18% rest)</th>
                 <th className="th text-right">All-in</th>
                 <th className="th text-right">Stage 1 (EOI)</th>
                 <th className="th text-right">Stage 2</th>
@@ -227,8 +227,8 @@ export default function CatalogPage() {
                   <td className="td font-semibold">{s.label}</td>
                   <td className="td text-ink-600">{s.vehicleType}</td>
                   <td className="td text-right tabular-nums">{formatINR(s.basePrice)}</td>
-                  <td className="td text-right tabular-nums text-ink-500">{formatINR(s.basePrice * 0.05)}</td>
-                  <td className="td text-right font-semibold tabular-nums">{formatINR(s.basePrice * 1.05)}</td>
+                  <td className="td text-right tabular-nums text-ink-500">{formatINR(catalogueGst(s))}</td>
+                  <td className="td text-right font-semibold tabular-nums">{formatINR(catalogueAllIn(s))}</td>
                   <td className="td text-right tabular-nums">{formatINR(s.stage1EOI)}</td>
                   <td className="td text-right tabular-nums">{formatINR(s.stage2Infra)}</td>
                   <td className="td text-right tabular-nums">{formatINR(s.stage3Commissioning)}</td>

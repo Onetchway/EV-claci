@@ -10,20 +10,27 @@
  * letters Livanto issues vary deal by deal:
  *
  *   • unit price   — negotiated prices differ from the catalogue
- *   • GST rate     — chargers are 5% (HSN 8504 EVSE), civil/electrical/other
- *                    BOM items are 18%, and a DISCOM security deposit
- *                    carries none at all
+ *   • GST rate     — a DC charger's catalogue price bundles the hardware
+ *                    (HSN 8504 EVSE, 5%) with its electrical/civil BOM
+ *                    build-out (18%), so its default GST is the two split
+ *                    and summed, not one flat rate on the whole line. An
+ *                    explicit per-line gstPct overrides that split with one
+ *                    flat rate instead — used for a negotiated single rate,
+ *                    or Standard mode's one flat rate for the whole basket.
+ *                    Non-charger extras (civil work, LT panel, DISCOM
+ *                    deposit…) are simpler — 18% by default, 0% for a
+ *                    deposit, still one explicit rate per line.
  *   • OEM          — which manufacturer's charger is being supplied
  */
 
-import { CATALOG, FINANCING, GST_RATE, getSpec, type ChargerSpec } from "./catalog";
+import { CATALOG, FINANCING, GST_RATE, REST_GST_RATE, getSpec, type ChargerSpec } from "./catalog";
 
 export interface ConfigItem {
   sku: string;
   qty: number;
   /** Negotiated per-unit price, excluding GST. Falls back to the catalogue. */
   unitPrice?: number | null;
-  /** GST percentage for this line. Falls back to 18. */
+  /** Explicit GST override for this line — one flat rate on the whole line. Unset, it falls back to the BOM split (5% equipment / 18% electrical & civil). */
   gstPct?: number | null;
   /** Charger manufacturer for this line. */
   oem?: string | null;
@@ -179,8 +186,25 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
   const chargerLines: QuoteLine[] = config.map((it, i) => {
     const s = getSpec(it.sku) as ChargerSpec;
     const unitBase = it.unitPrice != null && it.unitPrice >= 0 ? Math.round(it.unitPrice) : s.basePrice;
-    const gstPct = it.gstPct != null ? clampGst(it.gstPct) : defaultGstPct;
     const base = unitBase * it.qty;
+
+    let gstPct: number;
+    let gst: number;
+    if (it.gstPct != null) {
+      // Explicit override — one flat rate for the whole line (a negotiated single rate, or Standard mode).
+      gstPct = clampGst(it.gstPct);
+      gst = rupee(base * (gstPct / 100));
+    } else {
+      // Default: the catalogue price bundles hardware (5%) with its electrical/civil BOM build-out
+      // (18%) — split it in the same proportion the BOM defines, not one flat rate on the whole line.
+      // A charger without a defined equipmentPrice (a custom, non-BOM entry) falls back to 5% on the whole line.
+      const equipRatio = s.equipmentPrice != null && s.basePrice > 0 ? s.equipmentPrice / s.basePrice : 1;
+      const equipBase = base * equipRatio;
+      const restBase = base - equipBase;
+      gst = rupee(equipBase * GST_RATE + restBase * REST_GST_RATE);
+      gstPct = base > 0 ? round2((gst / base) * 100) : clampGst(defaultGstPct);
+    }
+
     return {
       kind: "CHARGER",
       key: `c${i}-${s.sku}`,
@@ -194,8 +218,8 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
       overridden: unitBase !== s.basePrice,
       base,
       gstPct,
-      gst: rupee(base * (gstPct / 100)),
-      total: rupee(base + base * (gstPct / 100)),
+      gst,
+      total: rupee(base + gst),
     };
   });
 
@@ -219,9 +243,12 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
   const taxableValue = subtotal - discount;
 
   // A discount reduces every line's taxable base proportionally, so GST stays
-  // correct when lines sit in different slabs.
+  // correct when lines sit in different slabs. Scales each line's own exact
+  // `gst` rather than re-deriving from the rounded display `gstPct` — a
+  // charger's default rate is a blended (5% equipment / 18% rest) figure
+  // with more precision than its 2-decimal display value carries.
   const keepRatio = subtotal > 0 ? taxableValue / subtotal : 0;
-  const gst = rupee(lines.reduce((a, l) => a + l.base * keepRatio * (l.gstPct / 100), 0));
+  const gst = rupee(lines.reduce((a, l) => a + l.gst * keepRatio, 0));
   const grandTotal = rupee(taxableValue + gst);
   const effectiveGstPct = taxableValue > 0 ? round2((gst / taxableValue) * 100) : 0;
 

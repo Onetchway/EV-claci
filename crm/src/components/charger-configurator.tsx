@@ -4,10 +4,10 @@ import {
   DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable,
   useSensor, useSensors, type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
-import { GripVertical, Minus, Plus, RotateCcw, Trash2, Zap } from "lucide-react";
+import { GripVertical, Minus, Pencil, Plus, RotateCcw, Trash2, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { type ChargerSpec } from "@/lib/catalog";
+import { catalogueAllIn, type ChargerSpec } from "@/lib/catalog";
 import { useChargerCatalog } from "@/hooks/use-catalog";
 import {
   CHARGER_OEMS, EXTRA_ITEM_PRESETS, GST_MODE_LABEL, GST_MODES, GST_SLABS, type GstMode,
@@ -48,6 +48,10 @@ interface Props {
 
 const DROP_ID = "charger-basket";
 
+/** Snaps a computed blended % (e.g. 9.68) to the nearest real GST slab, so switching into a manual override always lands on a selectable option. */
+const nearestSlab = (pct: number) =>
+  GST_SLABS.reduce((closest, g) => (Math.abs(g - pct) < Math.abs(closest - pct) ? g : closest), GST_SLABS[0]);
+
 function PaletteCard({ spec, disabled, onAdd }: { spec: ChargerSpec; disabled?: boolean; onAdd: () => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `palette-${spec.sku}`,
@@ -82,7 +86,7 @@ function PaletteCard({ spec, disabled, onAdd }: { spec: ChargerSpec; disabled?: 
           </p>
           <p className="mt-0.5 text-[11px] text-ink-500">{spec.vehicleType} · {spec.guns} guns · {spec.portType}</p>
           <p className="mt-1.5 text-xs font-medium text-ink-700">{formatCompactINR(spec.basePrice)}</p>
-          <p className="text-[11px] text-ink-400">+ GST · {formatCompactINR(spec.basePrice * 1.05)} all-in</p>
+          <p className="text-[11px] text-ink-400">+ GST · {formatCompactINR(catalogueAllIn(spec))} all-in</p>
         </div>
       </div>
       <button
@@ -98,7 +102,7 @@ function PaletteCard({ spec, disabled, onAdd }: { spec: ChargerSpec; disabled?: 
 }
 
 function BasketRow({
-  item, index, spec, disabled, flatGst, allowPriceOverride, onPatch, onRemove,
+  item, index, spec, disabled, flatGst, effectiveGstPct, allowPriceOverride, onPatch, onRemove,
 }: {
   item: ConfigItem;
   index: number;
@@ -106,12 +110,14 @@ function BasketRow({
   disabled?: boolean;
   /** Standard mode — GST is one flat rate set above the basket, so the per-line select is hidden. */
   flatGst?: boolean;
+  /** The computed blended rate (5% equipment / 18% civil & electrical) when this line has no explicit override. */
+  effectiveGstPct?: number;
   allowPriceOverride?: boolean;
   onPatch: (patch: Partial<ConfigItem>) => void;
   onRemove: () => void;
 }) {
   const unitPrice = item.unitPrice ?? spec.basePrice;
-  const gstPct = item.gstPct ?? 5;
+  const gstPct = item.gstPct ?? effectiveGstPct ?? 5;
   const overridden = unitPrice !== spec.basePrice;
   const lineBase = unitPrice * item.qty;
 
@@ -204,15 +210,43 @@ function BasketRow({
         {!flatGst && (
           <label className="block">
             <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">GST</span>
-            <select
-              value={gstPct}
-              disabled={disabled}
-              onChange={(e) => onPatch({ gstPct: clampGst(e.target.value) })}
-              className="input py-1 text-sm"
-              aria-label={`GST rate for ${spec.label}`}
-            >
-              {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
-            </select>
+            {item.gstPct == null ? (
+              <span className="flex items-center gap-1">
+                <span className="input flex items-center bg-ink-50 py-1 text-sm text-ink-600" title="5% on the equipment, 18% on the electrical/civil build-out — per the BOM.">
+                  5% + 18%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onPatch({ gstPct: nearestSlab(gstPct) })}
+                  disabled={disabled}
+                  title="Override with one flat rate for this line"
+                  className="shrink-0 rounded p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1">
+                <select
+                  value={gstPct}
+                  disabled={disabled}
+                  onChange={(e) => onPatch({ gstPct: clampGst(e.target.value) })}
+                  className="input py-1 text-sm"
+                  aria-label={`GST rate for ${spec.label}`}
+                >
+                  {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => onPatch({ gstPct: null })}
+                  disabled={disabled}
+                  title="Reset to the automatic 5% / 18% BOM split"
+                  className="shrink-0 rounded p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            )}
           </label>
         )}
 
@@ -510,6 +544,7 @@ export function ChargerConfigurator({
                           spec={spec}
                           disabled={disabled}
                           flatGst={flatGst}
+                          effectiveGstPct={quote.chargerLines[i]?.gstPct}
                           allowPriceOverride={allowPriceOverride}
                           onPatch={(p) => patchAt(i, p)}
                           onRemove={() => removeAt(i)}
