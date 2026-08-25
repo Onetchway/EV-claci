@@ -63,6 +63,12 @@ service cloud.firestore {
       return role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
     }
 
+    // Issuing (or deleting) a Letter of Intent commits the company
+    // commercially — mirrors canIssueEoi/canDeleteEoi in src/lib/permissions.ts.
+    function canIssueEoi() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'FINANCE'];
+    }
+
     function uid() {
       return request.auth.uid;
     }
@@ -218,6 +224,9 @@ service cloud.firestore {
       match /eoiVersions/{versionId} {
         allow read: if canTouchLead(leadId);
         allow create: if canEditLead(leadId) && actorIsSelf('archivedBy');
+        // Deleting an already-archived copy outright (not archiving it
+        // further) is at least as consequential as issuing a letter.
+        allow delete: if canEditLead(leadId) && canIssueEoi();
       }
     }
 
