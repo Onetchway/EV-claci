@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Printer } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
-import { ChargerConfigurator } from "@/components/charger-configurator";
+import { ChargerConfigurator, ExtrasEditor } from "@/components/charger-configurator";
 import {
   Badge, Button, Card, EmptyState, Field, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
@@ -122,12 +122,17 @@ export default function QuotationDetailPage() {
             )}
           </Card>
 
+          <Card title="Other items">
+            <ExtrasEditor extras={extras} onChange={setExtras} disabled={!canEdit || !isDraft} />
+          </Card>
+
           <Card title="Chargers & services" subtitle={isDraft ? "Editable while the quotation is a draft." : "Locked — this is a record of what was quoted."}>
             <ChargerConfigurator
               value={items}
               onChange={setItems}
               extras={extras}
               onExtrasChange={setExtras}
+              showExtras={false}
               discount={discount}
               onDiscountChange={setDiscount}
               allowDiscount={canApplyDiscount(viewer)}

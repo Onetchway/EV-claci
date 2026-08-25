@@ -259,7 +259,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="flex min-h-screen bg-ink-50">
+    <div className="flex min-h-screen bg-ink-50 print:bg-white">
       <aside className="hidden w-60 shrink-0 border-r border-ink-200 bg-white lg:block">
         <div className="sticky top-0 h-screen">{sidebar}</div>
       </aside>

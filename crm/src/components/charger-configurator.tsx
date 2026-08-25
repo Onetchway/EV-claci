@@ -42,6 +42,8 @@ interface Props {
   disabled?: boolean;
   /** Some lead types (software, corporate...) price purely off extras/line items, not the franchise DC-charger basket. */
   showChargers?: boolean;
+  /** False when the "Other items" editor is rendered separately by the caller (e.g. its own Card above this one). */
+  showExtras?: boolean;
 }
 
 const DROP_ID = "charger-basket";
@@ -331,7 +333,7 @@ function BasketRow({
   );
 }
 
-function ExtrasEditor({
+export function ExtrasEditor({
   extras, disabled, onChange,
 }: {
   extras: ExtraItem[];
@@ -439,7 +441,7 @@ function ExtrasEditor({
 
 export function ChargerConfigurator({
   value, onChange, extras = [], onExtrasChange, discount = 0, onDiscountChange,
-  allowDiscount, allowPriceOverride, defaultOem, disabled, showChargers = true,
+  allowDiscount, allowPriceOverride, defaultOem, disabled, showChargers = true, showExtras = true,
 }: Props) {
   const [dragging, setDragging] = useState<ChargerSpec | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -544,7 +546,7 @@ export function ChargerConfigurator({
             </>
           )}
 
-          {onExtrasChange && (
+          {showExtras && onExtrasChange && (
             <ExtrasEditor extras={extras} disabled={disabled} onChange={onExtrasChange} />
           )}
 

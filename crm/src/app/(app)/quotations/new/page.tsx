@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
-import { ChargerConfigurator } from "@/components/charger-configurator";
+import { ChargerConfigurator, ExtrasEditor } from "@/components/charger-configurator";
 import {
   Button, Card, Field, Input, PageHeader, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
@@ -125,12 +125,17 @@ function NewQuotationInner() {
             </div>
           </Card>
 
+          <Card title="Other items">
+            <ExtrasEditor extras={extras} onChange={setExtras} />
+          </Card>
+
           <Card title="Chargers & services">
             <ChargerConfigurator
               value={items}
               onChange={setItems}
               extras={extras}
               onExtrasChange={setExtras}
+              showExtras={false}
               discount={discount}
               onDiscountChange={setDiscount}
               allowDiscount={canApplyDiscount(viewer)}
