@@ -1004,6 +1004,25 @@ export async function deleteEoi(lead: Lead, actor: Actor): Promise<void> {
   });
 }
 
+/**
+ * Permanently removes one archived version from leads/{id}/eoiVersions.
+ * Unlike deleteEoi (which archives the *current* letter), this deletes an
+ * already-archived copy outright — there is nowhere further to archive it to.
+ */
+export async function deleteEoiVersion(lead: Lead, version: EoiVersion, actor: Actor): Promise<void> {
+  await deleteDoc(doc(getDb(), LEADS, lead.id, EOI_VERSIONS, version.id));
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "EOI_DELETED",
+    message: `Archived Letter of Intent version ${version.number} permanently deleted`,
+    actor,
+  });
+}
+
 export async function setEoiStatus(lead: Lead, status: EoiStatus, actor: Actor): Promise<void> {
   if (!lead.eoi) return;
 

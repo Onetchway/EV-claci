@@ -11,7 +11,8 @@ import {
   EOI_STATUSES, EOI_STATUS_COLOR, EOI_STATUS_LABEL, type EoiStatus,
 } from "@/lib/constants";
 import {
-  deleteEoi, issueEoi, nextEoiNumber, regenerateEoi, saveEoi, setEoiStatus, subscribeEoiVersions,
+  deleteEoi, deleteEoiVersion, issueEoi, nextEoiNumber, regenerateEoi, saveEoi, setEoiStatus,
+  subscribeEoiVersions,
 } from "@/lib/db/leads";
 import { buildEoiFromLead, scheduleTotal } from "@/lib/eoi";
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
@@ -140,7 +141,12 @@ export function EoiPanel({
 
         {versions.length > 0 && (
           <Card title="Previous versions" subtitle={`${versions.length} archived letter${versions.length === 1 ? "" : "s"} on this lead.`}>
-            <VersionList versions={versions} onView={setViewingVersion} />
+            <VersionList
+              versions={versions}
+              onView={setViewingVersion}
+              onDelete={canDeleteEoi(viewer) ? (v) => void run(() => deleteEoiVersion(lead, v, actor), "Archived version deleted.") : undefined}
+              busy={busy}
+            />
           </Card>
         )}
 
@@ -289,7 +295,12 @@ export function EoiPanel({
         title="Previous versions"
         description="Every letter this lead has had before the current one — each stays exactly as it was when superseded."
       >
-        <VersionList versions={versions} onView={(v) => { setVersionsOpen(false); setViewingVersion(v); }} />
+        <VersionList
+          versions={versions}
+          onView={(v) => { setVersionsOpen(false); setViewingVersion(v); }}
+          onDelete={canDeleteEoi(viewer) ? (v) => void run(() => deleteEoiVersion(lead, v, actor), "Archived version deleted.") : undefined}
+          busy={busy}
+        />
       </Modal>
 
       <Modal
@@ -324,7 +335,16 @@ export function EoiPanel({
   );
 }
 
-function VersionList({ versions, onView }: { versions: EoiVersion[]; onView: (v: EoiVersion) => void }) {
+function VersionList({
+  versions, onView, onDelete, busy,
+}: {
+  versions: EoiVersion[];
+  onView: (v: EoiVersion) => void;
+  onDelete?: (v: EoiVersion) => void;
+  busy?: boolean;
+}) {
+  const [pendingDelete, setPendingDelete] = useState<EoiVersion | null>(null);
+
   if (versions.length === 0) return <p className="text-sm text-ink-500">No archived versions yet.</p>;
   return (
     <div className="divide-y divide-ink-100">
@@ -338,9 +358,46 @@ function VersionList({ versions, onView }: { versions: EoiVersion[]; onView: (v:
               {v.investorName} · {formatINR(v.totalAmount)} · superseded {formatDateTime(v.archivedAt)} by {v.archivedBy?.name}
             </p>
           </div>
-          <Button size="sm" onClick={() => onView(v)}>View / Print</Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button size="sm" onClick={() => onView(v)}>View / Print</Button>
+            {onDelete && (
+              <Button size="sm" onClick={() => setPendingDelete(v)} className="text-rose-700 hover:bg-rose-50">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       ))}
+
+      {onDelete && (
+        <Modal
+          open={pendingDelete != null}
+          onClose={() => setPendingDelete(null)}
+          title="Permanently delete this version?"
+          description="This is an archived copy — deleting it removes it for good, unlike deleting the current letter (which archives instead)."
+          footer={
+            <>
+              <Button onClick={() => setPendingDelete(null)}>Cancel</Button>
+              <Button
+                variant="danger"
+                loading={busy}
+                onClick={() => {
+                  if (pendingDelete) onDelete(pendingDelete);
+                  setPendingDelete(null);
+                }}
+              >
+                <Trash2 className="h-4 w-4" /> Delete permanently
+              </Button>
+            </>
+          }
+        >
+          {pendingDelete && (
+            <p className="text-sm text-ink-700">
+              {pendingDelete.number} · {pendingDelete.investorName} · {formatINR(pendingDelete.totalAmount)}
+            </p>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
