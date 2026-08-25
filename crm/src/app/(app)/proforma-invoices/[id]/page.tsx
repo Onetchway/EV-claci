@@ -9,9 +9,8 @@ import { ChargerConfigurator } from "@/components/charger-configurator";
 import {
   Badge, Button, Card, EmptyState, Field, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
-import { SimpleDocumentFooter, SimpleDocumentHeader } from "@/components/simple-document";
 import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
-import { BankDetailsPrintBlock, type BankDetails } from "@/components/bank-details";
+import { type BankDetails } from "@/components/bank-details";
 import { useSettings } from "@/hooks/use-settings";
 import {
   PROFORMA_INVOICE_STATUS_COLOR, PROFORMA_INVOICE_STATUS_LABEL, PROFORMA_INVOICE_STATUSES,
@@ -19,10 +18,11 @@ import {
 } from "@/lib/constants";
 import { subscribeProformaInvoice, updateProformaInvoice, updateProformaInvoiceStatus } from "@/lib/db/proforma-invoices";
 import { gstBreakdown } from "@/lib/gst";
-import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
+import { amountInWords } from "@/lib/loi-template";
+import { buildQuote, type ConfigItem, type ExtraItem, type QuoteLine } from "@/lib/pricing";
 import { canApplyDiscount, canManageProformaInvoices, canOverridePrice } from "@/lib/permissions";
 import type { ProformaInvoice, ShipToInfo } from "@/lib/types";
-import { formatDate, formatINR } from "@/lib/utils";
+import { cn, formatDate, formatINR } from "@/lib/utils";
 
 export default function ProformaInvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -169,6 +169,27 @@ export default function ProformaInvoiceDetailPage() {
   );
 }
 
+/** One row of the per-rate tax summary table (GST rate stands in for HSN/SAC — this pricing engine doesn't track HSN per line). */
+interface RateGroup {
+  gstPct: number;
+  taxable: number;
+  gst: number;
+}
+
+function groupLinesByGstRate(lines: QuoteLine[], keepRatio: number): RateGroup[] {
+  const map = new Map<number, RateGroup>();
+  for (const line of lines) {
+    const g = map.get(line.gstPct) ?? { gstPct: line.gstPct, taxable: 0, gst: 0 };
+    g.taxable += line.base * keepRatio;
+    g.gst += line.gst * keepRatio;
+    map.set(line.gstPct, g);
+  }
+  return [...map.values()].sort((a, b) => a.gstPct - b.gstPct);
+}
+
+const gridCell = "border border-ink-400 px-2 py-1.5";
+const gridLabel = "text-[10px] text-ink-500";
+
 function ProformaInvoiceDocument({
   pi, company, bank, onClose,
 }: {
@@ -178,6 +199,9 @@ function ProformaInvoiceDocument({
   onClose: () => void;
 }) {
   const quote = buildQuote(pi.items, { discount: pi.discount, extras: pi.extras });
+  const keepRatio = quote.subtotal > 0 ? quote.taxableValue / quote.subtotal : 0;
+  const rateGroups = groupLinesByGstRate(quote.lines, keepRatio);
+  const splitLabels = gstBreakdown(pi.gstType, 100, 100).map((r) => r.label); // ["IGST"] or ["CGST","SGST"]
 
   return (
     <div>
@@ -188,83 +212,168 @@ function ProformaInvoiceDocument({
         </Button>
       </div>
 
-      <article className="loi-sheet receipt-sheet mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card">
-        <SimpleDocumentHeader
-          company={company}
-          docLabel="Proforma Invoice"
-          docNumber={pi.piNumber}
-          meta={<p className="mt-1 text-[11px] text-ink-400">{formatDate(pi.createdAt)}</p>}
-        />
+      <article className="loi-sheet mx-auto max-w-3xl bg-white p-4 text-[11px] leading-snug text-ink-900 print:p-0">
+        <p className="mb-1 text-center text-base font-semibold">Proforma Invoice</p>
 
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-xs text-ink-500">Billed to</p>
-            <p className="font-medium text-ink-900">{pi.client.name}</p>
-            {pi.client.company && <p className="text-ink-600">{pi.client.company}</p>}
-            <p className="text-ink-600">{pi.client.phone}</p>
-            {pi.client.gstin && <p className="text-ink-600">GSTIN: {pi.client.gstin}</p>}
+        <div className="grid grid-cols-2 border border-ink-400">
+          <div className={cn(gridCell, "border-r-0")}>
+            <p className="font-semibold">{company.legalName}</p>
+            <p>{company.officeAddress}</p>
+            <p>GSTIN/UIN: {company.gstin}</p>
+            {company.email && <p>E-Mail: {company.email}</p>}
           </div>
-          <div className="text-right">
-            {pi.validUntil && (<><p className="text-xs text-ink-500">Valid until</p><p className="text-ink-900">{formatDate(pi.validUntil)}</p></>)}
+          <div className="grid grid-cols-2">
+            <div className={gridCell}><p className={gridLabel}>Invoice No.</p><p className="font-medium">{pi.piNumber}</p></div>
+            <div className={gridCell}><p className={gridLabel}>Dated</p><p className="font-medium">{formatDate(pi.createdAt)}</p></div>
+            <div className={gridCell}><p className={gridLabel}>Reference No. & Date</p><p>{pi.quoteNumber || "—"}</p></div>
+            <div className={gridCell}><p className={gridLabel}>Other References</p><p>{pi.leadCode || "—"}</p></div>
+            <div className={cn(gridCell, "col-span-2")}><p className={gridLabel}>Mode/Terms of Payment</p><p>{pi.validUntil ? `Valid until ${formatDate(pi.validUntil)}` : "—"}</p></div>
           </div>
         </div>
 
         {pi.shipToEnabled && pi.shipTo && (
-          <div className="mt-4 text-sm">
-            <ShipToPrintBlock shipTo={pi.shipTo} />
+          <div className={cn(gridCell, "border-t-0")}>
+            <p className={gridLabel}>Consignee (Ship to)</p>
+            <p className="font-semibold">{pi.shipTo.name || pi.client.name}</p>
+            {pi.shipTo.address && <p>{pi.shipTo.address}</p>}
+            {pi.shipTo.gstin && <p>GSTIN/UIN: {pi.shipTo.gstin}</p>}
           </div>
         )}
 
-        <div className="mt-6 overflow-x-auto scroll-thin">
-        <table className="w-full text-sm">
+        <div className={cn(gridCell, "border-t-0")}>
+          <p className={gridLabel}>Buyer (Bill to)</p>
+          <p className="font-semibold">{pi.client.name}{pi.client.company ? ` — ${pi.client.company}` : ""}</p>
+          {pi.client.address && <p>{pi.client.address}</p>}
+          {pi.client.city && <p>{pi.client.city}{pi.client.state ? `, ${pi.client.state}` : ""}</p>}
+          {pi.client.gstin && <p>GSTIN/UIN: {pi.client.gstin}</p>}
+        </div>
+
+        <table className="w-full border-collapse border border-t-0 border-ink-400">
           <thead>
-            <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
-              <th className="pb-2">Description</th>
-              <th className="pb-2 text-right">Qty</th>
-              <th className="pb-2 text-right">Unit price</th>
-              <th className="pb-2 text-right">GST</th>
-              <th className="pb-2 text-right">Amount</th>
+            <tr className="text-left">
+              <th className={cn(gridCell, "w-8")}>SI No.</th>
+              <th className={gridCell}>Particulars</th>
+              <th className={cn(gridCell, "w-16 text-right")}>Qty</th>
+              <th className={cn(gridCell, "w-24 text-right")}>Rate</th>
+              <th className={cn(gridCell, "w-28 text-right")}>Amount</th>
             </tr>
           </thead>
           <tbody>
-            {quote.lines.map((line) => (
-              <tr key={line.key} className="border-b border-ink-100">
-                <td className="py-2">{line.label}</td>
-                <td className="py-2 text-right tabular-nums">{line.qty}</td>
-                <td className="py-2 text-right tabular-nums">{formatINR(line.unitBase)}</td>
-                <td className="py-2 text-right tabular-nums text-ink-600">{line.gstPct}%</td>
-                <td className="py-2 text-right tabular-nums">{formatINR(line.base)}</td>
+            {quote.lines.map((line, i) => {
+              const taxable = line.base * keepRatio;
+              const gstAmt = line.gst * keepRatio;
+              const splitAmounts = gstBreakdown(pi.gstType, gstAmt, line.gstPct);
+              return (
+                <tr key={line.key}>
+                  <td className={cn(gridCell, "align-top")}>{i + 1}</td>
+                  <td className={cn(gridCell, "align-top")}>
+                    <p>{line.label}</p>
+                    {splitAmounts.map((row) => (
+                      <p key={row.label} className="text-ink-500">{row.label}</p>
+                    ))}
+                  </td>
+                  <td className={cn(gridCell, "align-top text-right tabular-nums")}>{line.qty}</td>
+                  <td className={cn(gridCell, "align-top text-right tabular-nums")}>{formatINR(line.unitBase)}</td>
+                  <td className={cn(gridCell, "align-top text-right tabular-nums")}>
+                    <p>{formatINR(taxable)}</p>
+                    {splitAmounts.map((row) => (
+                      <p key={row.label} className="text-ink-500">{formatINR(row.amount)}</p>
+                    ))}
+                  </td>
+                </tr>
+              );
+            })}
+            {quote.discount > 0 && (
+              <tr>
+                <td className={gridCell} />
+                <td className={gridCell}>Discount</td>
+                <td className={gridCell} />
+                <td className={gridCell} />
+                <td className={cn(gridCell, "text-right tabular-nums text-rose-600")}>−{formatINR(quote.discount)}</td>
               </tr>
-            ))}
+            )}
+            <tr>
+              <td className={gridCell} colSpan={4}><p className="text-right font-semibold">Total</p></td>
+              <td className={cn(gridCell, "text-right text-sm font-bold tabular-nums")}>{formatINR(quote.grandTotal)}</td>
+            </tr>
           </tbody>
         </table>
+
+        <div className={cn(gridCell, "border-t-0")}>
+          <p className={gridLabel}>Amount Chargeable (in words)</p>
+          <p className="font-semibold">{amountInWords(quote.grandTotal)}</p>
         </div>
 
-        <div className="mt-4 flex justify-end">
-          <dl className="w-56 space-y-1.5 text-sm">
-            <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(pi.totals.subtotal)}</dd></div>
-            {pi.totals.discount > 0 && (
-              <div className="flex justify-between"><dt className="text-ink-600">Discount</dt><dd className="tabular-nums text-rose-600">−{formatINR(pi.totals.discount)}</dd></div>
-            )}
-            {gstBreakdown(pi.gstType, pi.totals.gst, pi.totals.effectiveGstPct).map((row) => (
-              <div key={row.label} className="flex justify-between">
-                <dt className="text-ink-600">{row.label}</dt>
-                <dd className="tabular-nums">{formatINR(row.amount)}</dd>
-              </div>
-            ))}
-            <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(pi.totals.grandTotal)}</dd></div>
-          </dl>
-        </div>
+        <table className="w-full border-collapse border border-t-0 border-ink-400">
+          <thead>
+            <tr className="text-left">
+              <th className={gridCell}>GST Rate</th>
+              <th className={cn(gridCell, "text-right")}>Taxable Value</th>
+              {splitLabels.map((label) => <th key={label} className={cn(gridCell, "text-right")}>{label}</th>)}
+              <th className={cn(gridCell, "text-right")}>Total Tax Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rateGroups.map((g) => {
+              const split = gstBreakdown(pi.gstType, g.gst, g.gstPct);
+              return (
+                <tr key={g.gstPct}>
+                  <td className={gridCell}>{g.gstPct}%</td>
+                  <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(g.taxable)}</td>
+                  {split.map((row) => (
+                    <td key={row.label} className={cn(gridCell, "text-right tabular-nums")}>{formatINR(row.amount)}</td>
+                  ))}
+                  <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(g.gst)}</td>
+                </tr>
+              );
+            })}
+            <tr className="font-semibold">
+              <td className={gridCell}>Total</td>
+              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(quote.taxableValue)}</td>
+              {splitLabels.map((label) => {
+                const total = rateGroups.reduce((a, g) => {
+                  const row = gstBreakdown(pi.gstType, g.gst, g.gstPct).find((r) => r.label === label);
+                  return a + (row?.amount ?? 0);
+                }, 0);
+                return <td key={label} className={cn(gridCell, "text-right tabular-nums")}>{formatINR(total)}</td>;
+              })}
+              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(quote.gst)}</td>
+            </tr>
+          </tbody>
+        </table>
 
-        <div className="mt-6">
-          <BankDetailsPrintBlock bank={bank} />
+        <div className={cn(gridCell, "border-t-0")}>
+          <p className={gridLabel}>Tax Amount (in words)</p>
+          <p className="font-semibold">{amountInWords(quote.gst)}</p>
         </div>
 
         {pi.notes && (
-          <div className="mt-6 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{pi.notes}</div>
+          <div className={cn(gridCell, "border-t-0")}>
+            <p className={gridLabel}>Notes</p>
+            <p>{pi.notes}</p>
+          </div>
         )}
 
-        <SimpleDocumentFooter company={company} />
+        <div className={cn(gridCell, "border-t-0 text-right")}>
+          <p>for {company.legalName}</p>
+          <p className="mt-8">Authorised Signatory</p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-4 text-[10px] text-ink-500">
+          <div>
+            <p className="font-semibold text-ink-700">Bank details for payment</p>
+            {bank.accountName && <p>A/c holder: {bank.accountName}</p>}
+            {bank.bankName && <p>Bank: {bank.bankName}</p>}
+            {bank.accountNumber && <p>A/c No.: {bank.accountNumber}</p>}
+            {bank.ifsc && <p>IFSC: {bank.ifsc}</p>}
+          </div>
+          <div className="text-right">
+            <p>{company.registeredAddress}</p>
+            {company.cin && <p>CIN: {company.cin}</p>}
+          </div>
+        </div>
+
+        <p className="mt-4 text-center text-[10px] text-ink-500">This is a Computer Generated Proforma Invoice</p>
       </article>
     </div>
   );
