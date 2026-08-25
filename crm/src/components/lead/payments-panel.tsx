@@ -70,6 +70,7 @@ export function PaymentsPanel({
   const [confirmDelete, setConfirmDelete] = useState<Payment | null>(null);
   const [receiptFor, setReceiptFor] = useState<Payment | null>(null);
   const [attachmentsForId, setAttachmentsForId] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const { busy, run } = useAsyncAction();
   const { settings } = useSettings();
 
@@ -106,11 +107,13 @@ export function PaymentsPanel({
     // Pre-fill with what is still owed on that milestone, pre-GST.
     const suggested = m && m.balance > 0 ? Math.round(m.balance / (1 + GST_RATE)) : 0;
     setEditing(null);
+    setPendingFiles([]);
     setDraft(blankDraft(milestone, suggested ? String(suggested) : ""));
   }
 
   function openEdit(p: Payment) {
     setEditing(p);
+    setPendingFiles([]);
     const pct = (p.gstPct ?? GST_RATE) * 100;
     setDraft({
       milestone: p.milestone,
@@ -145,11 +148,21 @@ export function PaymentsPanel({
       note: draft.note.trim(),
     };
 
-    if (editing) await updatePayment(lead, editing, payload, actor);
-    else await addPayment(lead, payload, actor);
+    let saved: Payment;
+    if (editing) {
+      await updatePayment(lead, editing, payload, actor);
+      saved = editing;
+    } else {
+      saved = await addPayment(lead, payload, actor);
+    }
+
+    for (const file of pendingFiles) {
+      await uploadPaymentAttachment(lead, saved, file, actor);
+    }
 
     setDraft(null);
     setEditing(null);
+    setPendingFiles([]);
   }
 
   // A straight charger sale or EPC scope isn't a three-stage franchise
@@ -369,12 +382,12 @@ export function PaymentsPanel({
 
       <Modal
         open={draft !== null}
-        onClose={() => { setDraft(null); setEditing(null); }}
+        onClose={() => { setDraft(null); setEditing(null); setPendingFiles([]); }}
         title={editing ? "Edit payment" : "Record payment"}
         description="Enter the amount excluding GST — tax is calculated automatically."
         footer={
           <>
-            <Button onClick={() => { setDraft(null); setEditing(null); }}>Cancel</Button>
+            <Button onClick={() => { setDraft(null); setEditing(null); setPendingFiles([]); }}>Cancel</Button>
             <Button variant="primary" loading={busy} onClick={() => void run(save, "Payment saved.")}>
               {editing ? "Save changes" : "Record payment"}
             </Button>
@@ -476,6 +489,38 @@ export function PaymentsPanel({
 
             <Field label="Note" className="sm:col-span-2">
               <Textarea rows={2} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
+            </Field>
+
+            <Field label="Documents / images" className="sm:col-span-2" hint="Receipt, UTR screenshot, cheque photo — PDF, JPG, PNG, WEBP or HEIC, up to 15 MB each.">
+              <input
+                type="file"
+                accept={PAYMENT_ATTACHMENT_TYPES.join(",")}
+                multiple
+                onChange={(e) => { setPendingFiles([...pendingFiles, ...Array.from(e.target.files ?? [])]); e.target.value = ""; }}
+                className="block w-full text-sm text-ink-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100"
+              />
+              {pendingFiles.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {pendingFiles.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 rounded-md bg-ink-50 px-2 py-1 text-xs text-ink-600">
+                      <span className="truncate">{f.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPendingFiles(pendingFiles.filter((_, idx) => idx !== i))}
+                        className="shrink-0 text-ink-400 hover:text-rose-600"
+                        aria-label={`Remove ${f.name}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {editing?.attachments && editing.attachments.length > 0 && (
+                <p className="mt-2 text-xs text-ink-500">
+                  {editing.attachments.length} already attached — manage via the <Paperclip className="inline h-3 w-3" /> icon on the ledger row.
+                </p>
+              )}
             </Field>
 
             <div className="sm:col-span-2 rounded-lg bg-ink-50 px-3 py-2.5 text-sm">
