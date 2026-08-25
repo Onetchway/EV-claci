@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Plus, Printer, Receipt as ReceiptIcon, Trash2 } from "lucide-react";
+import { BadgeCheck, Paperclip, Plus, Printer, Receipt as ReceiptIcon, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -15,10 +15,11 @@ import {
   type PaymentMilestone, type PaymentMode, type PaymentStatus,
 } from "@/lib/constants";
 import {
-  addPayment, deletePayment, subscribePayments, summarisePayments, updatePayment,
+  addPayment, deletePayment, deletePaymentAttachment, PAYMENT_ATTACHMENT_TYPES,
+  subscribePayments, summarisePayments, updatePayment, uploadPaymentAttachment,
 } from "@/lib/db/payments";
 import { canDeletePayment, canVerifyPayment, type Viewer } from "@/lib/permissions";
-import type { Actor, Lead, Payment } from "@/lib/types";
+import type { Actor, Lead, Payment, PaymentAttachment } from "@/lib/types";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 
 // Presets cover every slab Livanto actually invoices at; "Custom" unlocks a
@@ -68,6 +69,7 @@ export function PaymentsPanel({
   const [editing, setEditing] = useState<Payment | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Payment | null>(null);
   const [receiptFor, setReceiptFor] = useState<Payment | null>(null);
+  const [attachmentsForId, setAttachmentsForId] = useState<string | null>(null);
   const { busy, run } = useAsyncAction();
   const { settings } = useSettings();
 
@@ -77,6 +79,7 @@ export function PaymentsPanel({
   );
 
   const summary = useMemo(() => summarisePayments(lead, payments), [lead, payments]);
+  const attachmentsFor = attachmentsForId ? payments.find((p) => p.id === attachmentsForId) ?? null : null;
 
   useEffect(() => onSummary?.(summary.collectedPct), [summary.collectedPct, onSummary]);
 
@@ -301,6 +304,21 @@ export function PaymentsPanel({
                         >
                           <ReceiptIcon className="h-3.5 w-3.5" />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setAttachmentsForId(p.id)}
+                          className={cn(
+                            "flex items-center gap-0.5 rounded p-1 hover:bg-ink-100",
+                            p.attachments?.length ? "text-brand-600" : "text-ink-400 hover:text-ink-700",
+                          )}
+                          aria-label="Payment attachments"
+                          title="Documents / images"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                          {p.attachments && p.attachments.length > 0 && (
+                            <span className="text-[10px] font-semibold tabular-nums">{p.attachments.length}</span>
+                          )}
+                        </button>
                         {canVerifyPayment(viewer) && p.status !== "VERIFIED" && (
                           <button
                             type="button"
@@ -499,7 +517,111 @@ export function PaymentsPanel({
           </p>
         )}
       </Modal>
+
+      {attachmentsFor && (
+        <PaymentAttachmentsModal
+          lead={lead}
+          payment={attachmentsFor}
+          actor={actor}
+          canEdit={canEdit}
+          onClose={() => setAttachmentsForId(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function PaymentAttachmentsModal({
+  lead, payment, actor, canEdit, onClose,
+}: {
+  lead: Lead;
+  payment: Payment;
+  actor: Actor;
+  canEdit: boolean;
+  onClose: () => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setError(null);
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        setProgress(0);
+        await uploadPaymentAttachment(lead, payment, file, actor, setProgress);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  }
+
+  const attachments = payment.attachments ?? [];
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Payment attachments"
+      description={`${MILESTONE_LABEL[payment.milestone]} — ${formatINR(payment.totalAmount)}`}
+    >
+      <div className="space-y-4">
+        {attachments.length === 0 ? (
+          <p className="text-sm text-ink-500">No documents or images attached yet.</p>
+        ) : (
+          <ul className="divide-y divide-ink-100">
+            {attachments.map((a) => (
+              <li key={a.storagePath} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <a
+                  href={a.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="truncate font-medium text-brand-700 hover:underline"
+                  title={a.fileName}
+                >
+                  {a.fileName}
+                </a>
+                <div className="flex shrink-0 items-center gap-2 text-xs text-ink-500">
+                  <span>{(a.size / 1024).toFixed(0)} KB</span>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => void deletePaymentAttachment(lead, payment, a, actor)}
+                      className="rounded p-1 text-ink-400 hover:bg-rose-50 hover:text-rose-600"
+                      aria-label={`Remove ${a.fileName}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {canEdit && (
+          <div>
+            <label className="label">Upload document or image</label>
+            <input
+              type="file"
+              accept={PAYMENT_ATTACHMENT_TYPES.join(",")}
+              multiple
+              disabled={uploading}
+              onChange={(e) => { void handleFiles(e.target.files); e.target.value = ""; }}
+              className="block w-full text-sm text-ink-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100"
+            />
+            {uploading && <p className="mt-1 text-xs text-ink-500">Uploading… {progress}%</p>}
+            {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
+            <p className="mt-1 text-xs text-ink-400">PDF, JPG, PNG, WEBP or HEIC, up to 15 MB each — e.g. a payment receipt, UTR screenshot or cheque photo.</p>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
 

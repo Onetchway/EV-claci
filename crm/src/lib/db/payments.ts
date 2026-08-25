@@ -1,16 +1,17 @@
 "use client";
 
 import {
-  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query,
+  addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, orderBy, query,
   serverTimestamp, Timestamp, updateDoc,
 } from "firebase/firestore";
+import { deleteObject, getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 
 import { GST_RATE } from "../catalog";
 import type { PaymentMilestone, PaymentMode, PaymentStatus } from "../constants";
 import { MILESTONE_LABEL } from "../constants";
-import { getDb } from "../firebase/client";
+import { getBucket, getDb } from "../firebase/client";
 import { buildQuote } from "../pricing";
-import type { Actor, Lead, Payment } from "../types";
+import type { Actor, Lead, Payment, PaymentAttachment } from "../types";
 import { formatINR } from "../utils";
 import { logActivitySafe } from "./activity";
 import { LEADS, refreshPaymentRollup } from "./leads";
@@ -139,6 +140,111 @@ export async function deletePayment(lead: Lead, payment: Payment, actor: Actor):
     leadName: lead.client?.name,
     type: "PAYMENT_DELETED",
     message: `Deleted ${MILESTONE_LABEL[payment.milestone]} entry of ${formatINR(payment.totalAmount)}`,
+    actor,
+  });
+}
+
+export const MAX_PAYMENT_ATTACHMENT_BYTES = 15 * 1024 * 1024;
+
+export const PAYMENT_ATTACHMENT_TYPES = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/heic",
+];
+
+export function validatePaymentAttachment(file: File): string | null {
+  if (file.size > MAX_PAYMENT_ATTACHMENT_BYTES) return "File is larger than 15 MB.";
+  if (file.size === 0) return "File is empty.";
+  if (!PAYMENT_ATTACHMENT_TYPES.includes(file.type)) return "Only PDF, JPG, PNG, WEBP or HEIC files are accepted.";
+  return null;
+}
+
+/** Attaches a proof-of-payment file (receipt, screenshot, UTR slip) to an existing payment entry. */
+export async function uploadPaymentAttachment(
+  lead: Lead,
+  payment: Payment,
+  file: File,
+  actor: Actor,
+  onProgress?: (pct: number) => void,
+): Promise<PaymentAttachment> {
+  const problem = validatePaymentAttachment(file);
+  if (problem) throw new Error(problem);
+
+  const safeName = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
+  const storagePath = `leads/${lead.id}/payments/${payment.id}_${Date.now()}_${safeName}`;
+  const storageRef = ref(getBucket(), storagePath);
+
+  const task = uploadBytesResumable(storageRef, file, {
+    contentType: file.type,
+    customMetadata: { leadId: lead.id, uploadedBy: actor.uid },
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    task.on(
+      "state_changed",
+      (snap) => onProgress?.(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+      reject,
+      () => resolve(),
+    );
+  });
+
+  const url = await getDownloadURL(storageRef);
+  const attachment: PaymentAttachment = {
+    fileName: file.name,
+    storagePath,
+    url,
+    contentType: file.type,
+    size: file.size,
+    uploadedAt: Timestamp.now(),
+    uploadedBy: actor,
+  };
+
+  await updateDoc(doc(getDb(), LEADS, lead.id, "payments", payment.id), {
+    attachments: arrayUnion(attachment),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "PAYMENT_UPDATED",
+    message: `Attached ${file.name} to ${MILESTONE_LABEL[payment.milestone]} payment`,
+    actor,
+  });
+
+  return attachment;
+}
+
+export async function deletePaymentAttachment(
+  lead: Lead,
+  payment: Payment,
+  attachment: PaymentAttachment,
+  actor: Actor,
+): Promise<void> {
+  await updateDoc(doc(getDb(), LEADS, lead.id, "payments", payment.id), {
+    attachments: arrayRemove(attachment),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+
+  try {
+    await deleteObject(ref(getBucket(), attachment.storagePath));
+  } catch (err) {
+    console.error("[payments] storage object could not be removed", err);
+  }
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "PAYMENT_UPDATED",
+    message: `Removed attachment ${attachment.fileName} from ${MILESTONE_LABEL[payment.milestone]} payment`,
     actor,
   });
 }

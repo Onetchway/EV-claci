@@ -333,6 +333,16 @@ export interface Lead {
   search?: string[];
 }
 
+export interface PaymentAttachment {
+  fileName: string;
+  storagePath: string;
+  url: string;
+  contentType: string;
+  size: number;
+  uploadedAt: TS;
+  uploadedBy: Actor;
+}
+
 export interface Payment {
   id: string;
   leadId: string;
@@ -350,6 +360,8 @@ export interface Payment {
   dueAt?: TS;
   note?: string;
   receiptDocId?: string | null;
+  /** Proof of payment — screenshots, UTR slips, cheque photos — attached after the fact. */
+  attachments?: PaymentAttachment[];
   createdAt: TS;
   createdBy: Actor;
   updatedAt?: TS;
