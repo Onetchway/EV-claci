@@ -9,6 +9,7 @@ import { ChargerConfigurator } from "@/components/charger-configurator";
 import {
   Badge, Button, Card, EmptyState, Field, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
+import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { useSettings } from "@/hooks/use-settings";
 import {
   PROFORMA_INVOICE_STATUS_COLOR, PROFORMA_INVOICE_STATUS_LABEL, PROFORMA_INVOICE_STATUSES,
@@ -159,26 +160,16 @@ function ProformaInvoiceDocument({
       </div>
 
       <article className="loi-sheet loi-letter mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
-        <div className="loi-print-header mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
-          {company.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={company.logoUrl}
-              alt={company.shortName}
-              width={197}
-              height={40}
-              className="h-10 w-auto shrink-0"
+        <PrintDocument
+          header={(
+            <PrintHeader
+              docLabel="Proforma Invoice"
+              docNumber={pi.piNumber}
+              meta={<p className="mt-1 text-[11px] text-ink-400">{formatDate(pi.createdAt)}</p>}
             />
-          ) : (
-            <p className="text-lg font-bold tracking-tight text-ink-900">{company.legalName}</p>
           )}
-          <div className="text-right">
-            <p className="text-xs text-ink-500">Proforma Invoice &middot; {pi.piNumber}</p>
-            <p className="mt-1 text-[11px] text-ink-400">{formatDate(pi.createdAt)}</p>
-          </div>
-        </div>
-
-        <div className="loi-print-body">
+          footer={<PrintFooter />}
+        >
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-xs text-ink-500">Billed to</p>
@@ -231,17 +222,7 @@ function ProformaInvoiceDocument({
         {pi.notes && (
           <div className="mt-6 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{pi.notes}</div>
         )}
-        </div>
-
-        <footer className="loi-print-footer mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
-          <p>{company.legalName}</p>
-          <p>
-            {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`]
-              .filter(Boolean).join(" | ")}
-          </p>
-          <p>Registered address: {company.registeredAddress}</p>
-          <p>Office address: {company.officeAddress}</p>
-        </footer>
+        </PrintDocument>
       </article>
     </div>
   );

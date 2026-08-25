@@ -14,6 +14,7 @@ import {
   deleteEoi, issueEoi, nextEoiNumber, regenerateEoi, saveEoi, setEoiStatus, subscribeEoiVersions,
 } from "@/lib/db/leads";
 import { buildEoiFromLead, scheduleTotal } from "@/lib/eoi";
+import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { useSettings } from "@/hooks/use-settings";
 import { canDeleteEoi, canIssueEoi, type Viewer } from "@/lib/permissions";
 import type { Actor, AppSettings, EoiDoc, EoiScheduleRow, EoiVersion, Lead } from "@/lib/types";
@@ -414,32 +415,10 @@ function LoiLetterArticle({
 
   return (
     <article className="loi-sheet loi-letter rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
-      <div className="loi-print-header mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
-        {company.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={company.logoUrl}
-            alt={company.shortName}
-            width={197}
-            height={40}
-            className="h-10 w-auto shrink-0"
-          />
-        ) : (
-          <p className="text-lg font-bold tracking-tight text-ink-900">{company.legalName}</p>
-        )}
-        <div className="text-right">
-          <p className="text-xs text-ink-500">Letter of Intent cum Expression of Interest · {eoi.number}</p>
-          {(company.email || company.website) && (
-            <p className="mt-1 text-[11px] text-ink-400">
-              {company.email}
-              {company.email && company.website && <> &nbsp;|&nbsp; </>}
-              {company.website}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="loi-print-body">
+      <PrintDocument
+        header={<PrintHeader docLabel="Letter of Intent cum Expression of Interest" docNumber={eoi.number} />}
+        footer={<PrintFooter />}
+      >
       <EditableLine
         readOnly={readOnly}
         label="Date"
@@ -918,18 +897,7 @@ function LoiLetterArticle({
           <div className="mt-10 border-t border-ink-400 pt-1 text-xs">&nbsp;</div>
         </div>
       </div>
-      </div>
-
-      <footer className="loi-print-footer mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
-        <p>{company.legalName}</p>
-        <p>
-          {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`]
-            .filter(Boolean)
-            .join(" | ")}
-        </p>
-        <p>Registered address: {company.registeredAddress}</p>
-        <p>Office address: {company.officeAddress}</p>
-      </footer>
+      </PrintDocument>
     </article>
   );
 }

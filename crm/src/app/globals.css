@@ -153,37 +153,39 @@ body {
   }
 
   /*
-   * Repeating letterhead + footer on every printed page of the EOI.
-   * `position: fixed` inside @page-margined print output repeats the fixed
-   * element at the same spot on each page in every major browser's print
-   * engine — the standard cross-browser trick for a running header/footer,
-   * since CSS's own @page margin-box content has poor/no support. The body
-   * gets matching padding so page 1's content doesn't start underneath the
-   * fixed header, and enough bottom padding that the last line of content
-   * never lands under the fixed footer.
+   * Repeating letterhead + footer on every printed page.
+   *
+   * `position: fixed` was tried first and doesn't work: fixed elements are
+   * pulled out of flow, so nothing tells the browser to leave room for them
+   * before each page break — content kept printing straight through and
+   * landing underneath the footer. A <table> with <thead>/<tfoot> is the
+   * one technique every major print engine actually paginates correctly:
+   * the header/footer repeat on every page AND the browser reserves their
+   * height when laying out each page, because that's ordinary table layout,
+   * not a positioning hack. The whole letter body is the table's single
+   * <tbody> cell.
    */
-  .loi-letter {
-    position: relative;
+  .loi-print-table {
+    width: 100%;
+    border-collapse: collapse;
   }
 
-  .loi-letter .loi-print-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: #fff;
+  .loi-print-header-cell,
+  .loi-print-footer-cell {
+    padding: 0;
   }
 
-  .loi-letter .loi-print-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #fff;
-  }
-
-  .loi-letter .loi-print-body {
-    padding-top: 26mm;
-    padding-bottom: 20mm;
+  /*
+   * The wrapper table's own <tr> elements (one giant tbody row holding the
+   * whole letter body) must stay breakable — otherwise the broader
+   * `.loi-sheet tr { page-break-inside: avoid }` rule above would tell the
+   * browser to keep that entire multi-page row on one page, which silently
+   * defeats pagination. Three classes + two combinators outweighs the
+   * two-class rule above regardless of source order.
+   */
+  .loi-print-table > thead > tr,
+  .loi-print-table > tbody > tr,
+  .loi-print-table > tfoot > tr {
+    page-break-inside: auto;
   }
 }
