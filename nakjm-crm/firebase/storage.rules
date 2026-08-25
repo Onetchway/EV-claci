@@ -1,0 +1,49 @@
+rules_version = '2';
+
+// NAKJM project documents — client POs, work orders, BOQ source files.
+//
+// Storage rules cannot read Firestore, so per-project ownership isn't
+// checked here. Access is gated on being a signed-in CRM user; the
+// Firestore `documents` collection (properly rule-gated) is the only place
+// download URLs are ever surfaced to the app.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() && request.auth.token.role != null
+        ? request.auth.token.role
+        : 'VIEWER';
+    }
+
+    function canManage() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER', 'OPERATIONS', 'FINANCE'];
+    }
+
+    function acceptableFile() {
+      return request.resource.size < 20 * 1024 * 1024
+             && (request.resource.contentType.matches('image/.*')
+                 || request.resource.contentType == 'application/pdf'
+                 || request.resource.contentType == 'application/vnd.ms-excel'
+                 || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                 || request.resource.contentType == 'application/msword'
+                 || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+
+    match /nakjm/{scope}/{fileName} {
+      allow read: if signedIn();
+      allow create: if canManage() && acceptableFile();
+      // Files are immutable once uploaded; a correction is a new upload.
+      allow update: if false;
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN'];
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
