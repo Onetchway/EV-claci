@@ -10,7 +10,7 @@ import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select,
   Spinner, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
-import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
+import { SimpleDocumentFooter, SimpleDocumentHeader } from "@/components/simple-document";
 import { ShipToPrintBlock } from "@/components/gst-ship-to";
 import { BankDetailsPrintBlock } from "@/components/bank-details";
 import { useSettings } from "@/hooks/use-settings";
@@ -314,17 +314,14 @@ function PurchaseOrderDocument({
         </Button>
       </div>
 
-      <article className="loi-sheet loi-letter mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
-        <PrintDocument
-          header={(
-            <PrintHeader
-              docLabel="Purchase Order"
-              docNumber={po.poNumber}
-              meta={<p className="mt-1 text-[11px] text-ink-400">{formatDate(po.createdAt)}</p>}
-            />
-          )}
-          footer={<PrintFooter />}
-        >
+      <article className="loi-sheet receipt-sheet mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card">
+        <SimpleDocumentHeader
+          company={company}
+          docLabel="Purchase Order"
+          docNumber={po.poNumber}
+          meta={<p className="mt-1 text-[11px] text-ink-400">{formatDate(po.createdAt)}</p>}
+        />
+
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-xs text-ink-500">Vendor</p>
@@ -404,7 +401,8 @@ function PurchaseOrderDocument({
             <p className="mt-1 whitespace-pre-wrap text-xs text-ink-600">{po.terms}</p>
           </div>
         )}
-        </PrintDocument>
+
+        <SimpleDocumentFooter company={company} />
       </article>
     </div>
   );

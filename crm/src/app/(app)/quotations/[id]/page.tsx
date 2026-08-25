@@ -9,7 +9,7 @@ import { ChargerConfigurator } from "@/components/charger-configurator";
 import {
   Badge, Button, Card, EmptyState, Field, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
-import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
+import { SimpleDocumentFooter, SimpleDocumentHeader } from "@/components/simple-document";
 import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
 import { BankDetailsPrintBlock, type BankDetails } from "@/components/bank-details";
 import { useSettings } from "@/hooks/use-settings";
@@ -186,17 +186,14 @@ function QuotationDocument({
         </Button>
       </div>
 
-      <article className="loi-sheet loi-letter mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
-        <PrintDocument
-          header={(
-            <PrintHeader
-              docLabel="Quotation"
-              docNumber={q.quoteNumber}
-              meta={<p className="mt-1 text-[11px] text-ink-400">{formatDate(q.createdAt)}</p>}
-            />
-          )}
-          footer={<PrintFooter />}
-        >
+      <article className="loi-sheet receipt-sheet mx-auto max-w-2xl rounded-xl border border-ink-200 bg-white p-8 shadow-card">
+        <SimpleDocumentHeader
+          company={company}
+          docLabel="Quotation"
+          docNumber={q.quoteNumber}
+          meta={<p className="mt-1 text-[11px] text-ink-400">{formatDate(q.createdAt)}</p>}
+        />
+
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-xs text-ink-500">Quoted to</p>
@@ -264,7 +261,8 @@ function QuotationDocument({
         {q.notes && (
           <div className="mt-6 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{q.notes}</div>
         )}
-        </PrintDocument>
+
+        <SimpleDocumentFooter company={company} />
       </article>
     </div>
   );
