@@ -11,5 +11,6 @@ router.use('/sessions',    require('./sessions.routes'));
 router.use('/revenue',     require('./revenue.routes'));
 router.use('/settlements', require('./settlements.routes'));
 router.use('/dashboard',   require('./dashboard.routes'));
+router.use('/nakjm',       require('./nakjm'));
 
 module.exports = router;
