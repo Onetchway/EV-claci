@@ -364,14 +364,18 @@ function ExtrasEditor({
           value={preset}
           disabled={disabled}
           onChange={(e) => {
-            const p = EXTRA_ITEM_PRESETS.find((x) => x.label === e.target.value);
-            if (p) add(p.label, p.gstPct);
+            if (e.target.value === "__custom__") add("", 18);
+            else {
+              const p = EXTRA_ITEM_PRESETS.find((x) => x.label === e.target.value);
+              if (p) add(p.label, p.gstPct);
+            }
             setPreset("");
           }}
           className="input w-auto py-1 text-xs"
           aria-label="Add an item"
         >
           <option value="">+ Add item…</option>
+          <option value="__custom__">Custom item…</option>
           {EXTRA_ITEM_PRESETS.map((p) => <option key={p.label} value={p.label}>{p.label}</option>)}
         </select>
       </div>
