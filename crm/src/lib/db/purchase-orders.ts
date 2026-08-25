@@ -57,6 +57,7 @@ export interface PoDraft {
   linkedProjectCode?: string | null;
   expectedDeliveryAt?: Date | null;
   notes?: string;
+  terms?: string;
 }
 
 export async function createPurchaseOrder(draft: PoDraft, actor: Actor): Promise<{ id: string; poNumber: string }> {
@@ -81,6 +82,7 @@ export async function createPurchaseOrder(draft: PoDraft, actor: Actor): Promise
       expectedDeliveryAt: draft.expectedDeliveryAt ? Timestamp.fromDate(draft.expectedDeliveryAt) : null,
       receivedAt: null,
       notes: draft.notes ?? "",
+      terms: draft.terms ?? "",
       createdAt: serverTimestamp(),
       createdBy: actor,
       updatedAt: serverTimestamp(),

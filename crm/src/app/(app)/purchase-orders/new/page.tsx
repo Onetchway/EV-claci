@@ -34,6 +34,7 @@ function NewPurchaseOrderInner() {
   const [linkedProjectId, setLinkedProjectId] = useState("");
   const [expectedDeliveryAt, setExpectedDeliveryAt] = useState("");
   const [notes, setNotes] = useState("");
+  const [terms, setTerms] = useState("");
   const [items, setItems] = useState<PoItem[]>([blankItem()]);
 
   useEffect(() => subscribeVendors(setVendors), []);
@@ -70,6 +71,7 @@ function NewPurchaseOrderInner() {
       linkedProjectCode: project?.code ?? null,
       expectedDeliveryAt: expectedDeliveryAt ? new Date(`${expectedDeliveryAt}T00:00:00`) : null,
       notes: notes.trim(),
+      terms: terms.trim(),
     }, actor);
     router.push(`/purchase-orders/${id}`);
   }
@@ -150,6 +152,15 @@ function NewPurchaseOrderInner() {
                 </div>
               ))}
             </div>
+          </Card>
+
+          <Card title="Terms & conditions">
+            <Textarea
+              rows={6}
+              value={terms}
+              onChange={(e) => setTerms(e.target.value)}
+              placeholder="Payment terms, warranty, delivery conditions, penalties, etc. Printed on the order below the line items."
+            />
           </Card>
         </div>
 

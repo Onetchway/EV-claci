@@ -506,6 +506,8 @@ export interface PurchaseOrder {
   expectedDeliveryAt?: TS;
   receivedAt?: TS | null;
   notes?: string;
+  /** Freeform terms & conditions printed on the order — payment terms, warranty, delivery conditions, etc. */
+  terms?: string;
   createdAt: TS;
   createdBy?: Actor | null;
   updatedAt?: TS;

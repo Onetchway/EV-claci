@@ -132,7 +132,8 @@ export default function PurchaseOrderDetailPage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Line items" className="lg:col-span-2">
+        <div className="space-y-4 lg:col-span-2">
+        <Card title="Line items">
           <div className="overflow-x-auto scroll-thin">
             <table className="w-full">
               <thead className="border-b border-ink-200">
@@ -194,6 +195,13 @@ export default function PurchaseOrderDetailPage() {
           </div>
           {po.notes && <p className="mt-3 text-sm text-ink-600">{po.notes}</p>}
         </Card>
+
+        {po.terms && (
+          <Card title="Terms & conditions">
+            <p className="whitespace-pre-wrap text-sm text-ink-600">{po.terms}</p>
+          </Card>
+        )}
+        </div>
 
         <Card title="Payment summary">
           <dl className="space-y-2 text-sm">
@@ -355,6 +363,13 @@ function PurchaseOrderDocument({
 
         {po.notes && (
           <div className="mt-6 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{po.notes}</div>
+        )}
+
+        {po.terms && (
+          <div className="mt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Terms & conditions</p>
+            <p className="mt-1 whitespace-pre-wrap text-xs text-ink-600">{po.terms}</p>
+          </div>
         )}
         </PrintDocument>
       </article>
