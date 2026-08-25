@@ -10,14 +10,16 @@ import {
   Badge, Button, Card, EmptyState, Field, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
+import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  QUOTATION_STATUS_COLOR, QUOTATION_STATUS_LABEL, QUOTATION_STATUSES, type QuotationStatus,
+  QUOTATION_STATUS_COLOR, QUOTATION_STATUS_LABEL, QUOTATION_STATUSES, type GstType, type QuotationStatus,
 } from "@/lib/constants";
 import { subscribeQuotation, updateQuotation, updateQuotationStatus } from "@/lib/db/quotations";
+import { gstBreakdown } from "@/lib/gst";
 import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
 import { canApplyDiscount, canManageQuotations, canOverridePrice } from "@/lib/permissions";
-import type { Quotation } from "@/lib/types";
+import type { Quotation, ShipToInfo } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
 export default function QuotationDetailPage() {
@@ -35,10 +37,18 @@ export default function QuotationDetailPage() {
   const [extras, setExtras] = useState<ExtraItem[]>([]);
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState("");
+  const [gstType, setGstType] = useState<GstType>("IGST");
+  const [shipToEnabled, setShipToEnabled] = useState(false);
+  const [shipTo, setShipTo] = useState<ShipToInfo>({});
 
   useEffect(() => subscribeQuotation(id, (row) => {
     setQ(row);
-    if (row) { setItems(row.items); setExtras(row.extras); setDiscount(row.discount); setNotes(row.notes ?? ""); }
+    if (row) {
+      setItems(row.items); setExtras(row.extras); setDiscount(row.discount); setNotes(row.notes ?? "");
+      setGstType(row.gstType ?? "IGST");
+      setShipToEnabled(row.shipToEnabled ?? false);
+      setShipTo(row.shipTo ?? {});
+    }
   }), [id]);
 
   const canEdit = canManageQuotations(viewer);
@@ -50,6 +60,7 @@ export default function QuotationDetailPage() {
     await run(() => updateQuotation(q.id, {
       leadId: q.leadId, leadCode: q.leadCode, client: q.client, items, extras, discount,
       validUntil: q.validUntil?.toDate?.() ?? null, notes,
+      gstType, shipToEnabled, shipTo: shipToEnabled ? shipTo : null,
     }, actor), "Quotation updated.");
   }
 
@@ -97,6 +108,17 @@ export default function QuotationDetailPage() {
               {q.client.gstin && <div><dt className="text-xs text-ink-500">GSTIN</dt><dd className="text-ink-900">{q.client.gstin}</dd></div>}
               {q.validUntil && <div><dt className="text-xs text-ink-500">Valid until</dt><dd className="text-ink-900">{formatDate(q.validUntil)}</dd></div>}
             </dl>
+            {canEdit && isDraft ? (
+              <div className="mt-4 space-y-4 border-t border-ink-100 pt-4">
+                <GstTypeField value={gstType} onChange={setGstType} />
+                <ShipToFields enabled={shipToEnabled} onEnabledChange={setShipToEnabled} value={shipTo} onChange={setShipTo} />
+              </div>
+            ) : (
+              <dl className="mt-4 grid gap-3 border-t border-ink-100 pt-4 text-sm sm:grid-cols-2">
+                <div><dt className="text-xs text-ink-500">GST type</dt><dd className="text-ink-900">{gstType === "CGST_SGST" ? "CGST & SGST" : "IGST"}</dd></div>
+                {shipToEnabled && shipTo && <ShipToPrintBlock shipTo={shipTo} />}
+              </dl>
+            )}
           </Card>
 
           <Card title="Chargers & services" subtitle={isDraft ? "Editable while the quotation is a draft." : "Locked — this is a record of what was quoted."}>
@@ -129,7 +151,12 @@ export default function QuotationDetailPage() {
               {quote.discount > 0 && (
                 <div className="flex justify-between"><dt className="text-ink-600">Discount</dt><dd className="tabular-nums text-rose-600">−{formatINR(quote.discount)}</dd></div>
               )}
-              <div className="flex justify-between"><dt className="text-ink-600">GST</dt><dd className="tabular-nums">{formatINR(quote.gst)}</dd></div>
+              {gstBreakdown(gstType, quote.gst, quote.effectiveGstPct).map((row) => (
+                <div key={row.label} className="flex justify-between">
+                  <dt className="text-ink-600">{row.label}</dt>
+                  <dd className="tabular-nums">{formatINR(row.amount)}</dd>
+                </div>
+              ))}
               <div className="flex justify-between border-t border-ink-200 pt-1.5 text-base font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(quote.grandTotal)}</dd></div>
             </dl>
           </Card>
@@ -181,6 +208,12 @@ function QuotationDocument({
           </div>
         </div>
 
+        {q.shipToEnabled && q.shipTo && (
+          <div className="mt-4 text-sm">
+            <ShipToPrintBlock shipTo={q.shipTo} />
+          </div>
+        )}
+
         <div className="mt-6 overflow-x-auto scroll-thin">
         <table className="w-full text-sm">
           <thead>
@@ -212,7 +245,12 @@ function QuotationDocument({
             {q.totals.discount > 0 && (
               <div className="flex justify-between"><dt className="text-ink-600">Discount</dt><dd className="tabular-nums text-rose-600">−{formatINR(q.totals.discount)}</dd></div>
             )}
-            <div className="flex justify-between"><dt className="text-ink-600">GST</dt><dd className="tabular-nums">{formatINR(q.totals.gst)}</dd></div>
+            {gstBreakdown(q.gstType, q.totals.gst, q.totals.effectiveGstPct).map((row) => (
+              <div key={row.label} className="flex justify-between">
+                <dt className="text-ink-600">{row.label}</dt>
+                <dd className="tabular-nums">{formatINR(row.amount)}</dd>
+              </div>
+            ))}
             <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(q.totals.grandTotal)}</dd></div>
           </dl>
         </div>

@@ -7,13 +7,15 @@ import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Button, Card, Checkbox, Field, Input, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
+import { GstTypeField, ShipToFields } from "@/components/gst-ship-to";
 import { subscribeSessionsSince, type ChargeSession } from "@/lib/db/chargers";
 import { subscribeCorporateAccounts, subscribeEmspUsers } from "@/lib/db/emsp-users";
 import { createInvoice } from "@/lib/db/invoices";
 import { subscribeOrganizations } from "@/lib/db/organizations";
-import { INVOICE_BILL_TO_TYPES, type InvoiceBillToType } from "@/lib/constants";
+import { INVOICE_BILL_TO_TYPES, type GstType, type InvoiceBillToType } from "@/lib/constants";
+import { gstBreakdown } from "@/lib/gst";
 import { canManageInvoices } from "@/lib/permissions";
-import type { CorporateAccount, EmspUser, Organization } from "@/lib/types";
+import type { CorporateAccount, EmspUser, Organization, ShipToInfo } from "@/lib/types";
 import { formatDateTime, formatINR } from "@/lib/utils";
 
 function toMillis(ts: unknown): number | null {
@@ -34,6 +36,9 @@ export default function NewInvoicePage() {
     const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10);
   });
   const [periodEnd, setPeriodEnd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [gstType, setGstType] = useState<GstType>("IGST");
+  const [shipToEnabled, setShipToEnabled] = useState(false);
+  const [shipTo, setShipTo] = useState<ShipToInfo>({});
 
   const [users, setUsers] = useState<EmspUser[]>([]);
   const [accounts, setAccounts] = useState<CorporateAccount[]>([]);
@@ -79,6 +84,7 @@ export default function NewInvoicePage() {
         billToName: billToName.trim(), billToGstin: billToType === "MANUAL" ? manualGstin.trim() : undefined,
         periodStart: new Date(periodStart), periodEnd: new Date(periodEnd),
         sessionIds: selected.map((s) => s.id), subtotalInr, gstInr, totalInr,
+        gstType, shipToEnabled, shipTo: shipToEnabled ? shipTo : null,
       }, actor);
       router.push(`/invoices/${id}`);
     }, "Invoice created.");
@@ -124,6 +130,14 @@ export default function NewInvoicePage() {
                   placeholder="None (platform branding)"
                 />
               </Field>
+              <GstTypeField value={gstType} onChange={setGstType} className="sm:col-span-2" />
+              <ShipToFields
+                enabled={shipToEnabled}
+                onEnabledChange={setShipToEnabled}
+                value={shipTo}
+                onChange={setShipTo}
+                className="sm:col-span-2"
+              />
             </div>
           </Card>
 
@@ -165,7 +179,12 @@ export default function NewInvoicePage() {
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between"><dt className="text-ink-600">Sessions selected</dt><dd className="tabular-nums">{selected.length}</dd></div>
               <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(subtotalInr)}</dd></div>
-              <div className="flex justify-between"><dt className="text-ink-600">GST</dt><dd className="tabular-nums">{formatINR(gstInr)}</dd></div>
+              {gstBreakdown(gstType, gstInr, subtotalInr > 0 ? (gstInr / subtotalInr) * 100 : 0).map((row) => (
+                <div key={row.label} className="flex justify-between">
+                  <dt className="text-ink-600">{row.label}</dt>
+                  <dd className="tabular-nums">{formatINR(row.amount)}</dd>
+                </div>
+              ))}
               <div className="flex justify-between border-t border-ink-200 pt-1.5 text-base font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(totalInr)}</dd></div>
             </dl>
             <Button

@@ -7,9 +7,9 @@ import {
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
-import type { InvoiceBillToType, InvoiceStatus } from "../constants";
+import type { GstType, InvoiceBillToType, InvoiceStatus } from "../constants";
 import { getDb } from "../firebase/client";
-import type { Actor, CreditDebitNote, CreditDebitNoteKind, Invoice } from "../types";
+import type { Actor, CreditDebitNote, CreditDebitNoteKind, Invoice, ShipToInfo } from "../types";
 
 export const INVOICES = "invoices";
 export const CREDIT_DEBIT_NOTES = "creditDebitNotes";
@@ -45,6 +45,9 @@ export interface InvoiceDraft {
   gstInr: number;
   totalInr: number;
   notes?: string;
+  gstType?: GstType;
+  shipToEnabled?: boolean;
+  shipTo?: ShipToInfo | null;
 }
 
 export async function createInvoice(draft: InvoiceDraft, actor: Actor): Promise<{ id: string; invoiceNumber: string }> {
@@ -64,6 +67,9 @@ export async function createInvoice(draft: InvoiceDraft, actor: Actor): Promise<
     gstInr: draft.gstInr,
     totalInr: draft.totalInr,
     notes: draft.notes ?? "",
+    gstType: draft.gstType ?? "IGST",
+    shipToEnabled: draft.shipToEnabled ?? false,
+    shipTo: draft.shipToEnabled ? (draft.shipTo ?? null) : null,
     createdAt: serverTimestamp(),
     createdBy: actor,
     updatedAt: serverTimestamp(),

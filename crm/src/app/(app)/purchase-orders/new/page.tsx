@@ -10,12 +10,14 @@ import {
   Button, Card, Field, Input, PageHeader, Select, Spinner, Textarea,
   useAsyncAction,
 } from "@/components/ui";
-import { GST_SLABS } from "@/lib/constants";
+import { GstTypeField, ShipToFields } from "@/components/gst-ship-to";
+import { GST_SLABS, type GstType } from "@/lib/constants";
+import { gstBreakdown } from "@/lib/gst";
 import { createPurchaseOrder, DEFAULT_PO_GST_PCT } from "@/lib/db/purchase-orders";
 import { subscribeProjects } from "@/lib/db/projects";
 import { subscribeVendors } from "@/lib/db/vendors";
 import { canManageVendors } from "@/lib/permissions";
-import type { PoItem, Project, Vendor } from "@/lib/types";
+import type { PoItem, Project, ShipToInfo, Vendor } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 let itemSeq = 0;
@@ -35,6 +37,9 @@ function NewPurchaseOrderInner() {
   const [expectedDeliveryAt, setExpectedDeliveryAt] = useState("");
   const [notes, setNotes] = useState("");
   const [terms, setTerms] = useState("");
+  const [gstType, setGstType] = useState<GstType>("IGST");
+  const [shipToEnabled, setShipToEnabled] = useState(false);
+  const [shipTo, setShipTo] = useState<ShipToInfo>({});
   const [items, setItems] = useState<PoItem[]>([blankItem()]);
 
   useEffect(() => subscribeVendors(setVendors), []);
@@ -72,6 +77,9 @@ function NewPurchaseOrderInner() {
       expectedDeliveryAt: expectedDeliveryAt ? new Date(`${expectedDeliveryAt}T00:00:00`) : null,
       notes: notes.trim(),
       terms: terms.trim(),
+      gstType,
+      shipToEnabled,
+      shipTo: shipToEnabled ? shipTo : null,
     }, actor);
     router.push(`/purchase-orders/${id}`);
   }
@@ -112,6 +120,14 @@ function NewPurchaseOrderInner() {
               <Field label="Notes" className="sm:col-span-2">
                 <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
               </Field>
+              <GstTypeField value={gstType} onChange={setGstType} className="sm:col-span-2" />
+              <ShipToFields
+                enabled={shipToEnabled}
+                onEnabledChange={setShipToEnabled}
+                value={shipTo}
+                onChange={setShipTo}
+                className="sm:col-span-2"
+              />
             </div>
           </Card>
 
@@ -167,7 +183,12 @@ function NewPurchaseOrderInner() {
         <Card title="Summary">
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(totals.subtotal)}</dd></div>
-            <div className="flex justify-between"><dt className="text-ink-600">GST</dt><dd className="tabular-nums">{formatINR(totals.gst)}</dd></div>
+            {gstBreakdown(gstType, totals.gst, totals.subtotal > 0 ? (totals.gst / totals.subtotal) * 100 : 0).map((row) => (
+              <div key={row.label} className="flex justify-between">
+                <dt className="text-ink-600">{row.label}</dt>
+                <dd className="tabular-nums">{formatINR(row.amount)}</dd>
+              </div>
+            ))}
             <div className="flex justify-between border-t border-ink-200 pt-2 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(totals.total)}</dd></div>
           </dl>
           <div className="mt-4 flex flex-col gap-2">

@@ -11,6 +11,7 @@ import {
   Spinner, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
+import { ShipToPrintBlock } from "@/components/gst-ship-to";
 import { useSettings } from "@/hooks/use-settings";
 import {
   PAYMENT_MODES, PO_STATUS_COLOR, PO_STATUS_LABEL, PO_STATUSES, type PaymentMode,
@@ -21,6 +22,7 @@ import {
   updatePurchaseOrderStatus,
 } from "@/lib/db/purchase-orders";
 import { subscribeVendor } from "@/lib/db/vendors";
+import { gstBreakdown } from "@/lib/gst";
 import { canManageAssets, canManageVendors } from "@/lib/permissions";
 import type { PoItem, PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
@@ -182,10 +184,12 @@ export default function PurchaseOrderDetailPage() {
                   <td className="td font-semibold" colSpan={4}>Subtotal</td>
                   <td className="td text-right tabular-nums">{formatINR(po.subtotal)}</td>
                 </tr>
-                <tr>
-                  <td className="td font-semibold" colSpan={4}>GST</td>
-                  <td className="td text-right tabular-nums">{formatINR(po.gst)}</td>
-                </tr>
+                {gstBreakdown(po.gstType, po.gst, po.subtotal > 0 ? (po.gst / po.subtotal) * 100 : 0).map((row) => (
+                  <tr key={row.label}>
+                    <td className="td font-semibold" colSpan={4}>{row.label}</td>
+                    <td className="td text-right tabular-nums">{formatINR(row.amount)}</td>
+                  </tr>
+                ))}
                 <tr>
                   <td className="td font-bold" colSpan={4}>Total</td>
                   <td className="td text-right text-base font-bold tabular-nums text-brand-700">{formatINR(po.total)}</td>
@@ -195,6 +199,12 @@ export default function PurchaseOrderDetailPage() {
           </div>
           {po.notes && <p className="mt-3 text-sm text-ink-600">{po.notes}</p>}
         </Card>
+
+        {po.shipToEnabled && po.shipTo && (
+          <Card title="Ship to">
+            <ShipToPrintBlock shipTo={po.shipTo} />
+          </Card>
+        )}
 
         {po.terms && (
           <Card title="Terms & conditions">
@@ -324,6 +334,12 @@ function PurchaseOrderDocument({
           </div>
         </div>
 
+        {po.shipToEnabled && po.shipTo && (
+          <div className="mt-4 text-sm">
+            <ShipToPrintBlock shipTo={po.shipTo} />
+          </div>
+        )}
+
         <div className="mt-6 overflow-x-auto scroll-thin">
           <table className="w-full text-sm">
             <thead>
@@ -356,7 +372,12 @@ function PurchaseOrderDocument({
         <div className="mt-4 flex justify-end">
           <dl className="w-56 space-y-1.5 text-sm">
             <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(po.subtotal)}</dd></div>
-            <div className="flex justify-between"><dt className="text-ink-600">GST</dt><dd className="tabular-nums">{formatINR(po.gst)}</dd></div>
+            {gstBreakdown(po.gstType, po.gst, po.subtotal > 0 ? (po.gst / po.subtotal) * 100 : 0).map((row) => (
+              <div key={row.label} className="flex justify-between">
+                <dt className="text-ink-600">{row.label}</dt>
+                <dd className="tabular-nums">{formatINR(row.amount)}</dd>
+              </div>
+            ))}
             <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(po.total)}</dd></div>
           </dl>
         </div>

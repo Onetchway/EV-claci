@@ -8,11 +8,14 @@ import { ChargerConfigurator } from "@/components/charger-configurator";
 import {
   Button, Card, Field, Input, PageHeader, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
+import { GstTypeField, ShipToFields } from "@/components/gst-ship-to";
 import { getLead } from "@/lib/db/leads";
 import { createProformaInvoice } from "@/lib/db/proforma-invoices";
+import { type GstType } from "@/lib/constants";
+import { gstBreakdown } from "@/lib/gst";
 import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
 import { canApplyDiscount, canManageProformaInvoices, canOverridePrice } from "@/lib/permissions";
-import type { ClientInfo } from "@/lib/types";
+import type { ClientInfo, ShipToInfo } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 const blankClient: ClientInfo = { name: "", phone: "", email: "", company: "", city: "", state: "", address: "", gstin: "" };
@@ -32,6 +35,9 @@ function NewProformaInvoiceInner() {
   const [discount, setDiscount] = useState(0);
   const [validUntil, setValidUntil] = useState("");
   const [notes, setNotes] = useState("");
+  const [gstType, setGstType] = useState<GstType>("IGST");
+  const [shipToEnabled, setShipToEnabled] = useState(false);
+  const [shipTo, setShipTo] = useState<ShipToInfo>({});
   const [loadingLead, setLoadingLead] = useState(!!leadId);
 
   useEffect(() => {
@@ -64,6 +70,9 @@ function NewProformaInvoiceInner() {
         discount,
         validUntil: validUntil ? new Date(validUntil) : null,
         notes,
+        gstType,
+        shipToEnabled,
+        shipTo: shipToEnabled ? shipTo : null,
       }, actor);
       router.push(`/proforma-invoices/${id}`);
     }, "Proforma invoice created.");
@@ -105,6 +114,14 @@ function NewProformaInvoiceInner() {
               <Field label="Address" className="sm:col-span-2">
                 <Input value={client.address ?? ""} onChange={(e) => setClient((c) => ({ ...c, address: e.target.value }))} />
               </Field>
+              <GstTypeField value={gstType} onChange={setGstType} className="sm:col-span-2" />
+              <ShipToFields
+                enabled={shipToEnabled}
+                onEnabledChange={setShipToEnabled}
+                value={shipTo}
+                onChange={setShipTo}
+                className="sm:col-span-2"
+              />
             </div>
           </Card>
 
@@ -140,7 +157,12 @@ function NewProformaInvoiceInner() {
               {quote.discount > 0 && (
                 <div className="flex justify-between"><dt className="text-ink-600">Discount</dt><dd className="tabular-nums text-rose-600">−{formatINR(quote.discount)}</dd></div>
               )}
-              <div className="flex justify-between"><dt className="text-ink-600">GST</dt><dd className="tabular-nums">{formatINR(quote.gst)}</dd></div>
+              {gstBreakdown(gstType, quote.gst, quote.effectiveGstPct).map((row) => (
+                <div key={row.label} className="flex justify-between">
+                  <dt className="text-ink-600">{row.label}</dt>
+                  <dd className="tabular-nums">{formatINR(row.amount)}</dd>
+                </div>
+              ))}
               <div className="flex justify-between border-t border-ink-200 pt-1.5 text-base font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(quote.grandTotal)}</dd></div>
             </dl>
             <Button

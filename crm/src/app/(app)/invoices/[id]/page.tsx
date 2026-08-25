@@ -9,6 +9,7 @@ import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
+import { ShipToPrintBlock } from "@/components/gst-ship-to";
 import { useSettings } from "@/hooks/use-settings";
 import { INVOICE_STATUS_COLOR, INVOICE_STATUS_LABEL, INVOICE_STATUSES, type InvoiceStatus } from "@/lib/constants";
 import {
@@ -17,6 +18,7 @@ import {
 import { getCorporateAccount, getEmspUser } from "@/lib/db/emsp-users";
 import { emailInvoiceIssued } from "@/lib/db/notifications";
 import { subscribeOrganization } from "@/lib/db/organizations";
+import { gstBreakdown } from "@/lib/gst";
 import { canManageInvoices } from "@/lib/permissions";
 import type { CreditDebitNote, CreditDebitNoteKind, Invoice, Organization } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
@@ -132,9 +134,19 @@ export default function InvoiceDetailPage() {
           <div><dt className="text-xs text-ink-500">Period</dt><dd className="text-ink-900">{formatDate(inv.periodStart)} – {formatDate(inv.periodEnd)}</dd></div>
           <div><dt className="text-xs text-ink-500">Sessions</dt><dd className="text-ink-900">{inv.sessionIds.length}</dd></div>
         </dl>
+        {inv.shipToEnabled && inv.shipTo && (
+          <div className="mt-4 border-t border-ink-100 pt-4 text-sm">
+            <ShipToPrintBlock shipTo={inv.shipTo} />
+          </div>
+        )}
         <dl className="mt-4 space-y-1.5 border-t border-ink-100 pt-4 text-sm">
           <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(inv.subtotalInr)}</dd></div>
-          <div className="flex justify-between"><dt className="text-ink-600">GST</dt><dd className="tabular-nums">{formatINR(inv.gstInr)}</dd></div>
+          {gstBreakdown(inv.gstType, inv.gstInr, inv.subtotalInr > 0 ? (inv.gstInr / inv.subtotalInr) * 100 : 0).map((row) => (
+            <div key={row.label} className="flex justify-between">
+              <dt className="text-ink-600">{row.label}</dt>
+              <dd className="tabular-nums">{formatINR(row.amount)}</dd>
+            </div>
+          ))}
           <div className="flex justify-between text-base font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(inv.totalInr)}</dd></div>
           {!!inv.tdsInr && (
             <>
@@ -272,12 +284,18 @@ function InvoiceDocument({
             <p className="font-medium text-ink-900">{inv.billToName}</p>
             {inv.billToGstin && <p className="text-ink-600">GSTIN: {inv.billToGstin}</p>}
           </div>
+          {inv.shipToEnabled && inv.shipTo && <ShipToPrintBlock shipTo={inv.shipTo} />}
         </div>
 
         <div className="mt-6 flex justify-end">
           <dl className="w-56 space-y-1.5 text-sm">
             <div className="flex justify-between"><dt className="text-ink-600">Subtotal ({inv.sessionIds.length} sessions)</dt><dd className="tabular-nums">{formatINR(inv.subtotalInr)}</dd></div>
-            <div className="flex justify-between"><dt className="text-ink-600">GST</dt><dd className="tabular-nums">{formatINR(inv.gstInr)}</dd></div>
+            {gstBreakdown(inv.gstType, inv.gstInr, inv.subtotalInr > 0 ? (inv.gstInr / inv.subtotalInr) * 100 : 0).map((row) => (
+              <div key={row.label} className="flex justify-between">
+                <dt className="text-ink-600">{row.label}</dt>
+                <dd className="tabular-nums">{formatINR(row.amount)}</dd>
+              </div>
+            ))}
             <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(inv.totalInr)}</dd></div>
             {!!inv.tdsInr && (
               <>

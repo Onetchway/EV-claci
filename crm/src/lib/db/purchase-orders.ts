@@ -12,9 +12,9 @@ import {
 } from "firebase/firestore";
 
 import { GST_RATE } from "../catalog";
-import type { PaymentMode, PoStatus } from "../constants";
+import type { GstType, PaymentMode, PoStatus } from "../constants";
 import { getDb } from "../firebase/client";
-import type { Actor, PoItem, PurchaseOrder, VendorPayment } from "../types";
+import type { Actor, PoItem, PurchaseOrder, ShipToInfo, VendorPayment } from "../types";
 import { VENDORS } from "./vendors";
 
 export const PURCHASE_ORDERS = "purchaseOrders";
@@ -58,6 +58,9 @@ export interface PoDraft {
   expectedDeliveryAt?: Date | null;
   notes?: string;
   terms?: string;
+  gstType?: GstType;
+  shipToEnabled?: boolean;
+  shipTo?: ShipToInfo | null;
 }
 
 export async function createPurchaseOrder(draft: PoDraft, actor: Actor): Promise<{ id: string; poNumber: string }> {
@@ -83,6 +86,9 @@ export async function createPurchaseOrder(draft: PoDraft, actor: Actor): Promise
       receivedAt: null,
       notes: draft.notes ?? "",
       terms: draft.terms ?? "",
+      gstType: draft.gstType ?? "IGST",
+      shipToEnabled: draft.shipToEnabled ?? false,
+      shipTo: draft.shipToEnabled ? (draft.shipTo ?? null) : null,
       createdAt: serverTimestamp(),
       createdBy: actor,
       updatedAt: serverTimestamp(),

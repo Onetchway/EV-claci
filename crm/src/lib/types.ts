@@ -3,7 +3,7 @@ import type {
   ActivityType, AssetCategory, AssetStatus, ChargingScheduleStatus, CommercialModel, CommissionStatus,
   ComplaintCategory, ComplaintPriority, ComplaintStatus,
   ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EoiStatus,
-  FollowupPriority, FollowupStatus, FollowupType, FundingMode, LandType,
+  FollowupPriority, FollowupStatus, FollowupType, FundingMode, GstType, LandType,
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
   EmspUserType, InvoiceBillToType, InvoiceStatus, PaymentStatus, PoStatus, PowerLoad,
@@ -196,6 +196,13 @@ export interface Actor {
   uid: string;
   name: string;
   role: Role;
+}
+
+/** A delivery address distinct from the billed party — set only when shipToEnabled is true on the document. */
+export interface ShipToInfo {
+  name?: string;
+  address?: string;
+  gstin?: string;
 }
 
 export interface ClientInfo {
@@ -508,6 +515,10 @@ export interface PurchaseOrder {
   notes?: string;
   /** Freeform terms & conditions printed on the order — payment terms, warranty, delivery conditions, etc. */
   terms?: string;
+  /** IGST (inter-state) or CGST+SGST (intra-state) — same total tax, different breakdown on the printed order. Defaults to IGST when unset (pre-existing orders). */
+  gstType?: GstType;
+  shipToEnabled?: boolean;
+  shipTo?: ShipToInfo | null;
   createdAt: TS;
   createdBy?: Actor | null;
   updatedAt?: TS;
@@ -550,6 +561,10 @@ export interface Quotation {
   totals: Pick<Quote, "subtotal" | "discount" | "taxableValue" | "gst" | "grandTotal" | "effectiveGstPct" | "totalKw" | "unitCount">;
   validUntil?: TS;
   notes?: string;
+  /** IGST (inter-state) or CGST+SGST (intra-state) — same total tax, different breakdown on the printed document. Defaults to IGST when unset (pre-existing quotations). */
+  gstType?: GstType;
+  shipToEnabled?: boolean;
+  shipTo?: ShipToInfo | null;
   createdAt: TS;
   createdBy?: Actor | null;
   updatedAt?: TS;
@@ -581,6 +596,10 @@ export interface ProformaInvoice {
   totals: Pick<Quote, "subtotal" | "discount" | "taxableValue" | "gst" | "grandTotal" | "effectiveGstPct" | "totalKw" | "unitCount">;
   validUntil?: TS;
   notes?: string;
+  /** IGST (inter-state) or CGST+SGST (intra-state) — same total tax, different breakdown on the printed document. Defaults to IGST when unset (pre-existing proforma invoices). */
+  gstType?: GstType;
+  shipToEnabled?: boolean;
+  shipTo?: ShipToInfo | null;
   createdAt: TS;
   createdBy?: Actor | null;
   updatedAt?: TS;
@@ -1150,6 +1169,10 @@ export interface Invoice {
   tdsPct?: number;
   tdsInr?: number;
   notes?: string;
+  /** IGST (inter-state) or CGST+SGST (intra-state) — same total tax, different breakdown on the printed invoice. Defaults to IGST when unset (pre-existing invoices). */
+  gstType?: GstType;
+  shipToEnabled?: boolean;
+  shipTo?: ShipToInfo | null;
   createdAt: TS;
   createdBy?: Actor | null;
   updatedAt?: TS;

@@ -14,10 +14,10 @@ import {
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
-import type { QuotationStatus } from "../constants";
+import type { GstType, QuotationStatus } from "../constants";
 import { getDb } from "../firebase/client";
 import { buildQuote, type ConfigItem, type ExtraItem } from "../pricing";
-import type { Actor, ClientInfo, Quotation } from "../types";
+import type { Actor, ClientInfo, Quotation, ShipToInfo } from "../types";
 
 export const QUOTATIONS = "quotations";
 
@@ -45,6 +45,9 @@ export interface QuotationDraft {
   discount: number;
   validUntil?: Date | null;
   notes?: string;
+  gstType?: GstType;
+  shipToEnabled?: boolean;
+  shipTo?: ShipToInfo | null;
 }
 
 function computeTotals(draft: Pick<QuotationDraft, "items" | "extras" | "discount">): Quotation["totals"] {
@@ -77,6 +80,9 @@ export async function createQuotation(draft: QuotationDraft, actor: Actor): Prom
       totals: computeTotals(draft),
       validUntil: draft.validUntil ? Timestamp.fromDate(draft.validUntil) : null,
       notes: draft.notes ?? "",
+      gstType: draft.gstType ?? "IGST",
+      shipToEnabled: draft.shipToEnabled ?? false,
+      shipTo: draft.shipToEnabled ? (draft.shipTo ?? null) : null,
       createdAt: serverTimestamp(),
       createdBy: actor,
       updatedAt: serverTimestamp(),
@@ -103,6 +109,9 @@ export async function updateQuotation(id: string, draft: QuotationDraft, actor: 
     totals: computeTotals(draft),
     validUntil: draft.validUntil ? Timestamp.fromDate(draft.validUntil) : null,
     notes: draft.notes ?? "",
+    gstType: draft.gstType ?? "IGST",
+    shipToEnabled: draft.shipToEnabled ?? false,
+    shipTo: draft.shipToEnabled ? (draft.shipTo ?? null) : null,
     updatedAt: serverTimestamp(),
     updatedBy: actor,
   });

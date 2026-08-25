@@ -618,6 +618,20 @@ export const MILESTONE_LABEL: Record<PaymentMilestone, string> = {
 export const PAYMENT_MODES = ["NEFT", "RTGS", "IMPS", "UPI", "CHEQUE", "CASH", "DD", "OTHER"] as const;
 export type PaymentMode = (typeof PAYMENT_MODES)[number];
 
+// ---------------------------------------------------------------------------
+// GST type — IGST for inter-state sales, or CGST + SGST for intra-state.
+// The total tax rate/amount is unchanged either way; CGST_SGST just splits it
+// into two equal halves for display, per how Indian GST invoices work.
+// ---------------------------------------------------------------------------
+
+export const GST_TYPES = ["IGST", "CGST_SGST"] as const;
+export type GstType = (typeof GST_TYPES)[number];
+
+export const GST_TYPE_LABEL: Record<GstType, string> = {
+  IGST: "IGST",
+  CGST_SGST: "CGST & SGST",
+};
+
 export const PAYMENT_STATUSES = ["PENDING", "RECEIVED", "VERIFIED", "BOUNCED", "REFUNDED"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 

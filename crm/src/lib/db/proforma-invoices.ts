@@ -13,10 +13,10 @@ import {
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
-import type { ProformaInvoiceStatus } from "../constants";
+import type { GstType, ProformaInvoiceStatus } from "../constants";
 import { getDb } from "../firebase/client";
 import { buildQuote, type ConfigItem, type ExtraItem } from "../pricing";
-import type { Actor, ClientInfo, ProformaInvoice } from "../types";
+import type { Actor, ClientInfo, ProformaInvoice, ShipToInfo } from "../types";
 
 export const PROFORMA_INVOICES = "proformaInvoices";
 
@@ -46,6 +46,9 @@ export interface ProformaInvoiceDraft {
   discount: number;
   validUntil?: Date | null;
   notes?: string;
+  gstType?: GstType;
+  shipToEnabled?: boolean;
+  shipTo?: ShipToInfo | null;
 }
 
 function computeTotals(draft: Pick<ProformaInvoiceDraft, "items" | "extras" | "discount">): ProformaInvoice["totals"] {
@@ -80,6 +83,9 @@ export async function createProformaInvoice(draft: ProformaInvoiceDraft, actor: 
       totals: computeTotals(draft),
       validUntil: draft.validUntil ? Timestamp.fromDate(draft.validUntil) : null,
       notes: draft.notes ?? "",
+      gstType: draft.gstType ?? "IGST",
+      shipToEnabled: draft.shipToEnabled ?? false,
+      shipTo: draft.shipToEnabled ? (draft.shipTo ?? null) : null,
       createdAt: serverTimestamp(),
       createdBy: actor,
       updatedAt: serverTimestamp(),
@@ -108,6 +114,9 @@ export async function updateProformaInvoice(id: string, draft: ProformaInvoiceDr
     totals: computeTotals(draft),
     validUntil: draft.validUntil ? Timestamp.fromDate(draft.validUntil) : null,
     notes: draft.notes ?? "",
+    gstType: draft.gstType ?? "IGST",
+    shipToEnabled: draft.shipToEnabled ?? false,
+    shipTo: draft.shipToEnabled ? (draft.shipTo ?? null) : null,
     updatedAt: serverTimestamp(),
     updatedBy: actor,
   });
