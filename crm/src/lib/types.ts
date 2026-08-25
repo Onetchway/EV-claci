@@ -470,9 +470,12 @@ export interface Vendor {
   email?: string;
   address?: string;
   gstin?: string;
+  /** Bank details for paying this vendor — printed on the PO so payment can be made straight from it. */
+  accountName?: string;
   bankName?: string;
   accountNumber?: string;
   ifsc?: string;
+  branch?: string;
   paymentTerms?: string;
   status: VendorStatus;
   notes?: string;

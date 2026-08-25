@@ -12,6 +12,7 @@ import {
 } from "@/components/ui";
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { ShipToPrintBlock } from "@/components/gst-ship-to";
+import { BankDetailsPrintBlock } from "@/components/bank-details";
 import { useSettings } from "@/hooks/use-settings";
 import {
   PAYMENT_MODES, PO_STATUS_COLOR, PO_STATUS_LABEL, PO_STATUSES, type PaymentMode,
@@ -222,6 +223,11 @@ export default function PurchaseOrderDetailPage() {
           {po.expectedDeliveryAt && (
             <p className="mt-3 text-xs text-ink-500">Expected delivery: {formatDate(po.expectedDeliveryAt)}</p>
           )}
+          {vendor && (
+            <div className="mt-4 border-t border-ink-100 pt-4">
+              <BankDetailsPrintBlock title="Vendor bank details" bank={vendor} />
+            </div>
+          )}
         </Card>
       </div>
 
@@ -381,6 +387,12 @@ function PurchaseOrderDocument({
             <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(po.total)}</dd></div>
           </dl>
         </div>
+
+        {vendor && (
+          <div className="mt-6">
+            <BankDetailsPrintBlock title="Vendor bank details" bank={vendor} />
+          </div>
+        )}
 
         {po.notes && (
           <div className="mt-6 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{po.notes}</div>

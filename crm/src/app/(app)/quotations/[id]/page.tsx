@@ -11,6 +11,7 @@ import {
 } from "@/components/ui";
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
+import { BankDetailsPrintBlock, type BankDetails } from "@/components/bank-details";
 import { useSettings } from "@/hooks/use-settings";
 import {
   QUOTATION_STATUS_COLOR, QUOTATION_STATUS_LABEL, QUOTATION_STATUSES, type GstType, type QuotationStatus,
@@ -73,7 +74,7 @@ export default function QuotationDetailPage() {
   if (q === null) return <EmptyState title="Quotation not found" />;
 
   if (printMode) {
-    return <QuotationDocument q={q} company={settings.company} onClose={() => setPrintMode(false)} />;
+    return <QuotationDocument q={q} company={settings.company} bank={settings.bank} onClose={() => setPrintMode(false)} />;
   }
 
   return (
@@ -167,10 +168,11 @@ export default function QuotationDetailPage() {
 }
 
 function QuotationDocument({
-  q, company, onClose,
+  q, company, bank, onClose,
 }: {
   q: Quotation;
   company: { legalName: string; shortName: string; registeredAddress: string; officeAddress: string; gstin: string; cin: string; email: string; website: string; logoUrl: string };
+  bank: BankDetails;
   onClose: () => void;
 }) {
   const quote = buildQuote(q.items, { discount: q.discount, extras: q.extras });
@@ -253,6 +255,10 @@ function QuotationDocument({
             ))}
             <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(q.totals.grandTotal)}</dd></div>
           </dl>
+        </div>
+
+        <div className="mt-6">
+          <BankDetailsPrintBlock bank={bank} />
         </div>
 
         {q.notes && (

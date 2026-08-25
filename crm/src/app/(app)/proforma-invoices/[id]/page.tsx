@@ -11,6 +11,7 @@ import {
 } from "@/components/ui";
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
+import { BankDetailsPrintBlock, type BankDetails } from "@/components/bank-details";
 import { useSettings } from "@/hooks/use-settings";
 import {
   PROFORMA_INVOICE_STATUS_COLOR, PROFORMA_INVOICE_STATUS_LABEL, PROFORMA_INVOICE_STATUSES,
@@ -75,7 +76,7 @@ export default function ProformaInvoiceDetailPage() {
   if (pi === null) return <EmptyState title="Proforma invoice not found" />;
 
   if (printMode) {
-    return <ProformaInvoiceDocument pi={pi} company={settings.company} onClose={() => setPrintMode(false)} />;
+    return <ProformaInvoiceDocument pi={pi} company={settings.company} bank={settings.bank} onClose={() => setPrintMode(false)} />;
   }
 
   return (
@@ -169,10 +170,11 @@ export default function ProformaInvoiceDetailPage() {
 }
 
 function ProformaInvoiceDocument({
-  pi, company, onClose,
+  pi, company, bank, onClose,
 }: {
   pi: ProformaInvoice;
   company: { legalName: string; shortName: string; registeredAddress: string; officeAddress: string; gstin: string; cin: string; email: string; website: string; logoUrl: string };
+  bank: BankDetails;
   onClose: () => void;
 }) {
   const quote = buildQuote(pi.items, { discount: pi.discount, extras: pi.extras });
@@ -255,6 +257,10 @@ function ProformaInvoiceDocument({
             ))}
             <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(pi.totals.grandTotal)}</dd></div>
           </dl>
+        </div>
+
+        <div className="mt-6">
+          <BankDetailsPrintBlock bank={bank} />
         </div>
 
         {pi.notes && (

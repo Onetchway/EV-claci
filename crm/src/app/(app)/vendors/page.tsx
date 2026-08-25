@@ -20,6 +20,7 @@ import { formatCompactINR } from "@/lib/utils";
 const blankForm = {
   name: "", category: "CHARGER_OEM" as VendorCategory, contactName: "", phone: "",
   email: "", address: "", gstin: "", paymentTerms: "", notes: "",
+  accountName: "", bankName: "", accountNumber: "", ifsc: "", branch: "",
 };
 
 export default function VendorsPage() {
@@ -169,6 +170,26 @@ export default function VendorsPage() {
           <Field label="Address" className="sm:col-span-2">
             <Textarea rows={2} value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
           </Field>
+
+          <div className="sm:col-span-2">
+            <p className="label mb-2">Bank details <span className="font-normal normal-case text-ink-400">— printed on purchase orders for payment</span></p>
+          </div>
+          <Field label="Account holder name">
+            <Input value={form.accountName} onChange={(e) => setForm((f) => ({ ...f, accountName: e.target.value }))} />
+          </Field>
+          <Field label="Bank name">
+            <Input value={form.bankName} onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))} />
+          </Field>
+          <Field label="Account number">
+            <Input value={form.accountNumber} onChange={(e) => setForm((f) => ({ ...f, accountNumber: e.target.value }))} />
+          </Field>
+          <Field label="IFSC code">
+            <Input value={form.ifsc} onChange={(e) => setForm((f) => ({ ...f, ifsc: e.target.value.toUpperCase() }))} />
+          </Field>
+          <Field label="Branch" className="sm:col-span-2">
+            <Input value={form.branch} onChange={(e) => setForm((f) => ({ ...f, branch: e.target.value }))} />
+          </Field>
+
           <Field label="Notes" className="sm:col-span-2">
             <Textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
           </Field>

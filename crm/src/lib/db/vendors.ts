@@ -40,9 +40,11 @@ export interface VendorDraft {
   email?: string;
   address?: string;
   gstin?: string;
+  accountName?: string;
   bankName?: string;
   accountNumber?: string;
   ifsc?: string;
+  branch?: string;
   paymentTerms?: string;
   notes?: string;
 }
@@ -59,9 +61,11 @@ export async function createVendor(draft: VendorDraft, actor: Actor): Promise<{ 
     email: draft.email ?? "",
     address: draft.address ?? "",
     gstin: (draft.gstin ?? "").toUpperCase(),
+    accountName: draft.accountName ?? "",
     bankName: draft.bankName ?? "",
     accountNumber: draft.accountNumber ?? "",
     ifsc: (draft.ifsc ?? "").toUpperCase(),
+    branch: draft.branch ?? "",
     paymentTerms: draft.paymentTerms ?? "",
     notes: draft.notes ?? "",
     status: "ACTIVE" as VendorStatus,

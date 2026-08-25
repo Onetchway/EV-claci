@@ -57,6 +57,8 @@ export default function VendorDetailPage() {
       phone: vendor!.phone, email: vendor!.email, address: vendor!.address,
       gstin: vendor!.gstin, paymentTerms: vendor!.paymentTerms, notes: vendor!.notes,
       status: vendor!.status,
+      accountName: vendor!.accountName, bankName: vendor!.bankName,
+      accountNumber: vendor!.accountNumber, ifsc: vendor!.ifsc, branch: vendor!.branch,
     });
     setEditing(true);
   }
@@ -126,6 +128,17 @@ export default function VendorDetailPage() {
               <div className="sm:col-span-2"><dt className="text-xs uppercase tracking-wide text-ink-500">Notes</dt><dd className="mt-0.5 text-sm">{vendor.notes}</dd></div>
             )}
           </dl>
+
+          {(vendor.accountName || vendor.bankName || vendor.accountNumber || vendor.ifsc || vendor.branch) && (
+            <dl className="mt-4 grid gap-3 border-t border-ink-100 pt-4 sm:grid-cols-2">
+              <div className="sm:col-span-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Bank details</div>
+              {vendor.accountName && <div><dt className="text-xs uppercase tracking-wide text-ink-500">Account holder</dt><dd className="mt-0.5 text-sm">{vendor.accountName}</dd></div>}
+              {vendor.bankName && <div><dt className="text-xs uppercase tracking-wide text-ink-500">Bank</dt><dd className="mt-0.5 text-sm">{vendor.bankName}</dd></div>}
+              {vendor.accountNumber && <div><dt className="text-xs uppercase tracking-wide text-ink-500">Account number</dt><dd className="mt-0.5 text-sm">{vendor.accountNumber}</dd></div>}
+              {vendor.ifsc && <div><dt className="text-xs uppercase tracking-wide text-ink-500">IFSC</dt><dd className="mt-0.5 text-sm">{vendor.ifsc}</dd></div>}
+              {vendor.branch && <div><dt className="text-xs uppercase tracking-wide text-ink-500">Branch</dt><dd className="mt-0.5 text-sm">{vendor.branch}</dd></div>}
+            </dl>
+          )}
         </Card>
 
         <Card title="Spend summary">
@@ -248,6 +261,26 @@ export default function VendorDetailPage() {
           <Field label="Address" className="sm:col-span-2">
             <Textarea rows={2} value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
           </Field>
+
+          <div className="sm:col-span-2">
+            <p className="label mb-2">Bank details <span className="font-normal normal-case text-ink-400">— printed on purchase orders for payment</span></p>
+          </div>
+          <Field label="Account holder name">
+            <Input value={form.accountName ?? ""} onChange={(e) => setForm((f) => ({ ...f, accountName: e.target.value }))} />
+          </Field>
+          <Field label="Bank name">
+            <Input value={form.bankName ?? ""} onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))} />
+          </Field>
+          <Field label="Account number">
+            <Input value={form.accountNumber ?? ""} onChange={(e) => setForm((f) => ({ ...f, accountNumber: e.target.value }))} />
+          </Field>
+          <Field label="IFSC code">
+            <Input value={form.ifsc ?? ""} onChange={(e) => setForm((f) => ({ ...f, ifsc: e.target.value.toUpperCase() }))} />
+          </Field>
+          <Field label="Branch" className="sm:col-span-2">
+            <Input value={form.branch ?? ""} onChange={(e) => setForm((f) => ({ ...f, branch: e.target.value }))} />
+          </Field>
+
           <Field label="Notes" className="sm:col-span-2">
             <Textarea rows={2} value={form.notes ?? ""} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
           </Field>
