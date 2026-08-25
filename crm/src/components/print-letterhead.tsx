@@ -29,7 +29,7 @@ export function PrintDocument({ header, footer, children, className }: {
         <tr><td className="loi-print-header-cell">{header}</td></tr>
       </thead>
       <tbody>
-        <tr><td>{children}</td></tr>
+        <tr><td className="loi-print-body-cell">{children}</td></tr>
       </tbody>
       <tfoot>
         <tr><td className="loi-print-footer-cell">{footer}</td></tr>
