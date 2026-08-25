@@ -1,0 +1,91 @@
+'use strict';
+
+const { query } = require('../../config/database');
+const { v4: uuidv4 } = require('uuid');
+const { paginate, paginatedResponse } = require('../../utils/pagination');
+
+const list = async (filters) => {
+  const { page, limit, skip } = paginate(filters);
+  const conditions = [];
+  const params = [];
+  let idx = 1;
+
+  if (filters.status)      { conditions.push(`status = $${idx++}`);      params.push(filters.status); }
+  if (filters.client_type) { conditions.push(`client_type = $${idx++}`); params.push(filters.client_type); }
+  if (filters.search)      { conditions.push(`(name ILIKE $${idx} OR contact_email ILIKE $${idx})`); params.push(`%${filters.search}%`); idx++; }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const countRes = await query(`SELECT COUNT(*) FROM nakjm_clients ${where}`, params);
+  const total = parseInt(countRes.rows[0].count, 10);
+
+  const dataRes = await query(
+    `SELECT c.*,
+      (SELECT COUNT(*) FROM nakjm_projects p WHERE p.client_id = c.id) AS project_count,
+      (SELECT COALESCE(SUM(cp.amount),0) FROM nakjm_client_payments cp WHERE cp.client_id = c.id) AS total_collected
+     FROM nakjm_clients c ${where}
+     ORDER BY c.created_at DESC
+     LIMIT $${idx} OFFSET $${idx + 1}`,
+    [...params, limit, skip]
+  );
+
+  return paginatedResponse(dataRes.rows, total, page, limit);
+};
+
+const getOne = async (id) => {
+  const res = await query('SELECT * FROM nakjm_clients WHERE id = $1', [id]);
+  if (!res.rows[0]) { const e = new Error('Client not found'); e.status = 404; throw e; }
+
+  const projectsRes = await query(
+    `SELECT id, project_code, name, status, contract_value, start_date, target_end_date
+     FROM nakjm_projects WHERE client_id = $1 ORDER BY created_at DESC`,
+    [id]
+  );
+
+  const paymentsRes = await query(
+    `SELECT COALESCE(SUM(amount),0) AS total_collected FROM nakjm_client_payments WHERE client_id = $1`,
+    [id]
+  );
+
+  return {
+    ...res.rows[0],
+    projects: projectsRes.rows,
+    total_collected: parseFloat(paymentsRes.rows[0].total_collected),
+  };
+};
+
+const create = async (data) => {
+  const {
+    name, client_type = 'private', contact_name = null, contact_email = null, contact_phone = null,
+    address = null, city = null, state = null, gstin = null, status = 'active', notes = null,
+  } = data;
+  if (!name) { const e = new Error('name is required'); e.status = 400; throw e; }
+  const id = uuidv4();
+  const res = await query(
+    `INSERT INTO nakjm_clients (id, name, client_type, contact_name, contact_email, contact_phone, address, city, state, gstin, status, notes, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW()) RETURNING *`,
+    [id, name, client_type, contact_name, contact_email, contact_phone, address, city, state, gstin, status, notes]
+  );
+  return res.rows[0];
+};
+
+const update = async (id, data) => {
+  const allowed = ['name', 'client_type', 'contact_name', 'contact_email', 'contact_phone', 'address', 'city', 'state', 'gstin', 'status', 'notes'];
+  const fields = []; const params = []; let idx = 1;
+  for (const f of allowed) {
+    if (data[f] !== undefined) { fields.push(`${f} = $${idx++}`); params.push(data[f]); }
+  }
+  if (!fields.length) { const e = new Error('No valid fields to update'); e.status = 400; throw e; }
+  fields.push('updated_at = NOW()');
+  params.push(id);
+  const res = await query(`UPDATE nakjm_clients SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`, params);
+  if (!res.rows[0]) { const e = new Error('Client not found'); e.status = 404; throw e; }
+  return res.rows[0];
+};
+
+const remove = async (id) => {
+  const res = await query('DELETE FROM nakjm_clients WHERE id = $1 RETURNING id', [id]);
+  if (!res.rows[0]) { const e = new Error('Client not found'); e.status = 404; throw e; }
+};
+
+module.exports = { list, getOne, create, update, remove };

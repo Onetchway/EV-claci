@@ -5,6 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import {
   LayoutDashboard, MapPin, Zap, Battery, Users2, TrendingUp,
   FileText, Settings, LogOut, ChevronRight, Building2,
+  Briefcase, ClipboardList, Truck, Wallet, ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +19,15 @@ const NAV = [
   { label: 'Revenue',      href: '/revenue',      icon: TrendingUp },
   { label: 'Settlements',  href: '/settlements',  icon: FileText },
   { label: 'Users',        href: '/users',        icon: Users2, role: 'ADMIN' },
+];
+
+const NAKJM_NAV = [
+  { label: 'EPC Dashboard', href: '/nakjm',           icon: LayoutDashboard },
+  { label: 'Clients',       href: '/nakjm/clients',   icon: Building2 },
+  { label: 'Projects',      href: '/nakjm/projects',  icon: Briefcase },
+  { label: 'Vendors',       href: '/nakjm/vendors',   icon: Truck },
+  { label: 'Payments',      href: '/nakjm/payments',  icon: Wallet },
+  { label: 'Team',          href: '/nakjm/team',      icon: ClipboardCheck },
 ];
 
 export default function Sidebar() {
@@ -41,6 +51,20 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
         {NAV.filter(item => !item.role || item.role === role).map(({ label, href, icon: Icon }) => {
+          const active = path === href || path.startsWith(href + '/');
+          return (
+            <Link key={href} href={href}
+              className={cn('flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                active ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800')}>
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1">{label}</span>
+              {active && <ChevronRight className="w-3 h-3" />}
+            </Link>
+          );
+        })}
+
+        <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">NAKJM EPC</p>
+        {NAKJM_NAV.map(({ label, href, icon: Icon }) => {
           const active = path === href || path.startsWith(href + '/');
           return (
             <Link key={href} href={href}
