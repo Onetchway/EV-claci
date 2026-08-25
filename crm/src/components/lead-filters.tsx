@@ -25,11 +25,12 @@ export interface FilterState {
   from: string;
   to: string;
   overdueOnly: boolean;
+  duplicatesOnly: boolean;
 }
 
 export const emptyFilters: FilterState = {
   search: "", type: "ALL", status: "ALL", stages: [], sources: [],
-  ownerId: "", city: "", from: "", to: "", overdueOnly: false,
+  ownerId: "", city: "", from: "", to: "", overdueOnly: false, duplicatesOnly: false,
 };
 
 export function activeFilterCount(f: FilterState): number {
@@ -43,6 +44,7 @@ export function activeFilterCount(f: FilterState): number {
   if (f.city) n++;
   if (f.from || f.to) n++;
   if (f.overdueOnly) n++;
+  if (f.duplicatesOnly) n++;
   return n;
 }
 
@@ -196,6 +198,16 @@ export function LeadFilterBar({
               className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500"
             />
             Only leads with an overdue follow-up
+          </label>
+
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-800">
+            <input
+              type="checkbox"
+              checked={value.duplicatesOnly}
+              onChange={(e) => set("duplicatesOnly", e.target.checked)}
+              className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500"
+            />
+            Only duplicate leads — same phone, email, GSTIN or PAN as another lead
           </label>
         </div>
       )}

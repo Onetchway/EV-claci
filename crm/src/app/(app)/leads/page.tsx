@@ -22,6 +22,7 @@ import {
 import { BulkReassignButton } from "@/components/bulk-reassign-button";
 import { ExportButton, ImportButton } from "@/components/data-transfer";
 import { applyClientFilters, createLead, trashLead, type LeadDraft } from "@/lib/db/leads";
+import { duplicateLeadIds } from "@/lib/duplicates";
 import { buildLeadDraft } from "@/lib/lead-import";
 import { LEAD_COLUMNS, LEAD_IMPORT_COLUMNS } from "@/lib/exports";
 import { canCreateLead, canExport, canReassign, canTrash } from "@/lib/permissions";
@@ -39,12 +40,13 @@ const PAGE_SIZE = 5000;
 const ROWS_PER_PAGE = 150;
 
 function LeadRow({
-  lead, selectable, selected, onToggle,
+  lead, selectable, selected, onToggle, isDuplicate,
 }: {
   lead: Lead;
   selectable: boolean;
   selected: boolean;
   onToggle: (id: string) => void;
+  isDuplicate: boolean;
 }) {
   const stage = STAGE_META[lead.stage];
   const score = scoreLead(lead);
@@ -66,7 +68,14 @@ function LeadRow({
       )}
       <td className="td">
         <Link href={`/leads/${lead.id}`} className="block">
-          <span className="font-medium text-ink-900 hover:text-brand-700">{lead.client?.name}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="font-medium text-ink-900 hover:text-brand-700">{lead.client?.name}</span>
+            {isDuplicate && (
+              <Badge className="bg-amber-100 text-amber-800" title="Shares a phone, email, GSTIN or PAN with another lead">
+                Duplicate
+              </Badge>
+            )}
+          </span>
           <span className="mt-0.5 block text-xs text-ink-500">
             {lead.code} · {lead.client?.phone}
           </span>
@@ -159,6 +168,8 @@ function LeadsInner() {
   useEffect(() => { setSelected(new Set()); }, [filters, sort]);
   useEffect(() => { setVisibleRows(ROWS_PER_PAGE); }, [filters, sort]);
 
+  const duplicateIds = useMemo(() => duplicateLeadIds(leads), [leads]);
+
   const rows = useMemo(() => {
     const filtered = applyClientFilters(leads, {
       stages: filters.stages,
@@ -169,8 +180,11 @@ function LeadsInner() {
       to: filters.to ? new Date(filters.to) : null,
       overdueOnly: filters.overdueOnly,
     });
+    const withDuplicates = filters.duplicatesOnly
+      ? filtered.filter((l) => duplicateIds.has(l.id))
+      : filtered;
 
-    const sorted = [...filtered];
+    const sorted = [...withDuplicates];
     sorted.sort((a, b) => {
       switch (sort) {
         case "value": return (b.value ?? 0) - (a.value ?? 0);
@@ -183,7 +197,7 @@ function LeadsInner() {
       }
     });
     return sorted;
-  }, [leads, filters, sort]);
+  }, [leads, filters, sort, duplicateIds]);
 
   const totals = useMemo(() => computeTotals(rows), [rows]);
   const canBulkTrash = canTrash(viewer);
@@ -246,11 +260,17 @@ function LeadsInner() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatCard label="Shown" value={rows.length} sub={`${totals.active} active`} />
         <StatCard label="Pipeline value" value={formatCompactINR(totals.pipelineValue)} />
         <StatCard label="Closed" value={totals.won} sub={formatCompactINR(totals.wonValue)} tone="positive" />
         <StatCard label="Rejected" value={totals.rejected} tone={totals.rejected ? "negative" : "default"} />
+        <StatCard
+          label="Duplicates"
+          value={duplicateIds.size}
+          tone={duplicateIds.size ? "negative" : "default"}
+          sub={duplicateIds.size ? "Same phone / email / GSTIN / PAN" : "None found"}
+        />
       </div>
 
       <LeadFilterBar
@@ -341,6 +361,7 @@ function LeadsInner() {
                     selectable={canBulkTrash}
                     selected={selected.has(l.id)}
                     onToggle={toggleRow}
+                    isDuplicate={duplicateIds.has(l.id)}
                   />
                 ))}
               </tbody>
