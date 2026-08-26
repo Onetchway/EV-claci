@@ -190,17 +190,11 @@ body {
   }
 
   /*
-   * Without this, a short document (a one-line PO, a quick quotation) prints
-   * with the footer sitting right after the last line of content instead of
-   * near the bottom of the sheet — the footer band doesn't get pinned to the
-   * page edge automatically, so the rest of the A4 page below it is just
-   * blank, and the page reads as half-empty/cut-off rather than a normal
-   * filled printed page. Give the body cell a floor roughly matching a full
-   * printable A4 page (297mm − 36mm margins, minus header/footer chrome) so
-   * short content still stretches down and the footer lands near the bottom
-   * edge. Longer documents that already exceed this are unaffected.
+   * A fixed min-height here used to approximate "push the footer down to the
+   * bottom of the page," but a flat number is wrong for both a one-page
+   * letter and a five-page one at once, and double-counts against the exact
+   * trailing spacer PrintDocument now computes and injects itself (measured
+   * against the real header/footer heights in its `beforeprint` handler in
+   * print-letterhead.tsx) — so there's deliberately no CSS rule here now.
    */
-  .loi-print-body-cell {
-    min-height: 190mm;
-  }
 }
