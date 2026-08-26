@@ -338,8 +338,17 @@ function LeadsInner() {
     return sorted;
   }, [leads, filters, sort, duplicateIds]);
 
-  const canSeeDailyUpdates = role ? isAdmin(role) : false;
-  const dailyGroups = useMemo(() => (canSeeDailyUpdates ? groupByDay(rows) : []), [rows, canSeeDailyUpdates]);
+  // Admins see the whole team's daily activity (still narrowable via the
+  // Agent filter above); a Sales Manager or Agent only ever sees their own —
+  // that filter isn't optional for them, so it's applied here regardless of
+  // whatever the Agent dropdown (built for the List view) happens to hold.
+  const canSeeDailyUpdates = role ? isAdmin(role) || role === "SALES_MANAGER" || role === "AGENT" : false;
+  const dailyScope = role && !isAdmin(role) ? viewer.uid : null;
+  const dailyGroups = useMemo(() => {
+    if (!canSeeDailyUpdates) return [];
+    const scoped = dailyScope ? rows.filter((l) => l.ownerId === dailyScope) : rows;
+    return groupByDay(scoped);
+  }, [rows, canSeeDailyUpdates, dailyScope]);
   const totals = useMemo(() => computeTotals(rows), [rows]);
   const canBulkTrash = canTrash(viewer);
   const canLoadMore = !loading && leads.length >= pageSize;
