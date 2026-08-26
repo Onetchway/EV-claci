@@ -14,6 +14,7 @@ import { SimpleDocumentFooter, SimpleDocumentHeader } from "@/components/simple-
 import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
 import { BankDetailsPrintBlock } from "@/components/bank-details";
 import { EntityActivityLog } from "@/components/entity-activity-log";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useSettings } from "@/hooks/use-settings";
 import {
   GST_SLABS, PAYMENT_MODES, PO_STATUS_COLOR, PO_STATUS_LABEL, PO_STATUSES,
@@ -81,6 +82,7 @@ export default function PurchaseOrderDetailPage() {
     if (!po?.vendorId) return;
     return subscribeVendor(po.vendorId, setVendor);
   }, [po?.vendorId]);
+  useDocumentTitle(po ? `Purchase Order · ${po.poNumber}` : undefined);
 
   function startEdit() {
     if (!po) return;

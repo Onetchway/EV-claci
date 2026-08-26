@@ -12,7 +12,7 @@ import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   LeadFilterBar, emptyFilters, type FilterState,
 } from "@/components/lead-filters";
-import { gateFor } from "@/components/lead/stage-stepper";
+import { gateFor, hasFundingDetails, hasSiteDetails } from "@/components/lead/stage-stepper";
 import {
   Avatar, Badge, Button, PageHeader, Spinner, useToast,
 } from "@/components/ui";
@@ -195,6 +195,9 @@ export default function PipelinePage() {
         hasConfig: (lead.config ?? []).length > 0,
         kycComplete: false,
         collectedPct: (lead.value ?? 0) > 0 ? Math.round(((lead.paidAmount ?? 0) / lead.value) * 100) : 0,
+        isFranchise: lead.type === "FRANCHISE",
+        hasSiteDetails: hasSiteDetails(lead.site),
+        hasFunding: hasFundingDetails(lead.financing),
       });
       // KYC is not loaded on the board; only enforce the gates we can evaluate here.
       if (gate.blocked && target !== "AGREEMENT") {

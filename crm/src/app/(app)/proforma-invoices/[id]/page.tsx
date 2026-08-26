@@ -12,6 +12,7 @@ import {
 import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
 import { type BankDetails } from "@/components/bank-details";
 import { EntityActivityLog } from "@/components/entity-activity-log";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useSettings } from "@/hooks/use-settings";
 import {
   PROFORMA_INVOICE_STATUS_COLOR, PROFORMA_INVOICE_STATUS_LABEL, PROFORMA_INVOICE_STATUSES,
@@ -57,6 +58,7 @@ export default function ProformaInvoiceDetailPage() {
       setShipTo(row.shipTo ?? {});
     }
   }), [id]);
+  useDocumentTitle(pi ? `Proforma Invoice · ${pi.piNumber}` : undefined);
 
   const canEdit = canManageProformaInvoices(viewer);
   const isDraft = pi?.status === "DRAFT";

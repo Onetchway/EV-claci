@@ -10,6 +10,7 @@ import {
 } from "@/components/ui";
 import { SimpleDocumentFooter, SimpleDocumentHeader } from "@/components/simple-document";
 import { ShipToPrintBlock } from "@/components/gst-ship-to";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useSettings } from "@/hooks/use-settings";
 import { INVOICE_STATUS_COLOR, INVOICE_STATUS_LABEL, INVOICE_STATUSES, type InvoiceStatus } from "@/lib/constants";
 import {
@@ -46,6 +47,7 @@ export default function InvoiceDetailPage() {
   const [noteReason, setNoteReason] = useState("");
 
   useEffect(() => subscribeInvoice(id, setInv), [id]);
+  useDocumentTitle(inv ? `Tax Invoice · ${inv.invoiceNumber}` : undefined);
   useEffect(() => {
     if (!inv?.organizationId) { setOrg(null); return; }
     return subscribeOrganization(inv.organizationId, setOrg);

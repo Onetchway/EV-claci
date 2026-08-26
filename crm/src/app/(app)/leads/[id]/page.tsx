@@ -15,13 +15,14 @@ import { DocumentsPanel } from "@/components/lead/documents-panel";
 import { PaymentsPanel } from "@/components/lead/payments-panel";
 import { EoiPanel } from "@/components/lead/eoi-panel";
 import { FinancingPanel } from "@/components/lead/financing-panel";
-import { StageStepper } from "@/components/lead/stage-stepper";
+import { hasFundingDetails, hasSiteDetails, StageStepper } from "@/components/lead/stage-stepper";
 import { LeadForm, leadToFormValues, type LeadFormValues } from "@/components/lead-form";
 import { ChargingStationsPanel } from "@/components/lead/charging-stations-panel";
 import {
   Avatar, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select,
   Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useAgents } from "@/hooks/use-leads";
 import {
   COMMERCIAL_MODEL_LABEL, FRANCHISE_LOI_TYPES, LAND_TYPE_LABEL, LEAD_TYPE_LABEL,
@@ -89,6 +90,7 @@ export default function LeadDetailPage() {
       (e) => { setError(e.message); setLoading(false); },
     );
   }, [id]);
+  useDocumentTitle(lead?.code);
 
   const viewer = useViewer();
 
@@ -284,7 +286,12 @@ export default function LeadDetailPage() {
           lead={lead}
           actor={actor!}
           canEdit={editable}
-          gateContext={{ kycComplete, collectedPct, hasConfig: (lead.config ?? []).length > 0 }}
+          gateContext={{
+            kycComplete, collectedPct, hasConfig: (lead.config ?? []).length > 0,
+            isFranchise: lead.type === "FRANCHISE",
+            hasSiteDetails: hasSiteDetails(lead.site),
+            hasFunding: hasFundingDetails(lead.financing),
+          }}
         />
       </div>
 

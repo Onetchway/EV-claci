@@ -14,6 +14,7 @@ import { SimpleDocumentFooter, SimpleDocumentHeader } from "@/components/simple-
 import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
 import { BankDetailsPrintBlock, type BankDetails } from "@/components/bank-details";
 import { EntityActivityLog } from "@/components/entity-activity-log";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useSettings } from "@/hooks/use-settings";
 import {
   QUOTATION_STATUS_COLOR, QUOTATION_STATUS_LABEL, QUOTATION_STATUSES, type GstType, type QuotationStatus,
@@ -55,6 +56,7 @@ export default function QuotationDetailPage() {
       setShipTo(row.shipTo ?? {});
     }
   }), [id]);
+  useDocumentTitle(q ? `Quotation · ${q.quoteNumber}` : undefined);
 
   const canEdit = canManageQuotations(viewer);
   const isDraft = q?.status === "DRAFT";

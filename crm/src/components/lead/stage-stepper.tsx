@@ -7,7 +7,7 @@ import { Button, Modal, Textarea, useAsyncAction } from "@/components/ui";
 import {
   LEAD_TYPE_STAGES, STAGE_META, stageLabelFor, stageShortFor, type Stage,
 } from "@/lib/constants";
-import type { Actor, Lead } from "@/lib/types";
+import type { Actor, FinancingInfo, Lead, SiteInfo } from "@/lib/types";
 import { changeStage } from "@/lib/db/leads";
 import { cn } from "@/lib/utils";
 
@@ -21,10 +21,27 @@ export interface StageGate {
   reason?: string;
 }
 
+/** A Franchise lead can be created with just Client details + Source & ownership — Site details only need to be real once the lead moves past New. */
+export function hasSiteDetails(site: SiteInfo | undefined): boolean {
+  return !!(site?.locationName?.trim() && site?.address?.trim());
+}
+
+/** Self-funded needs nothing further; any other mode must have an amount actually entered, not just the mode picked. */
+export function hasFundingDetails(financing: FinancingInfo | undefined): boolean {
+  const mode = financing?.mode ?? "SELF";
+  return mode === "SELF" || !!(financing?.requestedAmount && financing.requestedAmount > 0);
+}
+
 export function gateFor(
   stage: Stage,
-  ctx: { kycComplete: boolean; collectedPct: number; hasConfig: boolean },
+  ctx: {
+    kycComplete: boolean; collectedPct: number; hasConfig: boolean;
+    isFranchise?: boolean; hasSiteDetails?: boolean; hasFunding?: boolean;
+  },
 ): StageGate {
+  if (stage === "CONTACTED" && ctx.isFranchise && (!ctx.hasSiteDetails || !ctx.hasFunding)) {
+    return { blocked: true, reason: "Add site details and funding information before moving past New Lead." };
+  }
   if (stage === "EOI" && !ctx.hasConfig) {
     return { blocked: true, reason: "Add the charger configuration before recording an EOI." };
   }
@@ -46,7 +63,7 @@ export function StageStepper({
   lead: Lead;
   actor: Actor;
   canEdit: boolean;
-  gateContext: { kycComplete: boolean; collectedPct: number; hasConfig: boolean };
+  gateContext: Parameters<typeof gateFor>[1];
 }) {
   const [target, setTarget] = useState<Stage | null>(null);
   const [note, setNote] = useState("");
