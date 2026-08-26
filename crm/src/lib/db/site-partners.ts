@@ -16,8 +16,9 @@ import {
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
-import type { Actor, SiteLocation, SitePartner } from "../types";
+import type { Actor, Lead, SiteLocation, SitePartner } from "../types";
 import type { Source } from "../constants";
+import { LEADS } from "./leads";
 
 export const SITE_PARTNERS = "sitePartners";
 const COUNTERS = "counters";
@@ -227,4 +228,63 @@ export async function searchAvailableLocations(searchTerm: string): Promise<Loca
     }
   }
   return results;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy import
+// ---------------------------------------------------------------------------
+
+function leadSiteToLocation(lead: Lead): SiteLocation {
+  const site = lead.site ?? {};
+  return {
+    ...site,
+    id: `loc${Date.now()}${locationSeq++}`,
+    status: lead.status === "REJECTED" ? "REJECTED" : "AVAILABLE",
+    linkedLeadId: null,
+    linkedLeadCode: null,
+    createdAt: lead.createdAt ?? null,
+  };
+}
+
+export interface LegacySiteLeadImportResult {
+  migrated: number;
+}
+
+/**
+ * One-time-per-lead import: Site Enquiries used to be type=SITE leads (one
+ * lead per location). Those leads still live in the leads collection and
+ * never automatically became Site Partner records when this module was
+ * introduced, so this brings each un-migrated one across as its own partner
+ * with a single location, then flags the lead so a second run is a no-op.
+ */
+export async function importLegacySiteLeads(actor: Actor): Promise<LegacySiteLeadImportResult> {
+  const snap = await getDocs(query(collection(getDb(), LEADS), where("type", "==", "SITE")));
+  let migrated = 0;
+  for (const d of snap.docs) {
+    const lead = { id: d.id, ...(d.data() as Omit<Lead, "id">) } as Lead;
+    if (lead.migratedToSitePartnerId || lead.deletedAt) continue;
+    const { id } = await createSitePartner({
+      contactName: lead.client?.name || "Unknown",
+      phone: lead.client?.phone || "",
+      email: lead.client?.email,
+      company: lead.client?.company,
+      city: lead.client?.city,
+      state: lead.client?.state,
+      address: lead.client?.address,
+      source: lead.source,
+      sourceDetail: lead.sourceDetail,
+      notes: lead.site?.remarks,
+      ownerId: lead.ownerId,
+      ownerName: lead.ownerName,
+      locations: [leadSiteToLocation(lead)],
+      tags: lead.tags,
+    }, actor);
+    await updateDoc(doc(getDb(), LEADS, lead.id), {
+      migratedToSitePartnerId: id,
+      updatedAt: serverTimestamp(),
+      updatedBy: actor,
+    });
+    migrated += 1;
+  }
+  return { migrated };
 }

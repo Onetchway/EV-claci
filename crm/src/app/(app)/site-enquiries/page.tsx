@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Plus } from "lucide-react";
 
-import { useViewer } from "@/components/auth-provider";
+import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Avatar, Badge, Button, EmptyState, Input, PageHeader, Spinner, StatCard,
+  Avatar, Badge, Button, EmptyState, Input, PageHeader, Spinner, StatCard, useAsyncAction, useToast,
 } from "@/components/ui";
-import { subscribeSitePartners } from "@/lib/db/site-partners";
+import { importLegacySiteLeads, subscribeSitePartners } from "@/lib/db/site-partners";
 import { canManageSitePartners, canSeeAllLeads } from "@/lib/permissions";
 import { SOURCE_LABEL } from "@/lib/constants";
 import type { SitePartner } from "@/lib/types";
@@ -22,9 +22,18 @@ import { formatDate } from "@/lib/utils";
  */
 export default function SiteEnquiriesPage() {
   const viewer = useViewer();
+  const { actor } = useAuth();
+  const { push } = useToast();
+  const { busy, run } = useAsyncAction();
   const [rows, setRows] = useState<SitePartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  async function importLegacy() {
+    if (!actor) return;
+    const { migrated } = await importLegacySiteLeads(actor);
+    push(migrated > 0 ? `Imported ${migrated} legacy site lead${migrated === 1 ? "" : "s"}.` : "No legacy site leads left to import.", "success");
+  }
 
   useEffect(
     () => subscribeSitePartners(
@@ -55,11 +64,16 @@ export default function SiteEnquiriesPage() {
         title="Site Enquiries"
         description="People and companies offering a location for a charging station — a partner can offer several locations at once."
         actions={
-          canManageSitePartners(viewer) && (
-            <Link href="/site-enquiries/new">
-              <Button variant="primary"><Plus className="h-4 w-4" /> New site partner</Button>
-            </Link>
-          )
+          <div className="flex items-center gap-2">
+            {canSeeAllLeads(viewer) && (
+              <Button loading={busy} onClick={() => void run(importLegacy)}>Import legacy site leads</Button>
+            )}
+            {canManageSitePartners(viewer) && (
+              <Link href="/site-enquiries/new">
+                <Button variant="primary"><Plus className="h-4 w-4" /> New site partner</Button>
+              </Link>
+            )}
+          </div>
         }
       />
 

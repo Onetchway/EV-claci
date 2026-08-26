@@ -370,6 +370,8 @@ export interface Lead {
   deletedAt?: TS | null;
   deletedBy?: Actor | null;
   site?: SiteInfo;
+  /** Set once a legacy type=SITE lead has been imported into the Site Partners module, so re-running the import doesn't duplicate it. */
+  migratedToSitePartnerId?: string | null;
   ownerId: string;
   ownerName: string;
   tags?: string[];
