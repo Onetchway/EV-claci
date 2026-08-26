@@ -60,7 +60,7 @@ export function SimpleDocumentHeader({
 
 export function SimpleDocumentFooter({ company }: { company: Company }) {
   return (
-    <footer className="mt-4 border-t border-ink-200 pt-2 text-center text-[10px] leading-snug text-ink-400">
+    <footer className="mt-2 border-t border-ink-200 pt-1 text-center text-[10px] leading-tight text-ink-400">
       <p>{company.legalName}</p>
       <p>
         {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`]
