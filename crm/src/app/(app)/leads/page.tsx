@@ -10,7 +10,7 @@ import {
   LeadFilterBar, emptyFilters, type FilterState,
 } from "@/components/lead-filters";
 import {
-  Avatar, Badge, Button, EmptyState, Modal, PageHeader, Spinner, StatCard,
+  Avatar, Badge, Button, Card, EmptyState, Modal, PageHeader, Spinner, StatCard,
   useAsyncAction,
 } from "@/components/ui";
 import { useAgents, useLeads } from "@/hooks/use-leads";
@@ -29,9 +29,147 @@ import { canCreateLead, canExport, canReassign, canTrash } from "@/lib/permissio
 import { describeConfig } from "@/lib/pricing";
 import { scoreLead } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
-import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
+import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
 type SortKey = "updatedAt" | "value" | "name" | "stage" | "createdAt";
+type ViewMode = "list" | "daily";
+
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+interface DailyGroup {
+  key: string;
+  date: Date;
+  leads: Lead[];
+  agents: { name: string; count: number }[];
+}
+
+/** Groups leads by the local day their `updatedAt` falls on — a day-by-day log of who touched what, for the whole team or a filtered-down individual. */
+function groupByDay(rows: Lead[]): DailyGroup[] {
+  const buckets = new Map<string, { date: Date; leads: Lead[] }>();
+  for (const l of rows) {
+    const d = toDate(l.updatedAt);
+    if (!d) continue;
+    const key = dayKey(d);
+    const bucket = buckets.get(key);
+    if (bucket) bucket.leads.push(l);
+    else buckets.set(key, { date: new Date(d.getFullYear(), d.getMonth(), d.getDate()), leads: [l] });
+  }
+  return [...buckets.values()]
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .map(({ date, leads }) => {
+      const sortedLeads = [...leads].sort(
+        (a, b) => (toDate(b.updatedAt)?.getTime() ?? 0) - (toDate(a.updatedAt)?.getTime() ?? 0),
+      );
+      const byAgent = new Map<string, number>();
+      for (const l of sortedLeads) byAgent.set(l.ownerName, (byAgent.get(l.ownerName) ?? 0) + 1);
+      const agents = [...byAgent.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, count]) => ({ name, count }));
+      return { key: dayKey(date), date, leads: sortedLeads, agents };
+    });
+}
+
+function DailyUpdatesView({ groups }: { groups: DailyGroup[] }) {
+  const agentNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of groups) for (const a of g.agents) set.add(a.name);
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [groups]);
+
+  if (groups.length === 0) {
+    return (
+      <EmptyState
+        icon={<Users2 className="h-8 w-8" />}
+        title="No updates in this range"
+        description="Nothing matching these filters has been updated yet."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card title="Daily totals" subtitle="Leads updated per day, per agent — newest first">
+        <div className="overflow-x-auto scroll-thin">
+          <table className="w-full">
+            <thead className="border-b border-ink-200">
+              <tr>
+                <th className="th">Date</th>
+                {agentNames.map((name) => <th key={name} className="th text-right">{name}</th>)}
+                <th className="th text-right font-semibold">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-100">
+              {groups.map((g) => {
+                const byAgent = new Map(g.agents.map((a) => [a.name, a.count]));
+                return (
+                  <tr key={g.key} className="hover:bg-ink-50">
+                    <td className="td font-medium">{formatDate(g.date)}</td>
+                    {agentNames.map((name) => (
+                      <td key={name} className="td text-right tabular-nums text-ink-600">
+                        {byAgent.get(name) ?? "—"}
+                      </td>
+                    ))}
+                    <td className="td text-right font-semibold tabular-nums">{g.leads.length}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {groups.map((g, i) => (
+        <details key={g.key} className="card overflow-hidden" open={i < 2}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-ink-50">
+            <span className="text-sm font-semibold text-ink-900">{formatDate(g.date)}</span>
+            <span className="flex flex-wrap items-center justify-end gap-1.5">
+              {g.agents.map((a) => (
+                <Badge key={a.name} className="bg-ink-100 text-ink-700 ring-ink-200">{a.name} · {a.count}</Badge>
+              ))}
+              <Badge className="bg-brand-100 text-brand-800 ring-brand-200">{g.leads.length} total</Badge>
+            </span>
+          </summary>
+          <div className="overflow-x-auto scroll-thin border-t border-ink-200">
+            <table className="w-full">
+              <thead className="border-b border-ink-200 bg-ink-50">
+                <tr>
+                  <th className="th">Client</th>
+                  <th className="th">Stage</th>
+                  <th className="th">Agent</th>
+                  <th className="th text-right">Value</th>
+                  <th className="th">Updated</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {g.leads.map((l) => (
+                  <tr key={l.id} className="hover:bg-ink-50">
+                    <td className="td">
+                      <Link href={`/leads/${l.id}`} className="block">
+                        <span className="font-medium text-ink-900 hover:text-brand-700">{l.client?.name}</span>
+                        <span className="mt-0.5 block text-xs text-ink-500">{l.code} · {l.client?.phone}</span>
+                      </Link>
+                    </td>
+                    <td className="td"><Badge className={STAGE_META[l.stage].color}>{STAGE_META[l.stage].short}</Badge></td>
+                    <td className="td">
+                      <span className="flex items-center gap-1.5">
+                        <Avatar name={l.ownerName} size={20} />
+                        <span className="text-ink-700">{l.ownerName}</span>
+                      </span>
+                    </td>
+                    <td className="td text-right tabular-nums">{formatINR(l.value)}</td>
+                    <td className="td text-ink-500">{formatDateTime(l.updatedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
 const PAGE_SIZE = 5000;
 // Rendering thousands of <tr> rows into the DOM at once is what actually
 // makes the page laggy (not the fetch) — stats stay computed over every
@@ -123,6 +261,7 @@ function LeadsInner() {
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
   const [expanded, setExpanded] = useState(false);
   const [sort, setSort] = useState<SortKey>("updatedAt");
+  const [view, setView] = useState<ViewMode>("list");
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [visibleRows, setVisibleRows] = useState(ROWS_PER_PAGE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -199,6 +338,7 @@ function LeadsInner() {
     return sorted;
   }, [leads, filters, sort, duplicateIds]);
 
+  const dailyGroups = useMemo(() => groupByDay(rows), [rows]);
   const totals = useMemo(() => computeTotals(rows), [rows]);
   const canBulkTrash = canTrash(viewer);
   const canLoadMore = !loading && leads.length >= pageSize;
@@ -279,18 +419,38 @@ function LeadsInner() {
         expanded={expanded}
         onToggleExpanded={() => setExpanded((e) => !e)}
         right={
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
-            className="input w-auto"
-            aria-label="Sort leads"
-          >
-            <option value="updatedAt">Last updated</option>
-            <option value="createdAt">Newest first</option>
-            <option value="value">Highest value</option>
-            <option value="name">Client name</option>
-            <option value="stage">Stage</option>
-          </select>
+          <>
+            <div className="flex rounded-lg bg-ink-100 p-0.5 text-sm">
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`rounded-md px-3 py-1.5 ${view === "list" ? "bg-white shadow-sm font-medium" : "text-ink-500"}`}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("daily")}
+                className={`rounded-md px-3 py-1.5 ${view === "daily" ? "bg-white shadow-sm font-medium" : "text-ink-500"}`}
+              >
+                Daily updates
+              </button>
+            </div>
+            {view === "list" && (
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortKey)}
+                className="input w-auto"
+                aria-label="Sort leads"
+              >
+                <option value="updatedAt">Last updated</option>
+                <option value="createdAt">Newest first</option>
+                <option value="value">Highest value</option>
+                <option value="name">Client name</option>
+                <option value="stage">Stage</option>
+              </select>
+            )}
+          </>
         }
       />
 
@@ -323,6 +483,8 @@ function LeadsInner() {
           description="Try widening the filters, or add a new lead."
           action={<Link href="/leads/new"><Button variant="primary"><Plus className="h-4 w-4" /> New lead</Button></Link>}
         />
+      ) : view === "daily" ? (
+        <DailyUpdatesView groups={dailyGroups} />
       ) : (
         <>
           <div className="card overflow-x-auto scroll-thin">
