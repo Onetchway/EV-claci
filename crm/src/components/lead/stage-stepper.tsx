@@ -21,7 +21,7 @@ export interface StageGate {
   reason?: string;
 }
 
-/** A Franchise lead can be created with just Client details + Source & ownership — Site details only need to be real once the lead moves past New. */
+/** A Franchise lead can be created with just Client details + Source & ownership — Site details only need to be real once the lead is ready to reach EOI. */
 export function hasSiteDetails(site: SiteInfo | undefined): boolean {
   return !!(site?.locationName?.trim() && site?.address?.trim());
 }
@@ -39,8 +39,8 @@ export function gateFor(
     isFranchise?: boolean; hasSiteDetails?: boolean; hasFunding?: boolean;
   },
 ): StageGate {
-  if (stage === "CONTACTED" && ctx.isFranchise && (!ctx.hasSiteDetails || !ctx.hasFunding)) {
-    return { blocked: true, reason: "Add site details and funding information before moving past New Lead." };
+  if (stage === "EOI" && ctx.isFranchise && (!ctx.hasSiteDetails || !ctx.hasFunding)) {
+    return { blocked: true, reason: "Add site details and funding information before recording an EOI." };
   }
   if (stage === "EOI" && !ctx.hasConfig) {
     return { blocked: true, reason: "Add the charger configuration before recording an EOI." };
