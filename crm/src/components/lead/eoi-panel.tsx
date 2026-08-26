@@ -57,7 +57,11 @@ export function EoiPanel({
   const { settings } = useSettings();
   const company = settings.company;
 
-  useEffect(() => subscribeEoiVersions(lead.id, setVersions), [lead.id]);
+  const mergedFromIds = (lead.mergedFrom ?? []).map((m) => m.id);
+  useEffect(
+    () => subscribeEoiVersions([lead.id, ...mergedFromIds], setVersions),
+    [lead.id, mergedFromIds.join(",")],
+  );
 
   const eoi = draft ?? lead.eoi ?? null;
   const dirty = draft !== null;

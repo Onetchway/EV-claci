@@ -8,7 +8,7 @@ import {
 
 import {
   finalStageFor, LEAD_TYPE_CODE, STAGES, STAGE_META,
-  type CommercialModel, type EoiStatus, type LeadStatus, type LeadType,
+  type ActivityType, type CommercialModel, type EoiStatus, type LeadStatus, type LeadType,
   type RejectionReason, type Source, type Stage,
 } from "../constants";
 import { diffLead, summariseChanges } from "../diff";
@@ -16,9 +16,12 @@ import { getDb } from "../firebase/client";
 import {
   buildQuote, normaliseConfig, normaliseExtras, type ConfigItem, type ExtraItem,
 } from "../pricing";
-import type { Actor, ClientInfo, EoiDoc, EoiVersion, FinancingInfo, Lead, SiteInfo } from "../types";
+import type {
+  Actor, ClientInfo, EoiDoc, EoiVersion, FinancingInfo, Lead, MergedLeadRef, SiteInfo,
+} from "../types";
 import { buildSearchTokens, formatINR, normalisePhone, toDate } from "../utils";
 import { logActivitySafe } from "./activity";
+import { sortByTimestamp, subscribeUnion } from "./subscribe-union";
 
 export const LEADS = "leads";
 const COUNTERS = "counters";
@@ -614,6 +617,124 @@ export async function restoreLead(lead: Lead, actor: Actor): Promise<void> {
   });
 }
 
+/**
+ * Folds `discard` into `keep` — the two are treated as the same real client
+ * accidentally entered twice. Field-level lead data is merged (anything
+ * `keep` is missing gets filled from `discard`), and everything reassignable
+ * without spoofing who actually did it (tasks, the project record, linked
+ * quotations/PIs, partner commissions, a registered charger) is repointed at
+ * `keep`. Payments, KYC documents, EOI version history and the activity
+ * trail are deliberately left on `discard`'s own subcollections — Firestore
+ * rules require e.g. a payment's `createdBy`/a document's `uploadedBy` to be
+ * the actor writing it, and activities are flatly immutable, so there is no
+ * rule-legal way to re-parent those records onto `keep` without rewriting
+ * history. Instead `discard`'s id is recorded on `keep.mergedFrom`, and the
+ * lead detail page reads all of those collections across every id in
+ * `[keep.id, ...mergedFrom]` — so the surviving lead's page shows the full
+ * combined picture without a single historical record's provenance changing.
+ * `discard` itself is then trashed (recoverable, same as any other lead)
+ * with a `mergedInto` pointer back to `keep`.
+ */
+export async function mergeLeads(keep: Lead, discard: Lead, actor: Actor): Promise<void> {
+  if (keep.id === discard.id) throw new Error("Can't merge a lead with itself.");
+  const db = getDb();
+
+  // ---- 1. Fill in anything `keep` is missing from `discard`. ----
+  const patch: Record<string, unknown> = {};
+
+  const clientFill: Partial<ClientInfo> = {};
+  (["altPhone", "email", "company", "state", "address", "pan", "aadhaarLast4", "gstin"] as const).forEach((k) => {
+    if (!keep.client?.[k] && discard.client?.[k]) clientFill[k] = discard.client[k];
+  });
+  if (Object.keys(clientFill).length) patch.client = { ...keep.client, ...clientFill };
+
+  if (!keep.site && discard.site) patch.site = discard.site;
+  if (!keep.financing && discard.financing) patch.financing = discard.financing;
+  if (!keep.eoi && discard.eoi) patch.eoi = discard.eoi;
+  if (!keep.commercialModel && discard.commercialModel) patch.commercialModel = discard.commercialModel;
+  if (!keep.partnerId && discard.partnerId) {
+    patch.partnerId = discard.partnerId;
+    patch.partnerName = discard.partnerName;
+  }
+
+  const mergedTags = [...new Set([...(keep.tags ?? []), ...(discard.tags ?? [])])];
+  if (mergedTags.length) patch.tags = mergedTags;
+
+  // Payments physically stay split across both leads' own subcollections
+  // (see the doc comment above), but the rollup shown on `keep` should
+  // reflect both — `value`/`dueAmount` are the deal size and stay keep's own.
+  const paidAmount = (keep.paidAmount ?? 0) + (discard.paidAmount ?? 0);
+  patch.paidAmount = paidAmount;
+  patch.dueAmount = Math.max(0, (keep.value ?? 0) - paidAmount);
+
+  const mergedFrom: MergedLeadRef[] = [
+    ...(keep.mergedFrom ?? []),
+    { id: discard.id, code: discard.code, name: discard.client?.name ?? "", ownerId: discard.ownerId },
+    ...(discard.mergedFrom ?? []), // a lead already merged into `discard` earlier follows it into `keep`
+  ];
+  patch.mergedFrom = mergedFrom;
+
+  patch.updatedAt = serverTimestamp();
+  patch.updatedBy = actor;
+  await updateDoc(doc(db, LEADS, keep.id), patch);
+
+  // ---- 2. Repoint records that can be safely reassigned without rewriting
+  // who created/verified/archived them. ----
+  async function reassign(collectionName: string, field: string) {
+    const snap = await getDocs(query(collection(db, collectionName), where(field, "==", discard.id)));
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    for (const d of snap.docs) batch.update(d.ref, { [field]: keep.id });
+    await batch.commit();
+  }
+  await reassign("tasks", "leadId");
+  await reassign("quotations", "leadId");
+  await reassign("proformaInvoices", "leadId");
+  await reassign("projects", "sourceLeadId");
+  // Charger registrations and partner commissions each have a narrower
+  // write rule (Operations / Finance-and-admin respectively) than who can
+  // merge leads (Sales Manager and up) — best-effort, skipped quietly for
+  // a merging actor who isn't also cleared to write those collections.
+  await reassign("chargerRegistry", "leadId").catch(() => undefined);
+  await reassign("partnerCommissions", "leadId").catch(() => undefined);
+
+  // ---- 3. Record the merge, then trash the losing side. ----
+  logActivitySafe({
+    leadId: keep.id,
+    ownerId: keep.ownerId,
+    leadCode: keep.code,
+    leadName: keep.client?.name,
+    type: "MERGED" as ActivityType,
+    message: `Merged with duplicate lead ${discard.code} (${discard.client?.name ?? "—"}). Its payments, documents, EOI history and activity trail stay on that record — see the "Merged from" link on this lead.`,
+    actor,
+  });
+
+  await updateDoc(doc(db, LEADS, discard.id), {
+    deletedAt: serverTimestamp(),
+    deletedBy: actor,
+    mergedInto: { leadId: keep.id, leadCode: keep.code, at: serverTimestamp(), by: actor },
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+/** Confirms a lead sharing contact details with another is a real, separate case (e.g. a repeat customer) rather than an accidental duplicate — excludes it from duplicate detection. */
+export async function setDuplicateOverride(lead: Lead, actor: Actor, note?: string): Promise<void> {
+  await updateDoc(doc(getDb(), LEADS, lead.id), {
+    duplicateOverride: { note: note ?? "", by: actor, at: serverTimestamp() },
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
+export async function clearDuplicateOverride(lead: Lead, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), LEADS, lead.id), {
+    duplicateOverride: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  });
+}
+
 /** Hard delete — super admin only, and it takes the sub-collections with it. */
 export async function deleteLead(lead: Lead): Promise<void> {
   const db = getDb();
@@ -890,11 +1011,16 @@ export async function saveEoi(lead: Lead, eoi: EoiDoc, actor: Actor): Promise<vo
 
 export const EOI_VERSIONS = "eoiVersions";
 
+/** Pass an array to also pull in a merged-in lead's archived EOI history (see mergeLeads above). */
 export function subscribeEoiVersions(
-  leadId: string,
+  leadId: string | string[],
   cb: (rows: EoiVersion[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
+  if (Array.isArray(leadId)) {
+    if (leadId.length <= 1) return subscribeEoiVersions(leadId[0] ?? "", cb, onError);
+    return subscribeUnion<EoiVersion>(leadId, subscribeEoiVersions, (rows) => cb(sortByTimestamp(rows, "archivedAt", "desc")), onError);
+  }
   return onSnapshot(
     query(collection(getDb(), LEADS, leadId, EOI_VERSIONS), orderBy("archivedAt", "desc")),
     (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<EoiVersion, "id">) }))),

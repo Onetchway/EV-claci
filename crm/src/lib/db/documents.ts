@@ -14,6 +14,7 @@ import { getBucket, getDb } from "../firebase/client";
 import type { Actor, Lead, LeadDocument } from "../types";
 import { logActivitySafe } from "./activity";
 import { LEADS } from "./leads";
+import { sortByTimestamp, subscribeUnion } from "./subscribe-union";
 
 const sub = (leadId: string) => collection(getDb(), LEADS, leadId, "documents");
 
@@ -27,11 +28,16 @@ export const ACCEPTED_TYPES = [
   "image/heic",
 ];
 
+/** Pass an array to also pull in a merged-in lead's documents (see mergeLeads in db/leads.ts). */
 export function subscribeDocuments(
-  leadId: string,
+  leadId: string | string[],
   cb: (rows: LeadDocument[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
+  if (Array.isArray(leadId)) {
+    if (leadId.length <= 1) return subscribeDocuments(leadId[0] ?? "", cb, onError);
+    return subscribeUnion<LeadDocument>(leadId, subscribeDocuments, (rows) => cb(sortByTimestamp(rows, "uploadedAt", "desc")), onError);
+  }
   return onSnapshot(
     query(sub(leadId), orderBy("uploadedAt", "desc")),
     (snap) =>

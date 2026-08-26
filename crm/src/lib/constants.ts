@@ -688,6 +688,7 @@ export const ACTIVITY_TYPES = [
   "RESTORED",
   "PROJECT_TRASHED",
   "PROJECT_RESTORED",
+  "MERGED",
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 

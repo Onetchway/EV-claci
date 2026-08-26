@@ -16,9 +16,16 @@ export interface DuplicateGroup {
  * saved, run here across every lead already loaded so double-entries that
  * slipped through earlier (or predate that guard) can be found and cleaned
  * up too.
+ *
+ * A lead with `duplicateOverride` set (staff have confirmed it's a real,
+ * separate case — e.g. the same investor buying a second franchise later,
+ * not an accidental double-entry) is left out of every bucket entirely, so
+ * it never gets flagged again.
  */
 export function findDuplicateGroups(leads: Lead[]): DuplicateGroup[] {
   const buckets = new Map<string, { signal: DuplicateSignal; value: string; leads: Lead[] }>();
+
+  const candidates = leads.filter((l) => !l.duplicateOverride);
 
   function add(signal: DuplicateSignal, raw: string | undefined, lead: Lead) {
     const trimmed = raw?.trim();
@@ -33,7 +40,7 @@ export function findDuplicateGroups(leads: Lead[]): DuplicateGroup[] {
     buckets.set(key, bucket);
   }
 
-  for (const lead of leads) {
+  for (const lead of candidates) {
     add("phone", lead.client?.phone, lead);
     if (lead.client?.altPhone) add("phone", lead.client.altPhone, lead);
     add("email", lead.client?.email, lead);

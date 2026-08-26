@@ -53,9 +53,10 @@ export function DocumentsPanel({
   const { busy, run } = useAsyncAction();
   const { push } = useToast();
 
+  const mergedFromIds = (lead.mergedFrom ?? []).map((m) => m.id);
   useEffect(
-    () => subscribeDocuments(lead.id, (rows) => { setDocs(rows); setLoading(false); }, () => setLoading(false)),
-    [lead.id],
+    () => subscribeDocuments([lead.id, ...mergedFromIds], (rows) => { setDocs(rows); setLoading(false); }, () => setLoading(false)),
+    [lead.id, mergedFromIds.join(",")],
   );
 
   const kyc = kycStatus(lead, docs);

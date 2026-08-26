@@ -16,14 +16,20 @@ import { formatINR } from "../utils";
 import { logActivitySafe } from "./activity";
 import { LEADS, refreshPaymentRollup } from "./leads";
 import { accruePartnerCommissionSafe } from "./partners";
+import { sortByTimestamp, subscribeUnion } from "./subscribe-union";
 
 const sub = (leadId: string) => collection(getDb(), LEADS, leadId, "payments");
 
+/** Pass an array to also pull in a merged-in lead's payments (see mergeLeads in db/leads.ts) — the panel then shows the combined history. */
 export function subscribePayments(
-  leadId: string,
+  leadId: string | string[],
   cb: (rows: Payment[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
+  if (Array.isArray(leadId)) {
+    if (leadId.length <= 1) return subscribePayments(leadId[0] ?? "", cb, onError);
+    return subscribeUnion<Payment>(leadId, subscribePayments, (rows) => cb(sortByTimestamp(rows, "createdAt", "asc")), onError);
+  }
   return onSnapshot(
     query(sub(leadId), orderBy("createdAt", "asc")),
     (snap) => cb(snap.docs.map((d) => ({ id: d.id, leadId, ...(d.data() as Omit<Payment, "id" | "leadId">) }))),

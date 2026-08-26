@@ -326,6 +326,14 @@ export interface LinkedLeadRef {
   name: string;
 }
 
+/** One lead folded into another via mergeLeads() — kept so the surviving lead's detail page can still read the merged-in lead's payments/documents/EOI history/activity trail, which stay physically on that lead's own subcollections (moving them would spoof who actually created/verified/archived each one). */
+export interface MergedLeadRef {
+  id: string;
+  code: string;
+  name: string;
+  ownerId: string;
+}
+
 export interface Lead {
   id: string;
   /** Human-friendly reference, e.g. LG-FR-000142. */
@@ -358,6 +366,17 @@ export interface Lead {
    * is recorded on both sides, so either record reaches all its counterparts.
    */
   linkedLeads?: LinkedLeadRef[];
+  /** Other leads whose data was folded into this one via a duplicate merge. */
+  mergedFrom?: MergedLeadRef[];
+  /** Set on the losing side of a merge — the surviving lead. This lead is also trashed (deletedAt/deletedBy set) at the same time. */
+  mergedInto?: { leadId: string; leadCode: string; at: TS; by: Actor } | null;
+  /**
+   * Set when staff have confirmed this lead sharing a phone/email/GSTIN/PAN
+   * with another lead is a real, separate case (e.g. the same investor
+   * buying a second franchise later) rather than an accidental duplicate
+   * entry — excludes it from duplicate detection entirely.
+   */
+  duplicateOverride?: { note?: string; by: Actor; at: TS } | null;
   /** Set once a won lead has been converted into a delivery project. */
   projectId?: string | null;
   projectCode?: string | null;

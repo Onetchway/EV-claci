@@ -10,6 +10,7 @@ import {
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import { ActivityPanel } from "@/components/lead/activity-panel";
+import { DuplicateBanner } from "@/components/lead/duplicate-banner";
 import { TasksPanel } from "@/components/lead/tasks-panel";
 import { DocumentsPanel } from "@/components/lead/documents-panel";
 import { PaymentsPanel } from "@/components/lead/payments-panel";
@@ -271,6 +272,15 @@ export default function LeadDetailPage() {
         </span>
         {(lead.tags ?? []).map((t) => <Badge key={t}>{t}</Badge>)}
       </div>
+
+      <DuplicateBanner lead={lead} />
+
+      {(lead.mergedFrom?.length ?? 0) > 0 && (
+        <div className="mb-4 rounded-lg bg-sky-50 px-4 py-2.5 text-xs text-sky-800 ring-1 ring-inset ring-sky-200 print:hidden">
+          Merged from {lead.mergedFrom!.map((m) => m.code).join(", ")} — their payments, documents, EOI history and
+          activity show up together with this lead's own below.
+        </div>
+      )}
 
       {lead.status === "REJECTED" && lead.rejection && (
         <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-900 ring-1 ring-inset ring-rose-200 print:hidden">

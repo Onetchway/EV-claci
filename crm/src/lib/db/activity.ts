@@ -8,6 +8,7 @@ import {
 import type { ActivityType } from "../constants";
 import { getDb } from "../firebase/client";
 import type { Activity, Actor, FieldChange } from "../types";
+import { sortByTimestamp, subscribeUnion } from "./subscribe-union";
 
 /**
  * Activities live in one top-level collection rather than under each lead.
@@ -63,18 +64,35 @@ function mapActivity(id: string, data: Record<string, unknown>): Activity {
   return { id, ...(data as Omit<Activity, "id">) };
 }
 
+export interface ActivitySource {
+  leadId: string;
+  ownerId: string;
+}
+
+/** Pass an array to also pull in a merged-in lead's activity trail (see mergeLeads in db/leads.ts) — each source needs its own ownerId since a merged-in lead may have belonged to a different agent. */
 export function subscribeLeadActivity(
-  leadId: string,
-  ownerId: string,
+  source: ActivitySource | ActivitySource[],
   cb: (rows: Activity[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
+  const sources = Array.isArray(source) ? source : [source];
+  if (sources.length > 1) {
+    return subscribeUnion<Activity>(
+      sources.map((s) => s.leadId),
+      (leadId, c, e) => subscribeLeadActivity(sources.find((s) => s.leadId === leadId)!, c, e),
+      (rows) => cb(sortByTimestamp(rows, "at", "desc")),
+      onError,
+    );
+  }
+
+  const only = sources[0];
+  if (!only) return () => undefined;
   const db = getDb();
   // `ownerId` is redundant for admins but is what satisfies the agent read rule.
   const q = query(
     collection(db, ACTIVITIES),
-    where("leadId", "==", leadId),
-    where("ownerId", "==", ownerId),
+    where("leadId", "==", only.leadId),
+    where("ownerId", "==", only.ownerId),
     orderBy("at", "desc"),
     fsLimit(300),
   );

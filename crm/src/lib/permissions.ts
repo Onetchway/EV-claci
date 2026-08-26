@@ -63,6 +63,9 @@ export function canEditLead(viewer: Viewer, lead: Pick<Lead, "ownerId" | "status
 
 export const canReassign = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
 
+/** Merging moves data between two lead records org-wide — same bar as reassigning ownership. */
+export const canMergeLeads = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+
 /** Same bar as leads — the same team enters site partners and their locations. */
 export const canManageSitePartners = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES);
 

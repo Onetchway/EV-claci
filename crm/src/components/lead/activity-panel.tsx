@@ -79,15 +79,19 @@ export function ActivityPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { busy, run } = useAsyncAction();
 
+  const mergedFromKey = (lead.mergedFrom ?? []).map((m) => `${m.id}:${m.ownerId}`).join(",");
+
   useEffect(
     () =>
       subscribeLeadActivity(
-        lead.id,
-        lead.ownerId,
+        [
+          { leadId: lead.id, ownerId: lead.ownerId },
+          ...(lead.mergedFrom ?? []).map((m) => ({ leadId: m.id, ownerId: m.ownerId })),
+        ],
         (r) => { setRows(r); setLoading(false); },
         () => setLoading(false),
       ),
-    [lead.id, lead.ownerId],
+    [lead.id, lead.ownerId, mergedFromKey],
   );
 
   useEffect(

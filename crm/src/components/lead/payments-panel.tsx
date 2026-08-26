@@ -74,9 +74,10 @@ export function PaymentsPanel({
   const { busy, run } = useAsyncAction();
   const { settings } = useSettings();
 
+  const mergedFromIds = (lead.mergedFrom ?? []).map((m) => m.id);
   useEffect(
-    () => subscribePayments(lead.id, (rows) => { setPayments(rows); setLoading(false); }, () => setLoading(false)),
-    [lead.id],
+    () => subscribePayments([lead.id, ...mergedFromIds], (rows) => { setPayments(rows); setLoading(false); }, () => setLoading(false)),
+    [lead.id, mergedFromIds.join(",")],
   );
 
   const summary = useMemo(() => summarisePayments(lead, payments), [lead, payments]);
