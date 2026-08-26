@@ -43,6 +43,10 @@ export interface ConfigItem {
   blended?: boolean | null;
   /** Charger manufacturer for this line. */
   oem?: string | null;
+  /** HSN code for the equipment (or blended combined) line — optional, free text. */
+  hsnCode?: string | null;
+  /** SAC code for the electrical & civil work line — optional, free text. Unused when blended. */
+  civilHsnCode?: string | null;
 }
 
 /** A non-charger line: civil work, canopy, LT panel, DISCOM deposit, etc. */
@@ -56,6 +60,8 @@ export interface ExtraItem {
   /** Optional qty/unitPrice breakdown behind `amount`, matching how a Purchase Order line reads. Absent on older extras that only ever stored a flat amount. */
   qty?: number;
   unitPrice?: number;
+  /** HSN/SAC code — optional, free text. */
+  hsnCode?: string | null;
 }
 
 export interface QuoteLine {
@@ -74,6 +80,8 @@ export interface QuoteLine {
   gstPct: number;
   gst: number;
   total: number;
+  /** HSN/SAC code — optional, free text. */
+  hsnCode?: string | null;
 }
 
 export interface MilestoneAmount {
@@ -241,6 +249,7 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
         gstPct,
         gst: rupee(base * (gstPct / 100)),
         total: rupee(base * (1 + gstPct / 100)),
+        hsnCode: it.hsnCode ?? null,
       };
       return [blendedLine];
     }
@@ -263,6 +272,7 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
       gstPct: equipGstPct,
       gst: rupee(equipBase * (equipGstPct / 100)),
       total: rupee(equipBase * (1 + equipGstPct / 100)),
+      hsnCode: it.hsnCode ?? null,
     };
 
     // A charger with no BOM equipment/civil split (a custom, non-DC-investment-model entry)
@@ -287,6 +297,7 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
       gstPct: civilGstPct,
       gst: rupee(civilBase * (civilGstPct / 100)),
       total: rupee(civilBase * (1 + civilGstPct / 100)),
+      hsnCode: it.civilHsnCode ?? null,
     };
 
     return [equipLine, civilLine];
@@ -304,6 +315,7 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
     gstPct: e.gstPct,
     gst: rupee(e.amount * (e.gstPct / 100)),
     total: rupee(e.amount + e.amount * (e.gstPct / 100)),
+    hsnCode: e.hsnCode ?? null,
   }));
 
   const lines = [...chargerLines, ...extraLines];

@@ -545,6 +545,8 @@ export interface PoItem {
   qty: number;
   unitPrice: number;
   gstPct: number;
+  /** HSN (goods) or SAC (services) code — optional free text, since the applicable code is a call for the vendor/accountant, not something this app should assert. */
+  hsnCode?: string;
 }
 
 export interface PurchaseOrder {

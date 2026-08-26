@@ -100,6 +100,7 @@ function PaletteCard({ spec, disabled, onAdd }: { spec: ChargerSpec; disabled?: 
 
 function PriceGstRow({
   title, unit, gstPct, catalogUnit, disabled, allowPriceOverride, onPriceChange, onResetPrice, onGstChange, ariaLabel,
+  hsnCode, onHsnChange,
 }: {
   title: string;
   unit: number;
@@ -111,6 +112,8 @@ function PriceGstRow({
   onResetPrice: () => void;
   onGstChange: (v: number) => void;
   ariaLabel: string;
+  hsnCode?: string | null;
+  onHsnChange?: (v: string) => void;
 }) {
   const overridden = unit !== catalogUnit;
 
@@ -160,6 +163,20 @@ function PriceGstRow({
             {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
           </select>
         </label>
+
+        {onHsnChange && (
+          <label className="block sm:col-span-2">
+            <span className="mb-0.5 block text-[10px] text-ink-400">HSN/SAC code (optional)</span>
+            <input
+              value={hsnCode ?? ""}
+              disabled={disabled}
+              onChange={(e) => onHsnChange(e.target.value)}
+              placeholder="e.g. 8504"
+              className="input py-1 text-sm"
+              aria-label={`${ariaLabel} HSN/SAC code`}
+            />
+          </label>
+        )}
       </div>
     </div>
   );
@@ -281,6 +298,8 @@ function BasketRow({
             onResetPrice={() => onPatch({ unitPrice: null })}
             onGstChange={(v) => onPatch({ gstPct: v })}
             ariaLabel={`${spec.label} all-in`}
+            hsnCode={item.hsnCode}
+            onHsnChange={(v) => onPatch({ hsnCode: v || null })}
           />
         ) : (
           <>
@@ -295,6 +314,8 @@ function BasketRow({
               onResetPrice={() => onPatch({ unitPrice: null })}
               onGstChange={(v) => onPatch({ gstPct: v })}
               ariaLabel={`Equipment for ${spec.label}`}
+              hsnCode={item.hsnCode}
+              onHsnChange={(v) => onPatch({ hsnCode: v || null })}
             />
 
             {hasSplit && (
@@ -309,6 +330,8 @@ function BasketRow({
                 onResetPrice={() => onPatch({ civilPrice: null })}
                 onGstChange={(v) => onPatch({ civilGstPct: v })}
                 ariaLabel={`Electrical & civil work for ${spec.label}`}
+                hsnCode={item.civilHsnCode}
+                onHsnChange={(v) => onPatch({ civilHsnCode: v || null })}
               />
             )}
           </>
@@ -423,6 +446,16 @@ export function ExtrasEditor({
                 >
                   {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
                 </select>
+              </div>
+              <div className="col-span-6 sm:col-span-3">
+                <label className="label">HSN/SAC (optional)</label>
+                <input
+                  value={e.hsnCode ?? ""}
+                  disabled={disabled}
+                  onChange={(ev) => patch(e.id, { hsnCode: ev.target.value || null })}
+                  className="input"
+                  placeholder="e.g. 9987"
+                />
               </div>
               <div className="col-span-1 flex justify-end pb-1.5">
                 <button

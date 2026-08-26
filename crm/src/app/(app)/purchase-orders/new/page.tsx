@@ -21,7 +21,7 @@ import type { PoItem, Project, ShipToInfo, Vendor } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 let itemSeq = 0;
-const blankItem = (): PoItem => ({ id: `it${itemSeq++}`, description: "", qty: 1, unitPrice: 0, gstPct: DEFAULT_PO_GST_PCT });
+const blankItem = (): PoItem => ({ id: `it${itemSeq++}`, description: "", qty: 1, unitPrice: 0, gstPct: DEFAULT_PO_GST_PCT, hsnCode: "" });
 
 function NewPurchaseOrderInner() {
   const params = useSearchParams();
@@ -164,6 +164,10 @@ function NewPurchaseOrderInner() {
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
+                  </div>
+                  <div className="col-span-6 sm:col-span-3">
+                    <label className="label">HSN/SAC (optional)</label>
+                    <Input value={it.hsnCode ?? ""} onChange={(e) => patchItem(it.id, { hsnCode: e.target.value })} placeholder="e.g. 8504" />
                   </div>
                 </div>
               ))}

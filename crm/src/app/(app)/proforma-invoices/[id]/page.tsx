@@ -300,6 +300,7 @@ function ProformaInvoiceDocument({
             <tr className="text-left">
               <th className={cn(gridCell, "w-8")}>SI No.</th>
               <th className={gridCell}>Particulars</th>
+              <th className={cn(gridCell, "w-20")}>HSN/SAC</th>
               <th className={cn(gridCell, "w-16 text-right")}>Qty</th>
               <th className={cn(gridCell, "w-24 text-right")}>Rate</th>
               <th className={cn(gridCell, "w-28 text-right")}>Amount</th>
@@ -319,6 +320,7 @@ function ProformaInvoiceDocument({
                       <p key={row.label} className="text-ink-500">{row.label}</p>
                     ))}
                   </td>
+                  <td className={cn(gridCell, "align-top text-ink-500")}>{line.hsnCode || "—"}</td>
                   <td className={cn(gridCell, "align-top text-right tabular-nums")}>{line.qty}</td>
                   <td className={cn(gridCell, "align-top text-right tabular-nums")}>{formatINR(line.unitBase)}</td>
                   <td className={cn(gridCell, "align-top text-right tabular-nums")}>
@@ -336,11 +338,12 @@ function ProformaInvoiceDocument({
                 <td className={gridCell}>Discount</td>
                 <td className={gridCell} />
                 <td className={gridCell} />
+                <td className={gridCell} />
                 <td className={cn(gridCell, "text-right tabular-nums text-rose-600")}>−{formatINR(quote.discount)}</td>
               </tr>
             )}
             <tr>
-              <td className={gridCell} colSpan={4}><p className="text-right font-semibold">Total</p></td>
+              <td className={gridCell} colSpan={5}><p className="text-right font-semibold">Total</p></td>
               <td className={cn(gridCell, "text-right text-sm font-bold tabular-nums")}>{formatINR(quote.grandTotal)}</td>
             </tr>
           </tbody>

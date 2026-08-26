@@ -32,7 +32,7 @@ import type { PoItem, PurchaseOrder, ShipToInfo, Vendor, VendorPayment } from "@
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 let editItemSeq = 0;
-const blankPoItem = (): PoItem => ({ id: `eit${editItemSeq++}`, description: "", qty: 1, unitPrice: 0, gstPct: DEFAULT_PO_GST_PCT });
+const blankPoItem = (): PoItem => ({ id: `eit${editItemSeq++}`, description: "", qty: 1, unitPrice: 0, gstPct: DEFAULT_PO_GST_PCT, hsnCode: "" });
 
 interface PaymentDraft {
   amount: string;
@@ -212,6 +212,7 @@ export default function PurchaseOrderDetailPage() {
               <thead className="border-b border-ink-200">
                 <tr>
                   <th className="th">Description</th>
+                  <th className="th">HSN/SAC</th>
                   <th className="th text-right">Qty</th>
                   <th className="th text-right">Unit price</th>
                   <th className="th text-right">GST</th>
@@ -227,6 +228,7 @@ export default function PurchaseOrderDetailPage() {
                   return (
                     <tr key={it.id}>
                       <td className="td">{it.description}</td>
+                      <td className="td text-ink-500">{it.hsnCode || "—"}</td>
                       <td className="td text-right tabular-nums">{it.qty}</td>
                       <td className="td text-right tabular-nums">{formatINR(it.unitPrice)}</td>
                       <td className="td text-right tabular-nums text-ink-500">{it.gstPct}%</td>
@@ -436,6 +438,10 @@ export default function PurchaseOrderDetailPage() {
                       </button>
                     )}
                   </div>
+                  <div className="col-span-6 sm:col-span-3">
+                    <label className="label">HSN/SAC (optional)</label>
+                    <Input value={it.hsnCode ?? ""} onChange={(e) => patchEditItem(it.id, { hsnCode: e.target.value })} placeholder="e.g. 8504" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -531,6 +537,7 @@ function PurchaseOrderDocument({
             <thead>
               <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
                 <th className="pb-2">Description</th>
+                <th className="pb-2">HSN/SAC</th>
                 <th className="pb-2 text-right">Qty</th>
                 <th className="pb-2 text-right">Unit price</th>
                 <th className="pb-2 text-right">GST</th>
@@ -544,6 +551,7 @@ function PurchaseOrderDocument({
                 return (
                   <tr key={it.id} className="border-b border-ink-100">
                     <td className="py-2">{it.description}</td>
+                    <td className="py-2 text-ink-500">{it.hsnCode || "—"}</td>
                     <td className="py-2 text-right tabular-nums">{it.qty}</td>
                     <td className="py-2 text-right tabular-nums">{formatINR(it.unitPrice)}</td>
                     <td className="py-2 text-right tabular-nums text-ink-600">{it.gstPct}%</td>

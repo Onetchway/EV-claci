@@ -264,6 +264,7 @@ function QuotationDocument({
           <thead>
             <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
               <th className="pb-2">Description</th>
+              <th className="pb-2">HSN/SAC</th>
               <th className="pb-2 text-right">Qty</th>
               <th className="pb-2 text-right">Unit price</th>
               <th className="pb-2 text-right">GST</th>
@@ -274,6 +275,7 @@ function QuotationDocument({
             {quote.lines.map((line) => (
               <tr key={line.key} className="border-b border-ink-100">
                 <td className="py-2">{line.label}</td>
+                <td className="py-2 text-ink-500">{line.hsnCode || "—"}</td>
                 <td className="py-2 text-right tabular-nums">{line.qty}</td>
                 <td className="py-2 text-right tabular-nums">{formatINR(line.unitBase)}</td>
                 <td className="py-2 text-right tabular-nums text-ink-600">{line.gstPct}%</td>
