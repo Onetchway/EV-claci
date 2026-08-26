@@ -72,6 +72,7 @@ function MyAttendanceTab() {
   const [monthCursor, setMonthCursor] = useState(new Date());
   const [rows, setRows] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [offices, setOffices] = useState<OfficeLocation[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [myLeaves, setMyLeaves] = useState<LeaveRequest[]>([]);
@@ -86,7 +87,12 @@ function MyAttendanceTab() {
   useEffect(() => {
     if (!profile) return;
     setLoading(true);
-    return subscribeMyAttendanceMonth(profile.uid, start, end, (r) => { setRows(r); setLoading(false); }, () => setLoading(false));
+    setError(null);
+    return subscribeMyAttendanceMonth(
+      profile.uid, start, end,
+      (r) => { setRows(r); setError(null); setLoading(false); },
+      (e) => { setError(e.message); setLoading(false); },
+    );
   }, [profile, start, end]);
 
   useEffect(() => subscribeOfficeLocations(setOffices), []);
@@ -146,6 +152,17 @@ function MyAttendanceTab() {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-inset ring-rose-200">
+          {error}
+          <p className="mt-1 text-xs">
+            A missing-index or permission-denied error here usually means the Firestore rules/composite
+            indexes for the `attendance` collection haven't been deployed yet — run{" "}
+            <code>firebase deploy --only firestore:rules,firestore:indexes</code>. Check-out stays disabled
+            below until today's check-in can actually be read back, which this error is blocking.
+          </p>
+        </div>
+      )}
       <Card title="Today" subtitle={formatDate(new Date())}>
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
@@ -316,6 +333,7 @@ function TeamTab() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [rows, setRows] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [markTarget, setMarkTarget] = useState<AppUser | null>(null);
   const [markStatus, setMarkStatus] = useState<AttendanceStatus>("ABSENT");
   const [markNote, setMarkNote] = useState("");
@@ -326,7 +344,12 @@ function TeamTab() {
   useEffect(() => subscribeUsers(setUsers), []);
   useEffect(() => {
     setLoading(true);
-    return subscribeAttendanceRange(date, date, (r) => { setRows(r); setLoading(false); }, () => setLoading(false));
+    setError(null);
+    return subscribeAttendanceRange(
+      date, date,
+      (r) => { setRows(r); setError(null); setLoading(false); },
+      (e) => { setError(e.message); setLoading(false); },
+    );
   }, [date]);
 
   const byUid = useMemo(() => new Map(rows.map((r) => [r.uid, r])), [rows]);
@@ -369,6 +392,16 @@ function TeamTab() {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-inset ring-rose-200">
+          {error}
+          <p className="mt-1 text-xs">
+            A missing-index or permission-denied error here usually means the Firestore rules/composite
+            indexes for the `attendance` collection haven't been deployed yet — run{" "}
+            <code>firebase deploy --only firestore:rules,firestore:indexes</code>.
+          </p>
+        </div>
+      )}
       <Card
         title="Team attendance"
         actions={<Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto" />}
