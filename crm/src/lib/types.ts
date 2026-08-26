@@ -263,6 +263,56 @@ export interface SiteInfo {
   tenureYears?: number | null;
 }
 
+/**
+ * One location offered by a Site Partner — same shape as a Franchise
+ * lead's own `site` field, so mapping a location onto a lead is a
+ * straight copy. A partner (an individual, or a company like BSES)
+ * commonly offers several locations at once, so these live as an array
+ * on the partner doc rather than one-lead-per-location.
+ */
+export interface SiteLocation extends SiteInfo {
+  id: string;
+  /** AVAILABLE until a Franchise lead is actually built on it. */
+  status: "AVAILABLE" | "MAPPED" | "REJECTED";
+  linkedLeadId?: string | null;
+  linkedLeadCode?: string | null;
+  createdAt: TS;
+}
+
+/**
+ * A person or company offering one or more locations for a charging
+ * station — separate from the Leads pipeline (Site Enquiries used to be
+ * a filtered view of type=SITE leads; a partner offering many locations
+ * at once no longer means creating a lead per location).
+ */
+export interface SitePartner {
+  id: string;
+  /** Human-friendly reference, e.g. LG-SP-000012. */
+  code: string;
+  contactName: string;
+  phone: string;
+  email?: string;
+  /** e.g. "BSES" when one company is offering many locations at once. */
+  company?: string;
+  city?: string;
+  state?: string;
+  address?: string;
+  source: Source;
+  sourceDetail?: string;
+  notes?: string;
+  status: "ACTIVE" | "INACTIVE";
+  ownerId: string;
+  ownerName: string;
+  locations: SiteLocation[];
+  tags?: string[];
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+  deletedAt?: TS | null;
+  deletedBy?: Actor | null;
+}
+
 export interface RejectionInfo {
   reason: RejectionReason;
   note?: string;

@@ -27,8 +27,9 @@ import {
   type Ownership, type OwnerType, type PowerLoad,
   type SiteCompensationType, type Source,
 } from "@/lib/constants";
-import { DEFAULT_FINANCING, findDuplicateLeads, findSiteCandidates } from "@/lib/db/leads";
+import { DEFAULT_FINANCING, findDuplicateLeads } from "@/lib/db/leads";
 import { subscribePartners } from "@/lib/db/partners";
+import { markLocationMapped, searchAvailableLocations, type LocationSearchResult } from "@/lib/db/site-partners";
 import { canApplyDiscount, canOverridePrice, canReassign } from "@/lib/permissions";
 import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
 import type { ClientInfo, FinancingInfo, Lead, SiteInfo } from "@/lib/types";
@@ -133,7 +134,8 @@ export function validate(v: LeadFormValues): Errors {
 interface Props {
   initial?: LeadFormValues;
   submitLabel: string;
-  onSubmit: (values: LeadFormValues) => Promise<void>;
+  /** May return the saved lead's id/code — used to mark a mapped Site Partner location as no longer available. */
+  onSubmit: (values: LeadFormValues) => Promise<{ id: string; code: string } | void>;
   onCancel?: () => void;
   /** Existing lead id, so the duplicate check can ignore itself. */
   currentLeadId?: string;
@@ -154,8 +156,9 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
   const [fundingInputMode, setFundingInputMode] = useState<"AMOUNT" | "PERCENT">("AMOUNT");
   const [siteMapOpen, setSiteMapOpen] = useState(false);
   const [siteSearch, setSiteSearch] = useState("");
-  const [siteCandidates, setSiteCandidates] = useState<Lead[]>([]);
+  const [siteCandidates, setSiteCandidates] = useState<LocationSearchResult[]>([]);
   const [siteSearching, setSiteSearching] = useState(false);
+  const [pendingLocationRef, setPendingLocationRef] = useState<{ partnerId: string; locationId: string } | null>(null);
 
   const viewer = useMemo(
     () => ({ uid: profile?.uid ?? "", role: role ?? "AGENT" as const }),
@@ -207,14 +210,14 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
   const [partners, setPartners] = useState<{ id: string; code: string; name: string }[]>([]);
   useEffect(() => subscribePartners((rows) => setPartners(rows.filter((p) => p.status === "ACTIVE"))), []);
 
-  // Existing-location search for the "map an existing location" picker below.
+  // Site Partner location search for the "map an existing location" picker below.
   useEffect(() => {
     if (!siteMapOpen) return;
     let cancelled = false;
     setSiteSearching(true);
     const t = setTimeout(async () => {
       try {
-        const rows = await findSiteCandidates(siteSearch, currentLeadId);
+        const rows = await searchAvailableLocations(siteSearch);
         if (!cancelled) setSiteCandidates(rows);
       } catch {
         /* advisory only */
@@ -223,7 +226,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
       }
     }, 350);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [siteMapOpen, siteSearch, currentLeadId]);
+  }, [siteMapOpen, siteSearch]);
 
   const ownerOptions = users.map((u) => ({ value: u.uid, label: `${u.name} (${u.role.replace("_", " ").toLowerCase()})` }));
 
@@ -253,11 +256,16 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
     setBusy(true);
     try {
       const coords = parseMapsLink(values.site.mapsLink ?? "");
-      await onSubmit({
+      const saved = await onSubmit({
         ...values,
         client: { ...values.client, phone: normalisePhone(values.client.phone), pan: values.client.pan?.toUpperCase() ?? "" },
         site: { ...values.site, lat: coords?.lat ?? null, lng: coords?.lng ?? null },
       });
+      if (saved && pendingLocationRef) {
+        markLocationMapped(pendingLocationRef.partnerId, pendingLocationRef.locationId, saved).catch(() => {
+          /* the lead itself saved fine; a failed mark-as-mapped isn't worth surfacing as an error */
+        });
+      }
     } catch (err) {
       push((err as Error).message || "Could not save the lead.", "error");
     } finally {
@@ -273,7 +281,13 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
             <Select
               value={values.type}
               onChange={(e) => set("type", e.target.value as LeadType)}
-              options={LEAD_TYPES.map((t) => ({ value: t, label: LEAD_TYPE_LABEL[t] }))}
+              // Site/Location Partner leads moved to their own Site Enquiries
+              // section (which can hold several locations per partner) — no
+              // longer offered here, except to keep editing one that
+              // predates the change.
+              options={LEAD_TYPES
+                .filter((t) => t !== "SITE" || initial?.type === "SITE")
+                .map((t) => ({ value: t, label: LEAD_TYPE_LABEL[t] }))}
             />
           </Field>
           {COMMERCIAL_MODEL_TYPES.includes(values.type) && (
@@ -896,46 +910,61 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
         open={siteMapOpen}
         onClose={() => setSiteMapOpen(false)}
         title="Map an existing location"
-        description="Pick a site already in the CRM — its address, GPS link, ownership and other site details fill in below."
+        description="Pick a location a Site Partner already offered — its address, compensation and other site details fill in below."
         wide
         footer={<Button type="button" onClick={() => setSiteMapOpen(false)}>Close</Button>}
       >
         <Input
           value={siteSearch}
           onChange={(e) => setSiteSearch(e.target.value)}
-          placeholder="Search by location name, address, client name or city"
+          placeholder="Search by partner, company, location name, address or city"
           className="mb-3"
         />
         {siteSearching ? (
           <p className="py-6 text-center text-sm text-ink-500">Searching…</p>
         ) : siteCandidates.length === 0 ? (
-          <p className="py-6 text-center text-sm text-ink-500">No matching locations found.</p>
+          <p className="py-6 text-center text-sm text-ink-500">No available locations found.</p>
         ) : (
-          <ul className="divide-y divide-ink-100">
-            {siteCandidates.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink-900">{c.site?.locationName}</p>
-                  <p className="truncate text-xs text-ink-500">
-                    {c.code} · {c.client?.name}
-                    {c.client?.city ? ` · ${c.client.city}` : ""}
-                    {c.site?.address ? ` · ${c.site.address}` : ""}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="primary"
-                  onClick={() => {
-                    if (c.site) setSite(c.site);
-                    setSiteMapOpen(false);
-                  }}
-                >
-                  Use this
-                </Button>
-              </li>
+          <div className="divide-y divide-ink-100">
+            {Object.entries(
+              siteCandidates.reduce<Record<string, LocationSearchResult[]>>((acc, r) => {
+                (acc[r.partner.id] ??= []).push(r);
+                return acc;
+              }, {}),
+            ).map(([partnerId, rows]) => (
+              <div key={partnerId} className="py-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+                  {rows[0]!.partner.contactName}{rows[0]!.partner.company ? ` — ${rows[0]!.partner.company}` : ""}
+                  <span className="ml-1 font-normal normal-case text-ink-400">({rows[0]!.partner.code})</span>
+                </p>
+                <ul className="mt-1 divide-y divide-ink-50">
+                  {rows.map(({ partner, location }) => (
+                    <li key={location.id} className="flex items-center justify-between gap-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink-900">{location.locationName || "Unnamed location"}</p>
+                        <p className="truncate text-xs text-ink-500">
+                          {partner.city ? `${partner.city} · ` : ""}{location.address || "No address on file"}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="primary"
+                        onClick={() => {
+                          const { id, status, linkedLeadId, linkedLeadCode, createdAt, ...siteFields } = location;
+                          setSite(siteFields);
+                          setPendingLocationRef({ partnerId: partner.id, locationId: location.id });
+                          setSiteMapOpen(false);
+                        }}
+                      >
+                        Use this
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </Modal>
     </form>

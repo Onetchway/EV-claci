@@ -39,6 +39,7 @@ export default function NewLeadPage() {
     );
     push(`Lead ${lead.code} created.`, "success");
     router.replace(`/leads/${lead.id}`);
+    return lead;
   }
 
   return (

@@ -335,10 +335,24 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
     }
 
-    // Proforma Invoices — same shape and same bar as quotations.
+    // Proforma Invoices — same shape as quotations, filed under Operations
+    // now (Operations can manage it too, alongside Sales Manager).
     match /proformaInvoices/{piId} {
       allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'];
+    }
+
+    // Site Partners — people/companies offering one or more locations for a
+    // charging station. Same bar as leads: an agent's own book is
+    // owner-scoped, everyone else sees the whole list.
+    match /sitePartners/{partnerId} {
+      allow read: if seesAllLeads() || ownsExisting();
+      allow create: if canWriteLeads() && actorIsSelf('createdBy')
+                    && (isAdmin() || role() == 'SALES_MANAGER' || ownsIncoming());
+      allow update: if canWriteLeads()
+                    && (isAdmin() || role() == 'SALES_MANAGER' || ownsExisting())
+                    && actorIsSelf('updatedBy');
+      allow delete: if isSuperAdmin();
     }
 
     // --------------------------------------------------------- OCPP / chargers

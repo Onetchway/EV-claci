@@ -1,5 +1,5 @@
 import { expandRole, ORG_WIDE_ROLES, ROLE_RANK, type Role } from "./constants";
-import type { Lead } from "./types";
+import type { Lead, SitePartner } from "./types";
 
 /**
  * Capability-based access control.
@@ -62,6 +62,13 @@ export function canEditLead(viewer: Viewer, lead: Pick<Lead, "ownerId" | "status
 }
 
 export const canReassign = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+
+/** Same bar as leads — the same team enters site partners and their locations. */
+export const canManageSitePartners = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES);
+
+export function canViewSitePartner(viewer: Viewer, partner: Pick<SitePartner, "ownerId">): boolean {
+  return canSeeAllLeads(viewer) || partner.ownerId === viewer.uid;
+}
 
 /** Only finance and admins confirm money actually landed. */
 export const canVerifyPayment = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");
@@ -181,9 +188,9 @@ export const canSelfServeRegisterCharger = (viewer: Viewer) =>
 export const canManageQuotations = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
 
-// Proforma invoices — same bar as quotations, since it's the same pricing decision.
+// Proforma invoices — filed under Operations now, but Sales still raises the pricing decision behind one.
 export const canManageProformaInvoices = (viewer: Viewer) =>
-  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "OPERATIONS");
 
 // Charger fault tickets and RFID allow-listing — same bar as chargers themselves.
 export const canManageTickets = (viewer: Viewer) =>

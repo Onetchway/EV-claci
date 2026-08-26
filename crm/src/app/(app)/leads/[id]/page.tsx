@@ -171,6 +171,7 @@ export default function LeadDetailPage() {
       actor,
     );
     setEditing(false);
+    return { id: lead.id, code: lead.code };
   }
 
   if (editing) {
