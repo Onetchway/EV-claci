@@ -25,7 +25,7 @@ import { applyClientFilters, createLead, trashLead, type LeadDraft } from "@/lib
 import { duplicateLeadIds } from "@/lib/duplicates";
 import { buildLeadDraft } from "@/lib/lead-import";
 import { LEAD_COLUMNS, LEAD_IMPORT_COLUMNS } from "@/lib/exports";
-import { canCreateLead, canExport, canReassign, canTrash } from "@/lib/permissions";
+import { canCreateLead, canExport, canReassign, canTrash, isAdmin } from "@/lib/permissions";
 import { describeConfig } from "@/lib/pricing";
 import { scoreLead } from "@/lib/scoring";
 import type { Lead } from "@/lib/types";
@@ -338,7 +338,8 @@ function LeadsInner() {
     return sorted;
   }, [leads, filters, sort, duplicateIds]);
 
-  const dailyGroups = useMemo(() => groupByDay(rows), [rows]);
+  const canSeeDailyUpdates = role ? isAdmin(role) : false;
+  const dailyGroups = useMemo(() => (canSeeDailyUpdates ? groupByDay(rows) : []), [rows, canSeeDailyUpdates]);
   const totals = useMemo(() => computeTotals(rows), [rows]);
   const canBulkTrash = canTrash(viewer);
   const canLoadMore = !loading && leads.length >= pageSize;
@@ -420,22 +421,24 @@ function LeadsInner() {
         onToggleExpanded={() => setExpanded((e) => !e)}
         right={
           <>
-            <div className="flex rounded-lg bg-ink-100 p-0.5 text-sm">
-              <button
-                type="button"
-                onClick={() => setView("list")}
-                className={`rounded-md px-3 py-1.5 ${view === "list" ? "bg-white shadow-sm font-medium" : "text-ink-500"}`}
-              >
-                List
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("daily")}
-                className={`rounded-md px-3 py-1.5 ${view === "daily" ? "bg-white shadow-sm font-medium" : "text-ink-500"}`}
-              >
-                Daily updates
-              </button>
-            </div>
+            {canSeeDailyUpdates && (
+              <div className="flex rounded-lg bg-ink-100 p-0.5 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setView("list")}
+                  className={`rounded-md px-3 py-1.5 ${view === "list" ? "bg-white shadow-sm font-medium" : "text-ink-500"}`}
+                >
+                  List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView("daily")}
+                  className={`rounded-md px-3 py-1.5 ${view === "daily" ? "bg-white shadow-sm font-medium" : "text-ink-500"}`}
+                >
+                  Daily updates
+                </button>
+              </div>
+            )}
             {view === "list" && (
               <select
                 value={sort}
@@ -483,7 +486,7 @@ function LeadsInner() {
           description="Try widening the filters, or add a new lead."
           action={<Link href="/leads/new"><Button variant="primary"><Plus className="h-4 w-4" /> New lead</Button></Link>}
         />
-      ) : view === "daily" ? (
+      ) : view === "daily" && canSeeDailyUpdates ? (
         <DailyUpdatesView groups={dailyGroups} />
       ) : (
         <>
