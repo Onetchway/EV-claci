@@ -473,8 +473,8 @@ function LoiLetterArticle({
   return (
     <article className="loi-sheet loi-letter rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
       <PrintDocument
-        header={<PrintHeader docLabel="Letter of Intent cum Expression of Interest" docNumber={eoi.number} />}
-        footer={<PrintFooter />}
+        header={<PrintHeader company={company} docLabel="Letter of Intent cum Expression of Interest" docNumber={eoi.number} />}
+        footer={<PrintFooter company={company} />}
       >
       <EditableLine
         readOnly={readOnly}

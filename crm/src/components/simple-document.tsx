@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
  * Payment Receipt has always had, rather than the letterhead.
  */
 
-interface Company {
+export interface Company {
   legalName: string;
   shortName: string;
   registeredAddress: string;

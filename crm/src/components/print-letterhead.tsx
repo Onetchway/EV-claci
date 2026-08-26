@@ -2,19 +2,20 @@
 
 import type { ReactNode } from "react";
 
+import { SimpleDocumentFooter, SimpleDocumentHeader, type Company } from "@/components/simple-document";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared letterhead for every printed document except the Payment Receipt
- * (which is deliberately a bordered on-screen-style card, not a flat
- * letter). The header/footer are the brand's fixed banner artwork —
- * matching the reference letterhead exactly — with only the per-document
- * type/number line layered on top of the header.
- *
- * Repeats correctly on every printed page via a <table> with
- * <thead>/<tfoot>: unlike `position: fixed`, table head/foot rows are real
- * layout the browser reserves space for on each page, so body content can
- * never print underneath them. See globals.css's `.loi-print-table` rules.
+ * The Letter of Intent / EOI is the one document long enough to routinely
+ * span multiple printed pages, so it needs its header/footer to actually
+ * repeat at the same position on every page — a <table> with
+ * <thead>/<tfoot> does that: unlike `position: fixed`, table head/foot rows
+ * are real layout the browser reserves space for on each page, so body
+ * content can never print underneath them. See globals.css's
+ * `.loi-print-table` rules. The header/footer content itself is the same
+ * plain company-letterhead design every other printed document (PO, PI,
+ * Quotation, Tax Invoice) uses — see simple-document.tsx — just repeated
+ * through this table wrapper instead of printed once.
  */
 
 export function PrintDocument({ header, footer, children, className }: {
@@ -38,28 +39,23 @@ export function PrintDocument({ header, footer, children, className }: {
   );
 }
 
-export function PrintHeader({ docLabel, docNumber, meta }: {
+export function PrintHeader({ company, docLabel, docNumber, meta }: {
+  company: Company;
   docLabel: string;
   docNumber: string;
   meta?: ReactNode;
 }) {
   return (
-    <div className="loi-print-header mb-4">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/letterhead-header.png" alt="Livanto Green" className="block h-auto w-full" />
-      <div className="mt-2 text-right">
-        <p className="text-xs text-ink-500">{docLabel} &middot; {docNumber}</p>
-        {meta}
-      </div>
+    <div className="loi-print-header">
+      <SimpleDocumentHeader company={company} docLabel={docLabel} docNumber={docNumber} meta={meta} />
     </div>
   );
 }
 
-export function PrintFooter() {
+export function PrintFooter({ company }: { company: Company }) {
   return (
-    <div className="loi-print-footer mt-6">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/letterhead-footer.png" alt="Livanto Green Infra Private Limited" className="block h-auto w-full" />
+    <div className="loi-print-footer">
+      <SimpleDocumentFooter company={company} />
     </div>
   );
 }
