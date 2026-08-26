@@ -69,6 +69,12 @@ service cloud.firestore {
       return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'FINANCE'];
     }
 
+    // Managers and admins run HRMS: build the roster, correct attendance by
+    // hand, decide leave requests. Mirrors canManageHrms in permissions.ts.
+    function canManageHrms() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
     function uid() {
       return request.auth.uid;
     }
@@ -353,6 +359,59 @@ service cloud.firestore {
                     && (isAdmin() || role() == 'SALES_MANAGER' || ownsExisting())
                     && actorIsSelf('updatedBy');
       allow delete: if isSuperAdmin();
+    }
+
+    // ------------------------------------------------------------------ HRMS
+
+    // Office/geofence config — org-wide policy, admin only.
+    match /officeLocations/{officeId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /holidays/{holidayId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /leaveTypes/{leaveTypeId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // One doc per employee per day (id `${uid}_${date}`). An employee writes
+    // their own check-in/check-out; a manager/admin can mark any day by hand
+    // (the "mark absent" correction), which is exactly what canManageHrms()
+    // gates in the UI.
+    match /attendance/{attendanceId} {
+      allow read: if canManageHrms() || resource.data.uid == uid();
+      allow create: if signedIn()
+                    && (request.resource.data.uid == uid() || canManageHrms());
+      allow update: if canManageHrms()
+                    || (resource.data.uid == uid() && request.resource.data.uid == uid());
+      allow delete: if isAdmin();
+    }
+
+    // One doc per employee per Monday-starting week (id `${uid}_${weekStart}`).
+    // Only managers/admins build it; everyone reads their own.
+    match /rosters/{rosterId} {
+      allow read: if canManageHrms() || resource.data.uid == uid();
+      allow write: if canManageHrms();
+    }
+
+    match /leaveRequests/{leaveRequestId} {
+      allow read: if canManageHrms() || resource.data.uid == uid();
+      // An employee applies for their own leave, starting PENDING.
+      allow create: if signedIn()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.status == 'PENDING';
+      // A manager/admin approves or rejects; the employee themself may only
+      // cancel their own still-pending request.
+      allow update: if (canManageHrms() && request.resource.data.uid == resource.data.uid)
+                    || (resource.data.uid == uid()
+                        && resource.data.status == 'PENDING'
+                        && request.resource.data.status == 'CANCELLED');
+      allow delete: if isAdmin();
     }
 
     // --------------------------------------------------------- OCPP / chargers

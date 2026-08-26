@@ -226,3 +226,15 @@ export const canManageSettlements = (viewer: Viewer) =>
 // Roaming-partner credentials are sensitive — admin only, no Operations/Finance carve-out.
 export const canManageOcpi = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN");
+
+// ---------------------------------------------------------------------------
+// HRMS — attendance, roster, holidays, leave
+// ---------------------------------------------------------------------------
+
+/** Managers and admins: build the weekly roster, mark attendance by hand, and decide leave requests — everyone else only works their own record. */
+export const canManageHrms = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+
+/** Office/geofence config and the leave-type catalogue are org-wide policy — admin only, same bar as OCPI credentials. */
+export const canManageHrmsSetup = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN");

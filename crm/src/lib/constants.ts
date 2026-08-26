@@ -1,5 +1,8 @@
 /** Shared vocabulary for the CRM. Everything selectable in the UI lives here. */
 
+export const WEEK_DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+export type WeekDay = (typeof WEEK_DAYS)[number];
+
 export const ROLES = [
   "SUPER_ADMIN",
   "ADMIN",

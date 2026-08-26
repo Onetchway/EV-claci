@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Battery, BookOpen, Boxes, Building2, CalendarClock, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
+  BarChart3, Battery, BookOpen, Boxes, Building2, CalendarCheck, CalendarClock, CalendarDays, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
   Gauge, Globe, HardHat, Handshake, IdCard, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, Mail, MapPin, Menu, MessageSquareWarning, Package, Percent, Plug, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
   Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, Workflow, X, Zap,
@@ -94,6 +94,14 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
       { href: "/proforma-invoices", label: "Proforma Invoices", icon: FileSpreadsheet },
       { href: "/assets", label: "Asset Register", icon: Boxes },
+    ],
+  },
+  {
+    label: "HRMS",
+    items: [
+      { href: "/attendance", label: "Attendance", icon: CalendarCheck },
+      { href: "/roster", label: "Roster", icon: KanbanSquare },
+      { href: "/holidays", label: "Holidays", icon: CalendarDays },
     ],
   },
   {

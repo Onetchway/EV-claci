@@ -62,6 +62,10 @@ export const DEFAULT_PAGE_ACCESS: Record<string, Role[]> = {
   "/purchase-orders": ["ADMIN", "OPERATIONS", "FINANCE", "VIEWER"],
   "/proforma-invoices": ["ADMIN", "OPERATIONS", "SALES_MANAGER", "VIEWER"],
   "/assets": ["ADMIN", "OPERATIONS", "FINANCE", "VIEWER"],
+  // HRMS — open to every real employee role, not the external-facing ones (SITE_OWNER, CORPORATE_ADMIN etc.)
+  "/attendance": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
+  "/roster": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
+  "/holidays": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   // Settings (the adminOnly-flagged nav items — /users, /settings, /logs,
   // /developer, /trash, /ocpi, /organizations — are locked to Admin/Super
   // Admin at the nav level already and deliberately left out of this
@@ -107,6 +111,9 @@ export const PAGE_LABEL: Record<string, string> = {
   "/proforma-invoices": "Proforma Invoices",
   "/assets": "Asset Register",
   "/diagnostics": "Diagnostic Knowledge Base",
+  "/attendance": "Attendance",
+  "/roster": "Roster",
+  "/holidays": "Holidays",
 };
 
 export const PAGE_ACCESS_PATHS = Object.keys(DEFAULT_PAGE_ACCESS);

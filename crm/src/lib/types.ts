@@ -10,7 +10,7 @@ import type {
   ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
   TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
-  WebhookEvent, Workstream,
+  WebhookEvent, WeekDay, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -1556,4 +1556,109 @@ export interface ChargerReview {
   rating: number;
   comment?: string;
   createdAt: TS;
+}
+
+// ---------------------------------------------------------------------------
+// HRMS — attendance, geofencing, roster, holidays, leave
+// ---------------------------------------------------------------------------
+
+/** An office/site an employee can geofence check in/out from. There can be several — different teams sit at different locations. */
+export interface OfficeLocation {
+  id: string;
+  name: string;
+  address?: string;
+  lat: number;
+  lng: number;
+  /** Allowed check-in radius around this point, in metres. */
+  radiusMeters: number;
+  active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "WEEK_OFF" | "HOLIDAY";
+
+export interface AttendancePunch {
+  at: TS;
+  lat: number | null;
+  lng: number | null;
+  /** The nearest configured office at the time of the punch, whether or not it was actually in range. */
+  officeId?: string | null;
+  officeName?: string | null;
+  distanceMeters?: number | null;
+  withinGeofence: boolean;
+}
+
+/** One per employee per calendar day — doc id is `${uid}_${yyyy-mm-dd}`. */
+export interface AttendanceRecord {
+  id: string;
+  uid: string;
+  userName: string;
+  /** yyyy-mm-dd, the employee's local calendar day. */
+  date: string;
+  status: AttendanceStatus;
+  checkIn?: AttendancePunch | null;
+  checkOut?: AttendancePunch | null;
+  /** Set when an admin/manager marked this record by hand instead of the employee punching in themselves. */
+  markedBy?: Actor | null;
+  note?: string;
+  createdAt: TS;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+export interface Holiday {
+  id: string;
+  /** yyyy-mm-dd */
+  date: string;
+  name: string;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
+
+/** One employee's working/week-off pattern for one Monday-starting week — doc id is `${uid}_${weekStart}`. */
+export interface RosterWeek {
+  id: string;
+  uid: string;
+  userName: string;
+  /** yyyy-mm-dd of that week's Monday. */
+  weekStart: string;
+  days: Record<WeekDay, "WORKING" | "WEEK_OFF">;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+export interface LeaveType {
+  id: string;
+  code: string;
+  label: string;
+  /** Days per calendar year. */
+  annualQuota: number;
+  active: boolean;
+  createdAt: TS;
+}
+
+export type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+export interface LeaveRequest {
+  id: string;
+  uid: string;
+  userName: string;
+  leaveTypeId: string;
+  leaveTypeLabel: string;
+  /** yyyy-mm-dd, inclusive. */
+  fromDate: string;
+  toDate: string;
+  days: number;
+  reason?: string;
+  status: LeaveStatus;
+  appliedAt: TS;
+  appliedBy?: Actor | null;
+  decidedAt?: TS | null;
+  decidedBy?: Actor | null;
+  decisionNote?: string;
 }
