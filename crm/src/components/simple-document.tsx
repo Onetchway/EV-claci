@@ -30,7 +30,7 @@ export function SimpleDocumentHeader({
   meta?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex items-start justify-between gap-4 border-b border-ink-200 pb-4">
+    <div className="mb-3 flex items-start justify-between gap-4 border-b border-ink-200 pb-2">
       {company.logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -60,7 +60,7 @@ export function SimpleDocumentHeader({
 
 export function SimpleDocumentFooter({ company }: { company: Company }) {
   return (
-    <footer className="mt-10 border-t border-ink-200 pt-3 text-center text-[10px] leading-relaxed text-ink-400">
+    <footer className="mt-4 border-t border-ink-200 pt-2 text-center text-[10px] leading-snug text-ink-400">
       <p>{company.legalName}</p>
       <p>
         {[company.gstin && `GSTN. ${company.gstin}`, company.cin && `CIN. ${company.cin}`]
