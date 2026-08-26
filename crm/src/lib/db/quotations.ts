@@ -10,7 +10,7 @@
  */
 
 import {
-  collection, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
+  collection, deleteDoc, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
@@ -18,6 +18,7 @@ import type { GstType, QuotationStatus } from "../constants";
 import { getDb } from "../firebase/client";
 import { buildQuote, type ConfigItem, type ExtraItem } from "../pricing";
 import type { Actor, ClientInfo, Quotation, ShipToInfo } from "../types";
+import { logChangeSafe } from "./change-log";
 
 export const QUOTATIONS = "quotations";
 
@@ -89,6 +90,12 @@ export async function createQuotation(draft: QuotationDraft, actor: Actor): Prom
       updatedBy: actor,
     });
   });
+
+  logChangeSafe({
+    entityType: "QUOTATION", entityId: ref.id, entityLabel: `${quoteNumber} — ${draft.client.name}`,
+    action: "CREATE", actor,
+  });
+
   return { id: ref.id, quoteNumber };
 }
 
@@ -115,10 +122,30 @@ export async function updateQuotation(id: string, draft: QuotationDraft, actor: 
     updatedAt: serverTimestamp(),
     updatedBy: actor,
   });
+
+  logChangeSafe({
+    entityType: "QUOTATION", entityId: id, entityLabel: `${draft.client.name}`,
+    action: "UPDATE", actor,
+  });
 }
 
-export async function updateQuotationStatus(id: string, status: QuotationStatus, actor: Actor): Promise<void> {
-  await updateDoc(doc(getDb(), QUOTATIONS, id), { status, updatedAt: serverTimestamp(), updatedBy: actor });
+export async function updateQuotationStatus(quotation: Quotation, status: QuotationStatus, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), QUOTATIONS, quotation.id), { status, updatedAt: serverTimestamp(), updatedBy: actor });
+
+  logChangeSafe({
+    entityType: "QUOTATION", entityId: quotation.id, entityLabel: quotation.quoteNumber,
+    action: "UPDATE", actor,
+    changes: [{ field: "status", from: quotation.status, to: status }],
+  });
+}
+
+export async function deleteQuotation(quotation: Quotation, actor: Actor): Promise<void> {
+  await deleteDoc(doc(getDb(), QUOTATIONS, quotation.id));
+
+  logChangeSafe({
+    entityType: "QUOTATION", entityId: quotation.id, entityLabel: `${quotation.quoteNumber} — ${quotation.client.name}`,
+    action: "DELETE", actor,
+  });
 }
 
 export function subscribeQuotations(

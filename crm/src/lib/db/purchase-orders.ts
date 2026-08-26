@@ -15,6 +15,7 @@ import { GST_RATE } from "../catalog";
 import type { GstType, PaymentMode, PoStatus } from "../constants";
 import { getDb } from "../firebase/client";
 import type { Actor, PoItem, PurchaseOrder, ShipToInfo, VendorPayment } from "../types";
+import { logChangeSafe } from "./change-log";
 import { VENDORS } from "./vendors";
 
 export const PURCHASE_ORDERS = "purchaseOrders";
@@ -100,7 +101,71 @@ export async function createPurchaseOrder(draft: PoDraft, actor: Actor): Promise
     }
   });
 
+  logChangeSafe({
+    entityType: "PURCHASE_ORDER", entityId: ref.id, entityLabel: `${poNumber} — ${draft.vendorName}`,
+    action: "CREATE", actor,
+  });
+
   return { id: ref.id, poNumber };
+}
+
+/**
+ * Only meaningful while status is DRAFT — a raised/received PO is a fixed
+ * record of what was ordered. Mirrors updateQuotation/updateProformaInvoice:
+ * takes the full draft and recomputes totals, and also reconciles the
+ * vendor's totalOrdered rollup (moving it to a new vendor, or adjusting the
+ * amount) the same way createPurchaseOrder seeds it.
+ */
+export async function updatePurchaseOrder(po: PurchaseOrder, draft: PoDraft, actor: Actor): Promise<void> {
+  const money = totals(draft.items);
+
+  await runTransaction(getDb(), async (tx) => {
+    const oldVendorRef = doc(getDb(), VENDORS, po.vendorId);
+    const newVendorRef = doc(getDb(), VENDORS, draft.vendorId);
+    const oldVendorSnap = await tx.get(oldVendorRef);
+    const newVendorSnap = po.vendorId === draft.vendorId ? oldVendorSnap : await tx.get(newVendorRef);
+
+    tx.update(doc(getDb(), PURCHASE_ORDERS, po.id), {
+      vendorId: draft.vendorId,
+      vendorName: draft.vendorName,
+      items: draft.items,
+      subtotal: money.subtotal,
+      gst: money.gst,
+      total: money.total,
+      dueAmount: Math.max(0, money.total - po.paidAmount),
+      linkedProjectId: draft.linkedProjectId ?? null,
+      linkedProjectCode: draft.linkedProjectCode ?? null,
+      expectedDeliveryAt: draft.expectedDeliveryAt ? Timestamp.fromDate(draft.expectedDeliveryAt) : null,
+      notes: draft.notes ?? "",
+      terms: draft.terms ?? "",
+      gstType: draft.gstType ?? "IGST",
+      shipToEnabled: draft.shipToEnabled ?? false,
+      shipTo: draft.shipToEnabled ? (draft.shipTo ?? null) : null,
+      updatedAt: serverTimestamp(),
+      updatedBy: actor,
+    });
+
+    if (po.vendorId === draft.vendorId) {
+      if (oldVendorSnap.exists()) {
+        const ordered = (oldVendorSnap.data().totalOrdered as number) ?? 0;
+        tx.update(oldVendorRef, { totalOrdered: Math.max(0, ordered - po.total + money.total) });
+      }
+    } else {
+      if (oldVendorSnap.exists()) {
+        const ordered = (oldVendorSnap.data().totalOrdered as number) ?? 0;
+        tx.update(oldVendorRef, { totalOrdered: Math.max(0, ordered - po.total) });
+      }
+      if (newVendorSnap.exists()) {
+        const ordered = (newVendorSnap.data().totalOrdered as number) ?? 0;
+        tx.update(newVendorRef, { totalOrdered: ordered + money.total });
+      }
+    }
+  });
+
+  logChangeSafe({
+    entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: `${po.poNumber} — ${draft.vendorName}`,
+    action: "UPDATE", actor,
+  });
 }
 
 export async function updatePurchaseOrderStatus(po: PurchaseOrder, status: PoStatus, actor: Actor): Promise<void> {
@@ -109,6 +174,30 @@ export async function updatePurchaseOrderStatus(po: PurchaseOrder, status: PoSta
     receivedAt: status === "RECEIVED" ? serverTimestamp() : po.receivedAt ?? null,
     updatedAt: serverTimestamp(),
     updatedBy: actor,
+  });
+
+  logChangeSafe({
+    entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNumber,
+    action: "UPDATE", actor,
+    changes: [{ field: "status", from: po.status, to: status }],
+  });
+}
+
+/** Deletes the PO and reverses its amount out of the vendor's totalOrdered rollup. */
+export async function deletePurchaseOrder(po: PurchaseOrder, actor: Actor): Promise<void> {
+  await runTransaction(getDb(), async (tx) => {
+    const vendorRef = doc(getDb(), VENDORS, po.vendorId);
+    const vendorSnap = await tx.get(vendorRef);
+    tx.delete(doc(getDb(), PURCHASE_ORDERS, po.id));
+    if (vendorSnap.exists()) {
+      const ordered = (vendorSnap.data().totalOrdered as number) ?? 0;
+      tx.update(vendorRef, { totalOrdered: Math.max(0, ordered - po.total) });
+    }
+  });
+
+  logChangeSafe({
+    entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: `${po.poNumber} — ${po.vendorName}`,
+    action: "DELETE", actor,
   });
 }
 

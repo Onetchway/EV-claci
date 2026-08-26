@@ -25,6 +25,7 @@ export const CHANGE_LOG = "changeLog";
 
 export const CHANGE_ENTITY_TYPES = [
   "CHARGER", "TARIFF", "ZONE", "WORKFLOW_RULE", "USER", "SETTINGS", "WEBHOOK", "API_KEY", "RFID_TOKEN",
+  "QUOTATION", "PROFORMA_INVOICE", "PURCHASE_ORDER",
 ] as const;
 export type ChangeEntityType = (typeof CHANGE_ENTITY_TYPES)[number];
 
@@ -77,12 +78,17 @@ export function logChangeSafe(entry: Parameters<typeof logChange>[0]): void {
 }
 
 export function subscribeChangeLog(
-  filters: { entityType?: ChangeEntityType; max?: number },
+  filters: { entityType?: ChangeEntityType; entityId?: string; max?: number },
   cb: (rows: ChangeLogEntry[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
+  // entityId alone already pins one document's history (Firestore doc IDs are
+  // globally unique) — pairing it with entityType too would need a 3-field
+  // composite index for no real narrowing benefit.
   const constraints = [
-    ...(filters.entityType ? [where("entityType", "==", filters.entityType)] : []),
+    ...(filters.entityId
+      ? [where("entityId", "==", filters.entityId)]
+      : filters.entityType ? [where("entityType", "==", filters.entityType)] : []),
     orderBy("at", "desc"),
     fsLimit(filters.max ?? 500),
   ];

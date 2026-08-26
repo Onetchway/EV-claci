@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Boxes, Plus, Printer } from "lucide-react";
+import { Boxes, Plus, Printer, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -11,22 +11,27 @@ import {
   Spinner, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import { SimpleDocumentFooter, SimpleDocumentHeader } from "@/components/simple-document";
-import { ShipToPrintBlock } from "@/components/gst-ship-to";
+import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
 import { BankDetailsPrintBlock } from "@/components/bank-details";
+import { EntityActivityLog } from "@/components/entity-activity-log";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  PAYMENT_MODES, PO_STATUS_COLOR, PO_STATUS_LABEL, PO_STATUSES, type PaymentMode,
+  GST_SLABS, PAYMENT_MODES, PO_STATUS_COLOR, PO_STATUS_LABEL, PO_STATUSES,
+  type GstType, type PaymentMode,
 } from "@/lib/constants";
 import { createAsset } from "@/lib/db/assets";
 import {
-  addVendorPayment, subscribePurchaseOrder, subscribeVendorPayments,
-  updatePurchaseOrderStatus,
+  addVendorPayment, deletePurchaseOrder, subscribePurchaseOrder, subscribeVendorPayments,
+  updatePurchaseOrder, updatePurchaseOrderStatus, DEFAULT_PO_GST_PCT,
 } from "@/lib/db/purchase-orders";
-import { subscribeVendor } from "@/lib/db/vendors";
+import { subscribeVendor, subscribeVendors } from "@/lib/db/vendors";
 import { gstBreakdown } from "@/lib/gst";
 import { canManageAssets, canManageVendors } from "@/lib/permissions";
-import type { PoItem, PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
-import { formatDate, formatINR } from "@/lib/utils";
+import type { PoItem, PurchaseOrder, ShipToInfo, Vendor, VendorPayment } from "@/lib/types";
+import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
+
+let editItemSeq = 0;
+const blankPoItem = (): PoItem => ({ id: `eit${editItemSeq++}`, description: "", qty: 1, unitPrice: 0, gstPct: DEFAULT_PO_GST_PCT });
 
 interface PaymentDraft {
   amount: string;
@@ -42,25 +47,80 @@ const blankPayment = (): PaymentDraft => ({
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const { actor } = useAuth();
   const viewer = useViewer();
   const { settings } = useSettings();
   const [po, setPo] = useState<PurchaseOrder | null | undefined>(undefined);
   const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [payments, setPayments] = useState<VendorPayment[]>([]);
   const [draft, setDraft] = useState<PaymentDraft | null>(null);
   const [registeredItemIds, setRegisteredItemIds] = useState<Set<string>>(new Set());
   const [printMode, setPrintMode] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const { busy, run } = useAsyncAction();
   const { push } = useToast();
   const canEdit = canManageVendors(viewer);
 
+  // Edit modal draft — only meaningfully usable while status is DRAFT.
+  const [editOpen, setEditOpen] = useState(false);
+  const [editVendorId, setEditVendorId] = useState("");
+  const [editItems, setEditItems] = useState<PoItem[]>([]);
+  const [editExpectedDeliveryAt, setEditExpectedDeliveryAt] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editTerms, setEditTerms] = useState("");
+  const [editGstType, setEditGstType] = useState<GstType>("IGST");
+  const [editShipToEnabled, setEditShipToEnabled] = useState(false);
+  const [editShipTo, setEditShipTo] = useState<ShipToInfo>({});
+
   useEffect(() => subscribePurchaseOrder(params.id, setPo), [params.id]);
   useEffect(() => subscribeVendorPayments(params.id, setPayments), [params.id]);
+  useEffect(() => subscribeVendors(setVendors), []);
   useEffect(() => {
     if (!po?.vendorId) return;
     return subscribeVendor(po.vendorId, setVendor);
   }, [po?.vendorId]);
+
+  function startEdit() {
+    if (!po) return;
+    setEditVendorId(po.vendorId);
+    setEditItems(po.items.length ? po.items : [blankPoItem()]);
+    setEditExpectedDeliveryAt(po.expectedDeliveryAt ? new Date((po.expectedDeliveryAt as unknown as { toDate(): Date }).toDate()).toISOString().slice(0, 10) : "");
+    setEditNotes(po.notes ?? "");
+    setEditTerms(po.terms ?? "");
+    setEditGstType(po.gstType ?? "IGST");
+    setEditShipToEnabled(po.shipToEnabled ?? false);
+    setEditShipTo(po.shipTo ?? {});
+    setEditOpen(true);
+  }
+
+  function patchEditItem(id: string, patch: Partial<PoItem>) {
+    setEditItems((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  async function saveEdit() {
+    if (!po || !actor) return;
+    const editVendor = vendors.find((v) => v.id === editVendorId);
+    if (!editVendor) throw new Error("Pick a vendor first.");
+    const cleanItems = editItems.filter((it) => it.description.trim() && it.qty > 0);
+    if (cleanItems.length === 0) throw new Error("Add at least one line item.");
+
+    await updatePurchaseOrder(po, {
+      vendorId: editVendor.id,
+      vendorName: editVendor.name,
+      items: cleanItems,
+      linkedProjectId: po.linkedProjectId,
+      linkedProjectCode: po.linkedProjectCode,
+      expectedDeliveryAt: editExpectedDeliveryAt ? new Date(`${editExpectedDeliveryAt}T00:00:00`) : null,
+      notes: editNotes.trim(),
+      terms: editTerms.trim(),
+      gstType: editGstType,
+      shipToEnabled: editShipToEnabled,
+      shipTo: editShipToEnabled ? editShipTo : null,
+    }, actor);
+    setEditOpen(false);
+  }
 
   async function registerAsset(item: PoItem) {
     if (!actor || !po) return;
@@ -125,6 +185,14 @@ export default function PurchaseOrderDetailPage() {
               <Badge className={PO_STATUS_COLOR[po.status]}>{PO_STATUS_LABEL[po.status]}</Badge>
             )}
             <Button onClick={() => setPrintMode(true)}><Printer className="h-4 w-4" /> Print / PDF</Button>
+            {canEdit && po.status === "DRAFT" && (
+              <Button onClick={startEdit}>Edit</Button>
+            )}
+            {canEdit && (
+              <Button onClick={() => setDeleteOpen(true)} className="text-rose-700 hover:bg-rose-50">
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            )}
             {canEdit && (
               <Button variant="primary" onClick={() => setDraft(blankPayment())}>
                 <Plus className="h-4 w-4" /> Record payment
@@ -214,6 +282,7 @@ export default function PurchaseOrderDetailPage() {
         )}
         </div>
 
+        <div className="space-y-4">
         <Card title="Payment summary">
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between"><dt className="text-ink-600">Total</dt><dd className="tabular-nums font-medium">{formatINR(po.total)}</dd></div>
@@ -228,7 +297,13 @@ export default function PurchaseOrderDetailPage() {
               <BankDetailsPrintBlock title="Vendor bank details" bank={vendor} />
             </div>
           )}
+          <p className="mt-4 border-t border-ink-100 pt-4 text-xs text-ink-500">
+            Created by {po.createdBy?.name ?? "—"} · {formatDateTime(po.createdAt)}
+          </p>
         </Card>
+
+        <EntityActivityLog entityType="PURCHASE_ORDER" entityId={po.id} />
+        </div>
       </div>
 
       <Card title="Payment ledger" subtitle={`${payments.length} entr${payments.length === 1 ? "y" : "ies"}`} className="mt-4">
@@ -292,6 +367,112 @@ export default function PurchaseOrderDetailPage() {
             </Field>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit purchase order"
+        footer={
+          <>
+            <Button onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="primary" loading={busy} onClick={() => void run(saveEdit, "Purchase order updated.")}>
+              Save changes
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Vendor" required>
+              <Select
+                value={editVendorId}
+                onChange={(e) => setEditVendorId(e.target.value)}
+                options={[{ value: "", label: "Select a vendor…" }, ...vendors.map((v) => ({ value: v.id, label: `${v.name} (${v.code})` }))]}
+              />
+            </Field>
+            <Field label="Expected delivery">
+              <Input type="date" value={editExpectedDeliveryAt} onChange={(e) => setEditExpectedDeliveryAt(e.target.value)} />
+            </Field>
+            <Field label="Notes" className="sm:col-span-2">
+              <Textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+            </Field>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="label mb-0">Line items</label>
+              <Button size="sm" onClick={() => setEditItems((r) => [...r, blankPoItem()])}><Plus className="h-3.5 w-3.5" /> Add line</Button>
+            </div>
+            <div className="space-y-2">
+              {editItems.map((it) => (
+                <div key={it.id} className="grid grid-cols-12 items-end gap-2 rounded-lg border border-ink-200 p-2.5">
+                  <div className="col-span-12 sm:col-span-5">
+                    <label className="label">Description</label>
+                    <Input value={it.description} onChange={(e) => patchEditItem(it.id, { description: e.target.value })} />
+                  </div>
+                  <div className="col-span-4 sm:col-span-2">
+                    <label className="label">Qty</label>
+                    <Input type="number" min={1} value={it.qty} onChange={(e) => patchEditItem(it.id, { qty: Math.max(0, Number(e.target.value) || 0) })} />
+                  </div>
+                  <div className="col-span-4 sm:col-span-2">
+                    <label className="label">Unit price</label>
+                    <Input type="number" min={0} step={1} value={it.unitPrice} onChange={(e) => patchEditItem(it.id, { unitPrice: Math.max(0, Number(e.target.value) || 0) })} />
+                  </div>
+                  <div className="col-span-3 sm:col-span-2">
+                    <label className="label">GST %</label>
+                    <Select
+                      value={String(it.gstPct)}
+                      onChange={(e) => patchEditItem(it.id, { gstPct: Number(e.target.value) })}
+                      options={GST_SLABS.map((g) => ({ value: String(g), label: `${g}%` }))}
+                    />
+                  </div>
+                  <div className="col-span-1 flex justify-end pb-1.5">
+                    {editItems.length > 1 && (
+                      <button type="button" onClick={() => setEditItems((r) => r.filter((x) => x.id !== it.id))} className="rounded p-1 text-ink-400 hover:bg-rose-50 hover:text-rose-600">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Field label="Terms & conditions">
+            <Textarea rows={4} value={editTerms} onChange={(e) => setEditTerms(e.target.value)} />
+          </Field>
+
+          <GstTypeField value={editGstType} onChange={setEditGstType} />
+          <ShipToFields enabled={editShipToEnabled} onEnabledChange={setEditShipToEnabled} value={editShipTo} onChange={setEditShipTo} />
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete this purchase order?"
+        description="This permanently removes the purchase order and reverses its amount from the vendor's totals. It cannot be recovered."
+        footer={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  if (!actor) return;
+                  await deletePurchaseOrder(po, actor);
+                  router.push("/purchase-orders");
+                }, "Purchase order deleted.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Delete purchase order
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">{po.poNumber} — {po.vendorName}, {formatINR(po.total)}</p>
       </Modal>
     </>
   );

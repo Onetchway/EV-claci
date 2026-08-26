@@ -7,9 +7,10 @@ import {
 import { GripVertical, Minus, Plus, RotateCcw, Trash2, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Button } from "@/components/ui";
 import { catalogueAllIn, type ChargerSpec } from "@/lib/catalog";
 import { useChargerCatalog } from "@/hooks/use-catalog";
-import { CHARGER_OEMS, EXTRA_ITEM_PRESETS, GST_SLABS } from "@/lib/constants";
+import { CHARGER_OEMS, GST_SLABS } from "@/lib/constants";
 import {
   buildQuote, clampGst, defaultBlendedGstPct, normaliseConfig, type ConfigItem, type ExtraItem,
 } from "@/lib/pricing";
@@ -333,6 +334,12 @@ function BasketRow({
   );
 }
 
+/** Blank row: qty 1, unit price 0, 18% GST — the same defaults a Purchase Order line starts from. */
+const blankExtra = (): ExtraItem => ({
+  id: `x${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
+  label: "", qty: 1, unitPrice: 0, amount: 0, gstPct: 18,
+});
+
 export function ExtrasEditor({
   extras, disabled, onChange,
 }: {
@@ -340,100 +347,97 @@ export function ExtrasEditor({
   disabled?: boolean;
   onChange: (next: ExtraItem[]) => void;
 }) {
-  const [preset, setPreset] = useState("");
-
-  const add = (label: string, gstPct: number) => {
+  const add = () => {
     if (disabled) return;
-    onChange([
-      ...extras,
-      { id: `x${Date.now()}${Math.random().toString(36).slice(2, 6)}`, label, amount: 0, gstPct },
-    ]);
+    onChange([...extras, blankExtra()]);
   };
 
   const patch = (id: string, p: Partial<ExtraItem>) =>
-    onChange(extras.map((e) => (e.id === id ? { ...e, ...p } : e)));
+    onChange(extras.map((e) => {
+      if (e.id !== id) return e;
+      const next = { ...e, ...p };
+      // Keep amount in sync whenever qty/unitPrice are the fields driving this line.
+      if ((next.qty ?? e.qty) != null && (next.unitPrice ?? e.unitPrice) != null) {
+        next.amount = Math.max(0, Math.round((next.qty ?? 1) * (next.unitPrice ?? 0)));
+      }
+      return next;
+    }));
 
   return (
-    <div className="mt-3 rounded-xl border border-ink-200 bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-200 px-4 py-2.5">
-        <div>
-          <p className="text-sm font-semibold text-ink-900">Other items</p>
-          <p className="text-[11px] text-ink-500">
-            Anything beyond the charger's own BOM — signage, O&M, a DISCOM deposit. GST is set per line.
-          </p>
-        </div>
-        <select
-          value={preset}
-          disabled={disabled}
-          onChange={(e) => {
-            if (e.target.value === "__custom__") add("", 18);
-            else {
-              const p = EXTRA_ITEM_PRESETS.find((x) => x.label === e.target.value);
-              if (p) add(p.label, p.gstPct);
-            }
-            setPreset("");
-          }}
-          className="input w-auto py-1 text-xs"
-          aria-label="Add an item"
-        >
-          <option value="">+ Add item…</option>
-          <option value="__custom__">Custom item…</option>
-          {EXTRA_ITEM_PRESETS.map((p) => <option key={p.label} value={p.label}>{p.label}</option>)}
-        </select>
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-[11px] text-ink-500">
+          Anything beyond the charger's own BOM — signage, O&amp;M, a DISCOM deposit.
+        </p>
+        <Button size="sm" onClick={add} disabled={disabled}><Plus className="h-3.5 w-3.5" /> Add line</Button>
       </div>
 
       {extras.length === 0 ? (
-        <p className="px-4 py-4 text-center text-xs text-ink-500">
-          No additional items. Add signage, O&M, DISCOM deposit and so on here.
+        <p className="rounded-lg border border-dashed border-ink-200 px-4 py-6 text-center text-xs text-ink-500">
+          No additional items. Add signage, O&amp;M, DISCOM deposit and so on here.
         </p>
       ) : (
-        <ul className="divide-y divide-ink-100">
+        <div className="space-y-2">
           {extras.map((e) => (
-            <li key={e.id} className="grid gap-2 px-4 py-2.5 sm:grid-cols-[minmax(0,1fr)_130px_90px_auto] sm:items-end">
-              <label className="block">
-                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">Description</span>
+            <div key={e.id} className="grid grid-cols-12 items-end gap-2 rounded-lg border border-ink-200 p-2.5">
+              <div className="col-span-12 sm:col-span-5">
+                <label className="label">Description</label>
                 <input
                   value={e.label}
                   disabled={disabled}
                   onChange={(ev) => patch(e.id, { label: ev.target.value })}
-                  className="input py-1 text-sm"
+                  className="input"
+                  placeholder="Signage & branding"
                 />
-              </label>
-              <label className="block">
-                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">Amount (excl. GST)</span>
+              </div>
+              <div className="col-span-4 sm:col-span-2">
+                <label className="label">Qty</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={e.qty ?? 1}
+                  disabled={disabled}
+                  onChange={(ev) => patch(e.id, { qty: Math.max(1, Number(ev.target.value) || 1) })}
+                  className="input tabular-nums"
+                />
+              </div>
+              <div className="col-span-4 sm:col-span-2">
+                <label className="label">Unit price</label>
                 <input
                   type="number"
                   min={0}
                   step={1}
-                  value={e.amount || ""}
+                  value={e.unitPrice ?? e.amount}
                   disabled={disabled}
-                  onChange={(ev) => patch(e.id, { amount: Math.max(0, Number(ev.target.value) || 0) })}
-                  className="input py-1 text-sm tabular-nums"
+                  onChange={(ev) => patch(e.id, { unitPrice: Math.max(0, Number(ev.target.value) || 0) })}
+                  className="input tabular-nums"
                 />
-              </label>
-              <label className="block">
-                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ink-400">GST</span>
+              </div>
+              <div className="col-span-3 sm:col-span-2">
+                <label className="label">GST %</label>
                 <select
                   value={e.gstPct}
                   disabled={disabled}
                   onChange={(ev) => patch(e.id, { gstPct: clampGst(ev.target.value) })}
-                  className="input py-1 text-sm"
+                  className="input"
                 >
                   {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
                 </select>
-              </label>
-              <button
-                type="button"
-                onClick={() => onChange(extras.filter((x) => x.id !== e.id))}
-                disabled={disabled}
-                className="mb-1 justify-self-end rounded p-1.5 text-ink-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
-                aria-label={`Remove ${e.label}`}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </li>
+              </div>
+              <div className="col-span-1 flex justify-end pb-1.5">
+                <button
+                  type="button"
+                  onClick={() => onChange(extras.filter((x) => x.id !== e.id))}
+                  disabled={disabled}
+                  className="rounded p-1.5 text-ink-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+                  aria-label={`Remove ${e.label || "line"}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

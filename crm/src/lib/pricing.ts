@@ -49,10 +49,13 @@ export interface ConfigItem {
 export interface ExtraItem {
   id: string;
   label: string;
-  /** Total for the line, excluding GST. */
+  /** Total for the line, excluding GST — always qty * unitPrice when both are set (kept in sync by the editor UI). */
   amount: number;
   gstPct: number;
   note?: string;
+  /** Optional qty/unitPrice breakdown behind `amount`, matching how a Purchase Order line reads. Absent on older extras that only ever stored a flat amount. */
+  qty?: number;
+  unitPrice?: number;
 }
 
 export interface QuoteLine {

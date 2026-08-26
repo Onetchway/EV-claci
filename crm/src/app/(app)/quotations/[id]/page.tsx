@@ -1,30 +1,33 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Printer } from "lucide-react";
+import { Printer, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import { ChargerConfigurator, ExtrasEditor } from "@/components/charger-configurator";
 import {
-  Badge, Button, Card, EmptyState, Field, PageHeader, Select, Spinner, Textarea, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
 import { SimpleDocumentFooter, SimpleDocumentHeader } from "@/components/simple-document";
 import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
 import { BankDetailsPrintBlock, type BankDetails } from "@/components/bank-details";
+import { EntityActivityLog } from "@/components/entity-activity-log";
 import { useSettings } from "@/hooks/use-settings";
 import {
   QUOTATION_STATUS_COLOR, QUOTATION_STATUS_LABEL, QUOTATION_STATUSES, type GstType, type QuotationStatus,
 } from "@/lib/constants";
-import { subscribeQuotation, updateQuotation, updateQuotationStatus } from "@/lib/db/quotations";
+import { deleteQuotation, subscribeQuotation, updateQuotation, updateQuotationStatus } from "@/lib/db/quotations";
 import { gstBreakdown } from "@/lib/gst";
 import { buildQuote, type ConfigItem, type ExtraItem } from "@/lib/pricing";
 import { canApplyDiscount, canManageQuotations, canOverridePrice } from "@/lib/permissions";
 import type { Quotation, ShipToInfo } from "@/lib/types";
-import { formatDate, formatINR } from "@/lib/utils";
+import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { actor } = useAuth();
   const viewer = useViewer();
   const { settings } = useSettings();
@@ -32,6 +35,7 @@ export default function QuotationDetailPage() {
 
   const [q, setQ] = useState<Quotation | null | undefined>(undefined);
   const [printMode, setPrintMode] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Editable draft — only meaningfully diverges from `q` while status is DRAFT.
   const [items, setItems] = useState<ConfigItem[]>([]);
@@ -67,7 +71,7 @@ export default function QuotationDetailPage() {
 
   async function changeStatus(status: QuotationStatus) {
     if (!q || !actor) return;
-    await run(() => updateQuotationStatus(q.id, status, actor), `Marked ${QUOTATION_STATUS_LABEL[status]}.`);
+    await run(() => updateQuotationStatus(q, status, actor), `Marked ${QUOTATION_STATUS_LABEL[status]}.`);
   }
 
   if (q === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
@@ -94,6 +98,11 @@ export default function QuotationDetailPage() {
             ) : (
               <Badge className={QUOTATION_STATUS_COLOR[q.status]}>{QUOTATION_STATUS_LABEL[q.status]}</Badge>
             )}
+            {canEdit && (
+              <Button onClick={() => setDeleteOpen(true)} className="text-rose-700 hover:bg-rose-50">
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            )}
           </>
         )}
       />
@@ -108,6 +117,7 @@ export default function QuotationDetailPage() {
               {q.client.email && <div><dt className="text-xs text-ink-500">Email</dt><dd className="text-ink-900">{q.client.email}</dd></div>}
               {q.client.gstin && <div><dt className="text-xs text-ink-500">GSTIN</dt><dd className="text-ink-900">{q.client.gstin}</dd></div>}
               {q.validUntil && <div><dt className="text-xs text-ink-500">Valid until</dt><dd className="text-ink-900">{formatDate(q.validUntil)}</dd></div>}
+              <div><dt className="text-xs text-ink-500">Created by</dt><dd className="text-ink-900">{q.createdBy?.name ?? "—"} · {formatDateTime(q.createdAt)}</dd></div>
             </dl>
             {canEdit && isDraft ? (
               <div className="mt-4 space-y-4 border-t border-ink-100 pt-4">
@@ -166,8 +176,37 @@ export default function QuotationDetailPage() {
               <div className="flex justify-between border-t border-ink-200 pt-1.5 text-base font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(quote.grandTotal)}</dd></div>
             </dl>
           </Card>
+
+          <EntityActivityLog entityType="QUOTATION" entityId={q.id} />
         </div>
       </div>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete this quotation?"
+        description="This permanently removes the quotation. It cannot be recovered."
+        footer={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  if (!actor) return;
+                  await deleteQuotation(q, actor);
+                  router.push("/quotations");
+                }, "Quotation deleted.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Delete quotation
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">{q.quoteNumber} — {q.client.name}, {formatINR(q.totals.grandTotal)}</p>
+      </Modal>
     </>
   );
 }

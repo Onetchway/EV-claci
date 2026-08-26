@@ -335,6 +335,12 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
     }
 
+    // Proforma Invoices — same shape and same bar as quotations.
+    match /proformaInvoices/{piId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
     // --------------------------------------------------------- OCPP / chargers
 
     // Written only by the standalone OCPP central system (ocpp-server/),
@@ -714,9 +720,13 @@ service cloud.firestore {
     // General CMS audit trail (lib/db/change-log.ts) — the non-Leads
     // counterpart to `activities` above: charger/tariff/zone/workflow/user/
     // settings edits. Append-only and self-attributed the same way; read
-    // restricted to admins, matching the /logs page's own gate.
+    // restricted to admins (matching the /logs page's own gate), except
+    // Quotation/Proforma Invoice/Purchase Order entries — those documents
+    // are already readable by any signed-in user, so their activity trail
+    // (shown on each document's own detail page) is too.
     match /changeLog/{entryId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin()
+                  || (signedIn() && resource.data.entityType in ['QUOTATION', 'PROFORMA_INVOICE', 'PURCHASE_ORDER']);
       allow create: if signedIn() && actorIsSelf('actor');
       allow update, delete: if false;
     }

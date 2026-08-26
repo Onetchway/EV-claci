@@ -9,7 +9,7 @@
  */
 
 import {
-  collection, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
+  collection, deleteDoc, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
@@ -17,6 +17,7 @@ import type { GstType, ProformaInvoiceStatus } from "../constants";
 import { getDb } from "../firebase/client";
 import { buildQuote, type ConfigItem, type ExtraItem } from "../pricing";
 import type { Actor, ClientInfo, ProformaInvoice, ShipToInfo } from "../types";
+import { logChangeSafe } from "./change-log";
 
 export const PROFORMA_INVOICES = "proformaInvoices";
 
@@ -92,6 +93,12 @@ export async function createProformaInvoice(draft: ProformaInvoiceDraft, actor: 
       updatedBy: actor,
     });
   });
+
+  logChangeSafe({
+    entityType: "PROFORMA_INVOICE", entityId: ref.id, entityLabel: `${piNumber} — ${draft.client.name}`,
+    action: "CREATE", actor,
+  });
+
   return { id: ref.id, piNumber };
 }
 
@@ -120,10 +127,30 @@ export async function updateProformaInvoice(id: string, draft: ProformaInvoiceDr
     updatedAt: serverTimestamp(),
     updatedBy: actor,
   });
+
+  logChangeSafe({
+    entityType: "PROFORMA_INVOICE", entityId: id, entityLabel: draft.client.name,
+    action: "UPDATE", actor,
+  });
 }
 
-export async function updateProformaInvoiceStatus(id: string, status: ProformaInvoiceStatus, actor: Actor): Promise<void> {
-  await updateDoc(doc(getDb(), PROFORMA_INVOICES, id), { status, updatedAt: serverTimestamp(), updatedBy: actor });
+export async function updateProformaInvoiceStatus(pi: ProformaInvoice, status: ProformaInvoiceStatus, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), PROFORMA_INVOICES, pi.id), { status, updatedAt: serverTimestamp(), updatedBy: actor });
+
+  logChangeSafe({
+    entityType: "PROFORMA_INVOICE", entityId: pi.id, entityLabel: pi.piNumber,
+    action: "UPDATE", actor,
+    changes: [{ field: "status", from: pi.status, to: status }],
+  });
+}
+
+export async function deleteProformaInvoice(pi: ProformaInvoice, actor: Actor): Promise<void> {
+  await deleteDoc(doc(getDb(), PROFORMA_INVOICES, pi.id));
+
+  logChangeSafe({
+    entityType: "PROFORMA_INVOICE", entityId: pi.id, entityLabel: `${pi.piNumber} — ${pi.client.name}`,
+    action: "DELETE", actor,
+  });
 }
 
 export function subscribeProformaInvoices(

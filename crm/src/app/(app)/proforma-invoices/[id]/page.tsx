@@ -1,31 +1,35 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Printer } from "lucide-react";
+import { Printer, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import { ChargerConfigurator, ExtrasEditor } from "@/components/charger-configurator";
 import {
-  Badge, Button, Card, EmptyState, Field, PageHeader, Select, Spinner, Textarea, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
 import { GstTypeField, ShipToFields, ShipToPrintBlock } from "@/components/gst-ship-to";
 import { type BankDetails } from "@/components/bank-details";
+import { EntityActivityLog } from "@/components/entity-activity-log";
 import { useSettings } from "@/hooks/use-settings";
 import {
   PROFORMA_INVOICE_STATUS_COLOR, PROFORMA_INVOICE_STATUS_LABEL, PROFORMA_INVOICE_STATUSES,
   type GstType, type ProformaInvoiceStatus,
 } from "@/lib/constants";
-import { subscribeProformaInvoice, updateProformaInvoice, updateProformaInvoiceStatus } from "@/lib/db/proforma-invoices";
+import {
+  deleteProformaInvoice, subscribeProformaInvoice, updateProformaInvoice, updateProformaInvoiceStatus,
+} from "@/lib/db/proforma-invoices";
 import { gstBreakdown } from "@/lib/gst";
 import { amountInWords } from "@/lib/loi-template";
 import { buildQuote, type ConfigItem, type ExtraItem, type QuoteLine } from "@/lib/pricing";
 import { canApplyDiscount, canManageProformaInvoices, canOverridePrice } from "@/lib/permissions";
 import type { ProformaInvoice, ShipToInfo } from "@/lib/types";
-import { cn, formatDate, formatINR } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 export default function ProformaInvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { actor } = useAuth();
   const viewer = useViewer();
   const { settings } = useSettings();
@@ -33,6 +37,7 @@ export default function ProformaInvoiceDetailPage() {
 
   const [pi, setPi] = useState<ProformaInvoice | null | undefined>(undefined);
   const [printMode, setPrintMode] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Editable draft — only meaningfully diverges from `pi` while status is DRAFT.
   const [items, setItems] = useState<ConfigItem[]>([]);
@@ -69,7 +74,7 @@ export default function ProformaInvoiceDetailPage() {
 
   async function changeStatus(status: ProformaInvoiceStatus) {
     if (!pi || !actor) return;
-    await run(() => updateProformaInvoiceStatus(pi.id, status, actor), `Marked ${PROFORMA_INVOICE_STATUS_LABEL[status]}.`);
+    await run(() => updateProformaInvoiceStatus(pi, status, actor), `Marked ${PROFORMA_INVOICE_STATUS_LABEL[status]}.`);
   }
 
   if (pi === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
@@ -96,6 +101,11 @@ export default function ProformaInvoiceDetailPage() {
             ) : (
               <Badge className={PROFORMA_INVOICE_STATUS_COLOR[pi.status]}>{PROFORMA_INVOICE_STATUS_LABEL[pi.status]}</Badge>
             )}
+            {canEdit && (
+              <Button onClick={() => setDeleteOpen(true)} className="text-rose-700 hover:bg-rose-50">
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            )}
           </>
         )}
       />
@@ -110,6 +120,7 @@ export default function ProformaInvoiceDetailPage() {
               {pi.client.email && <div><dt className="text-xs text-ink-500">Email</dt><dd className="text-ink-900">{pi.client.email}</dd></div>}
               {pi.client.gstin && <div><dt className="text-xs text-ink-500">GSTIN</dt><dd className="text-ink-900">{pi.client.gstin}</dd></div>}
               {pi.validUntil && <div><dt className="text-xs text-ink-500">Valid until</dt><dd className="text-ink-900">{formatDate(pi.validUntil)}</dd></div>}
+              <div><dt className="text-xs text-ink-500">Created by</dt><dd className="text-ink-900">{pi.createdBy?.name ?? "—"} · {formatDateTime(pi.createdAt)}</dd></div>
             </dl>
             {canEdit && isDraft ? (
               <div className="mt-4 space-y-4 border-t border-ink-100 pt-4">
@@ -168,8 +179,37 @@ export default function ProformaInvoiceDetailPage() {
               <div className="flex justify-between border-t border-ink-200 pt-1.5 text-base font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(quote.grandTotal)}</dd></div>
             </dl>
           </Card>
+
+          <EntityActivityLog entityType="PROFORMA_INVOICE" entityId={pi.id} />
         </div>
       </div>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete this proforma invoice?"
+        description="This permanently removes the proforma invoice. It cannot be recovered."
+        footer={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  if (!actor) return;
+                  await deleteProformaInvoice(pi, actor);
+                  router.push("/proforma-invoices");
+                }, "Proforma invoice deleted.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Delete proforma invoice
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">{pi.piNumber} — {pi.client.name}, {formatINR(pi.totals.grandTotal)}</p>
+      </Modal>
     </>
   );
 }
