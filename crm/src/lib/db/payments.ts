@@ -15,6 +15,7 @@ import type { Actor, Lead, Payment, PaymentAttachment } from "../types";
 import { formatINR } from "../utils";
 import { logActivitySafe } from "./activity";
 import { LEADS, refreshPaymentRollup } from "./leads";
+import { notifyVerifiersSafe } from "./notifications";
 import { accruePartnerCommissionSafe } from "./partners";
 import { sortByTimestamp, subscribeUnion } from "./subscribe-union";
 
@@ -88,6 +89,15 @@ export async function addPayment(lead: Lead, draft: PaymentDraft, actor: Actor):
     message: `${MILESTONE_LABEL[draft.milestone]} — ${formatINR(money.totalAmount)} recorded as ${draft.status.toLowerCase()} via ${draft.mode}`,
     actor,
   });
+
+  if (draft.status !== "VERIFIED") {
+    notifyVerifiersSafe({
+      roles: ["SUPER_ADMIN", "ADMIN", "FINANCE"],
+      title: "Payment needs verification",
+      body: `${lead.client?.name ?? lead.code} — ${MILESTONE_LABEL[draft.milestone]} of ${formatINR(money.totalAmount)} recorded by ${actor.name}.`,
+      leadId: lead.id,
+    });
+  }
 
   return { id: created.id, leadId: lead.id, ...(payload as unknown as Omit<Payment, "id" | "leadId">) };
 }

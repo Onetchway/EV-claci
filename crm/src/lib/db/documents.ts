@@ -14,6 +14,7 @@ import { getBucket, getDb } from "../firebase/client";
 import type { Actor, Lead, LeadDocument } from "../types";
 import { logActivitySafe } from "./activity";
 import { LEADS } from "./leads";
+import { notifyVerifiersSafe } from "./notifications";
 import { sortByTimestamp, subscribeUnion } from "./subscribe-union";
 
 const sub = (leadId: string) => collection(getDb(), LEADS, leadId, "documents");
@@ -122,6 +123,13 @@ export async function uploadDocument(
     type: "DOCUMENT_UPLOADED",
     message: `Uploaded ${DOC_KIND_LABEL[opts.kind]} (${file.name})`,
     actor,
+  });
+
+  notifyVerifiersSafe({
+    roles: ["SUPER_ADMIN", "ADMIN", "OPERATIONS", "FINANCE"],
+    title: "Document needs verification",
+    body: `${lead.client?.name ?? lead.code} — ${DOC_KIND_LABEL[opts.kind]} uploaded by ${actor.name}.`,
+    leadId: lead.id,
   });
 
   return { id: created.id, leadId: lead.id, ...(payload as unknown as Omit<LeadDocument, "id" | "leadId">) };

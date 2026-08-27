@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp,
+  collection, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp,
   setDoc, updateDoc, where,
 } from "firebase/firestore";
 
@@ -18,6 +18,14 @@ function mapUser(id: string, data: Record<string, unknown>): AppUser {
 export async function getUser(uid: string): Promise<AppUser | null> {
   const snap = await getDoc(doc(getDb(), USERS, uid));
   return snap.exists() ? mapUser(snap.id, snap.data()) : null;
+}
+
+/** Every active user holding any of the given roles (checks both the primary `role` and the full `roles` list) — who to notify when something needs a role-gated review, e.g. verifying a payment or a KYC document. */
+export async function getUsersByRole(roles: Role[]): Promise<AppUser[]> {
+  const snap = await getDocs(collection(getDb(), USERS));
+  return snap.docs
+    .map((d) => mapUser(d.id, d.data()))
+    .filter((u) => u.active !== false && (roles.includes(u.role) || (u.roles ?? []).some((r) => roles.includes(r))));
 }
 
 export function subscribeUsers(

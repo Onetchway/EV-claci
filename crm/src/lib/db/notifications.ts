@@ -17,9 +17,11 @@ import {
   serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from "firebase/firestore";
 
+import type { Role } from "../constants";
 import { ymd } from "../dates";
 import { getDb } from "../firebase/client";
 import type { AppNotification } from "../types";
+import { getUsersByRole } from "./users";
 
 export const MAIL = "mail";
 export const NOTIFICATIONS = "notifications";
@@ -59,6 +61,23 @@ export function subscribeMyNotifications(
 
 export async function markNotificationRead(id: string): Promise<void> {
   await updateDoc(doc(getDb(), NOTIFICATIONS, id), { read: true });
+}
+
+/** Notifies everyone holding any of the given roles — used when something new needs a role-gated review (a payment needing Finance/Admin sign-off, a document needing Operations/Finance/Admin review), rather than one specific assignee. */
+export function notifyVerifiersSafe(opts: {
+  roles: Role[];
+  title: string;
+  body: string;
+  leadId?: string;
+}): void {
+  void (async () => {
+    const verifiers = await getUsersByRole(opts.roles);
+    for (const u of verifiers) {
+      createNotificationSafe({ toUid: u.uid, title: opts.title, body: opts.body, leadId: opts.leadId });
+    }
+  })().catch((err) => {
+    console.error("[notifications] failed to notify verifiers", err);
+  });
 }
 
 export async function markAllNotificationsRead(rows: AppNotification[]): Promise<void> {
