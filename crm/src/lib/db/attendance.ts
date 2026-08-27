@@ -28,7 +28,7 @@ function punchFrom(nearest: NearestOffice): Omit<AttendancePunch, "at"> {
 }
 
 export async function checkIn(
-  uid: string, userName: string, coords: { lat: number; lng: number }, nearest: NearestOffice, actor: Actor,
+  uid: string, userName: string, coords: { lat: number; lng: number } | null, nearest: NearestOffice, actor: Actor,
 ): Promise<void> {
   const date = ymd(new Date());
   const ref = doc(getDb(), ATTENDANCE, attendanceId(uid, date));
@@ -41,7 +41,7 @@ export async function checkIn(
     {
       uid, userName, date,
       status: "PRESENT" satisfies AttendanceStatus,
-      checkIn: { ...punchFrom(nearest), lat: coords.lat, lng: coords.lng, at: serverTimestamp() },
+      checkIn: { ...punchFrom(nearest), lat: coords?.lat ?? null, lng: coords?.lng ?? null, at: serverTimestamp() },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       updatedBy: actor,
@@ -51,7 +51,7 @@ export async function checkIn(
 }
 
 export async function checkOut(
-  uid: string, coords: { lat: number; lng: number }, nearest: NearestOffice, actor: Actor,
+  uid: string, coords: { lat: number; lng: number } | null, nearest: NearestOffice, actor: Actor,
 ): Promise<void> {
   const date = ymd(new Date());
   const ref = doc(getDb(), ATTENDANCE, attendanceId(uid, date));
@@ -62,7 +62,7 @@ export async function checkOut(
   await setDoc(
     ref,
     {
-      checkOut: { ...punchFrom(nearest), lat: coords.lat, lng: coords.lng, at: serverTimestamp() },
+      checkOut: { ...punchFrom(nearest), lat: coords?.lat ?? null, lng: coords?.lng ?? null, at: serverTimestamp() },
       updatedAt: serverTimestamp(),
       updatedBy: actor,
     },
