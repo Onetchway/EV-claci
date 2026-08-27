@@ -5,13 +5,13 @@ import {
   type ReactNode,
 } from "react";
 import {
-  GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail,
+  GoogleAuthProvider, getIdTokenResult, onAuthStateChanged, sendPasswordResetEmail,
   signInWithEmailAndPassword, signInWithPopup, signOut as fbSignOut,
   updatePassword, type User,
 } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 
-import { expandRole, type Role } from "@/lib/constants";
+import { expandRole, ROLE_ENFORCEMENT, type Role } from "@/lib/constants";
 import { firebaseConfigured, getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { ensureProfile, touchLastLogin, USERS } from "@/lib/db/users";
 import type { Viewer } from "@/lib/permissions";
@@ -35,6 +35,19 @@ interface AuthState {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   changePassword: (next: string) => Promise<void>;
+  /**
+   * True when this session's ID token custom claim (`role`) doesn't match
+   * the Firestore profile's role — happens for an account whose claim was
+   * never set (the first-run bootstrap super admin doesn't get one, since
+   * that path runs client-side and only the Admin SDK can set claims) or
+   * whose role changed a long time ago. Firestore *security rules* read the
+   * claim, not the Firestore doc, so a stale claim silently blocks any
+   * direct client write gated by role (office locations, departments,
+   * holidays, the RBAC matrix) even though the UI shows the right role.
+   */
+  claimsStale: boolean;
+  /** Re-issues this account's custom claims from its current Firestore role, then signs out so the next sign-in picks up a fresh token. */
+  fixPermissions: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -54,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [claimsStale, setClaimsStale] = useState(false);
 
   useEffect(() => {
     if (!firebaseConfigured) {
@@ -111,6 +125,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
+  // Compare the ID token's `role` custom claim (what Firestore security
+  // rules actually see) against the Firestore profile's role (what the app
+  // shows). A mismatch means direct client writes gated by role — office
+  // locations, departments, holidays, the RBAC matrix — will 403 even
+  // though the account looks correctly privileged everywhere else.
+  useEffect(() => {
+    if (!user || !profile) {
+      setClaimsStale(false);
+      return;
+    }
+    let cancelled = false;
+    void getIdTokenResult(user).then((token) => {
+      if (cancelled) return;
+      const expected = ROLE_ENFORCEMENT[profile.role] ?? profile.role;
+      setClaimsStale(token.claims.role !== expected);
+    }).catch(() => {
+      if (!cancelled) setClaimsStale(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, profile]);
+
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
     await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
@@ -143,6 +180,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updatePassword(current, next);
   }, []);
 
+  const fixPermissions = useCallback(async () => {
+    const current = getFirebaseAuth().currentUser;
+    if (!current || !profile) throw new Error("Not signed in.");
+    const token = await current.getIdToken();
+    const roles = profile.roles?.length ? profile.roles : [profile.role];
+    // requireCaller reads the *Firestore* role, not the (possibly stale)
+    // token claim being fixed here, so this self-call succeeds regardless.
+    const res = await fetch(`/api/users/${current.uid}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ roles }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error ?? "Could not refresh permissions.");
+    }
+    await signOut();
+  }, [profile, signOut]);
+
   const value = useMemo<AuthState>(() => {
     const actor: Actor | null =
       profile && profile.active
@@ -167,8 +223,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       resetPassword,
       changePassword,
+      claimsStale,
+      fixPermissions,
     };
-  }, [loading, user, profile, error, signIn, signInWithGoogle, signOut, resetPassword, changePassword]);
+  }, [
+    loading, user, profile, error, signIn, signInWithGoogle, signOut, resetPassword, changePassword,
+    claimsStale, fixPermissions,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

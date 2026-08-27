@@ -152,7 +152,8 @@ function LivantoWordmark() {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { loading, user, profile, role, roles, signOut, configured } = useAuth();
+  const { loading, user, profile, role, roles, signOut, configured, claimsStale, fixPermissions } = useAuth();
+  const [fixingPermissions, setFixingPermissions] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
@@ -326,6 +327,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {user && <NotificationBell uid={user.uid} />}
           </div>
         </header>
+
+        {claimsStale && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 print:hidden">
+            <span>
+              Your account&apos;s permissions are out of date, so some saves (departments, office locations, holidays, the roles matrix) will fail with a permission error until this is fixed.
+            </span>
+            <Button
+              size="sm"
+              loading={fixingPermissions}
+              onClick={async () => {
+                setFixingPermissions(true);
+                try {
+                  await fixPermissions();
+                  router.replace("/login");
+                } catch (e) {
+                  setFixingPermissions(false);
+                  window.alert((e as Error).message);
+                }
+              }}
+            >
+              Fix now (signs you out)
+            </Button>
+          </div>
+        )}
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">
           {hasPageAccess(pathname, roles, { policyOverrides: rolePolicy, userOverrides: profile?.pageAccessOverrides }) ? children : (
