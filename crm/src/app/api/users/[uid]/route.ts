@@ -121,7 +121,16 @@ export async function DELETE(req: Request, { params }: { params: { uid: string }
     // The profile is kept so historical leads keep a readable owner name; only
     // the sign-in credential is destroyed.
     await adminDb().collection("users").doc(uid).update({ active: false, deletedAt: new Date() });
-    await adminAuth().deleteUser(uid);
+    try {
+      await adminAuth().deleteUser(uid);
+    } catch (err) {
+      // Already gone from Auth (e.g. a retry after a previous attempt got
+      // this far, or it was removed some other way) — the outcome this call
+      // is for, "can no longer sign in," already holds, so this isn't a
+      // failure. Any other Auth error still surfaces normally.
+      const code = (err as { code?: string }).code;
+      if (code !== "auth/user-not-found") throw err;
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
