@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, ExternalLink, HardHat, Mail, MapPin, Pencil, Phone, RotateCcw,
+  ArrowLeft, ExternalLink, HardHat, Mail, MapPin, Pencil, Phone, Plus, RotateCcw,
   Trash2, UserCog, XCircle,
 } from "lucide-react";
 
@@ -208,6 +208,13 @@ export default function LeadDetailPage() {
           <>
             {editable && (
               <Button onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> Edit</Button>
+            )}
+            {lead.type === "FRANCHISE" && canCreateLead(viewer) && (
+              <Link href={`/leads/new?fromLead=${lead.id}`}>
+                <Button title="Same investor, another charger at a new site — a separate lead with its own EOI and payments, linked back here.">
+                  <Plus className="h-4 w-4" /> Add another installation
+                </Button>
+              </Link>
             )}
             {canReassign(viewer) && (
               <Button onClick={() => { setNewOwner(lead.ownerId); setReassignOpen(true); }}>
