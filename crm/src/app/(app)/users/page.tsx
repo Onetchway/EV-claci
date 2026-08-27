@@ -77,6 +77,7 @@ export default function UsersPage() {
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", roles: ["AGENT"] as Role[], region: "", password: "",
+    designation: "", managerId: "",
   });
 
   const { leads } = useLeads(useMemo(() => ({ max: 8000 }), []));
@@ -117,11 +118,13 @@ export default function UsersPage() {
         phone: form.phone.trim(),
         roles: form.roles,
         region: form.region || null,
+        designation: form.designation.trim(),
+        managerId: form.managerId || null,
         password: form.password || undefined,
       }),
     });
     setCreateOpen(false);
-    setForm({ name: "", email: "", phone: "", roles: ["AGENT"], region: "", password: "" });
+    setForm({ name: "", email: "", phone: "", roles: ["AGENT"], region: "", password: "", designation: "", managerId: "" });
     if (body.temporaryPassword) setTempPassword(body.temporaryPassword);
   }
 
@@ -275,6 +278,8 @@ export default function UsersPage() {
                 <tr>
                   <th className="th">User</th>
                   <th className="th">Role</th>
+                  <th className="th">Designation</th>
+                  <th className="th">Reports to</th>
                   <th className="th">Phone</th>
                   <th className="th">Region</th>
                   <th className="th text-right">Leads</th>
@@ -288,6 +293,7 @@ export default function UsersPage() {
                 {visibleUsers.map((u) => {
                   const stats = perf.find((p) => p.ownerId === u.uid);
                   const editable = !u.deletedAt && (canAssignRole(viewer, u.role) || u.uid === profile?.uid);
+                  const manager = u.managerId ? users.find((m) => m.uid === u.managerId) : null;
                   return (
                     <tr key={u.id} className="hover:bg-ink-50">
                       <td className="td">
@@ -309,6 +315,8 @@ export default function UsersPage() {
                           ))}
                         </span>
                       </td>
+                      <td className="td text-ink-600">{u.designation || "—"}</td>
+                      <td className="td text-ink-600">{manager?.name || "—"}</td>
                       <td className="td text-ink-600">{u.phone || "—"}</td>
                       <td className="td text-ink-600">{u.region || "—"}</td>
                       <td className="td text-right tabular-nums">{stats?.total ?? 0}</td>
@@ -388,6 +396,21 @@ export default function UsersPage() {
           <Field label="Phone">
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </Field>
+          <Field label="Designation" hint="Job title, shown in the directory.">
+            <Input
+              placeholder="e.g. Sales Manager - North"
+              value={form.designation}
+              onChange={(e) => setForm({ ...form, designation: e.target.value })}
+            />
+          </Field>
+          <Field label="Reports to" hint="Who approves this person's leave/attendance.">
+            <Select
+              placeholder="No manager"
+              value={form.managerId}
+              onChange={(e) => setForm({ ...form, managerId: e.target.value })}
+              options={users.filter((u) => !u.deletedAt).map((u) => ({ value: u.uid, label: u.name }))}
+            />
+          </Field>
           <Field
             label="Roles"
             required
@@ -444,6 +467,43 @@ export default function UsersPage() {
                 onBlur={(e) => void run(() => patchUser(editing.uid, { phone: e.target.value }), "Saved.")}
               />
             </Field>
+
+            <Field label="Designation" hint="Job title, shown in the directory.">
+              <Input
+                defaultValue={editing.designation ?? ""}
+                onBlur={(e) => void run(() => patchUser(editing.uid, { designation: e.target.value }), "Saved.")}
+              />
+            </Field>
+
+            <Field label="Reports to" hint="Who approves this person's leave/attendance requests.">
+              <Select
+                placeholder="No manager"
+                value={editing.managerId ?? ""}
+                onChange={(e) =>
+                  void run(async () => {
+                    const managerId = e.target.value || null;
+                    await patchUser(editing.uid, { managerId });
+                    setEditing({ ...editing, managerId });
+                  }, "Saved.")
+                }
+                options={users
+                  .filter((u) => !u.deletedAt && u.uid !== editing.uid)
+                  .map((u) => ({ value: u.uid, label: u.name }))}
+              />
+            </Field>
+
+            {(() => {
+              const reports = users.filter((u) => !u.deletedAt && u.managerId === editing.uid);
+              return reports.length > 0 ? (
+                <Field label={`Direct reports (${reports.length})`} hint="Who currently reports to this person.">
+                  <div className="flex flex-wrap gap-1.5">
+                    {reports.map((u) => (
+                      <Badge key={u.uid} className="bg-ink-100 text-ink-700 ring-ink-200">{u.name}</Badge>
+                    ))}
+                  </div>
+                </Field>
+              ) : null;
+            })()}
 
             <Field label="Region">
               <Select

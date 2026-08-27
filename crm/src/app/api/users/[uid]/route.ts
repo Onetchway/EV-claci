@@ -13,6 +13,7 @@ const PatchUser = z.object({
   phone: z.string().max(20).optional(),
   region: z.string().max(60).nullable().optional(),
   managerId: z.string().max(128).nullable().optional(),
+  designation: z.string().max(80).optional(),
   roles: z.array(z.enum(ROLES)).min(1).max(ROLES.length).optional(),
   active: z.boolean().optional(),
   /** Set a new password for the user. */
@@ -81,7 +82,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "region", "managerId", "active", "orgId", "pageAccessOverrides", "bypassGeofence", "hrmsAdmin", "attendanceRequired"] as const) {
+    for (const key of ["name", "phone", "region", "managerId", "designation", "active", "orgId", "pageAccessOverrides", "bypassGeofence", "hrmsAdmin", "attendanceRequired"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

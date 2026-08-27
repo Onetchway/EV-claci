@@ -17,6 +17,7 @@ const CreateUser = z.object({
   roles: z.array(z.enum(ROLES)).min(1).max(ROLES.length),
   region: z.string().max(60).optional().nullable(),
   managerId: z.string().max(128).optional().nullable(),
+  designation: z.string().max(80).optional(),
   password: z.string().min(8).max(72).optional(),
 });
 
@@ -87,6 +88,7 @@ export async function POST(req: Request) {
       roles,
       region: body.region ?? null,
       managerId: body.managerId ?? null,
+      designation: body.designation ?? "",
       active: true,
       photoURL: null,
       createdAt: FieldValue.serverTimestamp(),

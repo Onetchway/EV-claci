@@ -33,6 +33,8 @@ export interface AppUser {
   roles?: Role[];
   /** Admin this agent reports to. */
   managerId?: string | null;
+  /** Job title, e.g. "Sales Manager - North" — free text, shown in Team & Roles and on the org chart. */
+  designation?: string;
   region?: string | null;
   active: boolean;
   photoURL?: string | null;
