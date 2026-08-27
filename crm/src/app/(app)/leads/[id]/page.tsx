@@ -197,7 +197,10 @@ export default function LeadDetailPage() {
 
   return (
     <>
-      <button onClick={() => router.push("/leads")} className="mb-3 inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-800 print:hidden">
+      <button
+        onClick={() => (typeof window !== "undefined" && window.history.length > 1 ? router.back() : router.push("/leads"))}
+        className="mb-3 inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-800 print:hidden"
+      >
         <ArrowLeft className="h-4 w-4" /> All leads
       </button>
 

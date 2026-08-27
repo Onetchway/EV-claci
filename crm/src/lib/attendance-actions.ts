@@ -37,10 +37,13 @@ export async function performCheckIn(
   const bypass = canBypassGeofence(role, profile);
   const { coords, nearest } = await resolveLocation(bypass, offices);
   if (!bypass && !nearest.withinGeofence) {
+    const accuracyNote = coords?.accuracyMeters
+      ? ` (your device's location is only accurate to about ±${coords.accuracyMeters}m — on a laptop without GPS this can be off; try a phone if you're actually on-site)`
+      : "";
     throw new Error(
       nearest.officeName
-        ? `You're ${nearest.distanceMeters}m from ${nearest.officeName} — check-in needs you on-site.`
-        : "You're too far from any registered office to check in.",
+        ? `You're ${nearest.distanceMeters}m from ${nearest.officeName} — check-in needs you on-site${accuracyNote}.`
+        : `You're too far from any registered office to check in${accuracyNote}.`,
     );
   }
   await checkIn(profile.uid, profile.name, coords, bypass ? { ...nearest, withinGeofence: true } : nearest, actor);

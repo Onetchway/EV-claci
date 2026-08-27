@@ -10,7 +10,7 @@ import {
   blankRosterWeek, saveRosterWeek, subscribeMyRosterWeek, subscribeRosterForWeek,
 } from "@/lib/db/roster";
 import { subscribeUsers } from "@/lib/db/users";
-import { canManageHrms } from "@/lib/permissions";
+import { canManageHrms, canSeeAllHrms } from "@/lib/permissions";
 import type { AppUser, RosterWeek } from "@/lib/types";
 import { downloadCsv, formatDate } from "@/lib/utils";
 
@@ -66,6 +66,7 @@ function MyRosterView({ weekStart }: { weekStart: string }) {
 
 function TeamRosterView({ weekStart }: { weekStart: string }) {
   const actor = useActor();
+  const viewer = useViewer();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [rosters, setRosters] = useState<RosterWeek[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +79,10 @@ function TeamRosterView({ weekStart }: { weekStart: string }) {
   }, [weekStart]);
 
   const byUid = useMemo(() => new Map(rosters.map((r) => [r.uid, r])), [rosters]);
-  const activeUsers = useMemo(() => users.filter((u) => u.active !== false), [users]);
+  const activeUsers = useMemo(() => {
+    const active = users.filter((u) => u.active !== false);
+    return canSeeAllHrms(viewer) ? active : active.filter((u) => u.managerId === viewer.uid);
+  }, [users, viewer]);
   const dates = weekDates(weekStart);
 
   const [draft, setDraft] = useState<Map<string, RosterWeek>>(new Map());

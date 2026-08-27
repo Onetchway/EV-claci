@@ -42,6 +42,8 @@ export interface AppUser {
   pageAccessOverrides?: Record<string, boolean>;
   /** Exempt from the office geofence on attendance check-in/out — Admin/Super Admin always are regardless of this flag; set here for anyone else who needs to check in from anywhere (a field sales lead, a traveling manager). */
   bypassGeofence?: boolean;
+  /** HR access to HRMS (attendance/roster/leave) org-wide, same reach as Admin there, without granting the ADMIN role itself. Sales Managers can already approve/mark/edit for their own direct reports (see managerId) — this is for someone whose job is HR specifically, across every team. */
+  hrmsAdmin?: boolean;
   createdAt: TS;
   createdBy?: string | null;
   lastLoginAt?: TS;

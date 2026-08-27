@@ -16,6 +16,8 @@ export interface Viewer {
   role: Role;
   /** Every role held. Defaults to `[role]` when absent. */
   roles?: Role[];
+  /** HR access to HRMS org-wide without the ADMIN role itself — see AppUser.hrmsAdmin. */
+  hrmsAdmin?: boolean;
 }
 
 export function rolesOf(viewer: Viewer): Role[] {
@@ -234,9 +236,13 @@ export const canManageOcpi = (viewer: Viewer) =>
 // HRMS — attendance, roster, holidays, leave
 // ---------------------------------------------------------------------------
 
-/** Managers and admins: build the weekly roster, mark attendance by hand, and decide leave requests — everyone else only works their own record. */
+/** Managers, HR, and admins: build the weekly roster, mark attendance by hand, and decide leave requests — everyone else only works their own record. A Sales Manager without hrmsAdmin is further scoped to their own direct reports — see canSeeAllHrms. */
 export const canManageHrms = (viewer: Viewer) =>
-  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER");
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER") || Boolean(viewer.hrmsAdmin);
+
+/** Whether this HRMS manager sees the whole org rather than just their own direct reports (managerId). Admin/Super Admin and anyone flagged HR see everyone; a plain Sales Manager is scoped to their team. */
+export const canSeeAllHrms = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN") || Boolean(viewer.hrmsAdmin);
 
 /** Office/geofence config and the leave-type catalogue are org-wide policy — admin only, same bar as OCPI credentials. */
 export const canManageHrmsSetup = (viewer: Viewer) =>

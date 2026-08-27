@@ -13,6 +13,8 @@ export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: 
 export interface Coords {
   lat: number;
   lng: number;
+  /** The browser's own reported margin of error, in metres — a laptop with no GPS chip falls back to WiFi/IP positioning, which routinely reports 100-300m of uncertainty even sitting still at a desk. */
+  accuracyMeters: number | null;
 }
 
 /** Wraps the browser Geolocation API in a promise with a sane timeout — rejects with a message safe to show the user directly. */
@@ -23,7 +25,11 @@ export function getCurrentCoords(): Promise<Coords> {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) => resolve({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracyMeters: Number.isFinite(pos.coords.accuracy) ? Math.round(pos.coords.accuracy) : null,
+      }),
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
           reject(new Error("Location permission was denied — allow location access to check in/out."));
@@ -43,7 +49,16 @@ export interface NearestOffice {
   withinGeofence: boolean;
 }
 
-/** Finds the closest active office to a point and whether it's within that office's own radius. No active offices at all means geofencing isn't configured yet, so the punch is allowed through unchecked. */
+// A laptop with no GPS chip resolves location from WiFi/IP and can easily
+// report 100-300m of uncertainty even sitting still at a desk inside the
+// office — the browser is telling the truth about how sure it is, so
+// treating the reported accuracy as "could genuinely be this much closer"
+// avoids rejecting a real on-site check-in over that uncertainty. Capped so
+// a wildly inaccurate reading (a device with location services essentially
+// broken) can't blow the geofence open entirely.
+const MAX_ACCURACY_ALLOWANCE_METERS = 150;
+
+/** Finds the closest active office to a point and whether it's within that office's own radius, giving benefit of the doubt up to the device's own reported GPS accuracy. No active offices at all means geofencing isn't configured yet, so the punch is allowed through unchecked. */
 export function nearestOffice(
   coords: Coords,
   offices: { id: string; name: string; lat: number; lng: number; radiusMeters: number; active: boolean }[],
@@ -57,10 +72,12 @@ export function nearestOffice(
     if (!best || distance < best.distance) best = { office, distance };
   }
   if (!best) return { officeId: null, officeName: null, distanceMeters: null, withinGeofence: true };
+
+  const allowance = Math.min(coords.accuracyMeters ?? 0, MAX_ACCURACY_ALLOWANCE_METERS);
   return {
     officeId: best.office.id,
     officeName: best.office.name,
     distanceMeters: Math.round(best.distance),
-    withinGeofence: best.distance <= best.office.radiusMeters,
+    withinGeofence: best.distance <= best.office.radiusMeters + allowance,
   };
 }

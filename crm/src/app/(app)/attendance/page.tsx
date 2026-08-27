@@ -25,7 +25,7 @@ import {
 } from "@/lib/db/leave";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { getCurrentCoords } from "@/lib/geo";
-import { canManageHrms, canManageHrmsSetup, isAdmin } from "@/lib/permissions";
+import { canManageHrms, canManageHrmsSetup, canSeeAllHrms, isAdmin } from "@/lib/permissions";
 import type {
   AppUser, AttendanceRecord, AttendanceStatus, LeaveRequest, LeaveType, OfficeLocation,
 } from "@/lib/types";
@@ -319,6 +319,7 @@ function MyAttendanceTab() {
 
 function TeamTab() {
   const actor = useActor();
+  const viewer = useViewer();
   const { push } = useToast();
   const [date, setDate] = useState(ymd(new Date()));
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -344,7 +345,10 @@ function TeamTab() {
   }, [date]);
 
   const byUid = useMemo(() => new Map(rows.map((r) => [r.uid, r])), [rows]);
-  const activeUsers = useMemo(() => users.filter((u) => u.active !== false), [users]);
+  const activeUsers = useMemo(() => {
+    const active = users.filter((u) => u.active !== false);
+    return canSeeAllHrms(viewer) ? active : active.filter((u) => u.managerId === viewer.uid);
+  }, [users, viewer]);
 
   async function saveMark() {
     if (!markTarget) return;
@@ -480,16 +484,29 @@ function TeamTab() {
 
 function ApprovalsTab() {
   const actor = useActor();
+  const viewer = useViewer();
   const [rows, setRows] = useState<LeaveRequest[]>([]);
+  const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [decisionTarget, setDecisionTarget] = useState<{ req: LeaveRequest; status: "APPROVED" | "REJECTED" } | null>(null);
   const [note, setNote] = useState("");
   const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribeAllLeaveRequests((r) => { setRows(r); setLoading(false); }, () => setLoading(false)), []);
+  useEffect(() => subscribeUsers(setUsers), []);
 
-  const pending = rows.filter((r) => r.status === "PENDING");
-  const decided = rows.filter((r) => r.status !== "PENDING");
+  const seesAll = canSeeAllHrms(viewer);
+  const directReportIds = useMemo(
+    () => new Set(users.filter((u) => u.managerId === viewer.uid).map((u) => u.uid)),
+    [users, viewer.uid],
+  );
+  const scoped = useMemo(
+    () => (seesAll ? rows : rows.filter((r) => directReportIds.has(r.uid))),
+    [rows, seesAll, directReportIds],
+  );
+
+  const pending = scoped.filter((r) => r.status === "PENDING");
+  const decided = scoped.filter((r) => r.status !== "PENDING");
 
   async function decide() {
     if (!decisionTarget) return;
@@ -602,14 +619,14 @@ function ApprovalsTab() {
 // Setup tab (admin only)
 // ---------------------------------------------------------------------------
 
-async function patchUserGeofence(uid: string, bypassGeofence: boolean) {
+async function patchUserAccess(uid: string, patch: { bypassGeofence?: boolean; hrmsAdmin?: boolean }) {
   const current = getFirebaseAuth().currentUser;
   if (!current) throw new Error("Your session expired. Sign in again.");
   const token = await current.getIdToken();
   const res = await fetch(`/api/users/${uid}`, {
     method: "PATCH",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: JSON.stringify({ bypassGeofence }),
+    body: JSON.stringify(patch),
   });
   const body = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status}).`);
@@ -748,19 +765,30 @@ function SetupTab() {
         )}
       </Card>
 
-      <Card title="Geofence exemptions" subtitle="Admins can always check in from anywhere. Grant the same to specific people here — a field sales lead, a traveling manager.">
+      <Card
+        title="Access grants"
+        subtitle="Admins always have both of these. Grant them to specific people without giving them the ADMIN role — a field sales lead who checks in from anywhere, or an HR person who manages attendance/roster/leave for the whole org rather than just their own team."
+      >
         <div className="overflow-x-auto scroll-thin">
           <table className="w-full">
             <thead className="border-b border-ink-200">
-              <tr><th className="th">Name</th><th className="th">Role</th><th className="th">Can check in from anywhere</th></tr>
+              <tr>
+                <th className="th">Name</th>
+                <th className="th">Role</th>
+                <th className="th">Reports to</th>
+                <th className="th">Check in from anywhere</th>
+                <th className="th">HR access (whole org)</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
               {users.filter((u) => u.active !== false).map((u) => {
                 const admin = isAdmin(u.role);
+                const manager = users.find((m) => m.uid === u.managerId);
                 return (
                   <tr key={u.uid}>
                     <td className="td font-medium text-ink-900">{u.name}</td>
                     <td className="td text-ink-600">{u.role.replace(/_/g, " ")}</td>
+                    <td className="td text-ink-500">{manager?.name ?? "—"}</td>
                     <td className="td">
                       {admin ? (
                         <span className="text-xs text-ink-400">Always (admin)</span>
@@ -768,13 +796,30 @@ function SetupTab() {
                         <button
                           type="button"
                           onClick={() =>
-                            void patchUserGeofence(u.uid, !u.bypassGeofence)
+                            void patchUserAccess(u.uid, { bypassGeofence: !u.bypassGeofence })
                               .then(() => push(u.bypassGeofence ? "Exemption removed." : "Exemption granted.", "success"))
                               .catch((e: Error) => push(e.message, "error"))
                           }
                           className={u.bypassGeofence ? "text-emerald-700" : "text-ink-400"}
                         >
                           {u.bypassGeofence ? "Exempt" : "Not exempt"}
+                        </button>
+                      )}
+                    </td>
+                    <td className="td">
+                      {admin ? (
+                        <span className="text-xs text-ink-400">Always (admin)</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void patchUserAccess(u.uid, { hrmsAdmin: !u.hrmsAdmin })
+                              .then(() => push(u.hrmsAdmin ? "HR access removed." : "HR access granted.", "success"))
+                              .catch((e: Error) => push(e.message, "error"))
+                          }
+                          className={u.hrmsAdmin ? "text-emerald-700" : "text-ink-400"}
+                        >
+                          {u.hrmsAdmin ? "Granted" : "Not granted"}
                         </button>
                       )}
                     </td>

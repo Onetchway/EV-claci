@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Users2 } from "lucide-react";
 
@@ -254,22 +254,49 @@ function LeadRow({
   );
 }
 
+/**
+ * The whole filter/sort/view state, round-tripped through one `f` query
+ * param — so leaving this page (opening a lead) and coming back via the
+ * browser's own Back button lands on the exact same filtered, sorted view
+ * instead of resetting to the defaults. Dashboard deep links (?stage=EOI
+ * etc., handled separately below) still work since they use different
+ * param names and only ever arrive without `f` already set.
+ */
+function parseUrlState(params: URLSearchParams): { filters: FilterState; sort: SortKey; view: ViewMode } | null {
+  const raw = params.get("f");
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<FilterState>;
+    return {
+      filters: { ...emptyFilters, ...parsed },
+      sort: (params.get("sort") as SortKey | null) ?? "updatedAt",
+      view: (params.get("view") as ViewMode | null) ?? "list",
+    };
+  } catch {
+    return null;
+  }
+}
+
 function LeadsInner() {
   const params = useSearchParams();
+  const router = useRouter();
   const { role, actor } = useAuth();
   const viewer = useViewer();
-  const [filters, setFilters] = useState<FilterState>(emptyFilters);
+  const urlState = useMemo(() => parseUrlState(params), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [filters, setFilters] = useState<FilterState>(urlState?.filters ?? emptyFilters);
   const [expanded, setExpanded] = useState(false);
-  const [sort, setSort] = useState<SortKey>("updatedAt");
-  const [view, setView] = useState<ViewMode>("list");
+  const [sort, setSort] = useState<SortKey>(urlState?.sort ?? "updatedAt");
+  const [view, setView] = useState<ViewMode>(urlState?.view ?? "list");
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [visibleRows, setVisibleRows] = useState(ROWS_PER_PAGE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteOpen, setDeleteOpen] = useState(false);
   const { busy: deleting, run: runDelete } = useAsyncAction();
 
-  // Deep links from the dashboard (?stage=EOI, ?status=REJECTED, ?overdue=1).
+  // Deep links from the dashboard (?stage=EOI, ?status=REJECTED, ?overdue=1)
+  // — skipped when `f` already restored full state (arriving via Back, not a dashboard link).
   useEffect(() => {
+    if (urlState) return;
     const stage = params.get("stage") as Stage | null;
     const status = params.get("status") as LeadStatus | null;
     const type = params.get("type") as LeadType | null;
@@ -285,7 +312,20 @@ function LeadsInner() {
       overdueOnly: overdue === "1" ? true : f.overdueOnly,
     }));
     if (stage || status || type || overdue || owner) setExpanded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
+
+  // Keep the URL in sync with the live filter/sort/view state (a plain
+  // history replace, no new entries) so leaving this page and coming back
+  // via Back restores exactly what was applied — see parseUrlState above.
+  useEffect(() => {
+    const search = new URLSearchParams();
+    search.set("f", JSON.stringify(filters));
+    search.set("sort", sort);
+    search.set("view", view);
+    router.replace(`/leads?${search.toString()}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, sort, view]);
 
   const { users: agents } = useAgents();
 

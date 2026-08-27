@@ -23,6 +23,8 @@ const PatchUser = z.object({
   pageAccessOverrides: z.record(z.string(), z.boolean()).nullable().optional(),
   /** Exempt from the office geofence on attendance check-in/out. Admin/Super Admin are always exempt regardless of this flag. */
   bypassGeofence: z.boolean().optional(),
+  /** HR access to HRMS org-wide (approve leave, mark attendance, edit roster for anyone) without the ADMIN role itself. */
+  hrmsAdmin: z.boolean().optional(),
 });
 
 /** Rank-based (not a literal "ADMIN" check) so PLATFORM_ADMIN/CPO_ADMIN — same rank as ADMIN, just a clearer label — grant/revoke exactly what an ADMIN could. */
@@ -77,7 +79,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "region", "managerId", "active", "orgId", "pageAccessOverrides", "bypassGeofence"] as const) {
+    for (const key of ["name", "phone", "region", "managerId", "active", "orgId", "pageAccessOverrides", "bypassGeofence", "hrmsAdmin"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

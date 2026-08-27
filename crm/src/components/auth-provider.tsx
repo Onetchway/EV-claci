@@ -158,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       role: profile?.role ?? null,
       roles,
-      viewer: profile ? { uid: profile.uid, role: profile.role, roles } : null,
+      viewer: profile ? { uid: profile.uid, role: profile.role, roles, hrmsAdmin: profile.hrmsAdmin } : null,
       actor,
       configured: firebaseConfigured,
       error,
