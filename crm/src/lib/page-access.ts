@@ -63,6 +63,9 @@ export const DEFAULT_PAGE_ACCESS: Record<string, Role[]> = {
   "/proforma-invoices": ["ADMIN", "OPERATIONS", "SALES_MANAGER", "VIEWER"],
   "/assets": ["ADMIN", "OPERATIONS", "FINANCE", "VIEWER"],
   // HRMS — open to every real employee role, not the external-facing ones (SITE_OWNER, CORPORATE_ADMIN etc.)
+  // /employees is further narrowed inside the page itself to HR/managers (canManageHrms) — everyone
+  // else who lands on the route sees an EmptyState rather than the full directory.
+  "/employees": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   "/attendance": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   "/roster": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   "/holidays": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
@@ -111,6 +114,7 @@ export const PAGE_LABEL: Record<string, string> = {
   "/proforma-invoices": "Proforma Invoices",
   "/assets": "Asset Register",
   "/diagnostics": "Diagnostic Knowledge Base",
+  "/employees": "Employees",
   "/attendance": "Attendance",
   "/roster": "Roster",
   "/holidays": "Holidays",

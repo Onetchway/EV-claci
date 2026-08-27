@@ -18,6 +18,7 @@ const CreateUser = z.object({
   region: z.string().max(60).optional().nullable(),
   managerId: z.string().max(128).optional().nullable(),
   designation: z.string().max(80).optional(),
+  department: z.string().max(80).optional(),
   password: z.string().min(8).max(72).optional(),
 });
 
@@ -89,6 +90,7 @@ export async function POST(req: Request) {
       region: body.region ?? null,
       managerId: body.managerId ?? null,
       designation: body.designation ?? "",
+      department: body.department ?? "",
       active: true,
       photoURL: null,
       createdAt: FieldValue.serverTimestamp(),

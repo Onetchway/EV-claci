@@ -101,6 +101,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "HRMS",
     items: [
+      { href: "/employees", label: "Employees", icon: Users2 },
       { href: "/attendance", label: "Attendance", icon: CalendarCheck },
       { href: "/roster", label: "Roster", icon: KanbanSquare },
       { href: "/holidays", label: "Holidays", icon: CalendarDays },

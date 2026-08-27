@@ -33,8 +33,10 @@ export interface AppUser {
   roles?: Role[];
   /** Admin this agent reports to. */
   managerId?: string | null;
-  /** Job title, e.g. "Sales Manager - North" — free text, shown in Team & Roles and on the org chart. */
+  /** Job title, e.g. "Sales Manager - North" — free text, set from HRMS → Employees. */
   designation?: string;
+  /** Free-text department/team, e.g. "Sales", "Operations" — set from HRMS → Employees. */
+  department?: string;
   region?: string | null;
   active: boolean;
   photoURL?: string | null;
