@@ -20,11 +20,17 @@ import { isAdmin } from "@/lib/permissions";
 import { formatCompactINR, formatINR, toDate } from "@/lib/utils";
 
 type Range = "30" | "90" | "365" | "ALL";
+type SortKey = "wonValue" | "eoiSigned" | "won";
+
+const SORT_LABEL: Record<SortKey, string> = {
+  wonValue: "Closed value", eoiSigned: "EOI signed", won: "Leads closed",
+};
 
 export default function AgentsPage() {
   const { role } = useAuth();
   const [range, setRange] = useState<Range>("90");
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("wonValue");
 
   const { leads, loading } = useLeads(useMemo(() => ({ max: 8000 }), []));
 
@@ -35,10 +41,10 @@ export default function AgentsPage() {
   }, [leads, range]);
 
   const perf = useMemo(() => {
-    const rows = agentPerformance(scoped);
+    const rows = [...agentPerformance(scoped)].sort((a, b) => b[sortKey] - a[sortKey] || b.total - a.total);
     const needle = search.trim().toLowerCase();
     return needle ? rows.filter((r) => r.ownerName.toLowerCase().includes(needle)) : rows;
-  }, [scoped, search]);
+  }, [scoped, search, sortKey]);
 
   const totals = useMemo(() => computeTotals(scoped), [scoped]);
   const sources = useMemo(() => sourceBreakdown(scoped), [scoped]);
@@ -100,9 +106,15 @@ export default function AgentsPage() {
         <StatCard label="Closed value" value={formatCompactINR(totals.wonValue)} tone="positive" sub={`${totals.won} won`} />
         <StatCard label="Team conversion" value={`${totals.conversionPct}%`} />
         <StatCard
-          label="Top performer"
+          label={`Top performer · ${SORT_LABEL[sortKey]}`}
           value={best ? best.ownerName.split(" ")[0] : "—"}
-          sub={best ? `${formatCompactINR(best.wonValue)} closed` : undefined}
+          sub={
+            best
+              ? sortKey === "eoiSigned" ? `${best.eoiSigned} EOI signed`
+                : sortKey === "won" ? `${best.won} leads closed`
+                  : `${formatCompactINR(best.wonValue)} closed`
+              : undefined
+          }
         />
       </div>
 
@@ -112,14 +124,26 @@ export default function AgentsPage() {
         <div className="space-y-4">
           <Card
             title="Leaderboard"
-            subtitle="Sorted by closed value"
+            subtitle={`Sorted by ${SORT_LABEL[sortKey].toLowerCase()}`}
             actions={
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Find an agent"
-                className="w-44"
-              />
+              <>
+                <Select
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value as SortKey)}
+                  className="w-auto"
+                  options={[
+                    { value: "wonValue", label: "Sort: Closed value" },
+                    { value: "eoiSigned", label: "Sort: EOI signed" },
+                    { value: "won", label: "Sort: Leads closed" },
+                  ]}
+                />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Find an agent"
+                  className="w-44"
+                />
+              </>
             }
           >
             {perf.length === 0 ? (
@@ -138,6 +162,8 @@ export default function AgentsPage() {
                       <th className="th text-right">Pipeline</th>
                       <th className="th text-right">Closed</th>
                       <th className="th text-right">Collected</th>
+                      <th className="th text-right">EOI issued</th>
+                      <th className="th text-right">EOI signed</th>
                       <th className="th text-right">Avg cycle</th>
                       <th className="th text-right">Overdue</th>
                     </tr>
@@ -164,6 +190,8 @@ export default function AgentsPage() {
                         <td className="td text-right tabular-nums">{formatCompactINR(a.pipelineValue)}</td>
                         <td className="td text-right font-semibold tabular-nums">{formatCompactINR(a.wonValue)}</td>
                         <td className="td text-right tabular-nums">{formatCompactINR(a.collected)}</td>
+                        <td className="td text-right tabular-nums text-ink-500">{a.eoiIssued}</td>
+                        <td className="td text-right font-semibold tabular-nums text-brand-700">{a.eoiSigned}</td>
                         <td className="td text-right tabular-nums">{a.avgCycleDays != null ? `${a.avgCycleDays}d` : "—"}</td>
                         <td className={`td text-right tabular-nums ${a.overdue ? "font-semibold text-rose-600" : ""}`}>
                           {a.overdue}

@@ -159,6 +159,8 @@ export interface AgentRow {
   collected: number;
   overdue: number;
   avgCycleDays: number | null;
+  eoiIssued: number;
+  eoiSigned: number;
 }
 
 export const AGENT_COLUMNS: Column<AgentRow>[] = [
@@ -171,6 +173,8 @@ export const AGENT_COLUMNS: Column<AgentRow>[] = [
   { header: "Pipeline value", value: (a) => a.pipelineValue },
   { header: "Closed value", value: (a) => a.wonValue },
   { header: "Collected", value: (a) => a.collected },
+  { header: "EOI issued", value: (a) => a.eoiIssued },
+  { header: "EOI signed", value: (a) => a.eoiSigned },
   { header: "Overdue follow-ups", value: (a) => a.overdue },
   { header: "Avg cycle (days)", value: (a) => a.avgCycleDays ?? "" },
 ];

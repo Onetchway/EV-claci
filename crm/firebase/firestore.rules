@@ -753,7 +753,11 @@ service cloud.firestore {
     // recipient can read their own notifications or mark them read.
     match /notifications/{notificationId} {
       allow create: if signedIn();
-      allow read, update: if signedIn() && resource.data.uid == uid();
+      // `resource == null` is a not-yet-created doc — notifyFollowUpDueSafe
+      // checks for one under a deterministic id before writing it, and that
+      // existence check must be allowed to succeed (returning exists: false)
+      // rather than erroring, since `resource.data` isn't there to read yet.
+      allow read, update: if signedIn() && (resource == null || resource.data.uid == uid());
       allow delete: if false;
     }
 

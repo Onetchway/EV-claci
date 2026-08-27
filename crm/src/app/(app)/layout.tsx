@@ -12,6 +12,7 @@ import {
 
 import { useAuth } from "@/components/auth-provider";
 import { AttendanceQuickToggle } from "@/components/attendance-quick-toggle";
+import { FollowUpReminders } from "@/components/followup-reminders";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
 import { Avatar, Button, EmptyState, Spinner } from "@/components/ui";
@@ -269,6 +270,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-ink-50 print:bg-white">
+      <FollowUpReminders />
       <aside className="hidden w-60 shrink-0 border-r border-ink-200 bg-white lg:block">
         <div className="sticky top-0 h-screen">{sidebar}</div>
       </aside>

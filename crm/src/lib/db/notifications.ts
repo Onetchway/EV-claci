@@ -13,10 +13,11 @@
  */
 
 import {
-  addDoc, collection, doc, limit as fsLimit, onSnapshot, orderBy, query,
-  serverTimestamp, updateDoc, where, writeBatch,
+  addDoc, collection, doc, getDoc, limit as fsLimit, onSnapshot, orderBy, query,
+  serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from "firebase/firestore";
 
+import { ymd } from "../dates";
 import { getDb } from "../firebase/client";
 import type { AppNotification } from "../types";
 
@@ -66,6 +67,36 @@ export async function markAllNotificationsRead(rows: AppNotification[]): Promise
   const batch = writeBatch(getDb());
   for (const r of unread) batch.update(doc(getDb(), NOTIFICATIONS, r.id), { read: true });
   await batch.commit();
+}
+
+/**
+ * A lead's follow-up date arriving used to be visible only as a dashboard
+ * count, easy to lose track of — this puts it in the owner's own
+ * notification bell instead. Keyed by `${leadId}_${today}` so it's a no-op
+ * if it already ran today (e.g. the app was open all day), but a fresh,
+ * unread reminder appears each new day the follow-up stays overdue and the
+ * lead untouched — reading yesterday's copy doesn't silence today's. It
+ * naturally stops once the agent actually works the lead: moving the
+ * follow-up date forward, or changing its stage/status off ACTIVE, both
+ * drop it out of the "due" query this is called from (see
+ * components/followup-reminders.tsx).
+ */
+export function notifyFollowUpDueSafe(lead: { id: string; code: string; clientName?: string; ownerId: string }): void {
+  void (async () => {
+    const ref = doc(getDb(), NOTIFICATIONS, `followup_${lead.id}_${ymd(new Date())}`);
+    const existing = await getDoc(ref);
+    if (existing.exists()) return;
+    await setDoc(ref, {
+      uid: lead.ownerId,
+      title: "Follow-up due",
+      body: `${lead.clientName ?? "This lead"} (${lead.code}) has a follow-up due — open it to reschedule or log what happened.`,
+      leadId: lead.id,
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  })().catch((err) => {
+    console.error("[notifications] failed to create follow-up reminder", err);
+  });
 }
 
 export interface QueueEmailInput {

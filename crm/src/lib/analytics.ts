@@ -131,6 +131,10 @@ export interface AgentPerformance {
   overdue: number;
   /** Mean days from creation to reaching handover. */
   avgCycleDays: number | null;
+  /** EOI generated but not yet accepted — issued, waiting on the client. */
+  eoiIssued: number;
+  /** The client actually signed — EoiStatus "ACCEPTED". */
+  eoiSigned: number;
 }
 
 export function agentPerformance(leads: Lead[]): AgentPerformance[] {
@@ -144,10 +148,13 @@ export function agentPerformance(leads: Lead[]): AgentPerformance[] {
       total: 0, active: 0, won: 0, rejected: 0,
       pipelineValue: 0, wonValue: 0, collected: 0,
       conversionPct: 0, overdue: 0, avgCycleDays: null, cycleDays: [],
+      eoiIssued: 0, eoiSigned: 0,
     };
 
     row.total += 1;
     row.collected += l.paidAmount ?? 0;
+    if (l.eoi?.status === "ACCEPTED") row.eoiSigned += 1;
+    else if (l.eoi?.status === "ISSUED") row.eoiIssued += 1;
 
     if (l.status === "ACTIVE") {
       row.active += 1;
