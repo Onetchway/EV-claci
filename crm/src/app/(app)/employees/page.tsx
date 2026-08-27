@@ -10,7 +10,7 @@ import {
   Select, Spinner, StatCard, useAsyncAction, useToast,
 } from "@/components/ui";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/constants";
-import { createDepartment, deleteDepartment, subscribeDepartments } from "@/lib/db/departments";
+import { subscribeDepartments } from "@/lib/db/departments";
 import { subscribeOfficeLocations } from "@/lib/db/office-locations";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
@@ -31,7 +31,7 @@ async function authedFetch(path: string, init: RequestInit) {
 }
 
 export default function EmployeesPage() {
-  const { profile, role, actor } = useAuth();
+  const { profile, role } = useAuth();
   const { push } = useToast();
   const { busy, run } = useAsyncAction();
   const viewer = useViewer();
@@ -393,8 +393,8 @@ export default function EmployeesPage() {
               loading={busy}
               onClick={() =>
                 void run(async () => {
-                  if (!newDept.trim() || !actor) return;
-                  await createDepartment(newDept, actor);
+                  if (!newDept.trim()) return;
+                  await authedFetch("/api/departments", { method: "POST", body: JSON.stringify({ name: newDept.trim() }) });
                   setNewDept("");
                 }, "Department added.")
               }
@@ -416,7 +416,7 @@ export default function EmployeesPage() {
                     onClick={() =>
                       void run(async () => {
                         if (inUse > 0 && !window.confirm(`${inUse} employee${inUse === 1 ? " is" : "s are"} assigned to this department. Delete it anyway?`)) return;
-                        await deleteDepartment(d.id);
+                        await authedFetch(`/api/departments/${d.id}`, { method: "DELETE" });
                       }, "Department removed.")
                     }
                     className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
