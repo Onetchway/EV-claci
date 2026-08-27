@@ -11,6 +11,7 @@ import {
 import { useAuth, useViewer } from "@/components/auth-provider";
 import { ActivityPanel } from "@/components/lead/activity-panel";
 import { DuplicateBanner } from "@/components/lead/duplicate-banner";
+import { InvestorProfile } from "@/components/lead/investor-profile";
 import { TasksPanel } from "@/components/lead/tasks-panel";
 import { DocumentsPanel } from "@/components/lead/documents-panel";
 import { PaymentsPanel } from "@/components/lead/payments-panel";
@@ -281,6 +282,8 @@ export default function LeadDetailPage() {
       </div>
 
       <DuplicateBanner lead={lead} />
+
+      <InvestorProfile lead={lead} />
 
       {(lead.mergedFrom?.length ?? 0) > 0 && (
         <div className="mb-4 rounded-lg bg-sky-50 px-4 py-2.5 text-xs text-sky-800 ring-1 ring-inset ring-sky-200 print:hidden">
