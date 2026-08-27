@@ -39,7 +39,7 @@ export function DuplicateBanner({ lead }: { lead: Lead }) {
       excludeId: lead.id,
     })
       .then((rows) => {
-        if (!cancelled) setCandidates(rows.filter((r) => !r.duplicateOverride && !r.deletedAt && !r.mergedInto));
+        if (!cancelled) setCandidates(rows); // findDuplicateLeads already excludes trashed/merged/confirmed-separate leads
       })
       .catch(() => undefined);
     return () => { cancelled = true; };

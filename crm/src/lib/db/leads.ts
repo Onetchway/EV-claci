@@ -898,7 +898,12 @@ export async function findDuplicateLeads(candidate: {
     );
     for (const d of snap.docs) {
       if (d.id === candidate.excludeId) continue;
-      found.set(d.id, mapLead(d.id, d.data()));
+      const lead = mapLead(d.id, d.data());
+      // Trashed (including a lead already folded into another via mergeLeads,
+      // which trashes the losing side) or explicitly confirmed-separate
+      // leads are not live duplicates — never flag either.
+      if (lead.deletedAt || lead.mergedInto || lead.duplicateOverride) continue;
+      found.set(d.id, lead);
     }
   }
   return [...found.values()];
