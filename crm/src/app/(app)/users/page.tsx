@@ -73,6 +73,7 @@ export default function UsersPage() {
   const [rolePolicy, setRolePolicy] = useState<Record<string, Role[]> | null>(null);
   const [overridesFor, setOverridesFor] = useState<AppUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", roles: ["AGENT"] as Role[], region: "", password: "",
@@ -164,11 +165,17 @@ export default function UsersPage() {
     }, "Access override saved.");
   }
 
+  // Deleted accounts (DELETE /api/users/[uid] — the sign-in is gone, but the
+  // profile row is kept so historical leads/activity still show a name)
+  // stay out of the directory and its counts by default; toggle to see them.
+  const deletedCount = users.filter((u) => u.deletedAt).length;
+  const visibleUsers = showDeleted ? users : users.filter((u) => !u.deletedAt);
+
   const counts = {
-    total: users.length,
-    active: users.filter((u) => u.active).length,
-    admins: users.filter((u) => ROLE_RANK[u.role] >= ROLE_RANK.ADMIN).length,
-    agents: users.filter((u) => rolesFor(u).includes("AGENT")).length,
+    total: visibleUsers.length,
+    active: visibleUsers.filter((u) => u.active).length,
+    admins: visibleUsers.filter((u) => ROLE_RANK[u.role] >= ROLE_RANK.ADMIN).length,
+    agents: visibleUsers.filter((u) => rolesFor(u).includes("AGENT")).length,
   };
 
   return (
@@ -248,7 +255,20 @@ export default function UsersPage() {
       {loading ? (
         <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>
       ) : (
-        <Card title="Directory">
+        <Card
+          title="Directory"
+          actions={
+            deletedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowDeleted((s) => !s)}
+                className="text-xs font-medium text-ink-600 hover:underline"
+              >
+                {showDeleted ? "Hide" : "Show"} {deletedCount} deleted
+              </button>
+            )
+          }
+        >
           <div className="overflow-x-auto scroll-thin">
             <table className="w-full">
               <thead className="border-b border-ink-200">
@@ -265,9 +285,9 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
-                {users.map((u) => {
+                {visibleUsers.map((u) => {
                   const stats = perf.find((p) => p.ownerId === u.uid);
-                  const editable = canAssignRole(viewer, u.role) || u.uid === profile?.uid;
+                  const editable = !u.deletedAt && (canAssignRole(viewer, u.role) || u.uid === profile?.uid);
                   return (
                     <tr key={u.id} className="hover:bg-ink-50">
                       <td className="td">
@@ -295,37 +315,43 @@ export default function UsersPage() {
                       <td className="td text-right tabular-nums">{formatCompactINR(stats?.wonValue ?? 0)}</td>
                       <td className="td text-ink-500">{formatDate(u.lastLoginAt)}</td>
                       <td className="td">
-                        <Badge className={u.active ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-rose-100 text-rose-800 ring-rose-200"}>
-                          {u.active ? "Active" : "Disabled"}
+                        <Badge className={u.deletedAt ? "bg-ink-100 text-ink-500 ring-ink-200" : u.active ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-rose-100 text-rose-800 ring-rose-200"}>
+                          {u.deletedAt ? "Deleted" : u.active ? "Active" : "Disabled"}
                         </Badge>
                       </td>
                       <td className="td text-right">
                         <div className="flex justify-end gap-1">
-                          {superAdmin && (
-                            <button
-                              onClick={() => setOverridesFor(u)}
-                              className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
-                              title="Per-user page access overrides"
-                            >
-                              Access
-                            </button>
-                          )}
-                          {editable && (
-                            <button
-                              onClick={() => setEditing(u)}
-                              className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
-                            >
-                              Manage
-                            </button>
-                          )}
-                          {superAdmin && u.uid !== profile?.uid && (
-                            <button
-                              onClick={() => setDeleteTarget(u)}
-                              className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50"
-                              title="Delete this person's account"
-                            >
-                              Delete
-                            </button>
+                          {u.deletedAt ? (
+                            <span className="px-2 py-1 text-xs text-ink-400">Deleted</span>
+                          ) : (
+                            <>
+                              {superAdmin && (
+                                <button
+                                  onClick={() => setOverridesFor(u)}
+                                  className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
+                                  title="Per-user page access overrides"
+                                >
+                                  Access
+                                </button>
+                              )}
+                              {editable && (
+                                <button
+                                  onClick={() => setEditing(u)}
+                                  className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
+                                >
+                                  Manage
+                                </button>
+                              )}
+                              {superAdmin && u.uid !== profile?.uid && (
+                                <button
+                                  onClick={() => setDeleteTarget(u)}
+                                  className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                                  title="Delete this person's account"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
