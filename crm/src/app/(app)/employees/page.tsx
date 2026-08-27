@@ -14,7 +14,7 @@ import { createDepartment, deleteDepartment, subscribeDepartments } from "@/lib/
 import { subscribeOfficeLocations } from "@/lib/db/office-locations";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { canAssignRole, canManageHrms, canSeeAllHrms, isAdmin } from "@/lib/permissions";
+import { canAssignRole, canManageHrms, canSeeAllHrms, isAdmin, isSuperAdmin } from "@/lib/permissions";
 import type { AppUser, Department, OfficeLocation } from "@/lib/types";
 
 async function authedFetch(path: string, init: RequestInit) {
@@ -54,6 +54,7 @@ export default function EmployeesPage() {
 
   const canView = canManageHrms(viewer);
   const canEdit = !!role && isAdmin(role);
+  const canDelete = !!role && isSuperAdmin(role);
   const seeAll = canSeeAllHrms(viewer);
 
   useEffect(() => {
@@ -189,25 +190,25 @@ export default function EmployeesPage() {
                       <td className="td text-right tabular-nums">{reportCount || "—"}</td>
                       <td className="td text-ink-600">{u.phone || "—"}</td>
                       <td className="td text-right">
-                        {canEdit && (
-                          <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-1">
+                          {canEdit && (
                             <button
                               onClick={() => setEditing(u)}
                               className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
                             >
                               Manage
                             </button>
-                            {u.uid !== profile?.uid && (
-                              <button
-                                onClick={() => setDeleteTarget(u)}
-                                className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50"
-                                title="Delete this person's account"
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </div>
-                        )}
+                          )}
+                          {canDelete && u.uid !== profile?.uid && (
+                            <button
+                              onClick={() => setDeleteTarget(u)}
+                              className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                              title="Delete this person's account"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

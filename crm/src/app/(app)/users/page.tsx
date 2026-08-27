@@ -287,7 +287,7 @@ export default function UsersPage() {
               <tbody className="divide-y divide-ink-100">
                 {visibleUsers.map((u) => {
                   const stats = perf.find((p) => p.ownerId === u.uid);
-                  const editable = !u.deletedAt && (canAssignRole(viewer, u.role) || u.uid === profile?.uid);
+                  const editable = !u.deletedAt && canAssignRole(viewer, u.role);
                   return (
                     <tr key={u.id} className="hover:bg-ink-50">
                       <td className="td">
