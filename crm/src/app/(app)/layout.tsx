@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
+import { AttendanceQuickToggle } from "@/components/attendance-quick-toggle";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
 import { Avatar, Button, EmptyState, Spinner } from "@/components/ui";
@@ -318,6 +319,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <KanbanSquare className="h-5 w-5" />
             </Link>
+            {user && <AttendanceQuickToggle />}
             {user && <NotificationBell uid={user.uid} />}
           </div>
         </header>

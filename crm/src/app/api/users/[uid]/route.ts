@@ -21,6 +21,8 @@ const PatchUser = z.object({
   orgId: z.string().max(128).nullable().optional(),
   /** Per-user page-access override — replaces the whole map. Super admin only; see lib/page-access.ts. */
   pageAccessOverrides: z.record(z.string(), z.boolean()).nullable().optional(),
+  /** Exempt from the office geofence on attendance check-in/out. Admin/Super Admin are always exempt regardless of this flag. */
+  bypassGeofence: z.boolean().optional(),
 });
 
 /** Rank-based (not a literal "ADMIN" check) so PLATFORM_ADMIN/CPO_ADMIN — same rank as ADMIN, just a clearer label — grant/revoke exactly what an ADMIN could. */
@@ -75,7 +77,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "region", "managerId", "active", "orgId", "pageAccessOverrides"] as const) {
+    for (const key of ["name", "phone", "region", "managerId", "active", "orgId", "pageAccessOverrides", "bypassGeofence"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

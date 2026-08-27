@@ -40,6 +40,8 @@ export interface AppUser {
   orgId?: string | null;
   /** Per-user page-access override, keyed by page path — takes priority over the role-based default from roleAccessPolicy. true = always allow this page for this user regardless of role; false = always deny even if their role would normally allow it. A path absent here just falls through to the role policy. Super Admin only, set from Team & Roles. */
   pageAccessOverrides?: Record<string, boolean>;
+  /** Exempt from the office geofence on attendance check-in/out — Admin/Super Admin always are regardless of this flag; set here for anyone else who needs to check in from anywhere (a field sales lead, a traveling manager). */
+  bypassGeofence?: boolean;
   createdAt: TS;
   createdBy?: string | null;
   lastLoginAt?: TS;

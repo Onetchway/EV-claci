@@ -10,8 +10,9 @@ import {
   Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Spinner, StatCard,
   Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
+import { performCheckIn, performCheckOut } from "@/lib/attendance-actions";
 import {
-  checkIn, checkOut, markAttendance, subscribeAttendanceRange, subscribeMyAttendanceMonth,
+  markAttendance, subscribeAttendanceRange, subscribeMyAttendanceMonth,
 } from "@/lib/db/attendance";
 import { ymd } from "@/lib/dates";
 import {
@@ -22,8 +23,9 @@ import {
   applyForLeave, cancelLeaveRequest, createLeaveType, daysBetween, decideLeaveRequest,
   setLeaveTypeActive, subscribeAllLeaveRequests, subscribeLeaveTypes, subscribeMyLeaveRequests,
 } from "@/lib/db/leave";
-import { getCurrentCoords, nearestOffice } from "@/lib/geo";
-import { canManageHrms, canManageHrmsSetup } from "@/lib/permissions";
+import { getFirebaseAuth } from "@/lib/firebase/client";
+import { getCurrentCoords } from "@/lib/geo";
+import { canManageHrms, canManageHrmsSetup, isAdmin } from "@/lib/permissions";
 import type {
   AppUser, AttendanceRecord, AttendanceStatus, LeaveRequest, LeaveType, OfficeLocation,
 } from "@/lib/types";
@@ -63,7 +65,7 @@ function monthRange(cursor: Date): { start: string; end: string; label: string }
 // ---------------------------------------------------------------------------
 
 function MyAttendanceTab() {
-  const { profile } = useAuth();
+  const { profile, role } = useAuth();
   const actor = useActor();
   const { push } = useToast();
   const { busy: punching, run: runPunch } = useAsyncAction();
@@ -117,23 +119,12 @@ function MyAttendanceTab() {
 
   async function doCheckIn() {
     if (!profile) return;
-    const coords = await getCurrentCoords();
-    const nearest = nearestOffice(coords, offices);
-    if (!nearest.withinGeofence) {
-      throw new Error(
-        nearest.officeName
-          ? `You're ${nearest.distanceMeters}m from ${nearest.officeName} — check-in needs you on-site.`
-          : "You're too far from any registered office to check in.",
-      );
-    }
-    await checkIn(profile.uid, profile.name, coords, nearest, actor);
+    await performCheckIn(profile, actor, offices, role);
   }
 
   async function doCheckOut() {
     if (!profile) return;
-    const coords = await getCurrentCoords();
-    const nearest = nearestOffice(coords, offices);
-    await checkOut(profile.uid, coords, nearest, actor);
+    await performCheckOut(profile, actor, offices, role);
   }
 
   async function submitLeave() {
@@ -611,11 +602,25 @@ function ApprovalsTab() {
 // Setup tab (admin only)
 // ---------------------------------------------------------------------------
 
+async function patchUserGeofence(uid: string, bypassGeofence: boolean) {
+  const current = getFirebaseAuth().currentUser;
+  if (!current) throw new Error("Your session expired. Sign in again.");
+  const token = await current.getIdToken();
+  const res = await fetch(`/api/users/${uid}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify({ bypassGeofence }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status}).`);
+}
+
 function SetupTab() {
   const actor = useActor();
   const { push } = useToast();
   const [offices, setOffices] = useState<OfficeLocation[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [users, setUsers] = useState<AppUser[]>([]);
   const [officeForm, setOfficeForm] = useState({ name: "", address: "", lat: "", lng: "", radiusMeters: "200" });
   const [leaveForm, setLeaveForm] = useState({ code: "", label: "", annualQuota: "12" });
   const { busy: savingOffice, run: runSaveOffice } = useAsyncAction();
@@ -624,6 +629,7 @@ function SetupTab() {
 
   useEffect(() => subscribeOfficeLocations(setOffices), []);
   useEffect(() => subscribeLeaveTypes(setLeaveTypes), []);
+  useEffect(() => subscribeUsers(setUsers), []);
 
   async function useMyLocation() {
     const coords = await getCurrentCoords();
@@ -740,6 +746,44 @@ function SetupTab() {
             </table>
           </div>
         )}
+      </Card>
+
+      <Card title="Geofence exemptions" subtitle="Admins can always check in from anywhere. Grant the same to specific people here — a field sales lead, a traveling manager.">
+        <div className="overflow-x-auto scroll-thin">
+          <table className="w-full">
+            <thead className="border-b border-ink-200">
+              <tr><th className="th">Name</th><th className="th">Role</th><th className="th">Can check in from anywhere</th></tr>
+            </thead>
+            <tbody className="divide-y divide-ink-100">
+              {users.filter((u) => u.active !== false).map((u) => {
+                const admin = isAdmin(u.role);
+                return (
+                  <tr key={u.uid}>
+                    <td className="td font-medium text-ink-900">{u.name}</td>
+                    <td className="td text-ink-600">{u.role.replace(/_/g, " ")}</td>
+                    <td className="td">
+                      {admin ? (
+                        <span className="text-xs text-ink-400">Always (admin)</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void patchUserGeofence(u.uid, !u.bypassGeofence)
+                              .then(() => push(u.bypassGeofence ? "Exemption removed." : "Exemption granted.", "success"))
+                              .catch((e: Error) => push(e.message, "error"))
+                          }
+                          className={u.bypassGeofence ? "text-emerald-700" : "text-ink-400"}
+                        >
+                          {u.bypassGeofence ? "Exempt" : "Not exempt"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   );
