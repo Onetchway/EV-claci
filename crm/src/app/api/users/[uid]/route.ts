@@ -25,6 +25,8 @@ const PatchUser = z.object({
   bypassGeofence: z.boolean().optional(),
   /** HR access to HRMS org-wide (approve leave, mark attendance, edit roster for anyone) without the ADMIN role itself. */
   hrmsAdmin: z.boolean().optional(),
+  /** Whether this person is expected to check in/out at all. Omitted/true = required (the default for a normal employee). */
+  attendanceRequired: z.boolean().optional(),
 });
 
 /** Rank-based (not a literal "ADMIN" check) so PLATFORM_ADMIN/CPO_ADMIN — same rank as ADMIN, just a clearer label — grant/revoke exactly what an ADMIN could. */
@@ -79,7 +81,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "region", "managerId", "active", "orgId", "pageAccessOverrides", "bypassGeofence", "hrmsAdmin"] as const) {
+    for (const key of ["name", "phone", "region", "managerId", "active", "orgId", "pageAccessOverrides", "bypassGeofence", "hrmsAdmin", "attendanceRequired"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

@@ -34,7 +34,7 @@ export function AttendanceQuickToggle() {
     return subscribeMyAttendanceMonth(profile.uid, d, d, (rows) => setToday(rows[0] ?? null));
   }, [profile]);
 
-  if (!profile) return null;
+  if (!profile || profile.attendanceRequired === false) return null;
 
   const checkedIn = Boolean(today?.checkIn?.at);
   const checkedOut = Boolean(today?.checkOut?.at);

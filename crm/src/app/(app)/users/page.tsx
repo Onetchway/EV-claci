@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Download, KeyRound, Plus, ShieldCheck, UserPlus } from "lucide-react";
+import { Check, Copy, Download, KeyRound, Plus, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Avatar, Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader,
+  Avatar, Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, PageHeader,
   Select, Spinner, StatCard, useAsyncAction, useToast,
 } from "@/components/ui";
 import { useLeads } from "@/hooks/use-leads";
@@ -72,6 +72,7 @@ export default function UsersPage() {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [rolePolicy, setRolePolicy] = useState<Record<string, Role[]> | null>(null);
   const [overridesFor, setOverridesFor] = useState<AppUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", roles: ["AGENT"] as Role[], region: "", password: "",
@@ -125,6 +126,11 @@ export default function UsersPage() {
 
   async function patchUser(uid: string, patch: Record<string, unknown>) {
     await authedFetch(`/api/users/${uid}`, { method: "PATCH", body: JSON.stringify(patch) });
+  }
+
+  /** Deletes the Firebase Auth sign-in credential and deactivates the profile — the profile row itself is kept (not removed) so historical leads keep a readable owner name; see the API route's own comment. */
+  async function deleteUser(uid: string) {
+    await authedFetch(`/api/users/${uid}`, { method: "DELETE" });
   }
 
   const effectivePolicy = { ...DEFAULT_PAGE_ACCESS, ...(rolePolicy ?? {}) };
@@ -312,6 +318,15 @@ export default function UsersPage() {
                               Manage
                             </button>
                           )}
+                          {superAdmin && u.uid !== profile?.uid && (
+                            <button
+                              onClick={() => setDeleteTarget(u)}
+                              className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                              title="Delete this person's account"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -434,6 +449,19 @@ export default function UsersPage() {
               </Field>
             )}
 
+            <Field label="Attendance" hint="Off for someone HRMS genuinely doesn't apply to — a channel partner contact, a board member with CRM access. Everyone else should stay on.">
+              <Checkbox
+                label="Needs to check in/out"
+                checked={editing.attendanceRequired !== false}
+                onChange={(checked) =>
+                  void run(async () => {
+                    await patchUser(editing.uid, { attendanceRequired: checked });
+                    setEditing({ ...editing, attendanceRequired: checked });
+                  }, "Saved.")
+                }
+              />
+            </Field>
+
             <div className="flex flex-wrap gap-2 border-t border-ink-200 pt-4">
               <Button
                 loading={busy}
@@ -471,6 +499,38 @@ export default function UsersPage() {
               <p className="text-xs text-ink-500">You cannot deactivate your own account.</p>
             )}
           </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={deleteTarget ? `Delete ${deleteTarget.name}?` : ""}
+        description="Removes their sign-in — they can no longer log in, and this can't be undone. Their profile row is kept (not erased) so leads, activity and reports they're attached to still show a real name instead of a blank owner."
+        footer={
+          <>
+            <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  if (!deleteTarget) return;
+                  await deleteUser(deleteTarget.uid);
+                  setDeleteTarget(null);
+                  if (editing?.uid === deleteTarget.uid) setEditing(null);
+                }, "Account deleted.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Delete account
+            </Button>
+          </>
+        }
+      >
+        {deleteTarget && (
+          <p className="text-sm text-ink-700">
+            {deleteTarget.name} ({deleteTarget.email}) will no longer be able to sign in.
+          </p>
         )}
       </Modal>
 

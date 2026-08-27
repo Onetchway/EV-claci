@@ -80,7 +80,7 @@ function TeamRosterView({ weekStart }: { weekStart: string }) {
 
   const byUid = useMemo(() => new Map(rosters.map((r) => [r.uid, r])), [rosters]);
   const activeUsers = useMemo(() => {
-    const active = users.filter((u) => u.active !== false);
+    const active = users.filter((u) => u.active !== false && u.attendanceRequired !== false);
     return canSeeAllHrms(viewer) ? active : active.filter((u) => u.managerId === viewer.uid);
   }, [users, viewer]);
   const dates = weekDates(weekStart);

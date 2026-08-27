@@ -44,6 +44,8 @@ export interface AppUser {
   bypassGeofence?: boolean;
   /** HR access to HRMS (attendance/roster/leave) org-wide, same reach as Admin there, without granting the ADMIN role itself. Sales Managers can already approve/mark/edit for their own direct reports (see managerId) — this is for someone whose job is HR specifically, across every team. */
   hrmsAdmin?: boolean;
+  /** Whether this person is expected to check in/out at all — off by default is wrong for a normal employee, so undefined means required. Turn off for someone HRMS genuinely doesn't apply to (a channel partner contact, a board member with CRM access, etc.); they drop out of the header check-in control and the Team/Roster/leave-quota views. */
+  attendanceRequired?: boolean;
   createdAt: TS;
   createdBy?: string | null;
   lastLoginAt?: TS;

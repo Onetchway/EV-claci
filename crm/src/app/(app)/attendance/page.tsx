@@ -346,7 +346,7 @@ function TeamTab() {
 
   const byUid = useMemo(() => new Map(rows.map((r) => [r.uid, r])), [rows]);
   const activeUsers = useMemo(() => {
-    const active = users.filter((u) => u.active !== false);
+    const active = users.filter((u) => u.active !== false && u.attendanceRequired !== false);
     return canSeeAllHrms(viewer) ? active : active.filter((u) => u.managerId === viewer.uid);
   }, [users, viewer]);
 
