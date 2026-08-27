@@ -2,18 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, Plus, Trash2, UserPlus } from "lucide-react";
+import { Building2, MapPin, Plus, Settings2, Trash2, UserPlus } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Avatar, Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader,
   Select, Spinner, StatCard, useAsyncAction, useToast,
 } from "@/components/ui";
-import { ROLES, ROLE_LABEL, ROLE_RANK, type Role } from "@/lib/constants";
+import { ROLES, ROLE_LABEL, type Role } from "@/lib/constants";
+import { createDepartment, deleteDepartment, subscribeDepartments } from "@/lib/db/departments";
+import { subscribeOfficeLocations } from "@/lib/db/office-locations";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { canAssignRole, canManageHrms, canSeeAllHrms, isAdmin } from "@/lib/permissions";
-import type { AppUser } from "@/lib/types";
+import type { AppUser, Department, OfficeLocation } from "@/lib/types";
 
 async function authedFetch(path: string, init: RequestInit) {
   const current = getFirebaseAuth().currentUser;
@@ -29,20 +31,25 @@ async function authedFetch(path: string, init: RequestInit) {
 }
 
 export default function EmployeesPage() {
-  const { profile, role } = useAuth();
+  const { profile, role, actor } = useAuth();
   const { push } = useToast();
   const { busy, run } = useAsyncAction();
   const viewer = useViewer();
 
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [offices, setOffices] = useState<OfficeLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AppUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [deptManagerOpen, setDeptManagerOpen] = useState(false);
+  const [newDept, setNewDept] = useState("");
 
   const [form, setForm] = useState({
-    name: "", email: "", phone: "", role: "AGENT" as Role, designation: "", department: "", managerId: "", password: "",
+    name: "", email: "", phone: "", role: "AGENT" as Role, designation: "",
+    departmentId: "", officeLocationId: "", managerId: "", password: "",
   });
 
   const canView = canManageHrms(viewer);
@@ -52,6 +59,14 @@ export default function EmployeesPage() {
   useEffect(() => {
     if (!canView) return;
     return subscribeUsers((rows) => { setUsers(rows); setLoading(false); }, () => setLoading(false));
+  }, [canView]);
+  useEffect(() => {
+    if (!canView) return;
+    return subscribeDepartments(setDepartments);
+  }, [canView]);
+  useEffect(() => {
+    if (!canView) return;
+    return subscribeOfficeLocations(setOffices);
   }, [canView]);
 
   if (!canView) {
@@ -78,13 +93,14 @@ export default function EmployeesPage() {
         phone: form.phone.trim(),
         roles: [form.role],
         designation: form.designation.trim(),
-        department: form.department.trim(),
+        departmentId: form.departmentId || null,
+        officeLocationId: form.officeLocationId || null,
         managerId: form.managerId || null,
         password: form.password || undefined,
       }),
     });
     setCreateOpen(false);
-    setForm({ name: "", email: "", phone: "", role: "AGENT", designation: "", department: "", managerId: "", password: "" });
+    setForm({ name: "", email: "", phone: "", role: "AGENT", designation: "", departmentId: "", officeLocationId: "", managerId: "", password: "" });
     if (body.temporaryPassword) setTempPassword(body.temporaryPassword);
   }
 
@@ -97,7 +113,8 @@ export default function EmployeesPage() {
     ? activeUsers
     : activeUsers.filter((u) => u.uid === profile?.uid || u.managerId === profile?.uid);
 
-  const departments = [...new Set(activeUsers.map((u) => u.department).filter((d): d is string => !!d))];
+  const departmentName = (id?: string | null) => departments.find((d) => d.id === id)?.name || "—";
+  const officeName = (id?: string | null) => offices.find((o) => o.id === id)?.name || "—";
 
   const counts = {
     total: visible.length,
@@ -110,12 +127,17 @@ export default function EmployeesPage() {
     <>
       <PageHeader
         title="Employees"
-        description="Job title, department and reporting manager for every employee — this is what routes leave and attendance approvals."
+        description="Job title, department, work location and reporting manager for every employee — this is what routes leave and attendance approvals."
         actions={
           canEdit && (
-            <Button variant="primary" onClick={() => setCreateOpen(true)}>
-              <UserPlus className="h-4 w-4" /> Add employee
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => setDeptManagerOpen(true)}>
+                <Settings2 className="h-4 w-4" /> Departments
+              </Button>
+              <Button variant="primary" onClick={() => setCreateOpen(true)}>
+                <UserPlus className="h-4 w-4" /> Add employee
+              </Button>
+            </div>
           )
         }
       />
@@ -138,6 +160,7 @@ export default function EmployeesPage() {
                   <th className="th">Employee</th>
                   <th className="th">Designation</th>
                   <th className="th">Department</th>
+                  <th className="th">Location</th>
                   <th className="th">Reports to</th>
                   <th className="th text-right">Direct reports</th>
                   <th className="th">Phone</th>
@@ -160,7 +183,8 @@ export default function EmployeesPage() {
                         </span>
                       </td>
                       <td className="td text-ink-600">{u.designation || "—"}</td>
-                      <td className="td text-ink-600">{u.department || "—"}</td>
+                      <td className="td text-ink-600">{departmentName(u.departmentId)}</td>
+                      <td className="td text-ink-600">{officeName(u.officeLocationId)}</td>
                       <td className="td text-ink-600">{manager?.name || "—"}</td>
                       <td className="td text-right tabular-nums">{reportCount || "—"}</td>
                       <td className="td text-ink-600">{u.phone || "—"}</td>
@@ -190,7 +214,7 @@ export default function EmployeesPage() {
                 })}
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="td py-10 text-center text-ink-400">No employees to show.</td>
+                    <td colSpan={8} className="td py-10 text-center text-ink-400">No employees to show.</td>
                   </tr>
                 )}
               </tbody>
@@ -203,7 +227,7 @@ export default function EmployeesPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Add employee"
-        description="Creates a sign-in account and their HR profile — designation, department and reporting manager."
+        description="Creates a sign-in account and their HR profile — designation, department, location and reporting manager."
         footer={
           <>
             <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
@@ -233,18 +257,23 @@ export default function EmployeesPage() {
           <Field label="Designation" hint="Job title, e.g. Sales Manager - North.">
             <Input value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} />
           </Field>
-          <Field label="Department">
-            <Input
-              placeholder="e.g. Sales, Operations"
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-              list="department-options"
+          <Field label="Department" hint={departments.length ? undefined : "None created yet — use the Departments button above."}>
+            <Select
+              placeholder="No department"
+              value={form.departmentId}
+              onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+              options={departments.map((d) => ({ value: d.id, label: d.name }))}
             />
-            <datalist id="department-options">
-              {departments.map((d) => <option key={d} value={d} />)}
-            </datalist>
           </Field>
-          <Field label="Reports to" className="sm:col-span-2">
+          <Field label="Location" hint="Office they're based at — also drives attendance geofencing.">
+            <Select
+              placeholder="No location"
+              value={form.officeLocationId}
+              onChange={(e) => setForm({ ...form, officeLocationId: e.target.value })}
+              options={offices.map((o) => ({ value: o.id, label: o.name }))}
+            />
+          </Field>
+          <Field label="Reports to">
             <Select
               placeholder="No manager"
               value={form.managerId}
@@ -280,15 +309,34 @@ export default function EmployeesPage() {
               />
             </Field>
 
-            <Field label="Department">
-              <Input
-                defaultValue={editing.department ?? ""}
-                onBlur={(e) => void run(() => patchUser(editing.uid, { department: e.target.value }), "Saved.")}
-                list="department-options-edit"
+            <Field label="Department" hint={departments.length ? undefined : "None created yet — use the Departments button on the directory page."}>
+              <Select
+                placeholder="No department"
+                value={editing.departmentId ?? ""}
+                onChange={(e) =>
+                  void run(async () => {
+                    const departmentId = e.target.value || null;
+                    await patchUser(editing.uid, { departmentId });
+                    setEditing({ ...editing, departmentId });
+                  }, "Saved.")
+                }
+                options={departments.map((d) => ({ value: d.id, label: d.name }))}
               />
-              <datalist id="department-options-edit">
-                {departments.map((d) => <option key={d} value={d} />)}
-              </datalist>
+            </Field>
+
+            <Field label="Location" hint="Office they're based at — also drives attendance geofencing.">
+              <Select
+                placeholder="No location"
+                value={editing.officeLocationId ?? ""}
+                onChange={(e) =>
+                  void run(async () => {
+                    const officeLocationId = e.target.value || null;
+                    await patchUser(editing.uid, { officeLocationId });
+                    setEditing({ ...editing, officeLocationId });
+                  }, "Saved.")
+                }
+                options={offices.map((o) => ({ value: o.id, label: o.name }))}
+              />
             </Field>
 
             <Field label="Reports to" hint="Who approves this person's leave/attendance requests.">
@@ -324,6 +372,67 @@ export default function EmployeesPage() {
             </p>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={deptManagerOpen}
+        onClose={() => setDeptManagerOpen(false)}
+        title="Departments"
+        description="A shared list every employee's Department field picks from — add or remove one below."
+        footer={<Button onClick={() => setDeptManagerOpen(false)}>Done</Button>}
+      >
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="e.g. Sales, Operations, Finance"
+              value={newDept}
+              onChange={(e) => setNewDept(e.target.value)}
+            />
+            <Button
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  if (!newDept.trim() || !actor) return;
+                  await createDepartment(newDept, actor);
+                  setNewDept("");
+                }, "Department added.")
+              }
+            >
+              <Plus className="h-4 w-4" /> Add
+            </Button>
+          </div>
+          <ul className="divide-y divide-ink-100">
+            {departments.map((d) => {
+              const inUse = activeUsers.filter((u) => u.departmentId === d.id).length;
+              return (
+                <li key={d.id} className="flex items-center justify-between py-2">
+                  <span className="text-sm text-ink-800">
+                    {d.name}
+                    {inUse > 0 && <span className="ml-2 text-xs text-ink-500">({inUse} employee{inUse === 1 ? "" : "s"})</span>}
+                  </span>
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        if (inUse > 0 && !window.confirm(`${inUse} employee${inUse === 1 ? " is" : "s are"} assigned to this department. Delete it anyway?`)) return;
+                        await deleteDepartment(d.id);
+                      }, "Department removed.")
+                    }
+                    className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              );
+            })}
+            {departments.length === 0 && (
+              <li className="py-6 text-center text-sm text-ink-400">No departments yet.</li>
+            )}
+          </ul>
+          <p className="flex items-center gap-1.5 text-xs text-ink-500">
+            <MapPin className="h-3.5 w-3.5" /> Office locations (for the Location field above) are managed from Attendance → Setup.
+          </p>
+        </div>
       </Modal>
 
       <Modal

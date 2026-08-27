@@ -35,8 +35,10 @@ export interface AppUser {
   managerId?: string | null;
   /** Job title, e.g. "Sales Manager - North" — free text, set from HRMS → Employees. */
   designation?: string;
-  /** Free-text department/team, e.g. "Sales", "Operations" — set from HRMS → Employees. */
-  department?: string;
+  /** Which Department doc (see the `departments` collection) this person belongs to — set from HRMS → Employees. */
+  departmentId?: string | null;
+  /** Which OfficeLocation (see `officeLocations`, also used for attendance geofencing) this person is based at — set from HRMS → Employees. */
+  officeLocationId?: string | null;
   region?: string | null;
   active: boolean;
   photoURL?: string | null;
@@ -1592,6 +1594,15 @@ export interface ChargerReview {
 // ---------------------------------------------------------------------------
 // HRMS — attendance, geofencing, roster, holidays, leave
 // ---------------------------------------------------------------------------
+
+/** A managed department/team an employee can be assigned to (HRMS → Employees), kept as its own small collection rather than free text so it stays a consistent, filterable list. */
+export interface Department {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
+}
 
 /** An office/site an employee can geofence check in/out from. There can be several — different teams sit at different locations. */
 export interface OfficeLocation {

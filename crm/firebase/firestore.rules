@@ -369,6 +369,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /departments/{departmentId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     match /holidays/{holidayId} {
       allow read: if signedIn();
       allow write: if isAdmin();
