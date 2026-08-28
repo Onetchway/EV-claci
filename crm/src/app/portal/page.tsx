@@ -17,6 +17,7 @@ export default function PortalDashboardPage() {
   const { loading, user, phoneE164, signOut } = usePortalAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [leadsLoading, setLeadsLoading] = useState(true);
+  const [leadsError, setLeadsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/portal/login");
@@ -24,7 +25,11 @@ export default function PortalDashboardPage() {
 
   useEffect(() => {
     if (!phoneE164) return;
-    return subscribeInvestorLeads(phoneE164, (rows) => { setLeads(rows.filter((l) => !l.deletedAt)); setLeadsLoading(false); }, () => setLeadsLoading(false));
+    return subscribeInvestorLeads(
+      phoneE164,
+      (rows) => { setLeads(rows.filter((l) => !l.deletedAt)); setLeadsError(null); setLeadsLoading(false); },
+      (e) => { setLeadsError(e.message); setLeadsLoading(false); },
+    );
   }, [phoneE164]);
 
   if (loading || !user) {
@@ -53,7 +58,13 @@ export default function PortalDashboardPage() {
       <h1 className="mb-1 text-xl font-bold text-ink-900">Your franchise{leads.length !== 1 ? "s" : ""}</h1>
       <p className="mb-6 text-sm text-ink-500">Live status — updates as our team works on each one.</p>
 
-      {leadsLoading ? (
+      {leadsError ? (
+        <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-inset ring-rose-200">
+          <p className="font-medium">Something went wrong loading your franchises.</p>
+          <p className="mt-1 text-xs">{leadsError}</p>
+          <p className="mt-1 text-xs">If this says permission-denied, the site's database rules haven't been deployed yet — please tell your team.</p>
+        </div>
+      ) : leadsLoading ? (
         <div className="flex justify-center py-16 text-ink-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
       ) : leads.length === 0 ? (
         <div className="rounded-xl bg-white p-8 text-center shadow-card ring-1 ring-inset ring-ink-100">
