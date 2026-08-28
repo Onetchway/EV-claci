@@ -69,8 +69,42 @@
             <li>17+ states</li>
           </ul>
         </div>
-        <div class="hero__visual" aria-hidden="true">
-          <div class="hero__card glass">
+        <div class="hero__visual" id="heroVisual" aria-hidden="true">
+          <div class="scene3d" id="scene3d">
+            <div class="charger3d" id="charger3d">
+              <div class="charger3d__shadow"></div>
+              <div class="charger3d__base"></div>
+              <div class="charger3d__unit">
+                <div class="face f-front">
+                  <div class="charger3d__screen">
+                    <span class="charger3d__pct">82%</span>
+                    <span class="charger3d__kw">240 kW</span>
+                  </div>
+                  <div class="charger3d__led"></div>
+                  <div class="charger3d__slot"></div>
+                </div>
+                <div class="face f-back"></div>
+                <div class="face f-left"></div>
+                <div class="face f-right"></div>
+                <div class="face f-top"></div>
+              </div>
+              <div class="charger3d__cable">
+                <svg viewBox="0 0 200 160" fill="none">
+                  <path d="M18 8C18 60 120 40 150 90C168 120 150 150 190 150" stroke="url(#cableGrad)" stroke-width="6" stroke-linecap="round" />
+                  <defs>
+                    <linearGradient id="cableGrad" x1="0" y1="0" x2="200" y2="160" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#c6f94e" /><stop offset="1" stop-color="#12b76a" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div class="charger3d__plug"></div>
+              </div>
+              <div class="charger3d__spark s1"></div>
+              <div class="charger3d__spark s2"></div>
+              <div class="charger3d__spark s3"></div>
+            </div>
+          </div>
+          <div class="hero__card glass tilt-card">
             <div class="hero__card-top">
               <span class="dot dot--live"></span> Live session
             </div>
@@ -92,6 +126,7 @@
           </div>
           <div class="hero__pill glass pill--1">DC Hypercharger · 480 kW</div>
           <div class="hero__pill glass pill--2">☀ Solar net-metered</div>
+          <div class="hero__particles" id="heroParticles"></div>
         </div>
       </div>
     </section>
@@ -295,6 +330,12 @@
         <div class="network__grid">
           <div class="network__map">
             <div class="map-glow"></div>
+            <div class="orbit3d" aria-hidden="true">
+              <div class="orbit3d__ring r1"><span class="orbit3d__dot"></span></div>
+              <div class="orbit3d__ring r2"><span class="orbit3d__dot"></span></div>
+              <div class="orbit3d__ring r3"><span class="orbit3d__dot"></span></div>
+              <div class="orbit3d__core"></div>
+            </div>
             <ul class="map-list">
               <li><b>Delhi NCR</b><span>123 sites awarded · 81 live</span></li>
               <li><b>Indore (AICTSL)</b><span>Solar-enabled public charging</span></li>
