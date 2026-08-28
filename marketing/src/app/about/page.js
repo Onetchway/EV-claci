@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Linkedin, Target, Eye, Heart, UserCheck, ShieldCheck, Lightbulb, Leaf, Award, Users, Play } from 'lucide-react';
+import { Linkedin, Target, Eye, Heart, UserCheck, ShieldCheck, Lightbulb, Leaf, Award, Users, Play, Calendar, MapPin, Zap, Clock } from 'lucide-react';
 import ScrollReveal from '@/components/ScrollReveal';
 import LeaderAvatar from '@/components/LeaderAvatar';
 
@@ -10,10 +10,10 @@ export const metadata = {
 };
 
 const HERO_STATS = [
-  { icon: '📅', value: '2025', label: 'Year Founded' },
-  { icon: '📍', value: '2', label: 'Office Locations' },
-  { icon: '⚡', value: 'AC + DC', label: 'Charger Portfolio' },
-  { icon: '🕐', value: '24×7', label: 'Operations Support' },
+  { icon: Calendar, value: '2025', label: 'Year Founded' },
+  { icon: MapPin, value: '2', label: 'Office Locations' },
+  { icon: Zap, value: 'AC + DC', label: 'Charger Portfolio' },
+  { icon: Clock, value: '24×7', label: 'Operations Support' },
 ];
 
 const PILLARS = [
@@ -52,7 +52,13 @@ const IMPACT_STATS = [
   ['Pan-India', 'Growth Vision'],
 ];
 
-const PARTNER_LOGOS = ['TATA', 'Mahindra', 'Ather', 'Kia', 'MG', 'VinFast'];
+const CLIENT_LOGO_SHEETS = [
+  { key: 'automotive', label: 'Automotive' },
+  { key: 'fleet', label: 'Fleet' },
+  { key: 'hospitality', label: 'Hospitality' },
+  { key: 'commercial', label: 'Commercial' },
+  { key: 'residential', label: 'Residential' },
+];
 
 export default function AboutPage() {
   return (
@@ -99,7 +105,9 @@ export default function AboutPage() {
           <ScrollReveal delay={0.2} className="mt-12 grid grid-cols-2 gap-6 rounded-2xl border border-line bg-surface-alt px-6 py-7 sm:grid-cols-4">
             {HERO_STATS.map((s) => (
               <div key={s.label} className="flex items-center gap-3">
-                <span className="text-xl">{s.icon}</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-brand-600 shadow-sm">
+                  <s.icon className="h-4.5 w-4.5" />
+                </span>
                 <div>
                   <div className="font-display text-lg font-bold">{s.value}</div>
                   <div className="text-xs text-muted">{s.label}</div>
@@ -230,18 +238,30 @@ export default function AboutPage() {
       </section>
 
       {/* Trust logos */}
-      <section className="bg-white py-16">
+      <section className="bg-white py-24">
         <div className="container-lv text-center">
-          <ScrollReveal as="p" className="text-sm font-semibold text-muted">
-            Trusted by partners who believe in our vision.
+          <ScrollReveal as="span" className="eyebrow">
+            Our Clients
           </ScrollReveal>
-          <ScrollReveal delay={0.06} className="mt-8 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-            {PARTNER_LOGOS.map((l) => (
-              <span key={l} className="font-display text-lg font-bold text-ink/40">
-                {l}
-              </span>
+          <ScrollReveal as="p" delay={0.04} className="mt-3 font-display text-display-sm font-bold">
+            Trusted across fleets, automotive, hospitality &amp; more.
+          </ScrollReveal>
+          <div className="mt-12 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
+            {CLIENT_LOGO_SHEETS.map((c, i) => (
+              <ScrollReveal key={c.key} delay={i * 0.06} className="overflow-hidden rounded-2xl border border-line bg-surface-alt">
+                <div className="border-b border-line bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-600">
+                  {c.label}
+                </div>
+                <Image
+                  src={`/brand/clients/${c.key}.jpg`}
+                  alt={`Livanto Green ${c.label} clients`}
+                  width={640}
+                  height={1440}
+                  className="w-full object-cover"
+                />
+              </ScrollReveal>
             ))}
-          </ScrollReveal>
+          </div>
         </div>
       </section>
 
