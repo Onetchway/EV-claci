@@ -4,11 +4,20 @@
  * "Livanto_Franchise_BOM.xlsx" (company-provided). Every number below is
  * real. Do not adjust without an updated source file.
  */
+/** Constants used by the interactive calculator — from the Franchise Investment Model. */
+export const CALC_ASSUMPTIONS = {
+  discomCost: 6.5, // ₹/unit — electricity/DISCOM cost
+  landownerShare: 2, // ₹/unit — paid to landowner when land is leased
+  cpoShare: 3, // ₹/unit — Livanto's CPO/O&M share
+  gstRate: 0.18,
+};
+
 export const FRANCHISE_TIERS = [
   {
     kw: 60,
     vehicleType: 'Car',
     investment: 1550000,
+    avgEnergyPerSession: 40,
     gst: 279000,
     totalCost: 1829000,
     downPayment: 548700,
@@ -30,6 +39,7 @@ export const FRANCHISE_TIERS = [
     kw: 90,
     vehicleType: 'Car',
     investment: 2050000,
+    avgEnergyPerSession: 50,
     gst: 369000,
     totalCost: 2419000,
     downPayment: 725700,
@@ -51,6 +61,7 @@ export const FRANCHISE_TIERS = [
     kw: 120,
     vehicleType: 'Car',
     investment: 2550000,
+    avgEnergyPerSession: 50,
     gst: 459000,
     totalCost: 3009000,
     downPayment: 902700,
@@ -72,6 +83,7 @@ export const FRANCHISE_TIERS = [
     kw: 180,
     vehicleType: 'Car',
     investment: 3000000,
+    avgEnergyPerSession: 75,
     gst: 540000,
     totalCost: 3540000,
     downPayment: 1062000,
@@ -94,6 +106,7 @@ export const FRANCHISE_TIERS = [
     kw: 240,
     vehicleType: 'Bus / Truck',
     investment: 3800000,
+    avgEnergyPerSession: 400,
     gst: 684000,
     totalCost: 4484000,
     downPayment: 1345200,
@@ -115,6 +128,7 @@ export const FRANCHISE_TIERS = [
     kw: 360,
     vehicleType: 'Bus / Truck',
     investment: 5000000,
+    avgEnergyPerSession: 550,
     gst: 900000,
     totalCost: 5900000,
     downPayment: 1770000,
@@ -169,6 +183,47 @@ export const LANDOWNER_MODELS = [
     body: 'Livanto leases the land. Partner receives a stable, lease-like rental income stream regardless of market fluctuation.',
   },
 ];
+
+/** The 8 things Livanto manages, end to end, per the "Partnering for National Scale" slide. */
+export const MANAGE_STEPS = [
+  'Site Evaluation',
+  'Design & Engineering',
+  'Electrical Infra',
+  'Charger Procurement',
+  'Installation',
+  'Network Software',
+  '24×7 Monitoring',
+  'Maintenance & Support',
+];
+
+/** Who the franchise program is designed for. */
+export const PARTNER_TYPES = [
+  { title: 'Landowners', body: 'Monetise idle real estate space.' },
+  { title: 'Investors', body: 'Seeking stable recurring income.' },
+  { title: 'Business Owners', body: 'Add EV charging to drive new revenue streams.' },
+  { title: 'Fleet Operators', body: 'Build dedicated charging for your fleets.' },
+  { title: 'Property Owners', body: 'Enhance property value with EV infrastructure.' },
+  { title: 'Highway Owners', body: 'Create high-traffic charging destinations.' },
+];
+
+/** Illustrative site tiers mapped to the real charger-power ladder. */
+export const INVESTMENT_PLANS = [
+  { title: 'City Charge', tag: 'Ideal for urban locations', kwRange: '60–120 kW', features: ['Malls', 'Retail', 'Offices', 'Hotels', 'Commercial complexes'] },
+  { title: 'Highway Hub', tag: 'Ideal for high-traffic corridors', kwRange: '180–240 kW', features: ['Highways', 'Food plazas', 'Fuel stations', 'Travel stops', 'Recreational hubs'] },
+  { title: 'Mega Hub', tag: 'Ideal for high throughput', kwRange: '240–360 kW', features: ['Fleet depots', 'Bus operators', 'Logistics parks', 'Industrial zones', 'Large highway hubs'] },
+];
+
+export const FRANCHISE_FAQ = [
+  { q: 'What is the minimum investment?', a: `The entry tier is a 60 kW DC franchise station at ₹${fmtLakhStr(1550000)} (before GST) — see the calculator above for the full range up to 360 kW.` },
+  { q: 'Do I need to own the land?', a: 'No. Livanto offers three landowner models — Full Investment, Revenue Share, or Fixed Rental — so you can partner whether you own the site, lease it, or provide land only.' },
+  { q: 'Who installs the chargers?', a: 'Livanto manages turnkey EPC installation end to end — electrical infra, civil work, charger procurement and commissioning.' },
+  { q: 'Who operates the charging station?', a: 'Livanto runs the network 24×7 — remote monitoring, OCPP management, and on-ground maintenance and support.' },
+  { q: 'How are revenues settled?', a: 'Revenue share is transparent and settled monthly, with a Livanto-assured minimum payout for the first 24 months.' },
+];
+
+function fmtLakhStr(n) {
+  return (n / 100000).toFixed(1) + 'L';
+}
 
 export const fmtINR = (n) => '₹' + Math.round(n).toLocaleString('en-IN');
 export const fmtLakh = (n) => '₹' + (n / 100000).toFixed(1) + 'L';

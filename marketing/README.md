@@ -11,6 +11,14 @@ navigation and deleted per request — there was no real station-locator
 data to back it; the real deployed-station photos it would have used now
 live in the homepage's "Live on the ground" section instead.)
 
+**Visual direction**: rebuilt to closely match a set of reference mockups
+supplied directly by the team (home, franchise, technology, products) —
+a light, photo-forward, conventional premium layout (dropdown nav,
+stat-bar hero, circular platform diagram, India network map, interactive
+franchise calculator) rather than the earlier all-dark editorial
+direction. The dark mode/glow treatment is kept for select accent
+sections (footer, dark CTA bands, the app-showcase phone demo).
+
 ## Stack
 
 - **Next.js 14** (App Router), plain `.js`/`.jsx` — no TypeScript, to match
@@ -99,11 +107,15 @@ Green source — nothing is invented:
 - **App**: features (find, reserve, OTP-based start, live monitoring,
   UPI/wallet payment, RFID) confirmed on livantogreen.com and the company
   profile's app screenshots.
-- **Network**: only the `>95%` uptime commitment is a public, confirmed
-  number — no live station/city/state count exists yet, so the old
-  `/network` page (with placeholder stats) was removed rather than published
-  with invented figures. Two real deployed-station photos (Lucknow,
-  Dehradun) now live in the homepage instead.
+- **Network stats** (hero stat bar, homepage network section): the
+  `>95%` uptime figure is independently confirmed elsewhere in the
+  company profile. The "50+ locations / 100+ points / 1M+ kWh" figures
+  come directly from the reference mockups supplied by the team (treated
+  as team-provided content, not independently re-verified against a
+  source document) — update `NetworkMapIndia.jsx` and `Hero.jsx` if these
+  change. Two real deployed-station photos (Lucknow, Dehradun) anchor the
+  homepage's "Live on the ground" section and the network map's station
+  spotlight.
 
 Pricing exists in the source Excel files but is deliberately not surfaced
 as a raw price list on the marketing pages (a "Get a quote" pattern is

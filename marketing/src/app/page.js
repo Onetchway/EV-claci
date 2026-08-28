@@ -1,221 +1,23 @@
-import Image from 'next/image';
-import Link from 'next/link';
 import Hero from '@/components/Hero';
-import ScrollReveal from '@/components/ScrollReveal';
-import Card3D from '@/components/Card3D';
-import ConnectivityFlow from '@/components/ConnectivityFlow';
-import StatCounter from '@/components/StatCounter';
-import { PRODUCTS } from '@/lib/products';
-
-const SOLUTIONS = [
-  { title: 'Home', body: 'Charge where you live.', href: '/solutions' },
-  { title: 'Workplace', body: 'Charge while you work.', href: '/solutions' },
-  { title: 'Fleet', body: 'Keep your fleet moving.', href: '/solutions' },
-  { title: 'Commercial', body: 'Turn parking into charging.', href: '/solutions' },
-  { title: 'Public', body: 'Charge wherever the journey takes you.', href: '/solutions' },
-  { title: 'Highway', body: 'Fast charging for long-distance mobility.', href: '/solutions' },
-];
-
-const FEATURED_PRODUCTS = PRODUCTS.filter((p) => p.featured);
+import SolutionsGrid from '@/components/SolutionsGrid';
+import TechPlatform from '@/components/TechPlatform';
+import NetworkMapIndia from '@/components/NetworkMapIndia';
+import FranchiseTeaser from '@/components/FranchiseTeaser';
+import ImpactStats from '@/components/ImpactStats';
+import InsightsTeaser from '@/components/InsightsTeaser';
 
 export default function HomePage() {
   return (
     <>
       <Hero />
-
-      {/* Ecosystem */}
-      <section className="mode-dark py-28">
-        <div className="container-lv">
-          <ScrollReveal as="h2" className="max-w-3xl font-display text-display-lg font-semibold">
-            One ecosystem. Every charging need.
-          </ScrollReveal>
-          <ScrollReveal delay={0.08} as="p" className="mt-6 max-w-xl text-lead text-white/60">
-            Hardware, software, app, network and fleet tools — designed as one
-            system, not stitched together from vendors.
-          </ScrollReveal>
-          <div className="mt-20">
-            <ConnectivityFlow />
-          </div>
-        </div>
-      </section>
-
-      {/* Solutions preview */}
-      <section className="mode-light py-28">
-        <div className="container-lv">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <ScrollReveal as="h2" className="max-w-xl font-display text-display-md font-semibold">
-              Charging for every journey.
-            </ScrollReveal>
-            <ScrollReveal delay={0.05}>
-              <Link href="/solutions" className="text-sm font-semibold text-brand-600 hover:text-brand-700">
-                All solutions →
-              </Link>
-            </ScrollReveal>
-          </div>
-          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {SOLUTIONS.map((s, i) => (
-              <ScrollReveal key={s.title} delay={(i % 3) * 0.08}>
-                <Card3D className="h-full rounded-2xl border border-line bg-white">
-                  <Link href={s.href} className="block h-full p-8">
-                    <h3 className="font-display text-xl font-bold">{s.title}</h3>
-                    <p className="mt-2 text-sm text-muted">{s.body}</p>
-                    <span className="mt-6 inline-block text-sm font-semibold text-brand-600">Explore →</span>
-                  </Link>
-                </Card3D>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Products preview */}
-      <section className="mode-dark py-28">
-        <div className="container-lv">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <ScrollReveal as="h2" className="max-w-xl font-display text-display-md font-semibold">
-              Hardware built for the real world.
-            </ScrollReveal>
-            <ScrollReveal delay={0.05}>
-              <Link href="/products" className="text-sm font-semibold text-lime hover:text-white">
-                All products →
-              </Link>
-            </ScrollReveal>
-          </div>
-          <div className="mt-14 grid gap-6 md:grid-cols-2">
-            {FEATURED_PRODUCTS.map((p, i) => (
-              <ScrollReveal key={p.id} delay={i * 0.08}>
-                <Card3D className="h-full rounded-2xl border border-line-dark bg-white/[0.03]">
-                  <Link href="/products" className="grid h-full grid-cols-[auto_1fr] items-center gap-6 p-8">
-                    <div className="flex h-28 w-20 items-center justify-center rounded-xl bg-white/95 p-2">
-                      <Image src={p.image} alt={p.name} width={70} height={110} className="h-full w-auto object-contain" />
-                    </div>
-                    <div>
-                      <span className="eyebrow">{p.category === 'AC' ? 'AC' : 'DC fast'}</span>
-                      <h3 className="mt-3 font-display text-2xl font-bold">{p.name}</h3>
-                      <p className="mt-2 text-white/60">{p.tagline}</p>
-                      <div className="mt-6 font-display text-3xl font-bold text-lime">{p.powerLabel}</div>
-                    </div>
-                  </Link>
-                </Card3D>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Technology teaser */}
-      <section className="mode-light py-28">
-        <div className="container-lv grid gap-12 lg:grid-cols-2 lg:items-center">
-          <ScrollReveal>
-            <span className="eyebrow">Technology</span>
-            <h2 className="mt-4 font-display text-display-md font-semibold">Charging is more than hardware.</h2>
-            <p className="mt-5 max-w-md text-muted">
-              Find, reserve, start with an OTP, monitor live, pay by UPI or
-              wallet — the Livanto app makes charging a five-tap experience.
-            </p>
-            <Link href="/technology" className="btn btn-primary mt-8">
-              See the app →
-            </Link>
-          </ScrollReveal>
-          <ScrollReveal delay={0.1} className="flex h-72 items-center justify-center rounded-3xl border border-line bg-surface-alt">
-            <div className="relative h-56 w-32 rounded-[26px] border border-line bg-ink shadow-xl">
-              <div className="absolute left-1/2 top-2 h-3 w-14 -translate-x-1/2 rounded-full bg-black/60" />
-              <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-white">
-                <span className="font-display text-2xl font-bold text-lime">66%</span>
-                <span className="text-[10px] text-white/50">Live session</span>
-              </div>
-            </div>
-          </ScrollReveal>
-        </div>
-      </section>
-
-      {/* Live deployments */}
-      <section className="mode-brand py-24">
-        <div className="container-lv">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <ScrollReveal as="h2" className="max-w-xl font-display text-display-sm font-semibold">
-              Live on the ground.
-            </ScrollReveal>
-            <ScrollReveal delay={0.05}>
-              <StatCounter value={95} suffix="%+" className="font-display text-3xl font-bold text-lime" />
-              <span className="ml-2 text-sm text-white/70">network uptime</span>
-            </ScrollReveal>
-          </div>
-          <div className="mt-12 grid gap-6 sm:grid-cols-2">
-            <ScrollReveal className="group relative overflow-hidden rounded-3xl">
-              <Image
-                src="/brand/station-lucknow.jpg"
-                alt="Livanto Green EV charging station, Lucknow"
-                width={760}
-                height={650}
-                className="h-72 w-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              <span className="absolute bottom-5 left-5 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold backdrop-blur-md">
-                Lucknow
-              </span>
-            </ScrollReveal>
-            <ScrollReveal delay={0.08} className="group relative overflow-hidden rounded-3xl">
-              <Image
-                src="/brand/station-dehradun.jpg"
-                alt="Livanto Green EV charging station, Dehradun"
-                width={760}
-                height={650}
-                className="h-72 w-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              <span className="absolute bottom-5 left-5 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold backdrop-blur-md">
-                Dehradun
-              </span>
-            </ScrollReveal>
-          </div>
-        </div>
-      </section>
-
-      {/* Franchise teaser */}
-      <section className="mode-light py-28">
-        <div className="container-lv grid gap-12 lg:grid-cols-2 lg:items-center">
-          <ScrollReveal>
-            <span className="eyebrow">Franchise</span>
-            <h2 className="mt-4 font-display text-display-md font-semibold">Build the future of mobility.</h2>
-            <p className="mt-5 max-w-md text-muted">
-              Own the site, Livanto brings the hardware, software and
-              operations — a 20–35% gross revenue share, with a payback
-              typically inside 2–3.5 years.
-            </p>
-            <Link href="/franchise" className="btn btn-primary mt-8">
-              Become a Livanto partner →
-            </Link>
-          </ScrollReveal>
-          <ScrollReveal delay={0.1} className="grid grid-cols-2 gap-4">
-            {[
-              ['20–35%', 'Gross revenue share'],
-              ['2–3.5 yrs', 'Typical payback'],
-              ['70%', 'Loan-to-value available'],
-              ['24×7', 'Livanto-run operations'],
-            ].map(([value, label]) => (
-              <div key={label} className="rounded-2xl border border-line bg-surface-alt p-6 text-center">
-                <div className="font-display text-xl font-bold text-brand-600">{value}</div>
-                <div className="mt-1 text-xs text-muted">{label}</div>
-              </div>
-            ))}
-          </ScrollReveal>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="mode-dark flex min-h-[70vh] items-center py-28">
-        <div className="container-lv text-center">
-          <ScrollReveal as="h2" className="font-display text-display-lg font-bold">
-            The road ahead is electric.
-          </ScrollReveal>
-          <ScrollReveal delay={0.1} className="mt-10">
-            <Link href="/contact" className="btn btn-primary btn-lg">
-              Let&apos;s build it together →
-            </Link>
-          </ScrollReveal>
-        </div>
-      </section>
+      <SolutionsGrid />
+      <TechPlatform />
+      <div id="network">
+        <NetworkMapIndia />
+      </div>
+      <FranchiseTeaser />
+      <ImpactStats />
+      <InsightsTeaser />
     </>
   );
 }
