@@ -59,6 +59,9 @@
     @apply inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold
            transition-all duration-300 ease-cinematic;
   }
+  .btn-lg {
+    @apply px-8 py-4 text-base;
+  }
   .btn-primary {
     @apply bg-brand-500 text-white hover:bg-brand-600;
   }

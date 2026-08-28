@@ -4,11 +4,14 @@ Next.js 14 (App Router) rebuild of the public marketing site, replacing the
 static `../website` single-pager so the site can support real routing,
 reusable components, and scroll-driven motion.
 
-This is being built incrementally, one step at a time, per an agreed
-step-by-step process. Current state: **design system + navbar/footer +
-home hero**. Everything else (ecosystem, solutions, products, technology,
-network, franchise, final CTA, and the remaining six pages) is still to
-come.
+This was built incrementally, per an agreed step-by-step process. Current
+state: **all 8 routes built** — `/`, `/solutions`, `/products`,
+`/technology`, `/network`, `/franchise`, `/about`, `/contact`. Remaining
+polish work: real product/station photography (currently an abstract
+`ChargerGlyph` illustration stands in), a live network map once station
+data is public, and real franchise ROI figures once commercial terms are
+finalized (the franchise page deliberately routes to a custom-quote CTA
+instead of showing invented numbers).
 
 ## Stack
 
@@ -31,16 +34,32 @@ genuinely needs finer control than Framer Motion gives.
 marketing/
 ├── src/
 │   ├── app/
-│   │   ├── layout.js      # fonts, metadata, Navbar/Footer/SmoothScroll shell
-│   │   ├── page.js        # home page (hero built; rest pending)
-│   │   └── globals.css    # design tokens + component layer (@layer components)
-│   └── components/
-│       ├── Navbar.jsx     # sticky nav: transparent-over-hero → compact on scroll
-│       ├── Footer.jsx
-│       ├── Hero.jsx       # flagship hero: staggered entrance + scroll dissolve
-│       ├── ScrollReveal.jsx
-│       └── SmoothScrollProvider.jsx
-└── tailwind.config.js     # brand colors, fluid display type scale
+│   │   ├── layout.js               # fonts, metadata, Navbar/Footer/SmoothScroll shell
+│   │   ├── page.js                 # home: hero, ecosystem, solutions/products/tech
+│   │   │                           #   previews, network stats, franchise, final CTA
+│   │   ├── globals.css             # design tokens + component layer
+│   │   ├── solutions/page.js       # large storytelling blocks, no card grid
+│   │   ├── products/{page.js,ProductsClient.jsx}  # power selector + full catalog
+│   │   ├── technology/page.js      # scroll-driven phone + CMS + connectivity flow
+│   │   ├── network/page.js         # stats (real + honest placeholders) + finder shell
+│   │   ├── franchise/page.js       # journey stepper + "Livanto provides" + no-invented-ROI CTA
+│   │   ├── about/page.js           # editorial: mission, approach, values
+│   │   └── contact/page.js         # real contact info + enquiry-type selector
+│   ├── components/
+│   │   ├── Navbar.jsx / Footer.jsx
+│   │   ├── Hero.jsx                # flagship hero: staggered entrance + scroll dissolve
+│   │   ├── Card3D.jsx              # cursor-tilt 3D card, used across all pages
+│   │   ├── Toggle.jsx              # sliding-pill segmented control
+│   │   ├── ChargerGlyph.jsx        # abstract charger illustration (stand-in for photography)
+│   │   ├── PhoneShowcase.jsx / PhoneScreens.jsx  # Electra-style scroll-driven app demo
+│   │   ├── ConnectivityFlow.jsx    # animated vehicle→charger→cloud→CMS→app→driver flow
+│   │   ├── FranchiseJourney.jsx    # interactive 7-step stepper
+│   │   ├── ContactForm.jsx
+│   │   ├── StatCounter.jsx         # spring-animated number counter
+│   │   ├── ScrollReveal.jsx / SmoothScrollProvider.jsx
+│   │   └── SolutionBlock.jsx       # alternating large visual+copy block
+│   └── lib/products.js             # single source of truth for hardware specs
+└── tailwind.config.js               # brand colors, fluid display type scale
 ```
 
 ## Content sourcing
