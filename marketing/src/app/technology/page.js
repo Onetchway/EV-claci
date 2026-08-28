@@ -7,6 +7,27 @@ import PhoneShowcase from '@/components/PhoneShowcase';
 import ConnectivityFlow from '@/components/ConnectivityFlow';
 import TechPlatform from '@/components/TechPlatform';
 import { FindScreen, DiscoverScreen, StartScreen, LiveScreen, PayScreen, HistoryScreen } from '@/components/PhoneScreens';
+import AppBadges from '@/components/AppBadges';
+
+function HeroDeviceComposite() {
+  return (
+    <div className="relative flex items-center justify-center gap-4">
+      <div className="relative z-10 h-[300px] w-[150px] shrink-0 rounded-[28px] border border-line bg-ink-soft p-2 shadow-2xl sm:h-[360px] sm:w-[180px]">
+        <div className="absolute left-1/2 top-2 z-10 h-3 w-16 -translate-x-1/2 rounded-full bg-black" />
+        <div className="relative h-full w-full overflow-hidden rounded-[22px] bg-gradient-to-b from-surface-dark to-ink">
+          <LiveScreen />
+        </div>
+      </div>
+      <Image
+        src="/products/livanto-dc-120.png"
+        alt="Livanto charger"
+        width={110}
+        height={220}
+        className="h-56 w-auto object-contain sm:h-72"
+      />
+    </div>
+  );
+}
 
 export const metadata = {
   title: 'Technology',
@@ -78,8 +99,8 @@ export default function TechnologyPage() {
                 Explore Platform →
               </Link>
             </ScrollReveal>
-            <ScrollReveal delay={0.1} className="flex justify-center gap-3">
-              <Image src="/products/livanto-dc-120.png" alt="Livanto charger" width={110} height={220} className="h-56 w-auto object-contain" />
+            <ScrollReveal delay={0.1}>
+              <HeroDeviceComposite />
             </ScrollReveal>
           </div>
 
@@ -141,10 +162,7 @@ export default function TechnologyPage() {
                 </li>
               ))}
             </ul>
-            <div className="mt-6 flex gap-3">
-              <span className="rounded-lg border border-line px-4 py-2 text-xs font-semibold text-muted">Download on the App Store</span>
-              <span className="rounded-lg border border-line px-4 py-2 text-xs font-semibold text-muted">Get it on Google Play</span>
-            </div>
+            <AppBadges dark={false} className="mt-6" />
           </ScrollReveal>
 
           <ScrollReveal delay={0.1} className="rounded-2xl border border-line bg-surface-alt p-6">

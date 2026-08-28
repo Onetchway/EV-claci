@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Zap, Leaf, ShieldCheck, Radar, Rocket } from 'lucide-react';
+import { Zap, Leaf, ShieldCheck, Radar, Rocket, Paintbrush, MonitorSmartphone, Plug, Palette, ClipboardCheck, Wrench, Gauge, HeadphonesIcon, CheckCircle2 } from 'lucide-react';
 import Toggle from '@/components/Toggle';
 import ScrollReveal from '@/components/ScrollReveal';
 import Card3D from '@/components/Card3D';
@@ -32,6 +32,22 @@ const USE_CASES = [
   { title: 'Highway Charging', tag: 'Long-distance travel', image: '/brand/station-dehradun.jpg' },
   { title: 'Fleet Charging', tag: 'Commercial EV fleets', image: null },
   { title: 'Destination Charging', tag: 'Malls, offices, hotels', image: '/brand/hero-charging.jpg' },
+];
+
+const CUSTOMIZATIONS = [
+  { icon: Paintbrush, title: 'Branding & Wraps', body: 'Custom branding and graphics on the charger body.' },
+  { icon: MonitorSmartphone, title: 'Screen Branding', body: 'Display your brand on the charger screen.' },
+  { icon: Plug, title: 'Connector Options', body: 'Multiple connector configurations to match your fleet.' },
+  { icon: Palette, title: 'Colour Customisation', body: 'Choose colours that represent your brand.' },
+];
+
+const SERVICE_STEPS = [
+  { icon: ClipboardCheck, title: 'Site Assessment', body: 'Expert evaluation and planning.' },
+  { icon: Wrench, title: 'Installation', body: 'Professional and safe installation.' },
+  { icon: CheckCircle2, title: 'Commissioning', body: 'Testing and smooth commissioning.' },
+  { icon: Gauge, title: 'Monitoring 24×7', body: 'Real-time monitoring and alerts.' },
+  { icon: Radar, title: 'Maintenance', body: 'Preventive and corrective maintenance.' },
+  { icon: HeadphonesIcon, title: '24×7 Support', body: 'Always available when you need us.' },
 ];
 
 const FAQ = [
@@ -326,23 +342,41 @@ export default function ProductsClient() {
         </div>
       </section>
 
-      {/* Support band */}
-      <section className="bg-surface-alt py-16">
-        <div className="container-lv flex flex-col items-center gap-8 text-center">
-          <ScrollReveal>
-            <h3 className="font-display text-lg font-bold">Complete support. End-to-end partnership.</h3>
-            <p className="mt-1 text-sm text-muted">From site assessment to long-term operations.</p>
+      {/* Customize + Support */}
+      <section className="bg-surface-alt py-24">
+        <div className="container-lv grid gap-6 lg:grid-cols-2">
+          <ScrollReveal className="rounded-2xl border border-line bg-white p-8">
+            <span className="eyebrow">Customize Your Charger</span>
+            <h3 className="mt-2 font-display text-lg font-bold">Make it yours.</h3>
+            <div className="mt-6 grid grid-cols-2 gap-5">
+              {CUSTOMIZATIONS.map((c) => (
+                <div key={c.title}>
+                  <c.icon className="h-5 w-5 text-brand-600" />
+                  <div className="mt-2 text-xs font-bold">{c.title}</div>
+                  <p className="mt-1 text-[11px] text-muted">{c.body}</p>
+                </div>
+              ))}
+            </div>
           </ScrollReveal>
-          <ScrollReveal delay={0.06} className="flex flex-wrap justify-center gap-8 text-xs font-semibold text-ink/70">
-            {['Site Assessment', 'Installation & Commissioning', 'Training', '24×7 Support', 'Maintenance'].map((s) => (
-              <span key={s}>{s}</span>
-            ))}
+
+          <ScrollReveal delay={0.08} className="rounded-2xl border border-line bg-white p-8">
+            <span className="eyebrow">Built for Uptime</span>
+            <h3 className="mt-2 font-display text-lg font-bold">Supported at every step.</h3>
+            <div className="mt-6 grid grid-cols-2 gap-5">
+              {SERVICE_STEPS.map((s) => (
+                <div key={s.title}>
+                  <s.icon className="h-5 w-5 text-brand-600" />
+                  <div className="mt-2 text-xs font-bold">{s.title}</div>
+                  <p className="mt-1 text-[11px] text-muted">{s.body}</p>
+                </div>
+              ))}
+            </div>
           </ScrollReveal>
-          <ScrollReveal delay={0.1}>
-            <Link href="/contact" className="btn btn-primary">
-              Talk to Our Experts →
-            </Link>
-          </ScrollReveal>
+        </div>
+        <div className="container-lv mt-10 flex justify-center">
+          <Link href="/contact" className="btn btn-primary">
+            Talk to Our Experts →
+          </Link>
         </div>
       </section>
 
