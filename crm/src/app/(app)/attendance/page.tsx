@@ -221,7 +221,7 @@ function MyAttendanceTab() {
                     <td className="td">{l.leaveTypeLabel}</td>
                     <td className="td text-ink-600">{formatDate(l.fromDate)} – {formatDate(l.toDate)}</td>
                     <td className="td text-right tabular-nums">{l.days}</td>
-                    <td className="td max-w-[220px] truncate text-ink-500" title={l.reason || undefined}>{l.reason || "—"}</td>
+                    <td className="td max-w-[260px] whitespace-normal break-words text-ink-500">{l.reason || "—"}</td>
                     <td className="td"><Badge className={LEAVE_STATUS_STYLE[l.status]}>{l.status}</Badge></td>
                     <td className="td text-right">
                       {l.status === "PENDING" && (
@@ -543,7 +543,7 @@ function ApprovalsTab() {
                     <td className="td">{r.leaveTypeLabel}</td>
                     <td className="td text-ink-600">{formatDate(r.fromDate)} – {formatDate(r.toDate)}</td>
                     <td className="td text-right tabular-nums">{r.days}</td>
-                    <td className="td max-w-[220px] truncate text-ink-500" title={r.reason || undefined}>{r.reason || "—"}</td>
+                    <td className="td max-w-[260px] whitespace-normal break-words text-ink-500">{r.reason || "—"}</td>
                     <td className="td text-right">
                       <div className="flex justify-end gap-2">
                         <button type="button" onClick={() => setDecisionTarget({ req: r, status: "APPROVED" })} className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline">
@@ -584,7 +584,7 @@ function ApprovalsTab() {
                     <td className="td">{r.userName}</td>
                     <td className="td">{r.leaveTypeLabel}</td>
                     <td className="td text-ink-600">{formatDate(r.fromDate)} – {formatDate(r.toDate)}</td>
-                    <td className="td max-w-[220px] truncate text-ink-500" title={r.reason || undefined}>{r.reason || "—"}</td>
+                    <td className="td max-w-[260px] whitespace-normal break-words text-ink-500">{r.reason || "—"}</td>
                     <td className="td"><Badge className={LEAVE_STATUS_STYLE[r.status]}>{r.status}</Badge></td>
                     <td className="td text-ink-500">{r.decidedBy?.name ?? "—"}</td>
                   </tr>
