@@ -19,7 +19,7 @@ import {
 import type {
   Actor, ClientInfo, EoiDoc, EoiVersion, FinancingInfo, Lead, MergedLeadRef, SiteInfo,
 } from "../types";
-import { buildSearchTokens, formatINR, normalisePhone, toDate } from "../utils";
+import { buildSearchTokens, formatINR, normalisePhone, toDate, toE164India } from "../utils";
 import { logActivitySafe } from "./activity";
 import { sortByTimestamp, subscribeUnion } from "./subscribe-union";
 
@@ -173,6 +173,19 @@ export function subscribeLead(
   );
 }
 
+/** Investor portal (see /portal) — every lead whose client phone belongs to this phone/OTP-signed-in investor. Firestore rules restrict this query to the caller's own phone (ownsLeadAsInvestor), so it can never return anyone else's lead. */
+export function subscribeInvestorLeads(
+  investorPhoneE164: string,
+  cb: (rows: Lead[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getDb(), LEADS), where("investorPhoneE164", "==", investorPhoneE164)),
+    (snap) => cb(snap.docs.map((d) => mapLead(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export async function getLead(id: string): Promise<Lead | null> {
   const snap = await getDoc(doc(getDb(), LEADS, id));
   return snap.exists() ? mapLead(snap.id, snap.data()) : null;
@@ -270,6 +283,32 @@ export const DEFAULT_FINANCING: FinancingInfo = {
   subsidyPct: null,
 };
 
+/**
+ * One-off admin utility: leads created before `investorPhoneE164` existed
+ * (or merged in a way that skipped it) have it unset or stale. Scans every
+ * lead and fills it in from `client.phone` so the investor portal — which
+ * matches a signed-in phone against this field — works for pre-existing
+ * leads too. Safe to re-run; only touches leads that are actually out of sync.
+ */
+export async function backfillInvestorPhones(): Promise<number> {
+  const db = getDb();
+  const snap = await getDocs(collection(db, LEADS));
+  const stale = snap.docs.filter((d) => {
+    const data = d.data() as Lead;
+    return data.client?.phone && data.investorPhoneE164 !== toE164India(data.client.phone);
+  });
+  const CHUNK = 400;
+  for (let i = 0; i < stale.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    for (const d of stale.slice(i, i + CHUNK)) {
+      const data = d.data() as Lead;
+      batch.update(d.ref, { investorPhoneE164: toE164India(data.client.phone) });
+    }
+    await batch.commit();
+  }
+  return stale.length;
+}
+
 export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> {
   const db = getDb();
   const code = await nextLeadCode(draft.type);
@@ -287,6 +326,7 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
     stage: draft.stage ?? ("NEW" as Stage),
     status: "ACTIVE" as LeadStatus,
     client,
+    investorPhoneE164: toE164India(client.phone),
     source: draft.source,
     sourceDetail: draft.sourceDetail ?? "",
     config,
@@ -358,7 +398,10 @@ export async function updateLead(lead: Lead, patch: LeadPatch, actor: Actor): Pr
   const db = getDb();
   const update: Record<string, unknown> = {};
 
-  if (patch.client) update.client = { ...patch.client, phone: normalisePhone(patch.client.phone) };
+  if (patch.client) {
+    update.client = { ...patch.client, phone: normalisePhone(patch.client.phone) };
+    update.investorPhoneE164 = toE164India(patch.client.phone);
+  }
   if (patch.source !== undefined) update.source = patch.source;
   if (patch.sourceDetail !== undefined) update.sourceDetail = patch.sourceDetail;
   if (patch.site !== undefined) update.site = patch.site;

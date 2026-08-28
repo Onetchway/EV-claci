@@ -111,6 +111,11 @@ export function isValidPhone(raw: string): boolean {
   return /^[6-9]\d{9}$/.test(normalisePhone(raw));
 }
 
+/** The bare 10-digit Indian mobile in the +91 E.164 form Firebase Phone Auth's `phone_number` token claim uses — lets the investor portal match a signed-in phone against `Lead.investorPhoneE164`. */
+export function toE164India(raw: string): string {
+  return `+91${normalisePhone(raw)}`;
+}
+
 export function isValidEmail(raw: string): boolean {
   return !raw || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(raw.trim());
 }

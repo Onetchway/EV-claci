@@ -12,14 +12,15 @@ import {
 import {
   FOLLOWUP_TYPE_LABEL, FOLLOWUP_TYPES, GST_SLABS, INDIAN_STATES, type FollowupType,
 } from "@/lib/constants";
+import { backfillInvestorPhones } from "@/lib/db/leads";
 import { defaultSettings, saveSettings, subscribeSettings } from "@/lib/db/settings";
 import { saveSequence, subscribeSequences } from "@/lib/db/tasks";
-import { viewerIsAdmin } from "@/lib/permissions";
+import { isSuperAdmin, viewerIsAdmin } from "@/lib/permissions";
 import type { AppSettings, FollowupSequence } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
 const TABS = [
-  "Company", "Bank", "Letter of Intent", "Finance", "OCPP", "Dropdown lists", "Follow-up sequences",
+  "Company", "Bank", "Letter of Intent", "Finance", "OCPP", "Dropdown lists", "Follow-up sequences", "Investor portal",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -524,7 +525,53 @@ export default function SettingsPage() {
       )}
 
       {tab === "Follow-up sequences" && <SequencesEditor actor={actor!} />}
+
+      {tab === "Investor portal" && <InvestorPortalTab isSuperAdmin={isSuperAdmin(viewer.role)} />}
     </>
+  );
+}
+
+/** Read-only phone/OTP portal (/portal) investors and franchise partners use to check their own lead's progress — see /portal/login. */
+function InvestorPortalTab({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+  const { busy, run } = useAsyncAction();
+  const [result, setResult] = useState<number | null>(null);
+
+  return (
+    <Card
+      title="Investor / franchise partner portal"
+      subtitle="A separate, view-only site at /portal — investors sign in with their phone number and an OTP (no CRM account) and see their own lead's stage, EOI, agreement, project progress and photos, payments and loan status."
+    >
+      <div className="space-y-4 text-sm text-ink-700">
+        <p>
+          Matching works off each lead&apos;s client phone number, normalised to +91 form. A lead created
+          or edited from now on keeps this in sync automatically — this button is only for leads that
+          existed before the portal did, or that somehow drifted out of sync.
+        </p>
+        {isSuperAdmin ? (
+          <Button
+            loading={busy}
+            onClick={() =>
+              void run(async () => {
+                const n = await backfillInvestorPhones();
+                setResult(n);
+              }, "Investor phone numbers synced.")
+            }
+          >
+            Sync investor phone numbers
+          </Button>
+        ) : (
+          <p className="text-xs text-ink-500">Only a Super Admin can run the sync.</p>
+        )}
+        {result !== null && (
+          <p className="text-xs text-ink-500">{result === 0 ? "Everything was already in sync." : `Updated ${result} lead${result === 1 ? "" : "s"}.`}</p>
+        )}
+        <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-900 ring-1 ring-inset ring-amber-200">
+          One-time setup this needs outside the app: enable the <strong>Phone</strong> sign-in provider under
+          Firebase Console → Authentication → Sign-in method. SMS OTPs are billed by Firebase/Google beyond its
+          free monthly quota.
+        </p>
+      </div>
+    </Card>
   );
 }
 

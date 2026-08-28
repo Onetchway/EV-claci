@@ -26,6 +26,7 @@ import {
   changeProjectStage, projectProgress, projectRisks, setProjectStatus,
   subscribeProject, suggestedStage, trashProject, updateProject, updateWorkstream,
 } from "@/lib/db/projects";
+import { ProjectPhotosPanel } from "@/components/project-photos-panel";
 import { canEditLead, canReassign, canTrash } from "@/lib/permissions";
 import { buildQuote, describeConfig } from "@/lib/pricing";
 import type { Project, ProjectWorkstream } from "@/lib/types";
@@ -529,6 +530,8 @@ export default function ProjectDetailPage() {
           </div>
         </Card>
       )}
+
+      {actor && <ProjectPhotosPanel project={project} actor={actor} canEdit={canEdit} className="mt-4" />}
 
       {/* Stage change */}
       <Modal

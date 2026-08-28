@@ -132,6 +132,7 @@ function MyAttendanceTab() {
     const type = leaveTypes.find((t) => t.id === leaveTypeId);
     if (!type) throw new Error("Choose a leave type.");
     if (toDate < fromDate) throw new Error("End date can't be before the start date.");
+    if (!reason.trim()) throw new Error("Add a reason for the leave.");
     await applyForLeave({
       uid: profile.uid, userName: profile.name,
       leaveTypeId: type.id, leaveTypeLabel: type.label,
@@ -306,7 +307,7 @@ function MyAttendanceTab() {
             <Field label="To" required><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></Field>
           </div>
           {toDate >= fromDate && <p className="text-xs text-ink-500">{daysBetween(fromDate, toDate)} day(s)</p>}
-          <Field label="Reason"><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+          <Field label="Reason" required><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
         </div>
       </Modal>
     </div>

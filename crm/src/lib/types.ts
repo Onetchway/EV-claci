@@ -356,6 +356,8 @@ export interface Lead {
   stage: Stage;
   status: LeadStatus;
   client: ClientInfo;
+  /** `client.phone` in +91 E.164 form — kept in sync automatically (see createLead/updateLead) so the phone/OTP investor portal can match a signed-in Firebase Phone Auth user against their own lead(s) without re-deriving the format at read time. */
+  investorPhoneE164?: string | null;
   source: Source;
   sourceDetail?: string;
   /** Charger basket the client is interested in. */
@@ -1429,6 +1431,21 @@ export interface DiscomInfo {
   note?: string;
   appliedAt?: TS;
   energisedAt?: TS;
+}
+
+/** A site-progress photo the project team uploads as work happens — visible to CRM staff and, read-only, to the investor portal for that project's own franchisee. */
+export interface ProjectPhoto {
+  id: string;
+  projectId: string;
+  storagePath: string;
+  url: string;
+  contentType: string;
+  size: number;
+  caption?: string;
+  /** Which workstream/stage this photo documents, if tagged. */
+  workstream?: Workstream | null;
+  uploadedAt: TS;
+  uploadedBy: Actor;
 }
 
 export interface Project {
