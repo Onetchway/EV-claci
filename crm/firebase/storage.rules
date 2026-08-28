@@ -39,6 +39,19 @@ service firebase.storage {
                     || (signedIn() && resource.metadata.uploadedBy == request.auth.uid);
     }
 
+    // Project site-progress photos (see projects/{id}/photos in Firestore).
+    // Same posture as leads/** above: Storage can't check Firestore
+    // ownership, so this is gated on being signed in generally, and the
+    // investor portal only ever learns a photo's path through its own
+    // Firestore-side, ownership-scoped read of that subcollection.
+    match /projects/{projectId}/{kind}/{fileName} {
+      allow read: if signedIn();
+      allow create: if signedIn() && acceptableFile();
+      allow update: if false;
+      allow delete: if isAdmin()
+                    || (signedIn() && resource.metadata.uploadedBy == request.auth.uid);
+    }
+
     match /tickets/{ticketId}/{fileName} {
       allow read: if signedIn();
       allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'] && acceptableFile();

@@ -13,8 +13,34 @@ service cloud.firestore {
 
     // ---------------------------------------------------------------- helpers
 
+    // Deliberately excludes an investor-portal principal (see investorSignedIn
+    // below) even though they are a real, authenticated Firebase user —
+    // every existing rule in this file is written assuming "signed in" means
+    // "CRM staff," and role() falls back to 'AGENT' for anyone signed in
+    // without a role claim. Carving investors out here, once, means none of
+    // those rules had to be individually re-audited for the new principal
+    // type; their access is instead an explicit, narrow allowlist further
+    // down (ownsLeadAsInvestor and its call sites).
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.token.firebase.sign_in_provider != 'phone';
+    }
+
+    // The investor/franchise-partner portal (see /portal in the app) signs
+    // in with phone number + OTP, never with a CRM profile or role — this
+    // is the ONLY thing that principal is allowed to read anywhere in this
+    // file, matched against the lead(s) whose client phone is theirs.
+    function investorSignedIn() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'phone';
+    }
+
+    function investorPhone() {
+      return investorSignedIn() ? request.auth.token.phone_number : null;
+    }
+
+    function ownsLeadAsInvestor(leadId) {
+      return investorPhone() != null
+        && leadId != null
+        && get(/databases/$(database)/documents/leads/$(leadId)).data.investorPhoneE164 == investorPhone();
     }
 
     // Login is restricted to Livanto Green's own Google Workspace — this is
@@ -161,7 +187,7 @@ service cloud.firestore {
     // ------------------------------------------------------------------ leads
 
     match /leads/{leadId} {
-      allow read: if seesAllLeads() || ownsExisting();
+      allow read: if seesAllLeads() || ownsExisting() || ownsLeadAsInvestor(leadId);
 
       // A new lead must be attributed to the creator. Admins may assign to
       // anyone; agents may only create leads for themselves.
@@ -186,7 +212,7 @@ service cloud.firestore {
       // ------------------------------------------------------------- payments
 
       match /payments/{paymentId} {
-        allow read: if canTouchLead(leadId);
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
 
         allow create: if canEditLead(leadId)
                       && actorIsSelf('createdBy')
@@ -205,7 +231,7 @@ service cloud.firestore {
       // ------------------------------------------------------------ documents
 
       match /documents/{documentId} {
-        allow read: if canTouchLead(leadId);
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
 
         allow create: if canEditLead(leadId)
                       && actorIsSelf('uploadedBy')
@@ -228,7 +254,7 @@ service cloud.firestore {
       // editing an old one, so a letter a signatory already saw stays
       // exactly as it was sent.
       match /eoiVersions/{versionId} {
-        allow read: if canTouchLead(leadId);
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
         allow create: if canEditLead(leadId) && actorIsSelf('archivedBy');
         // Deleting an already-archived copy outright (not archiving it
         // further) is at least as consequential as issuing a letter.
@@ -242,7 +268,12 @@ service cloud.firestore {
     // know how their customer's station is progressing — but only the roles
     // that run delivery can change one.
     match /projects/{projectId} {
-      allow read: if signedIn();
+      // Split from a single `allow read` so an investor's access stays a
+      // single-document get() keyed off their own lead — never a list query
+      // that could enumerate every project in the company.
+      allow get: if signedIn()
+                 || (resource.data.sourceLeadId != null && ownsLeadAsInvestor(resource.data.sourceLeadId));
+      allow list: if signedIn();
 
       allow create: if canWriteLeads() && actorIsSelf('createdBy');
 
@@ -256,6 +287,17 @@ service cloud.firestore {
         allow update: if canVerifyDocs()
                       || (canWriteLeads() && request.resource.data.status == resource.data.status);
         allow delete: if isAdmin();
+      }
+
+      // Site-progress photos the project team uploads as work happens —
+      // visible to staff and, read-only, to the investor whose lead this
+      // project came from (same ownership chain as the `get` rule above).
+      match /photos/{photoId} {
+        allow read: if signedIn()
+                    || ownsLeadAsInvestor(get(/databases/$(database)/documents/projects/$(projectId)).data.sourceLeadId);
+        allow create: if canWriteLeads() && actorIsSelf('uploadedBy');
+        allow delete: if isAdmin()
+                      || (canWriteLeads() && resource.data.uploadedBy.uid == uid());
       }
     }
 
