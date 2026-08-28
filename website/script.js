@@ -1,4 +1,4 @@
-/* Electriva marketing site — interactions */
+/* Livanto Green marketing site — interactions */
 (function () {
   "use strict";
 

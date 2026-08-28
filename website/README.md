@@ -1,8 +1,7 @@
-# Electriva — Marketing Website
+# Livanto Green — Marketing Website
 
-A modern, fully responsive public-facing marketing site for **Electriva**, a
-leading EV Charging Point Operator (CPO) in India and a brand of Zivah
-International Private Limited.
+A modern, fully responsive public-facing marketing site for **Livanto Green**,
+a leading EV Charging Point Operator (CPO) in India.
 
 The design synthesises cues from four leading EV-charging sites:
 
@@ -14,7 +13,7 @@ The design synthesises cues from four leading EV-charging sites:
 | [Statiq](https://www.statiq.in/) | Indian CPO context, animated stat counters, green identity |
 
 Content (stats, products, partners, journey, business models) is taken from the
-**“We Are Electriva” company profile**.
+**“We Are Livanto Green” company profile**.
 
 ## Structure
 
@@ -30,7 +29,7 @@ website/
 ## Sections
 
 Hero · Trust bar · Traction stats · Solutions · Products · Software ecosystem ·
-Network · Why Electriva · Sustainability · Franchise (CoCo / PoCo) · Journey
+Network · Why Livanto Green · Sustainability · Franchise (CoCo / PoCo) · Journey
 timeline · Contact form · Footer.
 
 ## Run it
