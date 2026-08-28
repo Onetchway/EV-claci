@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2, Phone, ShieldCheck } from "lucide-react";
 
+import { PortalBrand } from "@/components/portal-brand";
 import { usePortalAuth } from "@/lib/portal-auth";
 
 const RECAPTCHA_CONTAINER_ID = "portal-recaptcha-container";
@@ -59,18 +60,8 @@ export default function PortalLoginPage() {
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-card ring-1 ring-inset ring-ink-100">
         <div className="mb-6 text-center">
-          <div className="flex flex-col items-center leading-[1.05]">
-            <div className="flex items-end text-lg font-extrabold tracking-tight text-navy-900">
-              <span>liv</span>
-              <svg viewBox="0 0 10 8" className="mx-px mb-[3px] h-[9px] w-[10px] fill-brand-600" aria-hidden>
-                <polygon points="5,0 10,8 0,8" />
-              </svg>
-              <span>nto</span>
-            </div>
-            <span className="flex items-baseline text-lg font-extrabold tracking-tight text-brand-600">
-              green
-              <span className="ml-[3px] h-[4px] w-[4px] shrink-0 rounded-full bg-brand-600" />
-            </span>
+          <div className="flex justify-center">
+            <PortalBrand />
           </div>
           <p className="mt-2 text-sm text-ink-500">Franchise partner portal</p>
         </div>

@@ -12,9 +12,9 @@ import {
 import {
   FOLLOWUP_TYPE_LABEL, FOLLOWUP_TYPES, GST_SLABS, INDIAN_STATES, type FollowupType,
 } from "@/lib/constants";
-import { backfillInvestorPhones } from "@/lib/db/leads";
 import { defaultSettings, saveSettings, subscribeSettings } from "@/lib/db/settings";
 import { saveSequence, subscribeSequences } from "@/lib/db/tasks";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isSuperAdmin, viewerIsAdmin } from "@/lib/permissions";
 import type { AppSettings, FollowupSequence } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -552,8 +552,16 @@ function InvestorPortalTab({ isSuperAdmin }: { isSuperAdmin: boolean }) {
             loading={busy}
             onClick={() =>
               void run(async () => {
-                const n = await backfillInvestorPhones();
-                setResult(n);
+                const current = getFirebaseAuth().currentUser;
+                if (!current) throw new Error("Your session expired. Sign in again.");
+                const token = await current.getIdToken();
+                const res = await fetch("/api/leads/backfill-investor-phone", {
+                  method: "POST",
+                  headers: { authorization: `Bearer ${token}` },
+                });
+                const body = (await res.json().catch(() => ({}))) as { error?: string; updated?: number };
+                if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status}).`);
+                setResult(body.updated ?? 0);
               }, "Investor phone numbers synced.")
             }
           >

@@ -283,32 +283,6 @@ export const DEFAULT_FINANCING: FinancingInfo = {
   subsidyPct: null,
 };
 
-/**
- * One-off admin utility: leads created before `investorPhoneE164` existed
- * (or merged in a way that skipped it) have it unset or stale. Scans every
- * lead and fills it in from `client.phone` so the investor portal — which
- * matches a signed-in phone against this field — works for pre-existing
- * leads too. Safe to re-run; only touches leads that are actually out of sync.
- */
-export async function backfillInvestorPhones(): Promise<number> {
-  const db = getDb();
-  const snap = await getDocs(collection(db, LEADS));
-  const stale = snap.docs.filter((d) => {
-    const data = d.data() as Lead;
-    return data.client?.phone && data.investorPhoneE164 !== toE164India(data.client.phone);
-  });
-  const CHUNK = 400;
-  for (let i = 0; i < stale.length; i += CHUNK) {
-    const batch = writeBatch(db);
-    for (const d of stale.slice(i, i + CHUNK)) {
-      const data = d.data() as Lead;
-      batch.update(d.ref, { investorPhoneE164: toE164India(data.client.phone) });
-    }
-    await batch.commit();
-  }
-  return stale.length;
-}
-
 export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> {
   const db = getDb();
   const code = await nextLeadCode(draft.type);

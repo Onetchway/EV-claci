@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2, LogOut, MapPin, Zap } from "lucide-react";
 
+import { PortalBrand } from "@/components/portal-brand";
 import { STAGE_META } from "@/lib/constants";
 import { subscribeInvestorLeads } from "@/lib/db/leads";
 import { usePortalAuth } from "@/lib/portal-auth";
@@ -37,16 +38,16 @@ export default function PortalDashboardPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-ink-500">Signed in as</p>
-          <p className="text-sm font-semibold text-ink-900">{phoneE164}</p>
+        <PortalBrand className="h-7 max-w-[130px] object-contain" />
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-ink-500">{phoneE164}</span>
+          <button
+            onClick={() => void signOut().then(() => router.replace("/portal/login"))}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-ink-500 hover:bg-white hover:text-ink-800"
+          >
+            <LogOut className="h-4 w-4" /> Sign out
+          </button>
         </div>
-        <button
-          onClick={() => void signOut().then(() => router.replace("/portal/login"))}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-ink-500 hover:bg-white hover:text-ink-800"
-        >
-          <LogOut className="h-4 w-4" /> Sign out
-        </button>
       </div>
 
       <h1 className="mb-1 text-xl font-bold text-ink-900">Your franchise{leads.length !== 1 ? "s" : ""}</h1>

@@ -334,7 +334,10 @@ service cloud.firestore {
     // Readable by everyone signed in because the LOI generator needs it;
     // writable only by admins.
     match /settings/{docId} {
-      allow read: if signedIn();
+      // Also readable by the investor portal — it needs the company name/logo
+      // for its own branding, and the bank details here are the same ones
+      // already printed on every EOI/invoice an investor legitimately sees.
+      allow read: if signedIn() || investorSignedIn();
       allow write: if isAdmin();
     }
 
