@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: var(--font-sora);
+  --font-body: var(--font-inter);
+}
+
+@layer base {
+  * { @apply box-border; }
+
+  html {
+    scroll-behavior: auto; /* Lenis drives smooth scroll in JS */
+  }
+
+  body {
+    @apply bg-surface text-ink font-body antialiased;
+    font-feature-settings: 'ss01' 1, 'cv01' 1;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+
+  ::selection {
+    background: theme('colors.lime.DEFAULT');
+    color: theme('colors.ink.DEFAULT');
+  }
+}
+
+/*
+  Everything below lives in @layer components so plain Tailwind utility
+  classes written at the call-site (e.g. `className="btn btn-outline
+  border-white/30"`) always win the cascade against these defaults —
+  Tailwind guarantees components < utilities regardless of source order,
+  but only for rules actually declared inside @layer.
+*/
+@layer components {
+  .container-lv {
+    @apply mx-auto w-full max-w-container px-6 md:px-10;
+  }
+
+  /* Section colour modes — the three visual registers the design system runs on */
+  .mode-light  { @apply bg-surface text-ink; }
+  .mode-alt    { @apply bg-surface-alt text-ink; }
+  .mode-dark   { @apply bg-surface-dark text-white; }
+  .mode-brand  { @apply bg-brand-800 text-white; }
+
+  .eyebrow {
+    @apply inline-block text-xs font-semibold tracking-[0.18em] uppercase text-brand-600;
+  }
+  .mode-dark .eyebrow,
+  .mode-brand .eyebrow {
+    @apply text-lime;
+  }
+
+  .btn {
+    @apply inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold
+           transition-all duration-300 ease-cinematic;
+  }
+  .btn-primary {
+    @apply bg-brand-500 text-white hover:bg-brand-600;
+  }
+  .btn-outline {
+    @apply border border-ink/15 text-ink hover:border-ink/40;
+  }
+  .mode-dark .btn-outline,
+  .mode-brand .btn-outline {
+    @apply border-white/25 text-white hover:border-white/60;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
