@@ -94,10 +94,10 @@ export default function FranchisePage() {
               <div className="absolute right-4 top-4 rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-left">
                   {[
-                    ['50+', 'Charging Locations'],
-                    ['100+', 'Charging Points'],
+                    ['AC + DC', 'Charger Portfolio'],
+                    ['20–35%', 'Revenue Share'],
+                    ['2–3.5 Yrs', 'Typical Payback'],
                     ['24×7', 'Network Operations'],
-                    ['Pan-India', 'Presence'],
                   ].map(([v, l]) => (
                     <div key={l}>
                       <div className="font-display text-sm font-bold">{v}</div>

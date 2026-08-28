@@ -44,7 +44,7 @@ export default function Card3D({ children, className, glow = true }) {
           aria-hidden="true"
           className="pointer-events-none absolute -inset-px rounded-[inherit] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
           style={{
-            background: `radial-gradient(320px circle at ${glowX} ${glowY}, rgba(198,249,78,.18), transparent 65%)`,
+            background: `radial-gradient(320px circle at ${glowX} ${glowY}, rgba(111,219,146,.18), transparent 65%)`,
           }}
         />
       )}

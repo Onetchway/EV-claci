@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { Linkedin, Target, Eye, Heart, UserCheck, ShieldCheck, Lightbulb, Leaf, Award, Users, Play } from 'lucide-react';
 import ScrollReveal from '@/components/ScrollReveal';
 import LeaderAvatar from '@/components/LeaderAvatar';
-import StatCounter from '@/components/StatCounter';
 
 export const metadata = {
   title: 'About',
@@ -11,10 +10,10 @@ export const metadata = {
 };
 
 const HERO_STATS = [
-  { icon: '⚡', value: 10000, suffix: '+', label: 'EV Chargers Installed' },
-  { icon: '🔋', value: 12, suffix: 'M+', label: 'Charging Sessions' },
-  { icon: '📍', value: 1014, suffix: '+', label: 'Cities Across India' },
-  { icon: '⏱️', value: 100, suffix: ' Cr+', label: 'KM Powered' },
+  { icon: '📅', value: '2025', label: 'Year Founded' },
+  { icon: '📍', value: '2', label: 'Office Locations' },
+  { icon: '⚡', value: 'AC + DC', label: 'Charger Portfolio' },
+  { icon: '🕐', value: '24×7', label: 'Operations Support' },
 ];
 
 const PILLARS = [
@@ -26,14 +25,14 @@ const PILLARS = [
 const JOURNEY = [
   { year: '2025', title: 'Livanto Green', body: 'is founded with a vision to build a future-ready charging network.' },
   { year: '2025 Q2', title: 'First deployment', body: 'Launched first set of AC & DC chargers and deployed initial stations across key cities.' },
-  { year: '2025 Q3', title: 'Scaling up', body: 'Expanded operations pan-India and crossed 10,000+ charging sessions.' },
+  { year: '2025 Q3', title: 'Scaling up', body: 'Expanded operations and strengthened our pan-India charging network vision.' },
   { year: '2025 Q4', title: 'Network growth', body: 'Scaled network infrastructure and onboarded strategic partners.' },
   { year: '2026+', title: 'What’s next', body: 'Continuing to innovate, expand and empower India’s clean mobility revolution.' },
 ];
 
 const LEADERS = [
   { name: 'Ashwani Dixit', title: 'Chief Executive Officer' },
-  { name: 'Divya Chaudhary', title: 'Marketing Head' },
+  { name: 'Divya Chowdhary', title: 'Head of Media Operations' },
   { name: 'Anand', title: 'Business Head' },
 ];
 
@@ -47,13 +46,13 @@ const VALUES = [
 ];
 
 const IMPACT_STATS = [
-  ['10K+', 'Chargers Installed'],
-  ['12M+', 'Charging Sessions'],
-  ['25+', 'States & UTs'],
-  ['100Cr+', 'KM Powered'],
+  ['2025', 'Founded'],
+  ['6+', 'Charger Models'],
+  ['2', 'Livanto Offices'],
+  ['Pan-India', 'Growth Vision'],
 ];
 
-const PARTNER_LOGOS = ['TATA', 'Mahindra', 'JBM', 'Ather', 'Amazon', 'Delta'];
+const PARTNER_LOGOS = ['TATA', 'Mahindra', 'Ather', 'Kia', 'MG', 'VinFast'];
 
 export default function AboutPage() {
   return (
@@ -102,9 +101,7 @@ export default function AboutPage() {
               <div key={s.label} className="flex items-center gap-3">
                 <span className="text-xl">{s.icon}</span>
                 <div>
-                  <div className="font-display text-lg font-bold">
-                    <StatCounter value={s.value} suffix={s.suffix} />
-                  </div>
+                  <div className="font-display text-lg font-bold">{s.value}</div>
                   <div className="text-xs text-muted">{s.label}</div>
                 </div>
               </div>

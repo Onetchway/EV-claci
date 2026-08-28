@@ -81,7 +81,7 @@ export default function ProductsClient() {
               <div
                 aria-hidden="true"
                 className="absolute inset-0"
-                style={{ background: 'radial-gradient(420px circle at 50% 40%, rgba(18,183,106,.1), transparent 70%)' }}
+                style={{ background: 'radial-gradient(420px circle at 50% 40%, rgba(32,168,74,.1), transparent 70%)' }}
               />
               <AnimatePresence mode="wait">
                 <motion.div
@@ -97,7 +97,7 @@ export default function ProductsClient() {
                     alt={selected.name}
                     width={340}
                     height={380}
-                    className="h-full w-auto object-contain drop-shadow-[0_25px_30px_rgba(6,78,59,0.2)]"
+                    className="h-full w-auto object-contain drop-shadow-[0_25px_30px_rgba(0,61,43,0.2)]"
                     priority
                   />
                 </motion.div>

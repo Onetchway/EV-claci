@@ -17,15 +17,8 @@ const LINKS = [
       { href: '/solutions#highway', label: 'Highway charging' },
     ],
   },
-  {
-    label: 'Charging Network',
-    href: '/#network',
-    items: [
-      { href: '/#network', label: 'Live locations' },
-      { href: '/franchise', label: 'Become a host' },
-    ],
-  },
   { label: 'Technology', href: '/technology' },
+  { label: 'Products', href: '/products' },
   {
     label: 'For Business',
     href: '/franchise',
@@ -107,7 +100,7 @@ export default function Navbar() {
       <header
         className={clsx(
           'fixed inset-x-0 top-0 z-50 border-b bg-white/90 backdrop-blur-md transition-shadow duration-300',
-          scrolled ? 'border-line shadow-[0_2px_20px_-8px_rgba(6,78,59,0.15)]' : 'border-transparent'
+          scrolled ? 'border-line shadow-[0_2px_20px_-8px_rgba(0,61,43,0.15)]' : 'border-transparent'
         )}
       >
         <div className="container-lv flex items-center justify-between py-4">

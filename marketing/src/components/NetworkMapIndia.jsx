@@ -18,7 +18,7 @@ const PINS = [
   { x: 165, y: 230, status: 'planned' },
 ];
 
-const STATUS_COLOR = { live: '#12B76A', upcoming: '#EAB308', planned: '#94A3A8' };
+const STATUS_COLOR = { live: '#20A84A', upcoming: '#EAB308', planned: '#94A3A8' };
 
 export default function NetworkMapIndia() {
   return (
@@ -31,20 +31,20 @@ export default function NetworkMapIndia() {
           </h2>
           <div className="mt-8 grid grid-cols-2 gap-5">
             <div>
-              <div className="flex items-center gap-2 text-brand-600"><MapPin className="h-4 w-4" /><span className="text-xs font-semibold uppercase text-muted">Cities</span></div>
-              <div className="mt-1 font-display text-xl font-bold">50+</div>
+              <div className="flex items-center gap-2 text-brand-600"><MapPin className="h-4 w-4" /><span className="text-xs font-semibold uppercase text-muted">Charger Types</span></div>
+              <div className="mt-1 font-display text-xl font-bold">AC & DC</div>
             </div>
             <div>
-              <div className="flex items-center gap-2 text-brand-600"><Zap className="h-4 w-4" /><span className="text-xs font-semibold uppercase text-muted">Charging Stations</span></div>
-              <div className="mt-1 font-display text-xl font-bold">100+</div>
+              <div className="flex items-center gap-2 text-brand-600"><Zap className="h-4 w-4" /><span className="text-xs font-semibold uppercase text-muted">Network Models</span></div>
+              <div className="mt-1 font-display text-xl font-bold">CoCo & PoCo</div>
             </div>
             <div>
-              <div className="flex items-center gap-2 text-brand-600"><Battery className="h-4 w-4" /><span className="text-xs font-semibold uppercase text-muted">Charging Points</span></div>
-              <div className="mt-1 font-display text-xl font-bold">100+</div>
+              <div className="flex items-center gap-2 text-brand-600"><Battery className="h-4 w-4" /><span className="text-xs font-semibold uppercase text-muted">Support</span></div>
+              <div className="mt-1 font-display text-xl font-bold">24×7</div>
             </div>
             <div>
-              <div className="flex items-center gap-2 text-brand-600"><MapIcon className="h-4 w-4" /><span className="text-xs font-semibold uppercase text-muted">kWh Delivered</span></div>
-              <div className="mt-1 font-display text-xl font-bold">1M+</div>
+              <div className="flex items-center gap-2 text-brand-600"><MapIcon className="h-4 w-4" /><span className="text-xs font-semibold uppercase text-muted">Coverage</span></div>
+              <div className="mt-1 font-display text-xl font-bold">Pan-India</div>
             </div>
           </div>
         </ScrollReveal>
@@ -83,12 +83,11 @@ export default function NetworkMapIndia() {
           </Link>
 
           <div className="mt-8 rounded-2xl border border-line bg-surface-alt p-5">
-            <div className="font-display text-sm font-bold uppercase tracking-wide">Delhi NCR</div>
+            <div className="font-display text-sm font-bold uppercase tracking-wide">Lucknow</div>
             <dl className="mt-3 space-y-2 text-xs">
-              <div className="flex justify-between"><dt className="text-muted">Station type</dt><dd className="font-semibold">Highway hub</dd></div>
-              <div className="flex justify-between"><dt className="text-muted">Charging capacity</dt><dd className="font-semibold">1200 kW</dd></div>
-              <div className="flex justify-between"><dt className="text-muted">Charging points</dt><dd className="font-semibold">12</dd></div>
-              <div className="flex justify-between"><dt className="text-muted">Status</dt><dd className="font-semibold text-brand-600">Operational</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">Region</dt><dd className="font-semibold">Uttar Pradesh</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">Charger type</dt><dd className="font-semibold">AC & DC</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">Status</dt><dd className="font-semibold text-brand-600">Live</dd></div>
             </dl>
           </div>
 

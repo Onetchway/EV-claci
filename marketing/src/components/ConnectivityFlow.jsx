@@ -13,7 +13,7 @@ export default function ConnectivityFlow() {
           <ScrollReveal key={node} delay={i * 0.08} className="flex flex-1 flex-col items-center md:flex-row">
             <div className="flex flex-col items-center gap-2 py-3 md:py-0">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] text-lime">
-                <span className="h-2 w-2 rounded-full bg-lime shadow-[0_0_10px_rgba(198,249,78,.8)]" />
+                <span className="h-2 w-2 rounded-full bg-lime shadow-[0_0_10px_rgba(111,219,146,.8)]" />
               </div>
               <span className="text-center text-xs font-semibold uppercase tracking-wide text-white/70">{node}</span>
             </div>

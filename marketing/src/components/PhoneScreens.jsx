@@ -21,8 +21,8 @@ const Row = ({ label, value, accent }) => (
 export function FindScreen() {
   return (
     <ScreenShell title="Find a charger">
-      <div className="relative h-40 overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_30%_30%,rgba(18,183,106,.35),transparent_60%),linear-gradient(160deg,#0e2119,#07150f)]">
-        <span className="absolute left-[30%] top-[35%] h-3 w-3 rounded-full bg-lime shadow-[0_0_12px_rgba(198,249,78,.8)]" />
+      <div className="relative h-40 overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_30%_30%,rgba(32,168,74,.35),transparent_60%),linear-gradient(160deg,#0e2119,#07150f)]">
+        <span className="absolute left-[30%] top-[35%] h-3 w-3 rounded-full bg-lime shadow-[0_0_12px_rgba(111,219,146,.8)]" />
         <span className="absolute left-[58%] top-[55%] h-3 w-3 rounded-full bg-brand-500" />
         <span className="absolute left-[45%] top-[70%] h-3 w-3 rounded-full bg-brand-500" />
       </div>
@@ -80,7 +80,7 @@ export function LiveScreen() {
               cy="50"
               r="42"
               fill="none"
-              stroke="#C6F94E"
+              stroke="#6FDB92"
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray="264"

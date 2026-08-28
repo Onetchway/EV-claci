@@ -172,18 +172,18 @@ export default function FranchiseCalculator() {
               onChange={(e) => setUtilisation(Number(e.target.value))}
               className="calc-slider mt-2 w-full"
               style={{
-                background: `linear-gradient(to right, #12B76A 0%, #12B76A ${utilisation}%, #E4ECE8 ${utilisation}%, #E4ECE8 100%)`,
+                background: `linear-gradient(to right, #20A84A 0%, #20A84A ${utilisation}%, #E4ECE8 ${utilisation}%, #E4ECE8 100%)`,
               }}
             />
             <style>{`
               .calc-slider { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 9999px; outline: none; cursor: pointer; }
               .calc-slider::-webkit-slider-thumb {
                 -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 9999px;
-                background: #12B76A; box-shadow: 0 0 0 4px rgba(18,183,106,.18); border: 2px solid white;
+                background: #20A84A; box-shadow: 0 0 0 4px rgba(32,168,74,.18); border: 2px solid white;
               }
               .calc-slider::-moz-range-thumb {
-                width: 20px; height: 20px; border-radius: 9999px; background: #12B76A;
-                box-shadow: 0 0 0 4px rgba(18,183,106,.18); border: 2px solid white;
+                width: 20px; height: 20px; border-radius: 9999px; background: #20A84A;
+                box-shadow: 0 0 0 4px rgba(32,168,74,.18); border: 2px solid white;
               }
             `}</style>
           </div>

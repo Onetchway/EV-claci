@@ -4,41 +4,45 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Livanto Green brand — carried over from the existing mark/site,
-        // extended into a full light/dark/brand design-system.
+        // Official Livanto Green core palette (design system, section 01):
+        // Navy #071A35 · Green #20A84A · Deep Green #003D2B ·
+        // Off White #F7F9F7 · Light Green #EAF7EE · Muted Grey #667085.
         ink: {
-          DEFAULT: '#07150F', // near-black, green-tinted — dark-mode base
-          soft: '#0E2119',
+          DEFAULT: '#071A35', // Livanto Navy — primary typography/navigation
+          soft: '#0F2A4A',
         },
         surface: {
-          DEFAULT: '#FFFFFF',
-          alt: '#F5FAF7',
-          dark: '#0C1C15',
-          darkAlt: '#122A20',
+          DEFAULT: '#F7F9F7', // Off White — main page background
+          alt: '#EAF7EE', // Light Green — soft cards/highlights
+          dark: '#003D2B', // Deep Green — dark CTA sections/footer
+          darkAlt: '#0A4A36',
         },
         line: {
           DEFAULT: '#E4ECE8',
-          dark: 'rgba(255,255,255,.12)',
+          dark: 'rgba(255,255,255,.14)',
         },
         muted: {
-          DEFAULT: '#5B7368',
-          light: '#9FC2B0',
+          DEFAULT: '#667085', // Muted Grey — secondary text
+          light: '#9AA5B1',
         },
         brand: {
-          50: '#F0FDF4',
-          100: '#DCFCE7',
-          200: '#BBF7D0',
-          300: '#86EFAC',
-          400: '#4ADE80',
-          500: '#12B76A', // primary
-          600: '#0A9956', // primary hover / darker
-          700: '#0A7A4A',
-          800: '#064E3B', // deep green, dark-section base
-          900: '#053A2B',
+          50: '#EAF7EE',
+          100: '#D2EEDB',
+          200: '#A6DDB8',
+          300: '#79CC96',
+          400: '#3EBA69',
+          500: '#20A84A', // Livanto Green — primary CTA / accents / active states
+          600: '#1B8F3F',
+          700: '#167034',
+          800: '#003D2B', // Deep Green
+          900: '#00291D',
         },
         lime: {
-          DEFAULT: '#C6F94E', // accent — used sparingly for emphasis/CTA glow
-          soft: '#E4FFA8',
+          // No separate accent hue in the approved palette — this is a
+          // lighter tint of Livanto Green, used only for emphasis on dark
+          // (Deep Green) surfaces where the primary green needs more contrast.
+          DEFAULT: '#6FDB92',
+          soft: '#A6EFC0',
         },
       },
       fontFamily: {

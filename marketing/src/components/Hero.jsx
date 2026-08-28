@@ -18,10 +18,10 @@ const rise = {
 };
 
 const STATS = [
-  { icon: MapPin, value: '50+', label: 'Charging Locations' },
-  { icon: Zap, value: '100+', label: 'Charging Points' },
-  { icon: Clock, value: '24×7', label: 'Network Operations' },
-  { icon: MapIcon, value: 'Pan-India', label: 'Presence' },
+  { icon: Zap, value: 'AC + DC', label: 'Charger Portfolio' },
+  { icon: Clock, value: '24×7', label: 'Support & Operations' },
+  { icon: MapPin, value: 'Noida & Lucknow', label: 'Livanto Offices' },
+  { icon: MapIcon, value: 'Pan-India', label: 'Growth Vision' },
 ];
 
 export default function Hero() {

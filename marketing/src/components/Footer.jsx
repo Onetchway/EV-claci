@@ -12,11 +12,11 @@ const COLUMNS = [
     ],
   },
   {
-    heading: 'Charging Network',
+    heading: 'Products',
     links: [
-      { href: '/#network', label: 'Network Map' },
-      { href: '/#network', label: 'Live Locations' },
-      { href: '/franchise', label: 'Upcoming Sites' },
+      { href: '/products', label: 'AC Chargers' },
+      { href: '/products', label: 'DC Fast Chargers' },
+      { href: '/technology', label: 'Software & CMS' },
     ],
   },
   {
