@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import Image from 'next/image';
 import Link from 'next/link';
 import Toggle from '@/components/Toggle';
-import ChargerGlyph from '@/components/ChargerGlyph';
 import ScrollReveal from '@/components/ScrollReveal';
 import Card3D from '@/components/Card3D';
 import { PRODUCTS } from '@/lib/products';
@@ -38,8 +38,8 @@ export default function ProductsClient() {
             Hardware built to charge the future.
           </ScrollReveal>
           <ScrollReveal as="p" delay={0.1} className="mt-6 max-w-xl text-lead text-white/65">
-            From everyday AC charging to 360 kW flagship DC — every product
-            here ships from Livanto’s own line, not a catalogue of parts.
+            From everyday AC charging to fleet-grade 240 kW DC — every
+            product here ships from Livanto’s own line, not a catalogue of parts.
           </ScrollReveal>
         </div>
       </section>
@@ -57,7 +57,12 @@ export default function ProductsClient() {
           </div>
 
           <div className="mt-14 grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div className="relative h-[380px] rounded-3xl border border-line-dark bg-gradient-to-b from-white/[0.04] to-transparent">
+            <div className="relative h-[380px] overflow-hidden rounded-3xl border border-line-dark bg-gradient-to-b from-surface-alt to-white">
+              <div
+                aria-hidden="true"
+                className="absolute inset-0"
+                style={{ background: 'radial-gradient(420px circle at 50% 40%, rgba(18,183,106,.14), transparent 70%)' }}
+              />
               <AnimatePresence mode="wait">
                 <motion.div
                   key={selected.id}
@@ -65,11 +70,15 @@ export default function ProductsClient() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.94 }}
                   transition={{ duration: 0.5, ease: EASE }}
-                  className="absolute inset-0"
+                  className="absolute inset-0 flex items-center justify-center p-8"
                 >
-                  <ChargerGlyph
-                    intensity={selected.power / 360}
-                    connectors={selected.connector.toLowerCase().includes('dual') ? 2 : 1}
+                  <Image
+                    src={selected.image}
+                    alt={selected.name}
+                    width={340}
+                    height={380}
+                    className="h-full w-auto object-contain drop-shadow-[0_25px_30px_rgba(6,78,59,0.25)]"
+                    priority
                   />
                 </motion.div>
               </AnimatePresence>
@@ -156,7 +165,10 @@ export default function ProductsClient() {
             {PRODUCTS.map((p, i) => (
               <ScrollReveal key={p.id} delay={(i % 3) * 0.08}>
                 <Card3D className="h-full rounded-2xl border border-line bg-white p-7">
-                  <span className="eyebrow">{p.category === 'AC' ? 'AC' : 'DC fast'}</span>
+                  <div className="flex h-32 items-center justify-center">
+                    <Image src={p.image} alt={p.name} width={90} height={128} className="h-full w-auto object-contain" />
+                  </div>
+                  <span className="eyebrow mt-4 inline-block">{p.category === 'AC' ? 'AC' : 'DC fast'}</span>
                   <h3 className="mt-3 font-display text-xl font-bold">{p.name}</h3>
                   <p className="mt-2 text-sm text-muted">{p.tagline}</p>
                   <div className="mt-5 flex items-baseline gap-2">

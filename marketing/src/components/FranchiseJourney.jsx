@@ -2,21 +2,13 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-
-const STEPS = [
-  { n: '01', title: 'Choose location', body: 'Identify a site with footfall and parking — home, workplace, retail or highway.' },
-  { n: '02', title: 'Site evaluation', body: 'Livanto assesses power availability, load capacity and layout for viability.' },
-  { n: '03', title: 'Select infrastructure', body: 'Pick the right AC/DC mix from the Livanto product line for your site.' },
-  { n: '04', title: 'Deployment', body: 'Installation, electrical work and commissioning, managed end to end.' },
-  { n: '05', title: 'Launch', body: 'The station goes live on the Livanto Green network and app.' },
-  { n: '06', title: 'Operate', body: 'Remote monitoring, OCPP management and 24/7 support keep it running.' },
-  { n: '07', title: 'Grow', body: 'Add capacity or replicate the model at your next site.' },
-];
+import { FRANCHISE_STEPS } from '@/lib/franchise';
 
 const EASE = [0.16, 0.84, 0.44, 1];
 
 export default function FranchiseJourney() {
   const [active, setActive] = useState(0);
+  const STEPS = FRANCHISE_STEPS;
   const step = STEPS[active];
 
   return (

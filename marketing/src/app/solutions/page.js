@@ -13,7 +13,7 @@ const SOLUTIONS = [
   { eyebrow: 'Fleet', title: 'Keep your fleet moving.', body: 'High-throughput DC charging with dynamic load balancing, built for delivery, logistics and mobility fleets that can’t afford downtime.', intensity: 0.65 },
   { eyebrow: 'Commercial', title: 'Turn parking into charging.', body: 'The AD Wall Smart Charger turns a charging bay into an advertising surface — revenue from the wall, not just the session.', intensity: 0.5, reverse: true },
   { eyebrow: 'Public', title: 'Charge wherever the journey takes you.', body: 'ARAI-certified 60 kW dual-CCS2 DC charging for public hubs, with dynamic load balancing built in.', intensity: 0.55 },
-  { eyebrow: 'Highway', title: 'Fast charging for long-distance mobility.', body: 'Up to 360 kW DC — Livanto’s flagship charger, engineered for the fastest possible turnaround on the highway.', intensity: 1, reverse: true },
+  { eyebrow: 'Highway', title: 'Fast charging for long-distance mobility.', body: 'The Livanto DC 240 — fleet-grade, dual-gun DC fast charging engineered for buses, trucks and rapid highway turnaround.', intensity: 1, reverse: true },
 ];
 
 export default function SolutionsPage() {

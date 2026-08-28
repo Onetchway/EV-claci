@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'framer-motion';
 
@@ -55,8 +56,8 @@ export default function Hero() {
             <Link href="/solutions" className="btn btn-primary">
               Explore solutions →
             </Link>
-            <Link href="/network" className="btn btn-outline">
-              Explore network →
+            <Link href="/products" className="btn btn-outline">
+              View hardware →
             </Link>
           </motion.div>
         </motion.div>
@@ -73,7 +74,14 @@ export default function Hero() {
 function EnergyField() {
   return (
     <div className="absolute inset-0" aria-hidden="true">
-      <div className="absolute inset-0 bg-[radial-gradient(1100px_620px_at_78%_-8%,rgba(18,183,106,.5),transparent_60%),radial-gradient(760px_620px_at_8%_115%,rgba(198,249,78,.16),transparent_55%),linear-gradient(160deg,#06231a_0%,#07150F_55%,#03110c_100%)]" />
+      <Image
+        src="/brand/hero-charging.jpg"
+        alt=""
+        fill
+        priority
+        className="object-cover opacity-45 mix-blend-luminosity"
+      />
+      <div className="absolute inset-0 bg-[radial-gradient(1100px_620px_at_78%_-8%,rgba(18,183,106,.55),transparent_60%),radial-gradient(760px_620px_at_8%_115%,rgba(198,249,78,.18),transparent_55%),linear-gradient(160deg,rgba(6,35,26,.92)_0%,rgba(7,21,15,.94)_55%,rgba(3,17,12,.97)_100%)]" />
       <svg
         className="absolute inset-0 h-full w-full opacity-70"
         viewBox="0 0 1440 900"

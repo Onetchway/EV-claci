@@ -9,7 +9,6 @@ const LINKS = [
   { href: '/solutions', label: 'Solutions' },
   { href: '/products', label: 'Products' },
   { href: '/technology', label: 'Technology' },
-  { href: '/network', label: 'Network' },
   { href: '/franchise', label: 'Franchise' },
   { href: '/about', label: 'About' },
 ];
@@ -64,8 +63,8 @@ export default function Navbar() {
           </nav>
 
           <div className="hidden lg:flex items-center gap-3">
-            <Link href="/network" className={clsx('btn btn-outline', !scrolled && 'border-white/30 text-white hover:border-white/70')}>
-              Find a charger
+            <Link href="/franchise" className={clsx('btn btn-outline', !scrolled && 'border-white/30 text-white hover:border-white/70')}>
+              Partner with us
             </Link>
             <Link href="/contact" className="btn btn-primary">
               Contact
@@ -125,8 +124,8 @@ export default function Navbar() {
               <Link href="/contact" onClick={() => setOpen(false)} className="btn btn-primary">
                 Contact
               </Link>
-              <Link href="/network" onClick={() => setOpen(false)} className="btn border border-white/25 text-white">
-                Find a charger
+              <Link href="/franchise" onClick={() => setOpen(false)} className="btn border border-white/25 text-white">
+                Partner with us
               </Link>
             </div>
           </motion.div>

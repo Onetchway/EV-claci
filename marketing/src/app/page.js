@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import Hero from '@/components/Hero';
 import ScrollReveal from '@/components/ScrollReveal';
@@ -84,11 +85,16 @@ export default function HomePage() {
             {FEATURED_PRODUCTS.map((p, i) => (
               <ScrollReveal key={p.id} delay={i * 0.08}>
                 <Card3D className="h-full rounded-2xl border border-line-dark bg-white/[0.03]">
-                  <Link href="/products" className="block h-full p-8">
-                    <span className="eyebrow">{p.category === 'AC' ? 'AC' : 'DC fast'}</span>
-                    <h3 className="mt-3 font-display text-2xl font-bold">{p.name}</h3>
-                    <p className="mt-2 text-white/60">{p.tagline}</p>
-                    <div className="mt-6 font-display text-3xl font-bold text-lime">{p.powerLabel}</div>
+                  <Link href="/products" className="grid h-full grid-cols-[auto_1fr] items-center gap-6 p-8">
+                    <div className="flex h-28 w-20 items-center justify-center rounded-xl bg-white/95 p-2">
+                      <Image src={p.image} alt={p.name} width={70} height={110} className="h-full w-auto object-contain" />
+                    </div>
+                    <div>
+                      <span className="eyebrow">{p.category === 'AC' ? 'AC' : 'DC fast'}</span>
+                      <h3 className="mt-3 font-display text-2xl font-bold">{p.name}</h3>
+                      <p className="mt-2 text-white/60">{p.tagline}</p>
+                      <div className="mt-6 font-display text-3xl font-bold text-lime">{p.powerLabel}</div>
+                    </div>
                   </Link>
                 </Card3D>
               </ScrollReveal>
@@ -123,29 +129,46 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Network stats */}
+      {/* Live deployments */}
       <section className="mode-brand py-24">
         <div className="container-lv">
-          <ScrollReveal as="h2" className="max-w-xl font-display text-display-sm font-semibold">
-            A network built for movement.
-          </ScrollReveal>
-          <div className="mt-14 grid grid-cols-2 gap-8 md:grid-cols-4">
-            <ScrollReveal>
-              <StatCounter value={95} suffix="%+" className="font-display text-4xl font-bold" />
-              <div className="mt-1 text-sm text-white/70">Network uptime</div>
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <ScrollReveal as="h2" className="max-w-xl font-display text-display-sm font-semibold">
+              Live on the ground.
             </ScrollReveal>
-            {['Charging points', 'Cities', 'States'].map((label) => (
-              <ScrollReveal key={label}>
-                <div className="font-display text-4xl font-bold">Growing</div>
-                <div className="mt-1 text-sm text-white/70">{label}</div>
-              </ScrollReveal>
-            ))}
+            <ScrollReveal delay={0.05}>
+              <StatCounter value={95} suffix="%+" className="font-display text-3xl font-bold text-lime" />
+              <span className="ml-2 text-sm text-white/70">network uptime</span>
+            </ScrollReveal>
           </div>
-          <ScrollReveal delay={0.1} className="mt-8">
-            <Link href="/network" className="text-sm font-semibold text-white underline underline-offset-4 hover:no-underline">
-              Explore the network →
-            </Link>
-          </ScrollReveal>
+          <div className="mt-12 grid gap-6 sm:grid-cols-2">
+            <ScrollReveal className="group relative overflow-hidden rounded-3xl">
+              <Image
+                src="/brand/station-lucknow.jpg"
+                alt="Livanto Green EV charging station, Lucknow"
+                width={760}
+                height={650}
+                className="h-72 w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <span className="absolute bottom-5 left-5 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold backdrop-blur-md">
+                Lucknow
+              </span>
+            </ScrollReveal>
+            <ScrollReveal delay={0.08} className="group relative overflow-hidden rounded-3xl">
+              <Image
+                src="/brand/station-dehradun.jpg"
+                alt="Livanto Green EV charging station, Dehradun"
+                width={760}
+                height={650}
+                className="h-72 w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <span className="absolute bottom-5 left-5 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold backdrop-blur-md">
+                Dehradun
+              </span>
+            </ScrollReveal>
+          </div>
         </div>
       </section>
 
@@ -157,16 +180,23 @@ export default function HomePage() {
             <h2 className="mt-4 font-display text-display-md font-semibold">Build the future of mobility.</h2>
             <p className="mt-5 max-w-md text-muted">
               Own the site, Livanto brings the hardware, software and
-              operations — a partnership built around your actual numbers.
+              operations — a 20–35% gross revenue share, with a payback
+              typically inside 2–3.5 years.
             </p>
             <Link href="/franchise" className="btn btn-primary mt-8">
               Become a Livanto partner →
             </Link>
           </ScrollReveal>
           <ScrollReveal delay={0.1} className="grid grid-cols-2 gap-4">
-            {['Location', 'Infrastructure', 'Technology', 'Operations'].map((s) => (
-              <div key={s} className="rounded-2xl border border-line bg-surface-alt p-6 text-center font-display font-semibold">
-                {s}
+            {[
+              ['20–35%', 'Gross revenue share'],
+              ['2–3.5 yrs', 'Typical payback'],
+              ['70%', 'Loan-to-value available'],
+              ['24×7', 'Livanto-run operations'],
+            ].map(([value, label]) => (
+              <div key={label} className="rounded-2xl border border-line bg-surface-alt p-6 text-center">
+                <div className="font-display text-xl font-bold text-brand-600">{value}</div>
+                <div className="mt-1 text-xs text-muted">{label}</div>
               </div>
             ))}
           </ScrollReveal>

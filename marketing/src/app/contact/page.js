@@ -32,8 +32,8 @@ export default function ContactPage() {
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Email</dt>
                   <dd className="mt-1">
-                    <a href="mailto:ashwanidixit@aol.com" className="text-brand-600 hover:text-brand-700">
-                      ashwanidixit@aol.com
+                    <a href="mailto:business@livantogreen.com" className="text-brand-600 hover:text-brand-700">
+                      business@livantogreen.com
                     </a>
                   </dd>
                 </div>
@@ -46,8 +46,16 @@ export default function ContactPage() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Address</dt>
-                  <dd className="mt-1 text-ink/80">AG08, Gulmohar Green, Ghaziabad, Uttar Pradesh, India</dd>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Noida office</dt>
+                  <dd className="mt-1 text-ink/80">
+                    8th Floor, Infinity Techno Park, C56A/16, Block-C, Sector 62, Noida, Uttar Pradesh 201309
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Lucknow office</dt>
+                  <dd className="mt-1 text-ink/80">
+                    4th Floor, 413 Millennium Palace, Sushant Golf City, Lucknow, Uttar Pradesh 226030
+                  </dd>
                 </div>
               </dl>
             </ScrollReveal>

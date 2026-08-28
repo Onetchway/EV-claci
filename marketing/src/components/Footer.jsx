@@ -7,7 +7,6 @@ const COLUMNS = [
       { href: '/solutions', label: 'Solutions' },
       { href: '/products', label: 'Products' },
       { href: '/technology', label: 'Technology' },
-      { href: '/network', label: 'Network' },
       { href: '/franchise', label: 'Franchise' },
       { href: '/about', label: 'About' },
     ],
@@ -16,7 +15,6 @@ const COLUMNS = [
     heading: 'Get in touch',
     links: [
       { href: '/contact', label: 'Contact' },
-      { href: '/network', label: 'Find a charger' },
       { href: '/franchise', label: 'Become a partner' },
     ],
   },
@@ -43,7 +41,10 @@ export default function Footer() {
               Livanto <span className="text-lime">Green</span>
             </span>
             <p className="mt-3 max-w-[24ch] text-sm text-white/55">
-              Intelligent EV charging infrastructure for how India actually drives.
+              Powering mobility. Driving sustainability.
+            </p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-lime/80">
+              #BeyondCharging
             </p>
           </div>
 
@@ -65,7 +66,7 @@ export default function Footer() {
 
         <div className="mt-14 flex flex-col gap-3 border-t border-line-dark pt-8 text-xs text-white/40 md:flex-row md:items-center md:justify-between">
           <span>© {new Date().getFullYear()} Livanto Green Private Limited</span>
-          <span>Ghaziabad, Uttar Pradesh, India</span>
+          <span>Noida &amp; Lucknow, Uttar Pradesh, India</span>
         </div>
       </div>
     </footer>

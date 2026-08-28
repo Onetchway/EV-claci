@@ -2,19 +2,26 @@ import Link from 'next/link';
 import ScrollReveal from '@/components/ScrollReveal';
 import Card3D from '@/components/Card3D';
 import FranchiseJourney from '@/components/FranchiseJourney';
+import FranchiseCalculator from '@/components/FranchiseCalculator';
+import { LANDOWNER_MODELS } from '@/lib/franchise';
 
 export const metadata = {
   title: 'Franchise',
-  description: 'Build and operate an EV charging business with Livanto Green — hardware, software, brand and network, backed by 24/7 monitoring and support.',
+  description: 'Build and operate an EV charging business with Livanto Green — 20–35% gross revenue share, typical payback in 2–3.5 years.',
 };
 
 const PROVIDES = [
-  { title: 'Hardware', body: 'AC and DC chargers from Livanto’s own line — 7.4 kW to 360 kW.' },
+  { title: 'Hardware', body: 'AC and DC chargers from Livanto’s own line — Livanto Home to Livanto DC 240.' },
   { title: 'Software', body: 'App, CMS and OCPP management, ready on day one.' },
   { title: 'Brand', body: 'A recognised, growing charging network your site plugs into.' },
   { title: 'Technology', body: 'Remote diagnostics, dynamic load balancing, OTA updates.' },
-  { title: 'Operations', body: 'Installation, commissioning and day-to-day running, handled.' },
-  { title: 'Support', body: '24/7 monitoring with SLA-backed uptime commitments.' },
+  { title: 'Operations', body: 'Turnkey EPC installation, commissioning and 24×7 running.' },
+  { title: 'Support', body: 'Ongoing training and quarterly business reviews (QBRs).' },
+];
+
+const CORE_MODELS = [
+  { title: 'CoCo', full: '(Company-Owned, Company-Operated)', body: 'High standards in flagship locations. Livanto provides full investment & capex. Landowner receives a stable fixed rental or base revenue share.' },
+  { title: 'PoCo', full: '(Partner-Owned, Company-Operated)', body: 'Asset owned by franchisee; Livanto operates the technology. Partner provides land + capex, in exchange for 20–35% gross revenue share.' },
 ];
 
 export default function FranchisePage() {
@@ -30,7 +37,7 @@ export default function FranchisePage() {
           </ScrollReveal>
           <ScrollReveal as="p" delay={0.1} className="mt-6 max-w-xl text-lead text-white/65">
             Build and operate your EV charging business with Livanto Green —
-            we bring the hardware, software and network; you bring the site.
+            we bring the hardware, software and operations; you bring the site.
           </ScrollReveal>
           <ScrollReveal delay={0.15} className="mt-9 flex flex-wrap gap-3">
             <Link href="/contact" className="btn btn-primary">
@@ -40,6 +47,36 @@ export default function FranchisePage() {
               View hardware →
             </Link>
           </ScrollReveal>
+
+          <ScrollReveal delay={0.2} className="mt-14 grid grid-cols-2 gap-6 border-t border-line-dark pt-10 sm:grid-cols-4">
+            {[
+              ['20–35%', 'Gross revenue share'],
+              ['2–3.5 yrs', 'Payback period'],
+              ['70%', 'Bank financing available'],
+              ['24×7', 'Livanto-run operations'],
+            ].map(([value, label]) => (
+              <div key={label}>
+                <div className="font-display text-2xl font-bold text-lime">{value}</div>
+                <div className="mt-1 text-xs text-white/50">{label}</div>
+              </div>
+            ))}
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* Calculator */}
+      <section className="mode-dark border-t border-line-dark py-24">
+        <div className="container-lv">
+          <ScrollReveal as="h2" className="max-w-2xl font-display text-display-md font-semibold">
+            Model your investment.
+          </ScrollReveal>
+          <ScrollReveal delay={0.06} as="p" className="mt-4 max-w-xl text-white/60">
+            Six franchise options, from a 60 kW car charger to a 360 kW
+            fleet-grade DC station. Drag to see the real numbers.
+          </ScrollReveal>
+          <div className="mt-12">
+            <FranchiseCalculator />
+          </div>
         </div>
       </section>
 
@@ -47,10 +84,49 @@ export default function FranchisePage() {
       <section className="mode-dark border-t border-line-dark py-24">
         <div className="container-lv">
           <ScrollReveal as="h2" className="max-w-2xl font-display text-display-md font-semibold">
-            The franchise journey.
+            A partnership, in seven steps.
           </ScrollReveal>
           <div className="mt-14">
             <FranchiseJourney />
+          </div>
+        </div>
+      </section>
+
+      {/* Core models: CoCo / PoCo */}
+      <section className="mode-light py-28">
+        <div className="container-lv">
+          <ScrollReveal as="h2" className="max-w-2xl font-display text-display-md font-semibold">
+            The franchise engine.
+          </ScrollReveal>
+          <div className="mt-14 grid gap-6 md:grid-cols-2">
+            {CORE_MODELS.map((m, i) => (
+              <ScrollReveal key={m.title} delay={i * 0.08} className="rounded-3xl border border-line bg-white p-9">
+                <h3 className="font-display text-2xl font-bold text-brand-600">{m.title}</h3>
+                <p className="mt-1 text-sm font-semibold text-muted">{m.full}</p>
+                <p className="mt-4 text-sm text-muted">{m.body}</p>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Landowner models */}
+      <section className="mode-alt py-28">
+        <div className="container-lv">
+          <ScrollReveal as="h2" className="max-w-2xl font-display text-display-md font-semibold">
+            The landowner opportunity.
+          </ScrollReveal>
+          <ScrollReveal delay={0.06} as="p" className="mt-4 max-w-xl text-muted">
+            If you own land, you can monetise it through EV charging — three ways.
+          </ScrollReveal>
+          <div className="mt-14 grid gap-6 md:grid-cols-3">
+            {LANDOWNER_MODELS.map((m, i) => (
+              <ScrollReveal key={m.title} delay={i * 0.08} className="rounded-2xl border border-line bg-white p-8">
+                <h3 className="font-display text-lg font-bold">{m.title}</h3>
+                <p className="text-sm font-semibold text-brand-600">{m.subtitle}</p>
+                <p className="mt-4 text-sm text-muted">{m.body}</p>
+              </ScrollReveal>
+            ))}
           </div>
         </div>
       </section>
@@ -71,35 +147,6 @@ export default function FranchisePage() {
               </ScrollReveal>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Business model — honest, no invented figures */}
-      <section className="mode-alt py-28">
-        <div className="container-lv grid gap-12 lg:grid-cols-2">
-          <ScrollReveal>
-            <span className="eyebrow">Business model</span>
-            <h2 className="mt-4 font-display text-display-sm font-semibold">
-              A partnership built around real numbers, not promises.
-            </h2>
-            <p className="mt-5 max-w-md text-muted">
-              Investment, revenue share and payback vary by charger mix, site
-              type and location — so rather than publish a generic ROI table,
-              Livanto’s team builds a proposal against your actual site.
-            </p>
-          </ScrollReveal>
-          <ScrollReveal delay={0.1} className="rounded-3xl border border-line bg-white p-10">
-            <h3 className="font-display text-lg font-bold">What we’ll work out together</h3>
-            <ul className="mt-5 space-y-3 text-sm text-muted">
-              <li className="flex gap-3"><span className="text-brand-600">→</span> Charger mix and total capex for your site</li>
-              <li className="flex gap-3"><span className="text-brand-600">→</span> Expected utilisation based on location and traffic</li>
-              <li className="flex gap-3"><span className="text-brand-600">→</span> Revenue share and payout structure</li>
-              <li className="flex gap-3"><span className="text-brand-600">→</span> Estimated payback timeline</li>
-            </ul>
-            <Link href="/contact" className="btn btn-primary mt-8">
-              Get a custom estimate →
-            </Link>
-          </ScrollReveal>
         </div>
       </section>
 
