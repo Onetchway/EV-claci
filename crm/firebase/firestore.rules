@@ -37,6 +37,24 @@ service cloud.firestore {
       return investorSignedIn() ? request.auth.token.phone_number : null;
     }
 
+    // For rules evaluated ON the lead document itself (leads/{leadId}'s own
+    // get/list) — compares straight against resource.data with no get()
+    // call. This matters beyond efficiency: Firestore can only prove a
+    // *list* query safe without per-document reads when the rule compares
+    // resource.data directly to the query's own equality filter (which
+    // /portal's investorPhoneE164 == ... query does); routing that same
+    // check through get() — even fetching this exact document — makes it
+    // opaque to that analysis and the whole list is denied. Confirmed
+    // against the Firestore emulator before/after this fix.
+    function ownsLeadDirectlyAsInvestor() {
+      return investorPhone() != null && resource.data.investorPhoneE164 == investorPhone();
+    }
+
+    // For rules evaluated on a DIFFERENT document that needs to check some
+    // lead's ownership by uid (a subcollection under it, or another
+    // top-level doc referencing it by id) — this one has to cross-reference,
+    // so it's the get()-based version, only ever used where there's no
+    // resource.data on the lead itself to compare directly.
     function ownsLeadAsInvestor(leadId) {
       return investorPhone() != null
         && leadId != null
@@ -187,7 +205,7 @@ service cloud.firestore {
     // ------------------------------------------------------------------ leads
 
     match /leads/{leadId} {
-      allow read: if seesAllLeads() || ownsExisting() || ownsLeadAsInvestor(leadId);
+      allow read: if seesAllLeads() || ownsExisting() || ownsLeadDirectlyAsInvestor();
 
       // A new lead must be attributed to the creator. Admins may assign to
       // anyone; agents may only create leads for themselves.
