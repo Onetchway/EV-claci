@@ -461,7 +461,7 @@ function CreateOrRegenerateModal({
 // letter and a read-only archived version.
 // ---------------------------------------------------------------------------
 
-function LoiLetterArticle({
+export function LoiLetterArticle({
   eoi, company, bank, readOnly, onPatch,
 }: {
   eoi: EoiDoc;

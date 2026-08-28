@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  ArrowLeft, Banknote, Check, ExternalLink, FileText, Landmark, Loader2, MapPin,
+  ArrowLeft, Banknote, Camera, Check, Download, FileText, Landmark, Loader2, MapPin,
 } from "lucide-react";
 
 import {
-  EOI_STATUS_LABEL, LEAD_TYPE_STAGES, LOAN_STAGE_COLOR, LOAN_STAGE_LABEL,
+  DOC_KIND_LABEL, EOI_STATUS_LABEL, LEAD_TYPE_STAGES, LOAN_STAGE_COLOR, LOAN_STAGE_LABEL,
   PAYMENT_STATUS_COLOR, PROJECT_STAGE_META, STAGE_META, TASK_STATUS_COLOR,
-  TASK_STATUS_LABEL, WORKSTREAM_LABEL, WORKSTREAMS,
+  TASK_STATUS_LABEL, WORKSTREAM_LABEL, WORKSTREAMS, type DocKind,
 } from "@/lib/constants";
 import { subscribeDocuments } from "@/lib/db/documents";
 import { subscribeLead } from "@/lib/db/leads";
@@ -21,17 +21,61 @@ import { usePortalAuth } from "@/lib/portal-auth";
 import type { Lead, LeadDocument, Payment, Project, ProjectPhoto } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
+const KYC_KINDS: DocKind[] = ["AADHAAR", "PAN", "GST_CERTIFICATE", "CANCELLED_CHEQUE", "PHOTOGRAPH"];
+const SITE_KINDS: DocKind[] = ["ELECTRICITY_BILL", "LOAD_SANCTION", "PROPERTY_PROOF", "LEASE_AGREEMENT", "SITE_PHOTO"];
+const AGREEMENT_KINDS: DocKind[] = ["FRANCHISE_AGREEMENT", "EOI_FORM"];
+
 function titleCase(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase();
 }
 
-function SectionCard({ title, icon: Icon, children }: { title: string; icon: typeof Banknote; children: React.ReactNode }) {
+function SectionCard({
+  title, icon: Icon, action, children,
+}: {
+  title: string; icon: typeof Banknote; action?: React.ReactNode; children: React.ReactNode;
+}) {
   return (
-    <div className="rounded-xl bg-white p-4 shadow-card ring-1 ring-inset ring-ink-100">
-      <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink-900">
-        <Icon className="h-4 w-4 text-brand-600" /> {title}
-      </h2>
+    <div className="rounded-xl bg-white p-4 shadow-card ring-1 ring-inset ring-ink-100 sm:p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-ink-900">
+          <Icon className="h-4 w-4 text-brand-600" /> {title}
+        </h2>
+        {action}
+      </div>
       {children}
+    </div>
+  );
+}
+
+function isImageFile(contentType: string) {
+  return contentType.startsWith("image/");
+}
+
+function DocGrid({ docs }: { docs: LeadDocument[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+      {docs.map((d) => (
+        <a
+          key={d.id}
+          href={d.url}
+          target="_blank"
+          rel="noreferrer"
+          className="group overflow-hidden rounded-lg border border-ink-200 transition hover:border-brand-300 hover:shadow-sm"
+        >
+          <div className="flex aspect-[4/3] items-center justify-center bg-ink-50">
+            {isImageFile(d.contentType) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={d.url} alt={DOC_KIND_LABEL[d.kind] ?? d.fileName} className="h-full w-full object-cover" />
+            ) : (
+              <FileText className="h-8 w-8 text-ink-300" />
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-1 p-2">
+            <span className="truncate text-xs font-medium text-ink-800">{DOC_KIND_LABEL[d.kind] ?? d.fileName}</span>
+            <Download className="h-3.5 w-3.5 shrink-0 text-ink-400 group-hover:text-brand-600" />
+          </div>
+        </a>
+      ))}
     </div>
   );
 }
@@ -100,9 +144,15 @@ export default function PortalLeadDetailPage() {
 
   const stagePath = LEAD_TYPE_STAGES[lead.type] ?? LEAD_TYPE_STAGES.FRANCHISE;
   const currentStageIdx = stagePath.indexOf(lead.stage);
+  const currentMeta = STAGE_META[lead.stage];
   const paid = lead.paidAmount ?? 0;
   const due = lead.dueAmount ?? Math.max(0, lead.value - paid);
   const financing = lead.financing;
+
+  const kycDocs = docs.filter((d) => KYC_KINDS.includes(d.kind));
+  const siteDocs = docs.filter((d) => SITE_KINDS.includes(d.kind));
+  const agreementDocs = docs.filter((d) => AGREEMENT_KINDS.includes(d.kind));
+  const otherDocs = docs.filter((d) => !KYC_KINDS.includes(d.kind) && !SITE_KINDS.includes(d.kind) && !AGREEMENT_KINDS.includes(d.kind));
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
@@ -110,7 +160,7 @@ export default function PortalLeadDetailPage() {
         <ArrowLeft className="h-3.5 w-3.5" /> Your franchises
       </Link>
 
-      <div className="mb-4 rounded-xl bg-white p-4 shadow-card ring-1 ring-inset ring-ink-100">
+      <div className="mb-4 rounded-xl bg-white p-4 shadow-card ring-1 ring-inset ring-ink-100 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h1 className="text-lg font-bold text-ink-900">{lead.code}</h1>
@@ -121,38 +171,61 @@ export default function PortalLeadDetailPage() {
               </p>
             )}
           </div>
-          <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${STAGE_META[lead.stage]?.color ?? ""}`}>
-            {STAGE_META[lead.stage]?.label ?? lead.stage}
+          <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${currentMeta?.color ?? ""}`}>
+            {currentMeta?.label ?? lead.stage}
           </span>
         </div>
 
         {/* Stage timeline */}
-        <div className="mt-5 flex items-center">
-          {stagePath.map((s, i) => (
-            <div key={s} className="flex flex-1 items-center last:flex-none">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-                    i <= currentStageIdx ? "bg-brand-600 text-white" : "bg-ink-100 text-ink-400"
-                  }`}
-                >
-                  {i < currentStageIdx ? <Check className="h-3.5 w-3.5" /> : i + 1}
+        <div className="mt-7 flex items-start">
+          {stagePath.map((s, i) => {
+            const meta = STAGE_META[s];
+            const done = i < currentStageIdx;
+            const active = i === currentStageIdx;
+            return (
+              <div key={s} className="flex flex-1 flex-col items-center last:flex-none">
+                <div className="flex w-full items-center">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${
+                      done
+                        ? "bg-brand-600 text-white"
+                        : active
+                          ? "bg-white text-brand-700 ring-2 ring-brand-500 shadow-[0_0_0_4px_rgba(22,163,74,0.12)]"
+                          : "bg-ink-100 text-ink-400"
+                    }`}
+                  >
+                    {done ? <Check className="h-4 w-4" /> : i + 1}
+                  </div>
+                  {i < stagePath.length - 1 && (
+                    <div className={`mx-1 h-1 flex-1 rounded-full transition ${done ? "bg-brand-600" : "bg-ink-100"}`} />
+                  )}
                 </div>
-                <span className="mt-1 max-w-[64px] text-center text-[10px] leading-tight text-ink-500">
-                  {STAGE_META[s]?.short ?? s}
+                <span className={`mt-2 max-w-[72px] text-center text-[11px] leading-tight ${active ? "font-semibold text-brand-700" : "text-ink-500"}`}>
+                  {meta?.short ?? s}
                 </span>
               </div>
-              {i < stagePath.length - 1 && (
-                <div className={`mx-1 h-0.5 flex-1 ${i < currentStageIdx ? "bg-brand-600" : "bg-ink-100"}`} />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
+        {currentMeta?.hint && (
+          <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-800">{currentMeta.hint}</p>
+        )}
       </div>
 
       <div className="space-y-4">
         {lead.eoi && (
-          <SectionCard title="Expression of Interest" icon={FileText}>
+          <SectionCard
+            title="Expression of Interest"
+            icon={FileText}
+            action={
+              <Link
+                href={`/portal/${lead.id}/eoi`}
+                className="flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100"
+              >
+                <Download className="h-3.5 w-3.5" /> View / download
+              </Link>
+            }
+          >
             <div className="flex items-center justify-between text-sm">
               <div>
                 <p className="text-ink-900">Letter {lead.eoi.number}</p>
@@ -184,7 +257,7 @@ export default function PortalLeadDetailPage() {
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
                       <div
-                        className="h-full rounded-full bg-brand-500"
+                        className="h-full rounded-full bg-brand-500 transition-all"
                         style={{ width: `${Math.max(0, Math.min(100, ws.progressPct ?? 0))}%` }}
                       />
                     </div>
@@ -192,17 +265,19 @@ export default function PortalLeadDetailPage() {
                 );
               })}
             </div>
+          </SectionCard>
+        )}
 
-            {photos.length > 0 && (
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                {photos.map((p) => (
-                  <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden rounded-lg bg-ink-100">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.url} alt={p.caption || "Site photo"} className="h-full w-full object-cover" />
-                  </a>
-                ))}
-              </div>
-            )}
+        {photos.length > 0 && (
+          <SectionCard title="Site photos" icon={Camera}>
+            <div className="grid grid-cols-3 gap-2">
+              {photos.map((p) => (
+                <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="group block aspect-square overflow-hidden rounded-lg bg-ink-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.url} alt={p.caption || "Site photo"} className="h-full w-full object-cover transition group-hover:scale-105" />
+                </a>
+              ))}
+            </div>
           </SectionCard>
         )}
 
@@ -259,22 +334,27 @@ export default function PortalLeadDetailPage() {
           </SectionCard>
         )}
 
-        {docs.length > 0 && (
-          <SectionCard title="Documents" icon={FileText}>
-            <div className="divide-y divide-ink-100">
-              {docs.map((d) => (
-                <a
-                  key={d.id}
-                  href={d.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between py-2 text-sm text-ink-800 hover:text-brand-700"
-                >
-                  <span className="truncate">{d.fileName}</span>
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-ink-400" />
-                </a>
-              ))}
-            </div>
+        {kycDocs.length > 0 && (
+          <SectionCard title="KYC documents" icon={FileText}>
+            <DocGrid docs={kycDocs} />
+          </SectionCard>
+        )}
+
+        {siteDocs.length > 0 && (
+          <SectionCard title="Site & property documents" icon={MapPin}>
+            <DocGrid docs={siteDocs} />
+          </SectionCard>
+        )}
+
+        {agreementDocs.length > 0 && (
+          <SectionCard title="Agreement" icon={FileText}>
+            <DocGrid docs={agreementDocs} />
+          </SectionCard>
+        )}
+
+        {otherDocs.length > 0 && (
+          <SectionCard title="Other documents" icon={FileText}>
+            <DocGrid docs={otherDocs} />
           </SectionCard>
         )}
       </div>
