@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, Banknote, Camera, Check, Download, FileText, Landmark, Loader2, MapPin,
+  ArrowLeft, Banknote, Camera, Check, Download, FileText, Landmark, Loader2, MapPin, Receipt, User, Zap,
 } from "lucide-react";
 
 import {
-  DOC_KIND_LABEL, EOI_STATUS_LABEL, LEAD_TYPE_STAGES, LOAN_STAGE_COLOR, LOAN_STAGE_LABEL,
-  PAYMENT_STATUS_COLOR, PROJECT_STAGE_META, STAGE_META, TASK_STATUS_COLOR,
+  DOC_KIND_LABEL, EOI_STATUS_LABEL, FUNDING_MODE_LABEL, LEAD_TYPE_STAGES, LOAN_STAGE_COLOR,
+  LOAN_STAGE_LABEL, PAYMENT_STATUS_COLOR, PROJECT_STAGE_META, STAGE_META, TASK_STATUS_COLOR,
   TASK_STATUS_LABEL, WORKSTREAM_LABEL, WORKSTREAMS, type DocKind,
 } from "@/lib/constants";
 import { subscribeDocuments } from "@/lib/db/documents";
@@ -18,6 +18,7 @@ import { subscribePayments } from "@/lib/db/payments";
 import { subscribeProjectPhotos } from "@/lib/db/project-photos";
 import { subscribeProject } from "@/lib/db/projects";
 import { usePortalAuth } from "@/lib/portal-auth";
+import { buildQuote } from "@/lib/pricing";
 import type { Lead, LeadDocument, Payment, Project, ProjectPhoto } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
@@ -43,6 +44,16 @@ function SectionCard({
         {action}
       </div>
       {children}
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value?: React.ReactNode }) {
+  if (!value) return null;
+  return (
+    <div>
+      <dt className="text-[11px] uppercase tracking-wide text-ink-400">{label}</dt>
+      <dd className="mt-0.5 text-sm text-ink-800">{value}</dd>
     </div>
   );
 }
@@ -121,6 +132,11 @@ export default function PortalLeadDetailPage() {
     return subscribeProjectPhotos(project.id, setPhotos);
   }, [project?.id]);
 
+  const quote = useMemo(
+    () => (lead ? buildQuote(lead.config ?? [], { discount: lead.discount ?? 0, extras: lead.extras ?? [] }) : null),
+    [lead],
+  );
+
   if (loading || !user || lead === undefined) {
     return (
       <main className="flex min-h-screen items-center justify-center text-ink-400">
@@ -148,6 +164,7 @@ export default function PortalLeadDetailPage() {
   const paid = lead.paidAmount ?? 0;
   const due = lead.dueAmount ?? Math.max(0, lead.value - paid);
   const financing = lead.financing;
+  const site = lead.site;
 
   const kycDocs = docs.filter((d) => KYC_KINDS.includes(d.kind));
   const siteDocs = docs.filter((d) => SITE_KINDS.includes(d.kind));
@@ -164,9 +181,9 @@ export default function PortalLeadDetailPage() {
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h1 className="text-lg font-bold text-ink-900">{lead.code}</h1>
-            {lead.site?.locationName && (
+            {site?.locationName && (
               <p className="mt-0.5 flex items-center gap-1 text-sm text-ink-500">
-                <MapPin className="h-3.5 w-3.5" /> {lead.site.locationName}
+                <MapPin className="h-3.5 w-3.5" /> {site.locationName}
                 {lead.client?.city ? `, ${lead.client.city}` : ""}
               </p>
             )}
@@ -213,6 +230,73 @@ export default function PortalLeadDetailPage() {
       </div>
 
       <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SectionCard title="Your details" icon={User}>
+            <dl className="space-y-2.5">
+              <Detail label="Name" value={lead.client?.name} />
+              <Detail label="Phone" value={lead.client?.phone ? `+91 ${lead.client.phone}` : undefined} />
+              <Detail label="Email" value={lead.client?.email} />
+              <Detail label="Company" value={lead.client?.company} />
+              <Detail label="City / State" value={[lead.client?.city, lead.client?.state].filter(Boolean).join(", ") || undefined} />
+            </dl>
+          </SectionCard>
+
+          <SectionCard title="Site location" icon={MapPin}>
+            {site?.locationName || site?.address ? (
+              <dl className="space-y-2.5">
+                <Detail label="Location" value={site?.locationName} />
+                <Detail label="Address" value={site?.address} />
+                <Detail label="Landmark" value={site?.nearbyLandmark} />
+                <Detail
+                  label="Maps"
+                  value={site?.mapsLink ? (
+                    <a href={site.mapsLink} target="_blank" rel="noreferrer" className="text-brand-700 hover:underline">
+                      Open in Google Maps
+                    </a>
+                  ) : undefined}
+                />
+                <Detail label="Space available" value={site?.spaceAvailableSqft ? `${site.spaceAvailableSqft} sq ft` : undefined} />
+              </dl>
+            ) : (
+              <p className="text-sm text-ink-500">Site details will appear here once finalised.</p>
+            )}
+          </SectionCard>
+        </div>
+
+        {quote && quote.lines.length > 0 && (
+          <SectionCard title="Chargers" icon={Zap}>
+            <div className="overflow-x-auto scroll-thin">
+              <table className="w-full text-sm">
+                <thead className="border-b border-ink-200">
+                  <tr>
+                    <th className="py-1.5 text-left font-semibold text-ink-600">Item</th>
+                    <th className="py-1.5 text-right font-semibold text-ink-600">Qty</th>
+                    <th className="py-1.5 text-right font-semibold text-ink-600">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ink-100">
+                  {quote.lines.map((l) => (
+                    <tr key={l.key}>
+                      <td className="py-2 text-ink-800">
+                        {l.label}
+                        {l.oem && <span className="ml-1 text-xs text-ink-500">· {l.oem}</span>}
+                      </td>
+                      <td className="py-2 text-right tabular-nums text-ink-700">{l.qty}</td>
+                      <td className="py-2 text-right tabular-nums font-medium text-ink-900">{formatINR(l.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t-2 border-ink-200">
+                  <tr>
+                    <td className="py-2 font-semibold text-ink-900" colSpan={2}>Total incl. GST</td>
+                    <td className="py-2 text-right text-base font-bold tabular-nums text-brand-700">{formatINR(quote.grandTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </SectionCard>
+        )}
+
         {lead.eoi && (
           <SectionCard
             title="Expression of Interest"
@@ -299,16 +383,27 @@ export default function PortalLeadDetailPage() {
           {payments.length > 0 && (
             <div className="divide-y divide-ink-100 border-t border-ink-100">
               {payments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between py-2 text-sm">
-                  <div>
+                <div key={p.id} className="flex items-center justify-between gap-2 py-2.5 text-sm">
+                  <div className="min-w-0">
                     <p className="text-ink-800">{titleCase(p.milestone)} · {formatDate(p.paidAt ?? p.dueAt)}</p>
-                    <p className="text-xs text-ink-500">{p.mode ? titleCase(p.mode) : ""}{p.reference ? ` · ${p.reference}` : ""}</p>
+                    <p className="truncate text-xs text-ink-500">{p.mode ? titleCase(p.mode) : ""}{p.reference ? ` · ${p.reference}` : ""}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium text-ink-900">{formatINR(p.totalAmount)}</p>
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${PAYMENT_STATUS_COLOR[p.status] ?? ""}`}>
-                      {titleCase(p.status)}
-                    </span>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-medium text-ink-900">{formatINR(p.totalAmount)}</p>
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${PAYMENT_STATUS_COLOR[p.status] ?? ""}`}>
+                        {titleCase(p.status)}
+                      </span>
+                    </div>
+                    {(p.status === "RECEIVED" || p.status === "VERIFIED") && (
+                      <Link
+                        href={`/portal/${lead.id}/payments/${p.id}/receipt`}
+                        className="rounded-lg p-1.5 text-ink-400 hover:bg-brand-50 hover:text-brand-700"
+                        title="Download receipt"
+                      >
+                        <Receipt className="h-4 w-4" />
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}
@@ -316,16 +411,23 @@ export default function PortalLeadDetailPage() {
           )}
         </SectionCard>
 
-        {financing && financing.mode !== "SELF" && (
+        {financing && (
           <SectionCard title="Loan / financing" icon={Landmark}>
             <div className="flex items-center justify-between text-sm">
               <div>
-                {financing.bank && <p className="text-ink-900">{financing.bank}{financing.branch ? ` · ${financing.branch}` : ""}</p>}
-                {financing.sanctionedAmount ? (
-                  <p className="text-xs text-ink-500">Sanctioned {formatINR(financing.sanctionedAmount)}</p>
-                ) : financing.requestedAmount ? (
-                  <p className="text-xs text-ink-500">Requested {formatINR(financing.requestedAmount)}</p>
-                ) : null}
+                <p className="text-ink-900">{FUNDING_MODE_LABEL[financing.mode] ?? titleCase(financing.mode)}</p>
+                {financing.mode !== "SELF" && (
+                  financing.bank ? (
+                    <p className="text-xs text-ink-500">{financing.bank}{financing.branch ? ` · ${financing.branch}` : ""}</p>
+                  ) : null
+                )}
+                {financing.mode !== "SELF" && (
+                  financing.sanctionedAmount ? (
+                    <p className="text-xs text-ink-500">Sanctioned {formatINR(financing.sanctionedAmount)}</p>
+                  ) : financing.requestedAmount ? (
+                    <p className="text-xs text-ink-500">Requested {formatINR(financing.requestedAmount)}</p>
+                  ) : null
+                )}
               </div>
               <span className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${LOAN_STAGE_COLOR[financing.stage] ?? ""}`}>
                 {LOAN_STAGE_LABEL[financing.stage]}
