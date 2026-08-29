@@ -35,13 +35,20 @@ function EditableParagraph({
   className?: string;
 }) {
   if (readOnly) return <p className={className}>{value}</p>;
+  // A <textarea>'s fixed row height doesn't reflow like real text, so on a
+  // document this long it throws off the print pagination and shows a boxy
+  // edit control instead of prose. Print always renders the plain paragraph;
+  // the textarea is screen-only.
   return (
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      rows={Math.max(1, Math.ceil(value.length / 110))}
-      className={`${EDITABLE} text-sm ${className ?? ""}`}
-    />
+    <>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={Math.max(1, Math.ceil(value.length / 110))}
+        className={`${EDITABLE} text-sm print:hidden ${className ?? ""}`}
+      />
+      <p className={`hidden print:block ${className ?? ""}`}>{value}</p>
+    </>
   );
 }
 
@@ -152,13 +159,16 @@ export function AgreementLetterArticle({
                 <td className="border border-ink-300 px-3 py-1.5 font-medium text-ink-800">{f.label}</td>
                 <td className="border border-ink-300 px-3 py-1.5 text-ink-700">
                   {editable ? (
-                    <input
-                      value={agreement.scheduleI[f.key] ?? ""}
-                      onChange={(e) => patchSchedule(f.key, e.target.value)}
-                      placeholder="—"
-                      aria-label={f.label}
-                      className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 print:border-0 print:bg-transparent print:px-0"
-                    />
+                    <>
+                      <input
+                        value={agreement.scheduleI[f.key] ?? ""}
+                        onChange={(e) => patchSchedule(f.key, e.target.value)}
+                        placeholder="—"
+                        aria-label={f.label}
+                        className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 print:hidden"
+                      />
+                      <span className="hidden print:inline">{agreement.scheduleI[f.key] || "—"}</span>
+                    </>
                   ) : (
                     agreement.scheduleI[f.key] || "—"
                   )}
@@ -198,6 +208,9 @@ export function AgreementPanel({
   );
 
   const agreement = draft ?? lead.agreement;
+  // Once a saved Agreement exists, any local draft is an unsaved live edit.
+  // Before that, `draft` instead holds the not-yet-saved Create form (see
+  // the early return below), so it's never "dirty" in that sense.
   const dirty = draft !== null && lead.agreement != null;
 
   async function startCreate() {
@@ -237,7 +250,12 @@ export function AgreementPanel({
     });
   }
 
-  if (!lead.agreement && !draft) {
+  // Stay on the empty/create-modal view for as long as nothing is actually
+  // saved yet — `draft` here is the not-yet-persisted Create form, and it
+  // must not fall through to the main (already-saved) toolbar below, or
+  // "Save changes"/"Mark issued" end up acting on an Agreement that was
+  // never written to Firestore.
+  if (!lead.agreement) {
     return (
       <>
         <EmptyState
@@ -270,6 +288,7 @@ export function AgreementPanel({
   return (
     <div className="space-y-4">
       <Card
+        className="print:hidden"
         title="Franchise Agreement"
         subtitle={`${current.number} · ${AGREEMENT_STATUS_LABEL[current.status]}${dirty ? " · Unsaved changes" : ""}`}
         actions={
