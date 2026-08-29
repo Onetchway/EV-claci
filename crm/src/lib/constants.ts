@@ -1271,7 +1271,7 @@ export const FOLLOWUP_STATUS_LABEL: Record<FollowupStatus, string> = {
 // EOI / Letter of Intent
 // ---------------------------------------------------------------------------
 
-export const EOI_STATUSES = ["DRAFT", "ISSUED", "ACCEPTED", "DECLINED", "SUPERSEDED"] as const;
+export const EOI_STATUSES = ["DRAFT", "ISSUED", "ACCEPTED", "DECLINED", "CANCELLED", "SUPERSEDED"] as const;
 export type EoiStatus = (typeof EOI_STATUSES)[number];
 
 export const EOI_STATUS_LABEL: Record<EoiStatus, string> = {
@@ -1279,6 +1279,8 @@ export const EOI_STATUS_LABEL: Record<EoiStatus, string> = {
   ISSUED: "Issued to client",
   ACCEPTED: "Accepted & signed",
   DECLINED: "Declined",
+  /** The client backed out after issuing/accepting — distinct from DECLINED (never went ahead at all). Mark any token/advance payment as REFUNDED on the Payments tab once it's actually sent back. */
+  CANCELLED: "Cancelled by client",
   SUPERSEDED: "Superseded",
 };
 
@@ -1287,6 +1289,7 @@ export const EOI_STATUS_COLOR: Record<EoiStatus, string> = {
   ISSUED: "bg-sky-100 text-sky-800 ring-sky-200",
   ACCEPTED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   DECLINED: "bg-rose-100 text-rose-800 ring-rose-200",
+  CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
   SUPERSEDED: "bg-amber-100 text-amber-800 ring-amber-200",
 };
 

@@ -278,6 +278,28 @@ service cloud.firestore {
         // further) is at least as consequential as issuing a letter.
         allow delete: if canEditLead(leadId) && canIssueEoi();
       }
+
+      // Bank account the investor gives us for a refund, submitted from
+      // the portal (see types.ts's InvestorBankDetails doc comment for why
+      // this is a separate subcollection rather than fields on the lead
+      // itself). The investor's own write is narrowly validated field-by-
+      // field so this can never become a path to editing anything else on
+      // their lead; staff can read it (to action a refund) and correct it,
+      // never the investor's phone auth is required to write.
+      match /investorBankDetails/{entryId} {
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
+        allow create, update: if (ownsLeadAsInvestor(leadId)
+                                    && request.resource.data.keys().hasOnly([
+                                         'accountHolderName', 'bankName', 'accountNumber', 'ifsc',
+                                         'branch', 'chequeUrl', 'chequeStoragePath', 'submittedAt',
+                                       ])
+                                    && request.resource.data.accountHolderName is string
+                                    && request.resource.data.bankName is string
+                                    && request.resource.data.accountNumber is string
+                                    && request.resource.data.ifsc is string)
+                                  || canEditLead(leadId);
+        allow delete: if isAdmin();
+      }
     }
 
     // --------------------------------------------------------------- projects

@@ -14,12 +14,13 @@ import {
   PAYMENT_STATUS_COLOR,
   type PaymentMilestone, type PaymentMode, type PaymentStatus,
 } from "@/lib/constants";
+import { subscribeInvestorBankDetails } from "@/lib/db/investor-bank-details";
 import {
   addPayment, deletePayment, deletePaymentAttachment, PAYMENT_ATTACHMENT_TYPES,
   subscribePayments, summarisePayments, updatePayment, uploadPaymentAttachment,
 } from "@/lib/db/payments";
 import { canDeletePayment, canVerifyPayment, type Viewer } from "@/lib/permissions";
-import type { Actor, Lead, Payment, PaymentAttachment } from "@/lib/types";
+import type { Actor, InvestorBankDetails, Lead, Payment, PaymentAttachment } from "@/lib/types";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 
 // Presets cover every slab Livanto actually invoices at; "Custom" unlocks a
@@ -79,6 +80,9 @@ export function PaymentsPanel({
     () => subscribePayments([lead.id, ...mergedFromIds], (rows) => { setPayments(rows); setLoading(false); }, () => setLoading(false)),
     [lead.id, mergedFromIds.join(",")],
   );
+
+  const [investorBank, setInvestorBank] = useState<InvestorBankDetails | null>(null);
+  useEffect(() => subscribeInvestorBankDetails(lead.id, setInvestorBank), [lead.id]);
 
   const summary = useMemo(() => summarisePayments(lead, payments), [lead, payments]);
   const attachmentsFor = attachmentsForId ? payments.find((p) => p.id === attachmentsForId) ?? null : null;
@@ -174,6 +178,34 @@ export function PaymentsPanel({
   return (
     <div className="space-y-4">
       <div className={receiptFor ? "hidden print:hidden" : "space-y-4"}>
+      {investorBank && (
+        <Card title="Investor's refund account" subtitle="Submitted by the investor from the franchise portal — use this if a refund is due.">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink-500">Account holder</p>
+              <p className="text-sm font-medium">{investorBank.accountHolderName}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink-500">Bank</p>
+              <p className="text-sm font-medium">{investorBank.bankName}{investorBank.branch ? ` · ${investorBank.branch}` : ""}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink-500">Account number</p>
+              <p className="font-mono text-sm font-medium">{investorBank.accountNumber}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink-500">IFSC</p>
+              <p className="font-mono text-sm font-medium">{investorBank.ifsc}</p>
+            </div>
+          </div>
+          {investorBank.chequeUrl && (
+            <a href={investorBank.chequeUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:underline">
+              <Paperclip className="h-3.5 w-3.5" /> View cancelled cheque
+            </a>
+          )}
+          <p className="mt-2 text-xs text-ink-400">Submitted {formatDate(investorBank.submittedAt)}</p>
+        </Card>
+      )}
       {showCollectionSummary && (
       <Card
         title="Collection summary"

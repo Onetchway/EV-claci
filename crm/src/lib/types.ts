@@ -348,6 +348,27 @@ export interface MergedLeadRef {
   ownerId: string;
 }
 
+/**
+ * Bank account the investor gives us for a refund — submitted by them
+ * directly from the portal (leads/{leadId}/investorBankDetails, one doc,
+ * id "current"), never something CRM staff type in on their behalf. Kept
+ * as its own small subcollection rather than fields on Lead so the
+ * Firestore write rule granting the investor a narrow, validated write can
+ * stay completely separate from (and can't accidentally widen) the main
+ * lead document's much more permissive staff-only update rule.
+ */
+export interface InvestorBankDetails {
+  id: string;
+  accountHolderName: string;
+  bankName: string;
+  accountNumber: string;
+  ifsc: string;
+  branch?: string;
+  chequeUrl?: string;
+  chequeStoragePath?: string;
+  submittedAt: TS;
+}
+
 export interface Lead {
   id: string;
   /** Human-friendly reference, e.g. LG-FR-000142. */

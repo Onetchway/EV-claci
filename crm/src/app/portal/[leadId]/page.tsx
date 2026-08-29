@@ -12,6 +12,8 @@ import {
   LOAN_STAGE_LABEL, PAYMENT_STATUS_COLOR, PROJECT_STAGE_META, STAGE_META, TASK_STATUS_COLOR,
   TASK_STATUS_LABEL, WORKSTREAM_LABEL, WORKSTREAMS, type DocKind,
 } from "@/lib/constants";
+import { PortalBankDetailsCard } from "@/components/portal-bank-details";
+import { useSettings } from "@/hooks/use-settings";
 import { subscribeDocuments } from "@/lib/db/documents";
 import { subscribeLead } from "@/lib/db/leads";
 import { subscribePayments } from "@/lib/db/payments";
@@ -95,6 +97,7 @@ export default function PortalLeadDetailPage() {
   const { leadId } = useParams<{ leadId: string }>();
   const router = useRouter();
   const { loading, user } = usePortalAuth();
+  const { settings } = useSettings();
 
   const [lead, setLead] = useState<Lead | null | undefined>(undefined);
   const [leadError, setLeadError] = useState<string | null>(null);
@@ -387,6 +390,9 @@ export default function PortalLeadDetailPage() {
                   <div className="min-w-0">
                     <p className="text-ink-800">{titleCase(p.milestone)} · {formatDate(p.paidAt ?? p.dueAt)}</p>
                     <p className="truncate text-xs text-ink-500">{p.mode ? titleCase(p.mode) : ""}{p.reference ? ` · ${p.reference}` : ""}</p>
+                    {p.status === "REFUNDED" && p.note && (
+                      <p className="mt-0.5 text-xs text-rose-600">Refund note: {p.note}</p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <div className="text-right">
@@ -410,6 +416,8 @@ export default function PortalLeadDetailPage() {
             </div>
           )}
         </SectionCard>
+
+        <PortalBankDetailsCard leadId={lead.id} companyBank={settings.bank} />
 
         {financing && (
           <SectionCard title="Loan / financing" icon={Landmark}>

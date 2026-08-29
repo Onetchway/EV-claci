@@ -21,6 +21,7 @@ import type {
 } from "../types";
 import { buildSearchTokens, formatINR, normalisePhone, toDate, toE164India } from "../utils";
 import { logActivitySafe } from "./activity";
+import { notifyPortalLinkSafe } from "./notifications";
 import { sortByTimestamp, subscribeUnion } from "./subscribe-union";
 
 export const LEADS = "leads";
@@ -345,6 +346,8 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
     message: `Lead created from ${draft.source.replace(/_/g, " ").toLowerCase()} and assigned to ${draft.ownerName}`,
     actor,
   });
+
+  if (draft.type === "FRANCHISE") notifyPortalLinkSafe({ code, client });
 
   return { id: ref.id, ...(payload as unknown as Omit<Lead, "id">) };
 }

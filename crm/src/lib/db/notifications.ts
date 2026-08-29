@@ -149,6 +149,37 @@ export function leadUrl(leadId: string): string {
   return `${APP_URL}/leads/${leadId}`;
 }
 
+export function portalLoginUrl(): string {
+  return `${APP_URL}/portal/login`;
+}
+
+/**
+ * Sent once, right when a lead is created, if we have their email — points
+ * the investor at the read-only franchise portal (see /portal) so they can
+ * start checking progress themselves. Client-facing, so deliberately not
+ * run through `wrap()` above (that footer line is written for CRM staff).
+ * Best-effort: still needs the Trigger Email extension installed (see this
+ * file's header comment) to actually deliver.
+ */
+export function notifyPortalLinkSafe(lead: { code: string; client: { name: string; email?: string; phone: string } }): void {
+  if (!lead.client.email) return;
+  const html =
+    `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;line-height:1.6;max-width:520px">` +
+    `<p style="margin:0 0 16px;font-weight:700;font-size:16px;color:#16a34a">Livanto Green</p>` +
+    `<p>Hi ${lead.client.name},</p>` +
+    `<p>Thank you for your interest in a Livanto Green EV charging franchise (reference <strong>${lead.code}</strong>). ` +
+    `You can track its progress — stage, agreement, project updates, photos and payments — any time from our franchise partner portal:</p>` +
+    `<p style="margin:20px 0"><a href="${portalLoginUrl()}" style="background:#16a34a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">Open the franchise portal</a></p>` +
+    `<p style="font-size:13px;color:#555">Sign in with your registered mobile number (+91 ${lead.client.phone}) — we'll text you a one-time code, no password needed.</p>` +
+    `<p style="margin-top:24px;color:#888;font-size:12px">If you weren't expecting this, you can ignore this email.</p>` +
+    `</div>`;
+  queueEmailSafe({
+    to: [lead.client.email],
+    subject: `Track your franchise — ${lead.code}`,
+    html,
+  });
+}
+
 function wrap(bodyHtml: string): string {
   return (
     `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;line-height:1.5;max-width:520px">` +

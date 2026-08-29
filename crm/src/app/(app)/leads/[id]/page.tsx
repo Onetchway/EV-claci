@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, ExternalLink, HardHat, Mail, MapPin, Pencil, Phone, Plus, RotateCcw,
+  ArrowLeft, ExternalLink, HardHat, Mail, MapPin, MessageCircle, Pencil, Phone, Plus, RotateCcw,
   Trash2, UserCog, XCircle,
 } from "lucide-react";
 
@@ -345,7 +345,24 @@ export default function LeadDetailPage() {
 
       {tab === "Overview" && (
         <div className="grid gap-4 lg:grid-cols-3">
-          <Card title="Client" className="lg:col-span-2">
+          <Card
+            title="Client"
+            className="lg:col-span-2"
+            actions={
+              lead.type === "FRANCHISE" && lead.client?.phone && (
+                <a
+                  href={`https://wa.me/91${lead.client.phone}?text=${encodeURIComponent(
+                    `Hi ${lead.client.name}, you can track your Livanto Green franchise (${lead.code}) any time at https://app.livantogreen.com/portal/login — sign in with this WhatsApp number, we'll text you a one-time code.`,
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" /> Share portal link
+                </a>
+              )
+            }
+          >
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Detail label="Name" value={lead.client?.name} />
               {lead.commercialModel && (
