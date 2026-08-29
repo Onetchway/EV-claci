@@ -8,6 +8,10 @@ import ScrollReveal from '@/components/ScrollReveal';
 
 const OFFICES = [
   {
+    title: 'Registered Office',
+    lines: ['G08-B, Gulmohar Greens, Mohan Nagar,', 'Loni Bhopura Road,', 'Ghaziabad, Uttar Pradesh 201005'],
+  },
+  {
     title: 'Noida Office',
     lines: ['8th Floor, Infinity Techno Park,', 'C56A/16, Block-C, Sector 62,', 'Noida, Uttar Pradesh 201309'],
   },

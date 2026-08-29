@@ -11,7 +11,7 @@ export const metadata = {
 
 const HERO_STATS = [
   { icon: Calendar, value: '2025', label: 'Year Founded' },
-  { icon: MapPin, value: '2', label: 'Office Locations' },
+  { icon: MapPin, value: '3', label: 'Office Locations' },
   { icon: Zap, value: 'AC + DC', label: 'Charger Portfolio' },
   { icon: Clock, value: '24×7', label: 'Operations Support' },
 ];
@@ -48,7 +48,7 @@ const VALUES = [
 const IMPACT_STATS = [
   ['2025', 'Founded'],
   ['6+', 'Charger Models'],
-  ['2', 'Livanto Offices'],
+  ['3', 'Livanto Offices'],
   ['Pan-India', 'Growth Vision'],
 ];
 

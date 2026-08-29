@@ -127,7 +127,7 @@ export default function Footer() {
 
         <div className="mt-6 flex flex-col gap-2 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} Livanto Green Private Limited</span>
-          <span>Noida &amp; Lucknow, Uttar Pradesh, India</span>
+          <span>Ghaziabad, Noida &amp; Lucknow, Uttar Pradesh, India</span>
         </div>
       </div>
     </footer>

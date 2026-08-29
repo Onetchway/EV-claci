@@ -20,7 +20,7 @@ const rise = {
 const STATS = [
   { icon: Zap, value: 'AC + DC', label: 'Charger Portfolio' },
   { icon: Clock, value: '24×7', label: 'Support & Operations' },
-  { icon: MapPin, value: 'Noida & Lucknow', label: 'Livanto Offices' },
+  { icon: MapPin, value: '3', label: 'Office Locations' },
   { icon: MapIcon, value: 'Pan-India', label: 'Growth Vision' },
 ];
 
