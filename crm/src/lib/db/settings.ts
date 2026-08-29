@@ -62,7 +62,10 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
   const base = defaultSettings();
   if (!stored) return base;
   return {
-    company: { ...base.company, ...stored.company },
+    // An empty string saved from Settings → Company (logo not yet uploaded
+    // there) shouldn't blank out the logo bundled with the app — only a
+    // real override should replace it.
+    company: { ...base.company, ...stored.company, logoUrl: stored.company?.logoUrl || base.company.logoUrl },
     bank: { ...base.bank, ...stored.bank },
     loi: { ...base.loi, ...stored.loi },
     finance: { ...base.finance, ...stored.finance },
