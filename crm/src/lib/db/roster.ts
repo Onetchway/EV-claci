@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, onSnapshot, query, serverTimestamp, setDoc, where,
+  collection, doc, getDocs, onSnapshot, query, serverTimestamp, setDoc, where,
 } from "firebase/firestore";
 
 import { WEEK_DAYS, type WeekDay } from "../constants";
@@ -69,6 +69,13 @@ export function subscribeRosterForWeek(
     (snap) => cb(snap.docs.map((d) => mapRoster(d.id, d.data()))),
     (err) => onError?.(err as Error),
   );
+}
+
+/** One-shot fetch across several weeks (a whole month's worth) for a CSV export — `in` supports up to 30 values, and a month never spans more than 6 Mondays. */
+export async function getRostersForWeeks(weekStarts: string[]): Promise<RosterWeek[]> {
+  if (weekStarts.length === 0) return [];
+  const snap = await getDocs(query(collection(getDb(), ROSTERS), where("weekStart", "in", weekStarts)));
+  return snap.docs.map((d) => mapRoster(d.id, d.data()));
 }
 
 export { WEEK_DAYS };

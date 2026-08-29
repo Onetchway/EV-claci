@@ -369,6 +369,24 @@ export interface InvestorBankDetails {
   submittedAt: TS;
 }
 
+/** A contact/support request an investor raises from the portal (see /portal) — routed to that lead's own sales owner, who gets an in-app notification and a card on both the lead page and the CRM Dashboard. */
+export interface PortalSupportRequest {
+  id: string;
+  leadId: string;
+  leadCode: string;
+  ownerId: string;
+  ownerName: string;
+  investorName: string;
+  investorPhone: string;
+  subject: string;
+  message: string;
+  status: "OPEN" | "RESOLVED";
+  reply?: string;
+  createdAt: TS;
+  resolvedAt?: TS | null;
+  resolvedBy?: Actor | null;
+}
+
 export interface Lead {
   id: string;
   /** Human-friendly reference, e.g. LG-FR-000142. */

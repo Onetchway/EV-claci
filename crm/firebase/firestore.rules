@@ -300,6 +300,35 @@ service cloud.firestore {
                                   || canEditLead(leadId);
         allow delete: if isAdmin();
       }
+
+      // A contact/support request the investor raises from the portal —
+      // create is narrowly validated the same way investorBankDetails is;
+      // update (replying/resolving) is staff-only. See the collection-group
+      // match further below for the CRM Dashboard's "across every lead" view.
+      match /supportRequests/{requestId} {
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
+        allow create: if ownsLeadAsInvestor(leadId)
+                      && request.resource.data.keys().hasOnly([
+                           'leadId', 'leadCode', 'ownerId', 'ownerName', 'investorName',
+                           'investorPhone', 'subject', 'message', 'status', 'createdAt',
+                         ])
+                      && request.resource.data.leadId == leadId
+                      && request.resource.data.status == 'OPEN'
+                      && request.resource.data.subject is string
+                      && request.resource.data.message is string;
+        allow update: if canEditLead(leadId);
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Collection-group companion to leads/{leadId}/supportRequests above —
+    // needed specifically for the CRM Dashboard's query across every lead's
+    // requests at once (collectionGroup("supportRequests")). Direct reads
+    // under a specific lead are still governed by the more specific match
+    // block nested under leads/{leadId}; this one only applies to
+    // collection-group queries.
+    match /{path=**}/supportRequests/{requestId} {
+      allow read: if signedIn();
     }
 
     // --------------------------------------------------------------- projects
@@ -842,7 +871,16 @@ service cloud.firestore {
     // assignment, an @mention) on behalf of the recipient; only the
     // recipient can read their own notifications or mark them read.
     match /notifications/{notificationId} {
-      allow create: if signedIn();
+      // The investor portal also creates exactly one kind of notification —
+      // "a support request came in" — for the lead's own sales owner. Tightly
+      // scoped: only for a lead the investor actually owns, and only
+      // addressed to that exact lead's ownerId, so this can never become a
+      // way to spam an arbitrary uid.
+      allow create: if signedIn()
+                    || (investorSignedIn()
+                        && request.resource.data.leadId != null
+                        && ownsLeadAsInvestor(request.resource.data.leadId)
+                        && get(/databases/$(database)/documents/leads/$(request.resource.data.leadId)).data.ownerId == request.resource.data.uid);
       // `resource == null` is a not-yet-created doc — notifyFollowUpDueSafe
       // checks for one under a deterministic id before writing it, and that
       // existence check must be allowed to succeed (returning exists: false)

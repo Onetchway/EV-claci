@@ -13,6 +13,7 @@ import {
   TASK_STATUS_LABEL, WORKSTREAM_LABEL, WORKSTREAMS, type DocKind,
 } from "@/lib/constants";
 import { PortalBankDetailsCard } from "@/components/portal-bank-details";
+import { PortalSupportCard } from "@/components/portal-support-card";
 import { useSettings } from "@/hooks/use-settings";
 import { subscribeDocuments } from "@/lib/db/documents";
 import { subscribeLead } from "@/lib/db/leads";
@@ -467,10 +468,12 @@ export default function PortalLeadDetailPage() {
             <DocGrid docs={otherDocs} />
           </SectionCard>
         )}
+
+        <PortalSupportCard lead={lead} />
       </div>
 
       <p className="mt-6 text-center text-xs text-ink-400">
-        Updated {formatDateTime(lead.updatedAt)} · Questions? Reach out to your relationship manager.
+        Updated {formatDateTime(lead.updatedAt)}
       </p>
     </main>
   );

@@ -20,6 +20,7 @@ import { FinancingPanel } from "@/components/lead/financing-panel";
 import { hasFundingDetails, hasSiteDetails, StageStepper } from "@/components/lead/stage-stepper";
 import { LeadForm, leadToFormValues, type LeadFormValues } from "@/components/lead-form";
 import { ChargingStationsPanel } from "@/components/lead/charging-stations-panel";
+import { SupportRequestsPanel } from "@/components/lead/support-requests-panel";
 import {
   Avatar, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select,
   Spinner, Textarea, useAsyncAction,
@@ -409,6 +410,8 @@ export default function LeadDetailPage() {
               <Detail label="Last updated" value={`${formatDateTime(lead.updatedAt)} by ${lead.updatedBy?.name ?? "—"}`} />
             </dl>
           </Card>
+
+          {actor && <SupportRequestsPanel lead={lead} actor={actor} className="lg:col-span-3" />}
 
           {lead.type === "SITE" && (
             <Card title="Site details" className="lg:col-span-3">

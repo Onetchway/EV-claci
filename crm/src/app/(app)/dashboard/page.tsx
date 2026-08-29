@@ -22,10 +22,11 @@ import {
   EOI_STATUS_COLOR, EOI_STATUS_LABEL, FOLLOWUP_TYPE_LABEL, STAGES, STAGE_META,
 } from "@/lib/constants";
 import { subscribeChargePoints, subscribeRecentSessions, type ChargePoint, type ChargeSession } from "@/lib/db/chargers";
+import { subscribeOpenSupportRequests } from "@/lib/db/support-requests";
 import { subscribeOpenTasks, summariseTasks } from "@/lib/db/tasks";
 import { isAdmin } from "@/lib/permissions";
 import { scoreLead } from "@/lib/scoring";
-import type { FollowupTask } from "@/lib/types";
+import type { FollowupTask, PortalSupportRequest } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
 const CHART_COLORS = ["#1fae54", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6", "#ec4899"];
@@ -36,6 +37,13 @@ export default function DashboardPage() {
 
   const [openTasks, setOpenTasks] = useState<FollowupTask[]>([]);
   useEffect(() => subscribeOpenTasks(setOpenTasks), []);
+
+  const [openRequests, setOpenRequests] = useState<PortalSupportRequest[]>([]);
+  useEffect(() => subscribeOpenSupportRequests(setOpenRequests), []);
+  const myOpenRequests = useMemo(
+    () => (role && isAdmin(role) ? openRequests : openRequests.filter((r) => r.ownerId === profile?.uid)),
+    [openRequests, role, profile],
+  );
 
   const [chargePoints, setChargePoints] = useState<ChargePoint[]>([]);
   const [chargerSessions, setChargerSessions] = useState<ChargeSession[]>([]);
@@ -185,6 +193,29 @@ export default function DashboardPage() {
                 Overdue: {taskCounts.overdue}
               </Link>
             )}
+          </div>
+        </Card>
+      )}
+
+      {myOpenRequests.length > 0 && (
+        <Card
+          title="Portal requests"
+          subtitle={role && isAdmin(role) ? "Awaiting a reply, across the whole team" : "Awaiting your reply"}
+          className="mt-4"
+        >
+          <div className="space-y-2">
+            {myOpenRequests.slice(0, 6).map((r) => (
+              <Link
+                key={r.id}
+                href={`/leads/${r.leadId}`}
+                className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-ink-50"
+              >
+                <span className="min-w-0 truncate text-sm text-ink-800">
+                  <strong>{r.investorName}</strong> ({r.leadCode}) — {r.subject}
+                </span>
+                <span className="chip shrink-0 bg-amber-100 text-amber-800 ring-amber-200">Open</span>
+              </Link>
+            ))}
           </div>
         </Card>
       )}

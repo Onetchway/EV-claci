@@ -7,7 +7,7 @@ import { Badge, Button, Card, PageHeader, Spinner, useAsyncAction } from "@/comp
 import { WEEK_DAYS } from "@/lib/constants";
 import { WEEK_DAY_LABEL, addDays, mondayOf, parseYmd, weekDates } from "@/lib/dates";
 import {
-  blankRosterWeek, saveRosterWeek, subscribeMyRosterWeek, subscribeRosterForWeek,
+  blankRosterWeek, getRostersForWeeks, saveRosterWeek, subscribeMyRosterWeek, subscribeRosterForWeek,
 } from "@/lib/db/roster";
 import { subscribeUsers } from "@/lib/db/users";
 import { canManageHrms, canSeeAllHrms } from "@/lib/permissions";
@@ -71,6 +71,7 @@ function TeamRosterView({ weekStart }: { weekStart: string }) {
   const [rosters, setRosters] = useState<RosterWeek[]>([]);
   const [loading, setLoading] = useState(true);
   const { busy, run } = useAsyncAction();
+  const { busy: monthlyBusy, run: runMonthly } = useAsyncAction();
 
   useEffect(() => subscribeUsers(setUsers), []);
   useEffect(() => {
@@ -112,13 +113,40 @@ function TeamRosterView({ weekStart }: { weekStart: string }) {
     downloadCsv(`livanto-roster-${weekStart}.csv`, csvRows);
   }
 
+  /** Every day of the calendar month the displayed week falls in, one column each — pulls in whichever weeks (Mondays) overlap that month. */
+  async function downloadMonthly() {
+    const anchor = parseYmd(weekStart);
+    const year = anchor.getFullYear();
+    const month = anchor.getMonth();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const monthDates = Array.from({ length: totalDays }, (_, i) => new Date(year, month, i + 1));
+
+    const weekStarts = [...new Set(monthDates.map((d) => mondayOf(d)))];
+    const rows = await getRostersForWeeks(weekStarts);
+    const byKey = new Map(rows.map((r) => [`${r.uid}_${r.weekStart}`, r]));
+
+    const header = ["Employee", ...monthDates.map((d) => formatDate(d))];
+    const csvRows = [header, ...activeUsers.map((u) => {
+      const cells = monthDates.map((d) => {
+        const wkStart = mondayOf(d);
+        const roster = byKey.get(`${u.uid}_${wkStart}`);
+        const wd = WEEK_DAYS[(d.getDay() + 6) % 7]!;
+        const status = roster?.days[wd];
+        return status === "WORKING" ? "Working" : status === "WEEK_OFF" ? "Week off" : "";
+      });
+      return [u.name, ...cells];
+    })];
+    downloadCsv(`livanto-roster-${year}-${String(month + 1).padStart(2, "0")}.csv`, csvRows);
+  }
+
   return (
     <Card
       title="Team roster"
       subtitle="Click a day to toggle Working / Week-off, then save."
       actions={
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={downloadWeekly}>Download CSV</Button>
+          <Button size="sm" onClick={downloadWeekly}>Download week CSV</Button>
+          <Button size="sm" loading={monthlyBusy} onClick={() => void runMonthly(downloadMonthly)}>Download month CSV</Button>
           {draft.size > 0 && (
             <Button size="sm" variant="primary" loading={busy} onClick={() => void run(saveAll, "Roster saved.")}>
               Save {draft.size} change{draft.size === 1 ? "" : "s"}

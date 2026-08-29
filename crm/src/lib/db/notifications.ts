@@ -34,6 +34,11 @@ export interface CreateNotificationInput {
   leadId?: string;
 }
 
+/** Exported for the one case a non-staff principal creates a notification: the investor portal, when a support request comes in — see the Firestore rule on `notifications` for exactly what that's restricted to. */
+export function createPortalNotificationSafe(input: CreateNotificationInput): void {
+  createNotificationSafe(input);
+}
+
 function createNotificationSafe(input: CreateNotificationInput): void {
   void addDoc(collection(getDb(), NOTIFICATIONS), {
     uid: input.toUid,
