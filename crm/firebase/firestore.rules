@@ -279,6 +279,14 @@ service cloud.firestore {
         allow delete: if canEditLead(leadId) && canIssueEoi();
       }
 
+      // Archived Franchise Agreement versions — same reasoning as
+      // eoiVersions immediately above.
+      match /agreementVersions/{versionId} {
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
+        allow create: if canEditLead(leadId) && actorIsSelf('archivedBy');
+        allow delete: if canEditLead(leadId) && canIssueEoi();
+      }
+
       // Bank account the investor gives us for a refund, submitted from
       // the portal (see types.ts's InvestorBankDetails doc comment for why
       // this is a separate subcollection rather than fields on the lead

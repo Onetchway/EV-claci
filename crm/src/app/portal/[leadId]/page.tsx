@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 import {
-  DOC_KIND_LABEL, EOI_STATUS_LABEL, FUNDING_MODE_LABEL, LEAD_TYPE_STAGES, LOAN_STAGE_COLOR,
+  AGREEMENT_STATUS_LABEL, DOC_KIND_LABEL, EOI_STATUS_LABEL, FUNDING_MODE_LABEL, LEAD_TYPE_STAGES, LOAN_STAGE_COLOR,
   LOAN_STAGE_LABEL, PAYMENT_STATUS_COLOR, PROJECT_STAGE_META, STAGE_META, TASK_STATUS_COLOR,
   TASK_STATUS_LABEL, WORKSTREAM_LABEL, WORKSTREAMS, type DocKind,
 } from "@/lib/constants";
@@ -321,6 +321,31 @@ export default function PortalLeadDetailPage() {
               </div>
               <span className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-700">
                 {EOI_STATUS_LABEL[lead.eoi.status]}
+              </span>
+            </div>
+          </SectionCard>
+        )}
+
+        {lead.agreement && (
+          <SectionCard
+            title="Franchise Agreement"
+            icon={FileText}
+            action={
+              <Link
+                href={`/portal/${lead.id}/agreement`}
+                className="flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100"
+              >
+                <Download className="h-3.5 w-3.5" /> View / download
+              </Link>
+            }
+          >
+            <div className="flex items-center justify-between text-sm">
+              <div>
+                <p className="text-ink-900">Agreement {lead.agreement.number}</p>
+                <p className="text-xs text-ink-500">Issued {formatDate(lead.agreement.issuedDate)}</p>
+              </div>
+              <span className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-700">
+                {AGREEMENT_STATUS_LABEL[lead.agreement.status]}
               </span>
             </div>
           </SectionCard>

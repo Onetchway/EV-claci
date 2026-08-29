@@ -16,6 +16,7 @@ import { TasksPanel } from "@/components/lead/tasks-panel";
 import { DocumentsPanel } from "@/components/lead/documents-panel";
 import { PaymentsPanel } from "@/components/lead/payments-panel";
 import { EoiPanel } from "@/components/lead/eoi-panel";
+import { AgreementPanel } from "@/components/lead/agreement-panel";
 import { FinancingPanel } from "@/components/lead/financing-panel";
 import { hasFundingDetails, hasSiteDetails, StageStepper } from "@/components/lead/stage-stepper";
 import { LeadForm, leadToFormValues, type LeadFormValues } from "@/components/lead-form";
@@ -49,7 +50,7 @@ import type { Lead } from "@/lib/types";
 import { cn, formatDate, formatDateTime, formatINR, formatNumber } from "@/lib/utils";
 
 const TABS = [
-  "Overview", "Quotation", "Financing", "Letter of Intent", "Payments", "Documents", "Tasks", "Activity",
+  "Overview", "Quotation", "Financing", "Letter of Intent", "Agreement", "Payments", "Documents", "Tasks", "Activity",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -103,6 +104,7 @@ export default function LeadDetailPage() {
     if (!lead) return;
     const hidden =
       (tab === "Letter of Intent" && !FRANCHISE_LOI_TYPES.includes(lead.type)) ||
+      (tab === "Agreement" && !FRANCHISE_LOI_TYPES.includes(lead.type)) ||
       (tab === "Quotation" && TYPES_WITHOUT_CHARGERS.includes(lead.type)) ||
       (tab === "Financing" && TYPES_WITHOUT_FINANCING.includes(lead.type)) ||
       (tab === "Payments" && TYPES_WITHOUT_PAYMENTS.includes(lead.type)) ||
@@ -323,6 +325,7 @@ export default function LeadDetailPage() {
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-ink-200 scroll-thin print:hidden">
         {TABS.filter((t) => {
           if (t === "Letter of Intent") return FRANCHISE_LOI_TYPES.includes(lead.type);
+          if (t === "Agreement") return FRANCHISE_LOI_TYPES.includes(lead.type);
           if (t === "Quotation") return !TYPES_WITHOUT_CHARGERS.includes(lead.type);
           if (t === "Financing") return !TYPES_WITHOUT_FINANCING.includes(lead.type);
           if (t === "Payments") return !TYPES_WITHOUT_PAYMENTS.includes(lead.type);
@@ -591,6 +594,10 @@ export default function LeadDetailPage() {
 
       {tab === "Letter of Intent" && actor && (
         <EoiPanel lead={lead} actor={actor} viewer={viewer} canEdit={editable} />
+      )}
+
+      {tab === "Agreement" && actor && (
+        <AgreementPanel lead={lead} actor={actor} viewer={viewer} canEdit={editable} />
       )}
 
       {tab === "Payments" && actor && (

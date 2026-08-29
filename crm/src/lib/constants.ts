@@ -676,6 +676,11 @@ export const ACTIVITY_TYPES = [
   "EOI_ISSUED",
   "EOI_REGENERATED",
   "EOI_DELETED",
+  "AGREEMENT_CREATED",
+  "AGREEMENT_UPDATED",
+  "AGREEMENT_ISSUED",
+  "AGREEMENT_REGENERATED",
+  "AGREEMENT_DELETED",
   "PROJECT_CREATED",
   "PROJECT_UPDATED",
   "PROJECT_STAGE_CHANGED",
@@ -1292,6 +1297,58 @@ export const EOI_STATUS_COLOR: Record<EoiStatus, string> = {
   CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
   SUPERSEDED: "bg-amber-100 text-amber-800 ring-amber-200",
 };
+
+// ---------------------------------------------------------------------------
+// Franchise Agreement
+// ---------------------------------------------------------------------------
+
+export const AGREEMENT_STATUSES = ["DRAFT", "ISSUED", "SIGNED", "CANCELLED", "SUPERSEDED"] as const;
+export type AgreementStatus = (typeof AGREEMENT_STATUSES)[number];
+
+export const AGREEMENT_STATUS_LABEL: Record<AgreementStatus, string> = {
+  DRAFT: "Draft",
+  ISSUED: "Issued to client",
+  SIGNED: "Signed",
+  CANCELLED: "Cancelled by client",
+  SUPERSEDED: "Superseded",
+};
+
+export const AGREEMENT_STATUS_COLOR: Record<AgreementStatus, string> = {
+  DRAFT: "bg-slate-100 text-slate-700 ring-slate-200",
+  ISSUED: "bg-sky-100 text-sky-800 ring-sky-200",
+  SIGNED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
+  SUPERSEDED: "bg-amber-100 text-amber-800 ring-amber-200",
+};
+
+/**
+ * Schedule I — the one part of the Franchise Agreement that actually varies
+ * deal to deal; the 20 numbered clauses above it are fixed legal language
+ * (see agreement-template.ts) and are never edited per lead. `key` is the
+ * field's storage key in AgreementDoc.scheduleI; order here is the order
+ * both the editable form and the printed Schedule I table use.
+ */
+export const AGREEMENT_SCHEDULE_FIELDS = [
+  { key: "clientName", label: "Client / Franchisee Name" },
+  { key: "entityType", label: "Entity Type" },
+  { key: "registeredAddress", label: "Registered / Residential Address" },
+  { key: "siteAddress", label: "Site / Location" },
+  { key: "chargerTypeCapacity", label: "Charger Type & Capacity" },
+  { key: "commissioningDate", label: "Commercial Commissioning Date" },
+  { key: "tenure", label: "Tenure" },
+  { key: "minimumAssuredAmount", label: "Minimum Assured Monthly Amount" },
+  { key: "payoutPeriod", label: "Payout / Support Period" },
+  { key: "livantoFee", label: "Livanto Fee (per kWh)" },
+  { key: "discomFee", label: "DISCOM Fee (per kWh)" },
+  { key: "landUsageFee", label: "Land Usage Fee (per kWh)" },
+  { key: "investorEarning", label: "Investor Earning (per kWh)" },
+  { key: "publicSellingRate", label: "Public Selling Rate (per kWh)" },
+  { key: "paymentSettlementDate", label: "Payment Settlement Date" },
+  { key: "originalEquipmentCost", label: "Original Equipment Cost of Charger (for Buyback computation)" },
+  { key: "depreciationRate", label: "Depreciation Rate (per annum, for Buyback computation)" },
+  { key: "buybackFloorValue", label: "Buyback Floor Value (% of Original Equipment Cost)" },
+] as const;
+export type AgreementScheduleKey = (typeof AGREEMENT_SCHEDULE_FIELDS)[number]["key"];
 
 /**
  * Issuing entity. Appears on every generated Letter of Intent. These are the

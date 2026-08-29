@@ -8,16 +8,17 @@ import {
 
 import {
   finalStageFor, LEAD_TYPE_CODE, STAGES, STAGE_META,
-  type ActivityType, type CommercialModel, type EoiStatus, type LeadStatus, type LeadType,
-  type RejectionReason, type Source, type Stage,
+  type ActivityType, type AgreementStatus, type CommercialModel, type EoiStatus, type LeadStatus,
+  type LeadType, type RejectionReason, type Source, type Stage,
 } from "../constants";
 import { diffLead, summariseChanges } from "../diff";
 import { getDb } from "../firebase/client";
 import {
-  buildQuote, normaliseConfig, normaliseExtras, type ConfigItem, type ExtraItem,
+  buildQuote, describeCapacity, normaliseConfig, normaliseExtras, type ConfigItem, type ExtraItem,
 } from "../pricing";
 import type {
-  Actor, ClientInfo, EoiDoc, EoiVersion, FinancingInfo, Lead, MergedLeadRef, SiteInfo,
+  Actor, AgreementDoc, AgreementVersion, ClientInfo, EoiDoc, EoiVersion, FinancingInfo, Lead,
+  MergedLeadRef, SiteInfo,
 } from "../types";
 import { buildSearchTokens, formatINR, normalisePhone, toDate, toE164India } from "../utils";
 import { logActivitySafe } from "./activity";
@@ -1214,4 +1215,219 @@ export async function nextEoiNumber(): Promise<string> {
   });
 
   return `LG/LOI/${year}/${String(seq).padStart(4, "0")}`;
+}
+
+// ---------------------------------------------------------------------------
+// Franchise Agreement — mirrors the Letter of Intent functions above, minus
+// the per-clause editing: the 20 clause bodies are fixed legal language
+// (src/lib/agreement-template.ts), only Schedule I varies per lead.
+// ---------------------------------------------------------------------------
+
+export const AGREEMENT_VERSIONS = "agreementVersions";
+
+/** Drafts a fresh AgreementDoc, prefilling whatever Schedule I fields the lead's own data can answer unambiguously — the rest (commercial figures negotiated per deal) are left blank for staff to fill in. */
+export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc {
+  return {
+    number,
+    status: "DRAFT",
+    issuedDate: null,
+    scheduleI: {
+      clientName: lead.client?.name ?? "",
+      entityType: lead.client?.entityType === "FIRM" ? "Firm" : "Individual",
+      registeredAddress: lead.client?.address ?? "",
+      siteAddress: lead.site?.address || lead.site?.locationName || "",
+      chargerTypeCapacity: describeCapacity(lead.config),
+      tenure: lead.site?.tenureYears ? `${lead.site.tenureYears} years from the Commercial Commissioning Date` : "",
+    },
+    createdAt: null,
+  };
+}
+
+export async function saveAgreement(lead: Lead, agreement: AgreementDoc, actor: Actor): Promise<void> {
+  const existing = lead.agreement;
+
+  await updateDoc(doc(getDb(), LEADS, lead.id), {
+    agreement: {
+      ...agreement,
+      createdAt: existing?.createdAt ?? serverTimestamp(),
+      createdBy: existing?.createdBy ?? actor,
+      updatedAt: serverTimestamp(),
+      updatedBy: actor,
+    },
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  });
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: existing ? "AGREEMENT_UPDATED" : "AGREEMENT_CREATED",
+    message: existing ? `Franchise Agreement ${agreement.number} updated` : `Franchise Agreement ${agreement.number} drafted`,
+    actor,
+  });
+}
+
+/** Pass an array to also pull in a merged-in lead's archived Agreement history. */
+export function subscribeAgreementVersions(
+  leadId: string | string[],
+  cb: (rows: AgreementVersion[]) => void,
+  onError?: (e: Error) => void,
+): () => void {
+  if (Array.isArray(leadId)) {
+    if (leadId.length <= 1) return subscribeAgreementVersions(leadId[0] ?? "", cb, onError);
+    return subscribeUnion<AgreementVersion>(leadId, subscribeAgreementVersions, (rows) => cb(sortByTimestamp(rows, "archivedAt", "desc")), onError);
+  }
+  return onSnapshot(
+    query(collection(getDb(), LEADS, leadId, AGREEMENT_VERSIONS), orderBy("archivedAt", "desc")),
+    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<AgreementVersion, "id">) }))),
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Archives the lead's current Agreement (if any) before replacing it with a freshly-built one — same reasoning as regenerateEoi. */
+export async function regenerateAgreement(lead: Lead, built: AgreementDoc, actor: Actor): Promise<void> {
+  const db = getDb();
+  if (lead.agreement) {
+    await addDoc(collection(db, LEADS, lead.id, AGREEMENT_VERSIONS), {
+      ...lead.agreement,
+      archivedAt: serverTimestamp(),
+      archivedBy: actor,
+    });
+  }
+
+  await updateDoc(doc(db, LEADS, lead.id), {
+    agreement: { ...built, createdAt: serverTimestamp(), createdBy: actor },
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  });
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "AGREEMENT_REGENERATED",
+    message: lead.agreement
+      ? `Franchise Agreement regenerated as ${built.number} (previous agreement ${lead.agreement.number} archived)`
+      : `Franchise Agreement ${built.number} drafted`,
+    actor,
+  });
+}
+
+/** Marks the agreement issued and moves the lead to the Agreement stage if it is behind. */
+export async function issueAgreement(lead: Lead, actor: Actor): Promise<void> {
+  if (!lead.agreement) throw new Error("Draft the Agreement before issuing it.");
+
+  const update: Record<string, unknown> = {
+    "agreement.status": "ISSUED",
+    "agreement.issuedBy": actor,
+    "agreement.issuedDate": serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  };
+  if (STAGES.indexOf(lead.stage) < STAGES.indexOf("AGREEMENT")) update.stage = "AGREEMENT";
+
+  await updateDoc(doc(getDb(), LEADS, lead.id), update);
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "AGREEMENT_ISSUED",
+    message: `Franchise Agreement ${lead.agreement.number} issued to the client`,
+    actor,
+  });
+}
+
+/** Removes the lead's current agreement, archiving it first — same reasoning as deleteEoi. */
+export async function deleteAgreement(lead: Lead, actor: Actor): Promise<void> {
+  if (!lead.agreement) return;
+  const db = getDb();
+
+  await addDoc(collection(db, LEADS, lead.id, AGREEMENT_VERSIONS), {
+    ...lead.agreement,
+    archivedAt: serverTimestamp(),
+    archivedBy: actor,
+  });
+
+  await updateDoc(doc(db, LEADS, lead.id), {
+    agreement: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  });
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "AGREEMENT_DELETED",
+    message: `Franchise Agreement ${lead.agreement.number} deleted`,
+    actor,
+  });
+}
+
+/** Permanently removes one archived version from leads/{id}/agreementVersions. */
+export async function deleteAgreementVersion(lead: Lead, version: AgreementVersion, actor: Actor): Promise<void> {
+  await deleteDoc(doc(getDb(), LEADS, lead.id, AGREEMENT_VERSIONS, version.id));
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "AGREEMENT_DELETED",
+    message: `Archived Franchise Agreement version ${version.number} permanently deleted`,
+    actor,
+  });
+}
+
+export async function setAgreementStatus(lead: Lead, status: AgreementStatus, actor: Actor): Promise<void> {
+  if (!lead.agreement) return;
+
+  await updateDoc(doc(getDb(), LEADS, lead.id), {
+    "agreement.status": status,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+    lastActivityAt: serverTimestamp(),
+    lastActivityBy: actor.name,
+  });
+
+  logActivitySafe({
+    leadId: lead.id,
+    ownerId: lead.ownerId,
+    leadCode: lead.code,
+    leadName: lead.client?.name,
+    type: "AGREEMENT_UPDATED",
+    message: `Franchise Agreement marked ${status.toLowerCase()}`,
+    actor,
+  });
+}
+
+/** Sequence for Agreement numbers: LG/FA/2026/0042. */
+export async function nextAgreementNumber(): Promise<string> {
+  const db = getDb();
+  const ref = doc(db, COUNTERS, "agreement");
+  const year = new Date().getFullYear();
+
+  const seq = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists() ? (snap.data() as { year?: number; seq?: number }) : {};
+    const next = data.year === year ? (data.seq ?? 0) + 1 : 1;
+    tx.set(ref, { year, seq: next }, { merge: true });
+    return next;
+  });
+
+  return `LG/FA/${year}/${String(seq).padStart(4, "0")}`;
 }

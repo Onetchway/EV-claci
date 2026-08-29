@@ -1,6 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 import type {
-  ActivityType, AssetCategory, AssetStatus, ChargingScheduleStatus, CommercialModel, CommissionStatus,
+  ActivityType, AgreementScheduleKey, AgreementStatus, AssetCategory, AssetStatus, ChargingScheduleStatus,
+  CommercialModel, CommissionStatus,
   ComplaintCategory, ComplaintPriority, ComplaintStatus,
   ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EoiStatus,
   FollowupPriority, FollowupStatus, FollowupType, FundingMode, GstType, LandType,
@@ -201,6 +202,31 @@ export interface EoiDoc {
 
 /** A superseded LOI, archived to leads/{id}/eoiVersions the moment it's replaced by a regenerated one — so a letter a signatory already saw stays retrievable and reprintable even after the client's details or the config change and a fresh one is issued. */
 export interface EoiVersion extends EoiDoc {
+  id: string;
+  archivedAt: TS;
+  archivedBy: Actor;
+}
+
+/**
+ * The Franchise Agreement. Unlike EoiDoc, the 20 clause bodies are fixed
+ * legal language (src/lib/agreement-template.ts) never edited per lead —
+ * only Schedule I (the site/commercial specifics) varies deal to deal, kept
+ * here as a plain key/value map keyed by AgreementScheduleKey.
+ */
+export interface AgreementDoc {
+  number: string;
+  status: AgreementStatus;
+  issuedDate: TS;
+  scheduleI: Partial<Record<AgreementScheduleKey, string>>;
+  createdAt: TS;
+  createdBy?: Actor;
+  updatedAt?: TS;
+  updatedBy?: Actor;
+  issuedBy?: Actor | null;
+}
+
+/** A superseded Agreement, archived to leads/{id}/agreementVersions the moment it's replaced by a regenerated one — same reasoning as EoiVersion. */
+export interface AgreementVersion extends AgreementDoc {
   id: string;
   archivedAt: TS;
   archivedBy: Actor;
@@ -415,6 +441,8 @@ export interface Lead {
   financing?: FinancingInfo;
   /** The generated Letter of Intent, once one exists. */
   eoi?: EoiDoc | null;
+  /** The generated Franchise Agreement, once one exists. */
+  agreement?: AgreementDoc | null;
   /**
    * Site ↔ franchise pairing, many-to-many. An investor can back several
    * franchises over time, and a landowner can offer several sites; every link
