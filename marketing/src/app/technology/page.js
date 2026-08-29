@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Radio, Cog, Smile, BarChart3, ShieldCheck, Unplug, Wifi, Clock3, RefreshCw, Radar, Gauge, TrendingUp } from 'lucide-react';
+import { Radio, Cog, Smile, BarChart3, ShieldCheck, Unplug, Wifi, Clock3, RefreshCw, Radar, Gauge, TrendingUp, User, Truck, Building2, Handshake } from 'lucide-react';
 import ScrollReveal from '@/components/ScrollReveal';
 import Card3D from '@/components/Card3D';
 import PhoneShowcase from '@/components/PhoneShowcase';
@@ -63,25 +63,30 @@ const AT_WORK = [
 ];
 
 const AUDIENCES = [
-  { title: 'Individual EV Drivers', body: 'Convenient, fast and reliable charging.' },
-  { title: 'Fleet Operators', body: 'Manage fleets, bookings and energy.' },
-  { title: 'Businesses', body: 'Offer charging to customers & employees.' },
-  { title: 'Partners', body: 'Real-time performance & revenue tracking.' },
+  { icon: User, title: 'Individual EV Drivers', body: 'Convenient, fast and reliable charging.' },
+  { icon: Truck, title: 'Fleet Operators', body: 'Manage fleets, bookings and energy.' },
+  { icon: Building2, title: 'Businesses', body: 'Offer charging to customers & employees.' },
+  { icon: Handshake, title: 'Partners', body: 'Real-time performance & revenue tracking.' },
 ];
 
 const SMART_FEATURES = [
-  { title: 'OCPP management', body: 'Every charger speaks a standard protocol — swap hardware without losing software.' },
-  { title: 'Analytics dashboard', body: 'Live chargers, sessions, energy and revenue in one operator view.' },
-  { title: 'Payment processing', body: 'Cards, UPI and wallet, reconciled automatically per session.' },
-  { title: '24/7 monitoring & SLA', body: 'Uptime backed by round-the-clock monitoring and support commitments.' },
+  { icon: Unplug, title: 'OCPP management', body: 'Every charger speaks a standard protocol — swap hardware without losing software.' },
+  { icon: BarChart3, title: 'Analytics dashboard', body: 'Live chargers, sessions, energy and revenue in one operator view.' },
+  { icon: Gauge, title: 'Payment processing', body: 'Cards, UPI and wallet, reconciled automatically per session.' },
+  { icon: ShieldCheck, title: '24/7 monitoring & SLA', body: 'Uptime backed by round-the-clock monitoring and support commitments.' },
 ];
 
 export default function TechnologyPage() {
   return (
     <>
       {/* Hero */}
-      <section className="bg-white pb-16 pt-32 sm:pt-36">
-        <div className="container-lv">
+      <section className="relative overflow-hidden bg-white pb-16 pt-32 sm:pt-36">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-40 -top-20 h-[28rem] w-[28rem] rounded-full opacity-60 blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(32,168,74,.16), transparent 70%)' }}
+        />
+        <div className="container-lv relative">
           <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
             <ScrollReveal>
               <span className="eyebrow">Our Technology</span>
@@ -106,8 +111,8 @@ export default function TechnologyPage() {
 
           <ScrollReveal delay={0.15} className="mt-14 grid grid-cols-2 gap-4 rounded-2xl border border-line bg-surface-alt p-6 sm:grid-cols-3 lg:grid-cols-6">
             {FEATURE_ROW.map((f) => (
-              <div key={f.title} className="text-center">
-                <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-600 shadow-sm">
+              <div key={f.title} className="group text-center">
+                <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-brand-50 to-brand-100 text-brand-600 shadow-sm transition-transform duration-300 group-hover:scale-110">
                   <f.icon className="h-4.5 w-4.5" />
                 </span>
                 <div className="mt-2 text-xs font-bold">{f.title}</div>
@@ -123,7 +128,7 @@ export default function TechnologyPage() {
       </div>
 
       {/* Technology at work */}
-      <section className="bg-white py-16">
+      <section className="bg-surface-alt py-24">
         <div className="container-lv">
           <ScrollReveal as="span" className="eyebrow">
             Technology at work
@@ -131,11 +136,13 @@ export default function TechnologyPage() {
           <ScrollReveal as="h2" delay={0.05} className="mt-2 font-display text-display-sm font-extrabold uppercase leading-tight">
             Built for reliability. <span className="text-brand-500">Designed for the future.</span>
           </ScrollReveal>
-          <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
-            {AT_WORK.map((s) => (
-              <ScrollReveal key={s.label} className="text-center">
-                <s.icon className="mx-auto h-5 w-5 text-brand-600" />
-                <div className="mt-2 font-display text-sm font-bold">{s.value}</div>
+          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {AT_WORK.map((s, i) => (
+              <ScrollReveal key={s.label} delay={i * 0.05} className="group rounded-2xl border border-line bg-white p-5 text-center shadow-sm transition-shadow duration-300 hover:shadow-md">
+                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-brand-500/10 text-brand-600 transition-transform duration-300 group-hover:scale-110">
+                  <s.icon className="h-4.5 w-4.5" />
+                </span>
+                <div className="mt-3 font-display text-sm font-bold">{s.value}</div>
                 <div className="mt-0.5 text-[10px] text-muted">{s.label}</div>
               </ScrollReveal>
             ))}
@@ -169,8 +176,9 @@ export default function TechnologyPage() {
             <h4 className="text-xs font-semibold uppercase tracking-wide text-brand-600">Powering experiences for</h4>
             <div className="mt-4 grid grid-cols-2 gap-5">
               {AUDIENCES.map((a) => (
-                <div key={a.title}>
-                  <div className="text-sm font-bold">{a.title}</div>
+                <div key={a.title} className="rounded-xl bg-white p-4 shadow-sm">
+                  <a.icon className="h-4.5 w-4.5 text-brand-600" />
+                  <div className="mt-2 text-sm font-bold">{a.title}</div>
                   <div className="mt-1 text-xs text-muted">{a.body}</div>
                 </div>
               ))}
@@ -245,7 +253,10 @@ export default function TechnologyPage() {
             {SMART_FEATURES.map((f, i) => (
               <ScrollReveal key={f.title} delay={i * 0.08}>
                 <Card3D className="h-full rounded-2xl border border-line bg-white p-8">
-                  <h3 className="font-display text-lg font-bold">{f.title}</h3>
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-500/10 text-brand-600">
+                    <f.icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-4 font-display text-lg font-bold">{f.title}</h3>
                   <p className="mt-2 text-sm text-muted">{f.body}</p>
                 </Card3D>
               </ScrollReveal>

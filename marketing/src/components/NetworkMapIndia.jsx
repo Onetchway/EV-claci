@@ -5,17 +5,17 @@ import Link from 'next/link';
 import { MapPin, Zap, Battery, Map as MapIcon } from 'lucide-react';
 import ScrollReveal from './ScrollReveal';
 
-/** Simplified India national outline, projected from Natural Earth 1:110m admin-0 boundary data into a 0 0 300 340 viewBox. */
+/** India national outline, projected from Natural Earth 1:110m admin-0 boundary data into a 0 0 300 340 viewBox, centered. */
 const INDIA_PATH =
-  'M 279.3,84.3 L 280.0,87.7 L 276.9,89.3 L 277.6,94.8 L 271.3,93.2 L 259.7,99.4 L 260.0,104.4 L 255.1,111.9 L 254.6,116.2 L 250.7,123.6 L 243.7,121.6 L 243.4,130.8 L 241.4,133.8 L 242.3,137.6 L 237.9,139.7 L 233.2,125.6 L 230.8,125.6 L 229.3,131.3 L 224.5,126.7 L 227.2,121.6 L 231.2,121.1 L 235.3,113.6 L 213.4,111.0 L 212.7,104.8 L 208.4,104.3 L 201.4,100.5 L 198.2,106.5 L 204.6,111.2 L 199.1,114.5 L 197.1,117.8 L 202.6,120.2 L 201.1,125.5 L 205.5,139.6 L 204.3,142.8 L 187.2,144.5 L 187.8,151.2 L 183.0,156.5 L 170.2,162.5 L 160.2,172.9 L 144.7,184.4 L 144.7,188.5 L 128.1,194.3 L 125.4,201.1 L 127.7,220.1 L 124.0,228.5 L 123.9,243.6 L 119.3,244.1 L 115.3,250.8 L 118.0,253.8 L 109.9,256.3 L 106.9,262.3 L 103.3,264.9 L 94.9,256.6 L 87.3,235.2 L 79.5,222.4 L 75.8,205.7 L 67.7,193.5 L 61.3,164.9 L 59.6,145.8 L 46.7,151.1 L 40.4,150.0 L 28.8,139.3 L 33.1,136.0 L 30.4,132.5 L 20.0,125.0 L 25.9,119.1 L 45.5,119.1 L 43.7,111.4 L 38.7,106.9 L 37.7,100.1 L 31.9,96.1 L 41.7,86.8 L 52.0,87.4 L 75.6,60.2 L 75.4,53.8 L 83.0,48.7 L 75.8,44.3 L 69.6,30.5 L 73.9,26.6 L 87.4,28.8 L 97.4,27.5 L 105.9,20.0 L 115.5,30.4 L 114.6,37.7 L 118.1,42.2 L 117.9,46.8 L 111.5,45.6 L 114.0,55.4 L 135.1,67.2 L 129.4,71.3 L 126.0,79.6 L 154.6,92.3 L 166.8,93.5 L 171.9,98.0 L 196.9,100.8 L 197.4,87.8 L 202.8,85.9 L 203.8,94.7 L 211.9,98.1 L 217.5,96.7 L 232.2,97.0 L 232.9,91.5 L 229.2,88.7 L 236.4,87.6 L 254.8,75.3 L 262.2,77.5 L 268.6,73.7 L 272.7,79.3 L 269.7,83.0 L 279.3,84.3 Z';
+  'M 285.3,109.2 L 286.0,112.7 L 282.7,114.4 L 283.5,120.2 L 276.8,118.5 L 264.8,124.9 L 265.1,130.2 L 259.9,138.1 L 259.5,142.6 L 255.3,150.3 L 248.1,148.1 L 247.7,157.8 L 245.6,160.9 L 246.6,164.9 L 242.0,167.1 L 237.1,152.3 L 234.5,152.4 L 233.0,158.3 L 227.9,153.5 L 230.8,148.2 L 234.9,147.7 L 239.2,139.8 L 233.9,138.2 L 225.2,138.3 L 216.4,137.1 L 215.5,130.6 L 211.1,130.1 L 203.7,126.1 L 200.4,132.4 L 207.2,137.3 L 201.3,140.8 L 199.3,144.2 L 205.0,146.7 L 203.4,152.3 L 206.6,159.3 L 208.1,167.0 L 206.8,170.4 L 200.4,170.2 L 189.0,172.2 L 189.5,179.2 L 184.5,184.7 L 171.1,191.0 L 160.7,201.9 L 153.7,207.8 L 144.4,213.9 L 144.4,218.1 L 131.4,223.8 L 127.1,224.3 L 124.3,231.4 L 126.2,243.5 L 126.7,251.2 L 122.8,260.0 L 122.7,275.8 L 117.9,276.3 L 113.7,283.4 L 116.5,286.5 L 108.0,289.1 L 104.9,295.4 L 101.1,298.1 L 92.3,289.4 L 84.5,267.0 L 81.2,262.6 L 76.2,253.6 L 72.3,236.2 L 63.9,223.4 L 57.2,193.5 L 57.3,182.2 L 55.5,173.5 L 41.9,179.0 L 35.3,177.9 L 23.2,166.7 L 27.7,163.3 L 24.9,159.6 L 14.0,151.7 L 20.2,145.5 L 40.7,145.6 L 38.8,137.6 L 33.6,132.8 L 32.5,125.7 L 26.5,121.5 L 36.7,111.7 L 47.5,112.5 L 57.2,102.7 L 63.1,93.3 L 72.1,83.9 L 72.0,77.3 L 79.9,71.9 L 72.4,67.3 L 65.9,52.8 L 70.4,48.8 L 84.5,51.1 L 94.9,49.7 L 103.9,41.9 L 113.9,52.8 L 113.0,60.4 L 116.7,65.2 L 116.4,69.9 L 109.7,68.7 L 112.3,78.9 L 121.4,84.8 L 134.4,91.3 L 128.5,95.5 L 124.9,104.3 L 133.9,107.8 L 154.8,117.6 L 167.5,118.8 L 172.9,123.5 L 191.3,126.6 L 199.1,126.4 L 200.1,122.7 L 198.9,116.8 L 199.6,112.8 L 205.3,110.8 L 206.3,120.0 L 214.7,123.6 L 220.6,122.1 L 236.0,122.5 L 236.7,116.7 L 232.9,113.8 L 240.4,112.6 L 248.9,105.7 L 259.6,99.8 L 267.4,102.0 L 274.0,98.1 L 278.4,103.9 L 275.3,107.8 L 285.3,109.2 Z';
 
 const PINS = [
-  { x: 99.4, y: 81.2, status: 'live', label: 'Delhi NCR region' },
-  { x: 133.6, y: 96.9, status: 'live', label: 'Lucknow' },
-  { x: 107.7, y: 66.0, status: 'live', label: 'Dehradun' },
-  { x: 87.7, y: 96.4, status: 'upcoming' },
-  { x: 96.5, y: 62.4, status: 'planned' },
-  { x: 102.1, y: 128.9, status: 'planned' },
+  { x: 97.0, y: 106.0, status: 'live', label: 'Delhi NCR region' },
+  { x: 132.9, y: 122.3, status: 'live', label: 'Lucknow' },
+  { x: 105.7, y: 90.1, status: 'live', label: 'Dehradun' },
+  { x: 84.9, y: 121.8, status: 'upcoming' },
+  { x: 94.1, y: 86.2, status: 'planned' },
+  { x: 99.9, y: 155.9, status: 'planned' },
 ];
 
 const STATUS_COLOR = { live: '#20A84A', upcoming: '#EAB308', planned: '#94A3A8' };
@@ -50,25 +50,48 @@ export default function NetworkMapIndia() {
         </ScrollReveal>
 
         {/* Map */}
-        <ScrollReveal delay={0.1} className="relative mx-auto w-full max-w-xs">
+        <ScrollReveal delay={0.1} className="relative mx-auto w-full max-w-sm">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 -z-10 blur-3xl"
+            style={{ background: 'radial-gradient(60% 60% at 50% 50%, rgba(32,168,74,.16), transparent 70%)' }}
+          />
           <svg viewBox="0 0 300 340" className="w-full">
-            <path d={INDIA_PATH} fill="#F0FAF5" stroke="#BEE3D0" strokeWidth="1.5" />
+            <defs>
+              <linearGradient id="india-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#EAF7EE" />
+                <stop offset="100%" stopColor="#CFEEDA" />
+              </linearGradient>
+            </defs>
+            <path d={INDIA_PATH} fill="url(#india-fill)" stroke="#7DCB9B" strokeWidth="1.75" strokeLinejoin="round" />
             {PINS.map((p, i) => (
-              <motion.circle
-                key={i}
-                cx={p.x}
-                cy={p.y}
-                r={p.status === 'live' ? 5 : 4}
-                fill={STATUS_COLOR[p.status]}
-                initial={{ opacity: 0, scale: 0 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 + i * 0.08, duration: 0.4 }}
-              >
+              <g key={i}>
                 {p.status === 'live' && (
-                  <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+                  <motion.circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={5}
+                    fill="none"
+                    stroke={STATUS_COLOR[p.status]}
+                    strokeWidth="1.5"
+                    initial={{ opacity: 0.6, scale: 1 }}
+                    animate={{ opacity: 0, scale: 2.6 }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut', delay: i * 0.3 }}
+                  />
                 )}
-              </motion.circle>
+                <motion.circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={p.status === 'live' ? 5.5 : 4}
+                  fill={STATUS_COLOR[p.status]}
+                  stroke="#fff"
+                  strokeWidth="1.5"
+                  initial={{ opacity: 0, scale: 0 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2 + i * 0.08, duration: 0.4 }}
+                />
+              </g>
             ))}
           </svg>
         </ScrollReveal>
