@@ -23,7 +23,23 @@ export default function PhoneShowcase({ steps }) {
   return (
     <div ref={ref} style={{ height: `${steps.length * 100}vh` }} className="relative">
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
-        <div className="container-lv grid w-full items-center gap-12 lg:grid-cols-2">
+        {/* Decorative illustrated backdrop */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div
+            className="absolute -right-24 top-1/4 h-[32rem] w-[32rem] rounded-full opacity-50 blur-3xl"
+            style={{ background: 'radial-gradient(circle, rgba(111,219,146,.35), transparent 70%)' }}
+          />
+          <div
+            className="absolute -left-32 bottom-0 h-[26rem] w-[26rem] rounded-full opacity-30 blur-3xl"
+            style={{ background: 'radial-gradient(circle, rgba(32,168,74,.4), transparent 70%)' }}
+          />
+          <svg className="absolute inset-x-0 bottom-0 h-2/3 w-full" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMax slice">
+            <path d="M0,420 C200,360 320,460 520,400 C720,340 820,440 1000,390 C1100,362 1160,380 1200,400 L1200,700 L0,700 Z" fill="rgba(111,219,146,.06)" />
+            <path d="M0,500 C220,440 380,520 600,470 C820,420 940,500 1200,460 L1200,700 L0,700 Z" fill="rgba(111,219,146,.09)" />
+            <line x1="0" y1="560" x2="1200" y2="560" stroke="rgba(255,255,255,.06)" strokeWidth="2" strokeDasharray="14 10" />
+          </svg>
+        </div>
+        <div className="container-lv relative grid w-full items-center gap-12 lg:grid-cols-2">
           {/* Step copy */}
           <div className="order-2 lg:order-1">
             <AnimatePresence mode="wait">
