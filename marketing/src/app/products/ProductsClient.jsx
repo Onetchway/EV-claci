@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Zap, Leaf, ShieldCheck, Radar, Rocket, Paintbrush, MonitorSmartphone, Plug, Palette, ClipboardCheck, Wrench, Gauge, HeadphonesIcon, CheckCircle2 } from 'lucide-react';
+import { Zap, Leaf, ShieldCheck, Radar, Rocket, Paintbrush, MonitorSmartphone, Plug, Palette, ClipboardCheck, Wrench, Gauge, HeadphonesIcon, CheckCircle2, Cloud, Thermometer, Info } from 'lucide-react';
 import Toggle from '@/components/Toggle';
 import ScrollReveal from '@/components/ScrollReveal';
 import Card3D from '@/components/Card3D';
@@ -57,6 +57,15 @@ const FAQ = [
 ];
 
 const SPEC_TIERS = PRODUCTS.filter((p) => p.specs);
+
+function featureIcon(f) {
+  const s = f.toLowerCase();
+  if (s.includes('gun') || s.includes('connector') || s.includes('socket')) return Plug;
+  if (s.includes('ocpp') || s.includes('cloud') || s.includes('smart')) return Cloud;
+  if (s.includes('display') || s.includes('hmi')) return MonitorSmartphone;
+  if (s.includes('°c') || s.includes('rated') || s.includes('temperature')) return Thermometer;
+  return Info;
+}
 
 export default function ProductsClient() {
   const [category, setCategory] = useState('ALL');
@@ -135,6 +144,16 @@ export default function ProductsClient() {
                   />
                 </motion.div>
               </AnimatePresence>
+              <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5">
+                {filtered.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedId(p.id)}
+                    aria-label={`Show ${p.name}`}
+                    className={'h-1.5 rounded-full transition-all ' + (p.id === selected.id ? 'w-5 bg-lime' : 'w-1.5 bg-white/30 hover:bg-white/50')}
+                  />
+                ))}
+              </div>
             </div>
 
             <div>
@@ -162,13 +181,17 @@ export default function ProductsClient() {
                     </div>
                   </dl>
 
-                  <ul className="mt-6 flex flex-wrap gap-2">
-                    {selected.features.map((f) => (
-                      <li key={f} className="rounded-full border border-line px-3 py-1 text-xs text-ink/70">
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                    {selected.features.map((f) => {
+                      const Icon = featureIcon(f);
+                      return (
+                        <div key={f} className="flex flex-col items-center gap-1.5 rounded-xl border border-line px-2 py-3 text-center">
+                          <Icon className="h-4 w-4 text-brand-600" />
+                          <span className="text-[11px] leading-tight text-ink/70">{f}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   <div className="mt-8 flex flex-wrap gap-3">
                     <Link href="/contact" className="btn btn-primary">
@@ -185,18 +208,26 @@ export default function ProductsClient() {
 
           {/* Power rail */}
           <div className="mt-14 overflow-x-auto pb-2">
-            <div className="flex min-w-max gap-3">
+            <div className="grid min-w-max grid-cols-6 gap-3">
               {filtered.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setSelectedId(p.id)}
                   className={
-                    'rounded-2xl border px-5 py-4 text-left transition-all duration-300 ' +
-                    (p.id === selected.id ? 'border-brand-500 bg-brand-500/5' : 'border-line hover:border-brand-500/40')
+                    'relative w-40 overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300 ' +
+                    (p.id === selected.id ? 'border-brand-500 bg-brand-500/5 shadow-md' : 'border-line hover:border-brand-500/40')
                   }
                 >
-                  <div className="font-display text-lg font-bold">{p.name}</div>
-                  <div className="text-xs text-muted">{p.powerLabel} · {p.connector}</div>
+                  {p.id === selected.id && (
+                    <span className="absolute left-0 top-0 rounded-br-lg bg-brand-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                      Current
+                    </span>
+                  )}
+                  <div className="flex h-14 items-center justify-center">
+                    <Image src={p.image} alt={p.name} width={40} height={56} className="h-full w-auto object-contain" />
+                  </div>
+                  <div className="mt-2 font-display text-sm font-bold">{p.name}</div>
+                  <div className="text-[11px] text-muted">{p.powerLabel} · {p.connector}</div>
                 </button>
               ))}
             </div>

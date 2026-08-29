@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { Radio, Cog, Smile, BarChart3, ShieldCheck, Unplug, Wifi, Clock3, RefreshCw, Radar, Gauge, TrendingUp, User, Truck, Building2, Handshake } from 'lucide-react';
 import ScrollReveal from '@/components/ScrollReveal';
@@ -9,26 +8,6 @@ import TechPlatform from '@/components/TechPlatform';
 import { FindScreen, DiscoverScreen, StartScreen, LiveScreen, PayScreen, HistoryScreen } from '@/components/PhoneScreens';
 import AppBadges from '@/components/AppBadges';
 import DashboardMock from '@/components/DashboardMock';
-
-function HeroDeviceComposite() {
-  return (
-    <div className="relative flex items-center justify-center gap-4">
-      <div className="relative z-10 h-[300px] w-[150px] shrink-0 rounded-[28px] border border-line bg-ink-soft p-2 shadow-2xl sm:h-[360px] sm:w-[180px]">
-        <div className="absolute left-1/2 top-2 z-10 h-3 w-16 -translate-x-1/2 rounded-full bg-black" />
-        <div className="relative h-full w-full overflow-hidden rounded-[22px] bg-gradient-to-b from-surface-dark to-ink">
-          <LiveScreen />
-        </div>
-      </div>
-      <Image
-        src="/products/livanto-dc-120.png"
-        alt="Livanto charger"
-        width={110}
-        height={220}
-        className="h-56 w-auto object-contain sm:h-72"
-      />
-    </div>
-  );
-}
 
 export const metadata = {
   title: 'Technology',
@@ -80,53 +59,27 @@ const SMART_FEATURES = [
 export default function TechnologyPage() {
   return (
     <>
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-white pb-16 pt-32 sm:pt-36">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-40 -top-20 h-[28rem] w-[28rem] rounded-full opacity-60 blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgba(32,168,74,.16), transparent 70%)' }}
-        />
-        <div className="container-lv relative">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-            <ScrollReveal>
-              <span className="eyebrow">Our Technology</span>
-              <h1 className="mt-3 font-display text-display-lg font-bold leading-tight">
-                Intelligence behind
-                <br />
-                every <span className="text-brand-500">charge.</span>
-              </h1>
-              <p className="mt-5 max-w-md text-muted">
-                Livanto Green combines advanced hardware, intelligent software
-                and 24×7 operations to deliver a seamless, reliable and
-                future-ready charging experience.
-              </p>
-              <Link href="#platform" className="btn btn-primary mt-7">
-                Explore Platform →
-              </Link>
-            </ScrollReveal>
-            <ScrollReveal delay={0.1}>
-              <HeroDeviceComposite />
-            </ScrollReveal>
-          </div>
+      {/* Hero: circular platform diagram */}
+      <div id="platform">
+        <TechPlatform hero />
+      </div>
 
-          <ScrollReveal delay={0.15} className="mt-14 grid grid-cols-2 gap-4 rounded-2xl border border-line bg-surface-alt p-6 sm:grid-cols-3 lg:grid-cols-6">
+      {/* Feature pillars */}
+      <section className="bg-white py-16">
+        <div className="container-lv">
+          <div className="grid grid-cols-2 gap-4 rounded-2xl border border-line bg-surface-alt p-6 sm:grid-cols-3 lg:grid-cols-6">
             {FEATURE_ROW.map((f) => (
-              <div key={f.title} className="group text-center">
+              <ScrollReveal key={f.title} className="group text-center">
                 <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-brand-50 to-brand-100 text-brand-600 shadow-sm transition-transform duration-300 group-hover:scale-110">
                   <f.icon className="h-4.5 w-4.5" />
                 </span>
                 <div className="mt-2 text-xs font-bold">{f.title}</div>
                 <div className="mt-1 text-[10px] leading-tight text-muted">{f.body}</div>
-              </div>
+              </ScrollReveal>
             ))}
-          </ScrollReveal>
+          </div>
         </div>
       </section>
-
-      <div id="platform">
-        <TechPlatform />
-      </div>
 
       {/* Technology at work */}
       <section className="bg-surface-alt py-24">

@@ -229,7 +229,7 @@ export default function SolutionsPage() {
             </ScrollReveal>
 
             <ScrollReveal delay={0.1} className="relative">
-              <DashboardMock />
+              <DashboardMock compact />
               <div className="mt-4 grid grid-cols-2 gap-2.5">
                 {PLATFORM_CHECKS.map((c) => (
                   <div key={c.label} className="flex items-center gap-2 rounded-lg bg-white/[0.06] px-3 py-2 text-[11px] font-medium text-white/75">

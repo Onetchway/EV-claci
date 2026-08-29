@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Linkedin, Target, Eye, Heart, UserCheck, ShieldCheck, Lightbulb, Leaf, Award, Users, Play, Calendar, MapPin, Zap, Clock } from 'lucide-react';
+import { Linkedin, Target, Eye, Heart, UserCheck, ShieldCheck, Lightbulb, Leaf, Award, Users, Play, Calendar, MapPin, Zap, Clock, Car, Truck, BedDouble, Building2, Home } from 'lucide-react';
 import ScrollReveal from '@/components/ScrollReveal';
 import LeaderAvatar from '@/components/LeaderAvatar';
 
@@ -53,11 +53,11 @@ const IMPACT_STATS = [
 ];
 
 const CLIENT_LOGO_SHEETS = [
-  { key: 'automotive', label: 'Automotive' },
-  { key: 'fleet', label: 'Fleet' },
-  { key: 'hospitality', label: 'Hospitality' },
-  { key: 'commercial', label: 'Commercial' },
-  { key: 'residential', label: 'Residential' },
+  { key: 'automotive', label: 'Automotive', icon: Car },
+  { key: 'fleet', label: 'Fleet', icon: Truck },
+  { key: 'hospitality', label: 'Hospitality', icon: BedDouble },
+  { key: 'commercial', label: 'Commercial', icon: Building2 },
+  { key: 'residential', label: 'Residential', icon: Home },
 ];
 
 export default function AboutPage() {
@@ -238,19 +238,33 @@ export default function AboutPage() {
       </section>
 
       {/* Trust logos */}
-      <section className="bg-white py-24">
-        <div className="container-lv text-center">
+      <section className="relative overflow-hidden bg-white py-24">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-24 h-72 w-[36rem] -translate-x-1/2 rounded-full opacity-40 blur-3xl"
+          style={{ background: 'radial-gradient(ellipse, rgba(32,168,74,.1), transparent 70%)' }}
+        />
+        <div className="container-lv relative text-center">
           <ScrollReveal as="span" className="eyebrow">
             Our Clients
           </ScrollReveal>
           <ScrollReveal as="p" delay={0.04} className="mt-3 font-display text-display-sm font-bold">
             Trusted across fleets, automotive, hospitality &amp; more.
           </ScrollReveal>
+          <ScrollReveal delay={0.08} className="mt-4 flex items-center justify-center gap-2">
+            <span className="h-px w-10 bg-line" />
+            <Zap className="h-3.5 w-3.5 text-brand-500" />
+            <span className="h-px w-10 bg-line" />
+          </ScrollReveal>
+
           <div className="mt-12 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
             {CLIENT_LOGO_SHEETS.map((c, i) => (
               <ScrollReveal key={c.key} delay={i * 0.06} className="overflow-hidden rounded-2xl border border-line bg-surface-alt">
-                <div className="border-b border-line bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-600">
-                  {c.label}
+                <div className="flex items-center gap-2 border-b border-line bg-white px-4 py-3 text-left">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/10 text-brand-600">
+                    <c.icon className="h-4 w-4" />
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wide text-brand-600">{c.label}</span>
                 </div>
                 <Image
                   src={`/brand/clients/${c.key}.jpg`}
@@ -262,6 +276,11 @@ export default function AboutPage() {
               </ScrollReveal>
             ))}
           </div>
+
+          <ScrollReveal delay={0.1} className="mt-10 inline-flex items-center gap-2 rounded-full bg-surface-alt px-5 py-3 text-sm text-muted">
+            <Users className="h-4 w-4 text-brand-600" />
+            Powering a greener tomorrow with <span className="font-semibold text-ink">Livanto Green</span>.
+          </ScrollReveal>
         </div>
       </section>
 
