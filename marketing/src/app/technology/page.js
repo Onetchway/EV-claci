@@ -8,6 +8,7 @@ import ConnectivityFlow from '@/components/ConnectivityFlow';
 import TechPlatform from '@/components/TechPlatform';
 import { FindScreen, DiscoverScreen, StartScreen, LiveScreen, PayScreen, HistoryScreen } from '@/components/PhoneScreens';
 import AppBadges from '@/components/AppBadges';
+import DashboardMock from '@/components/DashboardMock';
 
 function HeroDeviceComposite() {
   return (
@@ -197,35 +198,25 @@ export default function TechnologyPage() {
             One dashboard for the entire network.
           </ScrollReveal>
 
-          <ScrollReveal delay={0.1} className="mt-14 overflow-hidden rounded-3xl border border-line bg-ink text-white shadow-2xl">
-            <div className="flex items-center gap-2 border-b border-white/10 px-6 py-4">
-              <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-lime/70" />
-              <span className="ml-3 text-xs text-white/40">cms.livantogreen.com</span>
-            </div>
-            <div className="grid gap-px bg-white/5 p-px sm:grid-cols-2 lg:grid-cols-4">
+          <ScrollReveal delay={0.1} className="mt-14 grid gap-6 lg:grid-cols-[1fr_1.3fr] lg:items-start">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               {[
                 { label: 'Live chargers', value: '—' },
                 { label: 'Active sessions', value: '—' },
                 { label: 'Energy today', value: '—' },
                 { label: 'Uptime', value: '>95%' },
               ].map((k) => (
-                <div key={k.label} className="bg-ink px-6 py-8">
-                  <div className="text-xs uppercase tracking-wide text-white/40">{k.label}</div>
-                  <div className="mt-2 font-display text-3xl font-bold text-lime">{k.value}</div>
+                <div key={k.label} className="rounded-2xl border border-line bg-white px-6 py-6">
+                  <div className="text-xs uppercase tracking-wide text-muted">{k.label}</div>
+                  <div className="mt-2 font-display text-2xl font-bold text-brand-600">{k.value}</div>
                 </div>
               ))}
             </div>
-            <div className="grid gap-px bg-white/5 p-px sm:grid-cols-3">
-              {['Sessions', 'Revenue', 'Users', 'Alerts', 'Reports', 'Fleet'].map((m) => (
-                <div key={m} className="bg-ink px-6 py-5 text-sm text-white/60">
-                  {m}
-                </div>
-              ))}
+            <div className="shadow-2xl">
+              <DashboardMock />
             </div>
           </ScrollReveal>
-          <p className="mt-3 text-xs text-muted">
+          <p className="mt-6 text-xs text-muted">
             Live figures shown once network telemetry is public — uptime commitment (&gt;95%) is confirmed today.
           </p>
         </div>

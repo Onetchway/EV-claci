@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import ScrollReveal from '@/components/ScrollReveal';
 import Card3D from '@/components/Card3D';
+import DashboardMock from '@/components/DashboardMock';
 
 export const metadata = {
   title: 'Solutions',
@@ -227,18 +228,13 @@ export default function SolutionsPage() {
               </Link>
             </ScrollReveal>
 
-            <ScrollReveal delay={0.1} className="relative rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
-              <div className="flex items-center gap-2 border-b border-white/10 pb-4">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
-                <span className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
-                <span className="h-2.5 w-2.5 rounded-full bg-lime/70" />
-                <span className="ml-2 text-xs text-white/40">Livanto Green Platform</span>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-3">
+            <ScrollReveal delay={0.1} className="relative">
+              <DashboardMock />
+              <div className="mt-4 grid grid-cols-2 gap-2.5">
                 {PLATFORM_CHECKS.map((c) => (
-                  <div key={c.label} className="flex items-center gap-2.5 rounded-xl bg-white/[0.06] px-3 py-3 text-xs font-medium text-white/80 transition-colors hover:bg-white/[0.1]">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-lime/15 text-lime">
-                      <c.icon className="h-3.5 w-3.5" />
+                  <div key={c.label} className="flex items-center gap-2 rounded-lg bg-white/[0.06] px-3 py-2 text-[11px] font-medium text-white/75">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-lime/15 text-lime">
+                      <c.icon className="h-3 w-3" />
                     </span>
                     {c.label}
                   </div>

@@ -93,11 +93,28 @@ export default function ProductsClient() {
           <Toggle options={CATEGORY_OPTIONS} value={category} onChange={setCategory} layoutId="category-toggle" />
 
           <div className="mt-10 grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div className="relative h-[360px] overflow-hidden rounded-3xl border border-line bg-white">
+            <div
+              className="relative h-[360px] overflow-hidden rounded-3xl shadow-2xl"
+              style={{ background: 'radial-gradient(120% 100% at 50% 0%, #0F2A4A 0%, #071A35 55%, #030d1c 100%)' }}
+            >
               <div
                 aria-hidden="true"
                 className="absolute inset-0"
-                style={{ background: 'radial-gradient(420px circle at 50% 40%, rgba(32,168,74,.1), transparent 70%)' }}
+                style={{ background: 'radial-gradient(380px circle at 50% 38%, rgba(111,219,146,.28), transparent 70%)' }}
+              />
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 opacity-[0.07]"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)',
+                  backgroundSize: '28px 28px',
+                }}
+              />
+              <div
+                aria-hidden="true"
+                className="absolute bottom-10 left-1/2 h-8 w-48 -translate-x-1/2 rounded-full blur-xl"
+                style={{ background: 'radial-gradient(closest-side, rgba(0,0,0,.45), transparent)' }}
               />
               <AnimatePresence mode="wait">
                 <motion.div
@@ -113,7 +130,7 @@ export default function ProductsClient() {
                     alt={selected.name}
                     width={340}
                     height={380}
-                    className="h-full w-auto object-contain drop-shadow-[0_25px_30px_rgba(0,61,43,0.2)]"
+                    className="h-full w-auto object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,0.5)]"
                     priority
                   />
                 </motion.div>
