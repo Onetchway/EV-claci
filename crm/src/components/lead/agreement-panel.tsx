@@ -22,6 +22,29 @@ import { canDeleteEoi, canIssueEoi, type Viewer } from "@/lib/permissions";
 import type { Actor, AgreementDoc, AgreementVersion, AppSettings, Lead } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
+const EDITABLE =
+  "w-full resize-y rounded border border-transparent bg-transparent px-1 leading-relaxed hover:border-ink-200 hover:bg-ink-50 " +
+  "focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 print:border-0 print:bg-transparent print:px-0";
+
+function EditableParagraph({
+  value, onChange, readOnly, className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  readOnly?: boolean;
+  className?: string;
+}) {
+  if (readOnly) return <p className={className}>{value}</p>;
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      rows={Math.max(1, Math.ceil(value.length / 110))}
+      className={`${EDITABLE} text-sm ${className ?? ""}`}
+    />
+  );
+}
+
 /** The letter itself — shared between the live editable draft and a read-only archived version, and reused verbatim by the investor portal. */
 export function AgreementLetterArticle({
   agreement, company, readOnly, onPatch,
@@ -29,9 +52,28 @@ export function AgreementLetterArticle({
   agreement: AgreementDoc;
   company: AppSettings["company"];
   readOnly?: boolean;
-  /** When set, Schedule I values become editable directly on the letter — mirrors how the Letter of Intent stays editable inline. */
-  onPatch?: (key: AgreementScheduleKey, value: string) => void;
+  /** When set, Schedule I, recitals and clause text all become editable directly on the letter — mirrors how the Letter of Intent stays editable inline. */
+  onPatch?: (p: Partial<AgreementDoc>) => void;
 }) {
+  const recitals = agreement.recitals ?? AGREEMENT_RECITALS;
+  const clauses = agreement.clauses ?? AGREEMENT_CLAUSES;
+  const editable = Boolean(onPatch) && !readOnly;
+
+  function patchSchedule(key: AgreementScheduleKey, value: string) {
+    onPatch?.({ scheduleI: { ...agreement.scheduleI, [key]: value } });
+  }
+
+  function patchRecital(index: number, value: string) {
+    onPatch?.({ recitals: recitals.map((r, i) => (i === index ? value : r)) });
+  }
+
+  function patchClauseParagraph(clauseIdx: number, paraIdx: number, value: string) {
+    onPatch?.({
+      clauses: clauses.map((c, ci) =>
+        ci === clauseIdx ? { ...c, paragraphs: c.paragraphs.map((p, pi) => (pi === paraIdx ? value : p)) } : c),
+    });
+  }
+
   return (
     <article className="loi-sheet loi-letter rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
       <PrintDocument
@@ -48,17 +90,29 @@ export function AgreementLetterArticle({
         </p>
 
         <h3 className="mt-5 text-sm font-bold text-ink-900">RECITALS</h3>
-        {AGREEMENT_RECITALS.map((r, i) => (
-          <p key={i} className="mt-2 text-sm leading-relaxed text-ink-700">
-            <strong>{String.fromCharCode(65 + i)}.</strong> {r}
-          </p>
+        {recitals.map((r, i) => (
+          <div key={i} className="mt-2 flex gap-1.5 text-sm leading-relaxed text-ink-700">
+            <strong className="shrink-0">{String.fromCharCode(65 + i)}.</strong>
+            <EditableParagraph
+              readOnly={!editable}
+              value={r}
+              onChange={(v) => patchRecital(i, v)}
+              className="flex-1 text-ink-700"
+            />
+          </div>
         ))}
 
-        {AGREEMENT_CLAUSES.map((c) => (
+        {clauses.map((c, ci) => (
           <div key={c.number} className="mt-5">
             <h3 className="text-sm font-bold text-ink-900">{c.number}. {c.heading}</h3>
-            {c.paragraphs.map((p, i) => (
-              <p key={i} className="mt-2 text-sm leading-relaxed text-ink-700">{p}</p>
+            {c.paragraphs.map((p, pi) => (
+              <EditableParagraph
+                key={pi}
+                readOnly={!editable}
+                value={p}
+                onChange={(v) => patchClauseParagraph(ci, pi, v)}
+                className="mt-2 text-ink-700"
+              />
             ))}
           </div>
         ))}
@@ -97,10 +151,10 @@ export function AgreementLetterArticle({
               <tr key={f.key} className={i % 2 === 0 ? "bg-ink-50" : "bg-white"}>
                 <td className="border border-ink-300 px-3 py-1.5 font-medium text-ink-800">{f.label}</td>
                 <td className="border border-ink-300 px-3 py-1.5 text-ink-700">
-                  {onPatch && !readOnly ? (
+                  {editable ? (
                     <input
                       value={agreement.scheduleI[f.key] ?? ""}
-                      onChange={(e) => onPatch(f.key, e.target.value)}
+                      onChange={(e) => patchSchedule(f.key, e.target.value)}
                       placeholder="—"
                       aria-label={f.label}
                       className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 print:border-0 print:bg-transparent print:px-0"
@@ -157,6 +211,17 @@ export function AgreementPanel({
       const base = d ?? lead.agreement;
       if (!base) return d;
       return { ...base, scheduleI: { ...base.scheduleI, [key]: value } };
+    });
+  }
+
+  // General patch for the live letter — Schedule I cells, recitals and
+  // clause paragraphs all flow through here, same as the modal-only
+  // patchSchedule above but for the whole document.
+  function patch(p: Partial<AgreementDoc>) {
+    setDraft((d) => {
+      const base = d ?? lead.agreement;
+      if (!base) return d;
+      return { ...base, ...p };
     });
   }
 
@@ -275,7 +340,9 @@ export function AgreementPanel({
         }
       >
         <p className="text-xs text-ink-500">
-          The 20 clauses are Livanto&apos;s standard legal terms and are not edited per lead — only Schedule I (site &amp; commercial specifics) below varies.
+          {canEdit && current.status !== "SIGNED"
+            ? "Click any line below — recitals, clauses or Schedule I — to edit it directly, then Save changes."
+            : "Recitals, clauses and Schedule I are seeded from Livanto's standard template and can be edited per lead."}
           {current.issuedDate && ` Issued ${formatDateTime(current.issuedDate)}.`}
         </p>
       </Card>
@@ -285,7 +352,7 @@ export function AgreementPanel({
           agreement={current}
           company={company}
           readOnly={!canEdit || current.status === "SIGNED"}
-          onPatch={canEdit ? patchSchedule : undefined}
+          onPatch={canEdit ? patch : undefined}
         />
       </div>
 

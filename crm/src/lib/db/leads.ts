@@ -11,6 +11,7 @@ import {
   type ActivityType, type AgreementStatus, type CommercialModel, type EoiStatus, type LeadStatus,
   type LeadType, type RejectionReason, type Source, type Stage,
 } from "../constants";
+import { AGREEMENT_CLAUSES, AGREEMENT_RECITALS } from "../agreement-template";
 import { diffLead, summariseChanges } from "../diff";
 import { getDb } from "../firebase/client";
 import {
@@ -1253,6 +1254,11 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
       investorEarning: perKwh(eoi?.franchiseEarningPerKwh),
       publicSellingRate: perKwh(eoi?.sellingRatePerKwh),
     },
+    // Seeded from the standard template as a per-agreement, editable copy —
+    // not a reference to the shared constant, so editing one lead's wording
+    // never touches another's.
+    recitals: [...AGREEMENT_RECITALS],
+    clauses: AGREEMENT_CLAUSES.map((c) => ({ ...c, paragraphs: [...c.paragraphs] })),
     createdAt: null,
   };
 }

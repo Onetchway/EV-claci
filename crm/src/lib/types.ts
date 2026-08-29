@@ -1,4 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
+import type { AgreementClause } from "./agreement-template";
 import type {
   ActivityType, AgreementScheduleKey, AgreementStatus, AssetCategory, AssetStatus, ChargingScheduleStatus,
   CommercialModel, CommissionStatus,
@@ -217,6 +218,9 @@ export interface AgreementDoc {
   number: string;
   status: AgreementStatus;
   issuedDate: TS;
+  /** Recitals and clause text, seeded from the standard template at draft time but editable per lead thereafter — falls back to the compiled template (agreement-template.ts) when unset, for agreements drafted before this existed. */
+  recitals?: string[];
+  clauses?: AgreementClause[];
   scheduleI: Partial<Record<AgreementScheduleKey, string>>;
   createdAt: TS;
   createdBy?: Actor;
