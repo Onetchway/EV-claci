@@ -1226,7 +1226,14 @@ export async function nextEoiNumber(): Promise<string> {
 export const AGREEMENT_VERSIONS = "agreementVersions";
 
 /** Drafts a fresh AgreementDoc, prefilling whatever Schedule I fields the lead's own data can answer unambiguously — the rest (commercial figures negotiated per deal) are left blank for staff to fill in. */
+// Prefills Schedule I from the lead's own data — and, where a Letter of
+// Intent already exists, from its negotiated per-kWh economics and payout
+// terms too, since those numbers were already agreed with the client and
+// shouldn't need retyping into the Agreement.
 export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc {
+  const eoi = lead.eoi;
+  const tenureYears = eoi?.tenureYears || lead.site?.tenureYears;
+  const perKwh = (n?: number) => (n ? `Rs. ${n.toFixed(2)} per kWh` : "");
   return {
     number,
     status: "DRAFT",
@@ -1237,7 +1244,14 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
       registeredAddress: lead.client?.address ?? "",
       siteAddress: lead.site?.address || lead.site?.locationName || "",
       chargerTypeCapacity: describeCapacity(lead.config),
-      tenure: lead.site?.tenureYears ? `${lead.site.tenureYears} years from the Commercial Commissioning Date` : "",
+      tenure: tenureYears ? `${tenureYears} years from the Commercial Commissioning Date` : "",
+      minimumAssuredAmount: eoi?.minMonthlyPayout ? `Rs. ${eoi.minMonthlyPayout.toLocaleString("en-IN")} per month` : "",
+      payoutPeriod: eoi?.payoutMonths ? `${eoi.payoutMonths} months from the Commercial Commissioning Date` : "",
+      livantoFee: perKwh(eoi?.livantoEarningPerKwh),
+      discomFee: perKwh(eoi?.discomRatePerKwh),
+      landUsageFee: perKwh(eoi?.siteOwnerSharePerKwh),
+      investorEarning: perKwh(eoi?.franchiseEarningPerKwh),
+      publicSellingRate: perKwh(eoi?.sellingRatePerKwh),
     },
     createdAt: null,
   };

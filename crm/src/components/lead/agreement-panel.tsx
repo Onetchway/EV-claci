@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, FileText, Plus, Printer, Send, Trash2 } from "lucide-react";
+import { Clock, Download, FileText, Plus, Printer, Send, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -24,11 +24,13 @@ import { formatDate, formatDateTime } from "@/lib/utils";
 
 /** The letter itself — shared between the live editable draft and a read-only archived version, and reused verbatim by the investor portal. */
 export function AgreementLetterArticle({
-  agreement, company, readOnly,
+  agreement, company, readOnly, onPatch,
 }: {
   agreement: AgreementDoc;
   company: AppSettings["company"];
   readOnly?: boolean;
+  /** When set, Schedule I values become editable directly on the letter — mirrors how the Letter of Intent stays editable inline. */
+  onPatch?: (key: AgreementScheduleKey, value: string) => void;
 }) {
   return (
     <article className="loi-sheet loi-letter rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
@@ -94,13 +96,23 @@ export function AgreementLetterArticle({
             {AGREEMENT_SCHEDULE_FIELDS.map((f, i) => (
               <tr key={f.key} className={i % 2 === 0 ? "bg-ink-50" : "bg-white"}>
                 <td className="border border-ink-300 px-3 py-1.5 font-medium text-ink-800">{f.label}</td>
-                <td className="border border-ink-300 px-3 py-1.5 text-ink-700">{agreement.scheduleI[f.key] || "—"}</td>
+                <td className="border border-ink-300 px-3 py-1.5 text-ink-700">
+                  {onPatch && !readOnly ? (
+                    <input
+                      value={agreement.scheduleI[f.key] ?? ""}
+                      onChange={(e) => onPatch(f.key, e.target.value)}
+                      placeholder="—"
+                      aria-label={f.label}
+                      className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 print:border-0 print:bg-transparent print:px-0"
+                    />
+                  ) : (
+                    agreement.scheduleI[f.key] || "—"
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-
-        {!readOnly && null}
       </PrintDocument>
     </article>
   );
@@ -132,6 +144,7 @@ export function AgreementPanel({
   );
 
   const agreement = draft ?? lead.agreement;
+  const dirty = draft !== null && lead.agreement != null;
 
   async function startCreate() {
     const number = await nextAgreementNumber();
@@ -139,14 +152,24 @@ export function AgreementPanel({
     setCreateOpen(true);
   }
 
-  async function startRegenerate() {
-    const number = await nextAgreementNumber();
-    setDraft(buildAgreementFromLead(lead, number));
-    setRegenerateOpen(true);
+  function patchSchedule(key: AgreementScheduleKey, value: string) {
+    setDraft((d) => {
+      const base = d ?? lead.agreement;
+      if (!base) return d;
+      return { ...base, scheduleI: { ...base.scheduleI, [key]: value } };
+    });
   }
 
-  function patchSchedule(key: AgreementScheduleKey, value: string) {
-    setDraft((d) => (d ? { ...d, scheduleI: { ...d.scheduleI, [key]: value } } : d));
+  // Pulls fresh Schedule I values from the lead's Letter of Intent and site/
+  // client details without touching fields that have no source there (e.g.
+  // Buyback Floor Value) — a targeted refresh, not a full rebuild.
+  function fetchFromLead() {
+    setDraft((d) => {
+      const base = d ?? lead.agreement;
+      if (!base) return d;
+      const built = buildAgreementFromLead(lead, base.number);
+      return { ...base, scheduleI: { ...base.scheduleI, ...built.scheduleI } };
+    });
   }
 
   if (!lead.agreement && !draft) {
@@ -162,6 +185,7 @@ export function AgreementPanel({
           draft={draft}
           onClose={() => { setCreateOpen(false); setDraft(null); }}
           onPatch={patchSchedule}
+          onFetch={fetchFromLead}
           busy={busy}
           onSave={() =>
             void run(async () => {
@@ -182,7 +206,7 @@ export function AgreementPanel({
     <div className="space-y-4">
       <Card
         title="Franchise Agreement"
-        subtitle={`${current.number} · ${AGREEMENT_STATUS_LABEL[current.status]}`}
+        subtitle={`${current.number} · ${AGREEMENT_STATUS_LABEL[current.status]}${dirty ? " · Unsaved changes" : ""}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={AGREEMENT_STATUS_COLOR[current.status]}>{AGREEMENT_STATUS_LABEL[current.status]}</Badge>
@@ -195,8 +219,33 @@ export function AgreementPanel({
               <Printer className="h-3.5 w-3.5" /> Print / Save as PDF
             </Button>
             {canEdit && (
-              <Button size="sm" onClick={() => { setDraft(current); setRegenerateOpen(true); }}>
-                Edit / Regenerate
+              <Button size="sm" onClick={fetchFromLead} title="Pull fresh values from this lead's Letter of Intent, client and site details into Schedule I, without discarding fields that have no source there.">
+                <Download className="h-3.5 w-3.5" /> Fetch from EOI / lead
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                size="sm"
+                variant={dirty ? "primary" : "secondary"}
+                disabled={!dirty}
+                loading={busy}
+                onClick={() =>
+                  void run(async () => {
+                    if (draft) await saveAgreement(lead, draft, actor);
+                    setDraft(null);
+                  }, "Agreement saved.")
+                }
+              >
+                Save changes
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                size="sm"
+                onClick={() => { setDraft(current); setRegenerateOpen(true); }}
+                title="Rebuild Schedule I from this lead's current details under a new Agreement number — the current one is archived first, not lost."
+              >
+                Regenerate
               </Button>
             )}
             {canIssueEoi(viewer) && current.status === "DRAFT" && (
@@ -232,7 +281,12 @@ export function AgreementPanel({
       </Card>
 
       <div className="print:block">
-        <AgreementLetterArticle agreement={current} company={company} />
+        <AgreementLetterArticle
+          agreement={current}
+          company={company}
+          readOnly={!canEdit || current.status === "SIGNED"}
+          onPatch={canEdit ? patchSchedule : undefined}
+        />
       </div>
 
       <Modal
@@ -261,7 +315,7 @@ export function AgreementPanel({
           </>
         }
       >
-        <ScheduleForm draft={draft} onPatch={patchSchedule} />
+        <ScheduleForm draft={draft} onPatch={patchSchedule} onFetch={fetchFromLead} />
       </Modal>
 
       <Modal
@@ -326,33 +380,42 @@ export function AgreementPanel({
 }
 
 function ScheduleForm({
-  draft, onPatch,
+  draft, onPatch, onFetch,
 }: {
   draft: AgreementDoc | null;
   onPatch: (key: AgreementScheduleKey, value: string) => void;
+  onFetch?: () => void;
 }) {
   if (!draft) return null;
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {AGREEMENT_SCHEDULE_FIELDS.map((f) => (
-        <Field key={f.key} label={f.label}>
-          <Input
-            value={draft.scheduleI[f.key] ?? ""}
-            onChange={(e) => onPatch(f.key, e.target.value)}
-          />
-        </Field>
-      ))}
+    <div className="space-y-4">
+      {onFetch && (
+        <Button size="sm" onClick={onFetch} title="Pull fresh values from this lead's Letter of Intent, client and site details — fields with no source there are left as they are.">
+          <Download className="h-3.5 w-3.5" /> Fetch from EOI / lead
+        </Button>
+      )}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {AGREEMENT_SCHEDULE_FIELDS.map((f) => (
+          <Field key={f.key} label={f.label}>
+            <Input
+              value={draft.scheduleI[f.key] ?? ""}
+              onChange={(e) => onPatch(f.key, e.target.value)}
+            />
+          </Field>
+        ))}
+      </div>
     </div>
   );
 }
 
 function CreateModal({
-  open, draft, onClose, onPatch, onSave, busy,
+  open, draft, onClose, onPatch, onFetch, onSave, busy,
 }: {
   open: boolean;
   draft: AgreementDoc | null;
   onClose: () => void;
   onPatch: (key: AgreementScheduleKey, value: string) => void;
+  onFetch?: () => void;
   onSave: () => void;
   busy: boolean;
 }) {
@@ -372,7 +435,7 @@ function CreateModal({
         </>
       }
     >
-      <ScheduleForm draft={draft} onPatch={onPatch} />
+      <ScheduleForm draft={draft} onPatch={onPatch} onFetch={onFetch} />
     </Modal>
   );
 }
