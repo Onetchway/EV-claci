@@ -74,11 +74,11 @@ export default function TechPlatform({ hero = false }) {
           </a>
         </ScrollReveal>
 
-        {/* Circular diagram */}
-        <ScrollReveal delay={0.1} className="relative mx-auto h-[380px] w-[380px]">
+        {/* Circular diagram — percentage-based so it scales with its grid column at any width */}
+        <ScrollReveal delay={0.1} className="relative mx-auto aspect-square w-full max-w-[380px]">
           <div
             aria-hidden="true"
-            className="absolute left-1/2 top-1/2 h-52 w-52 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60 blur-2xl"
+            className="absolute left-1/2 top-1/2 h-[45%] w-[45%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60 blur-2xl"
             style={{ background: 'radial-gradient(circle, rgba(32,168,74,.28), transparent 70%)' }}
           />
           <svg className="absolute inset-0 h-full w-full" viewBox="0 0 380 380">
@@ -91,7 +91,7 @@ export default function TechPlatform({ hero = false }) {
             })}
           </svg>
 
-          <div className="absolute left-1/2 top-1/2 flex h-32 w-32 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-2 border-brand-500 bg-white text-center shadow-xl">
+          <div className="absolute left-1/2 top-1/2 flex h-[34%] w-[34%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-2 border-brand-500 bg-white text-center shadow-xl">
             <Zap className="h-4 w-4 text-brand-500" />
             <span className="mt-1 font-display text-sm font-bold leading-tight">
               Livanto<br /><span className="text-brand-500">Green</span>
@@ -111,7 +111,7 @@ export default function TechPlatform({ hero = false }) {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: 0.1 + i * 0.05 }}
                 className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
-                style={{ left: x, top: y }}
+                style={{ left: `${(x / 380) * 100}%`, top: `${(y / 380) * 100}%` }}
               >
                 <span className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-brand-600 shadow-sm">
                   <n.icon className="h-4.5 w-4.5" />

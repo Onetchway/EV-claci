@@ -47,12 +47,12 @@ function ScreenShell({ title, sub, children, active = 'home' }) {
 }
 
 const Row = ({ label, value, accent, icon: Icon }) => (
-  <div className="flex items-center justify-between rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm">
-    <span className="flex items-center gap-2 text-white/60">
-      {Icon && <Icon className="h-3.5 w-3.5" />}
+  <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm">
+    <span className="flex shrink-0 items-center gap-2 text-white/60">
+      {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
       {label}
     </span>
-    <span className={accent ? 'font-semibold text-lime' : 'font-medium'}>{value}</span>
+    <span className={'min-w-0 text-right ' + (accent ? 'font-semibold text-lime' : 'font-medium')}>{value}</span>
   </div>
 );
 
@@ -84,7 +84,7 @@ export function DiscoverScreen() {
   return (
     <ScreenShell title="MG Road Hub" sub="Public DC charging plaza" active="map">
       <div className="space-y-2">
-        <Row label="Charger" value="60 kW DC · Dual CCS2" />
+        <Row label="Charger" value="60 kW · Dual CCS2" />
         <Row label="Status" value="Available" accent />
         <Row label="Tariff" value="₹18 / kWh" />
         <Row label="Certified" value="ARAI" />
