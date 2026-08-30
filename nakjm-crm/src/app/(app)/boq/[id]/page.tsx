@@ -7,6 +7,7 @@ import { Pencil, Printer, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
+import { EntityDocuments } from "@/components/entity-documents";
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction } from "@/components/ui";
 import { ItemsTable, BOQ_FIELDS, type DraftBoqItem } from "@/components/line-items-table";
 import { BOQ_CATEGORIES, BOQ_STATUSES, type BoqCategory, type BoqStatus } from "@/lib/constants";
@@ -128,6 +129,8 @@ export default function BoqDetailPage() {
               <div className="flex justify-between"><dt className="text-ink-500">Version</dt><dd>v{boq.version}</dd></div>
             </dl>
           </Card>
+
+          <EntityDocuments projectId={boq.projectId} entityType="BOQ" entityId={boq.id} defaultDocType="BOQ_UPLOAD" title="BOQ Documents" />
 
           <EntityActivityLog entityType="BOQ" entityId={boq.id} />
         </div>

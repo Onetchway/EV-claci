@@ -569,6 +569,9 @@ export interface Activity {
 export interface NakjmDocument {
   id: string;
   projectId?: string | null;
+  /** When set, this document is filed against a specific BOQ/PO/Quotation/PI rather than just the project. */
+  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | null;
+  linkedEntityId?: string | null;
   docType: DocumentCategory;
   fileName: string;
   storagePath: string;

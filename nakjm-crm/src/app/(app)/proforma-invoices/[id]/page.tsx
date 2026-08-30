@@ -7,6 +7,7 @@ import { Plus, Printer, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
+import { EntityDocuments } from "@/components/entity-documents";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
@@ -167,6 +168,8 @@ export default function ProformaInvoiceDetailPage() {
             {pi.milestone && <p className="mt-1 text-xs text-ink-500">Milestone: {pi.milestone}</p>}
             <p className="mt-1 text-xs text-ink-500"><Link href={`/projects/${pi.projectId}`} className="text-brand-700 hover:underline">{pi.projectName}</Link></p>
           </Card>
+
+          <EntityDocuments projectId={pi.projectId} entityType="PROFORMA_INVOICE" entityId={pi.id} defaultDocType="OTHER" title="PI Documents" />
 
           <EntityActivityLog entityType="PROFORMA_INVOICE" entityId={pi.id} />
         </div>

@@ -7,6 +7,7 @@ import { Printer, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
+import { EntityDocuments } from "@/components/entity-documents";
 import { Badge, Button, Card, EmptyState, Modal, PageHeader, Select, Spinner, useAsyncAction } from "@/components/ui";
 import { QUOTATION_STATUSES, type QuotationStatus } from "@/lib/constants";
 import { getClient } from "@/lib/db/clients";
@@ -123,6 +124,8 @@ export default function QuotationDetailPage() {
               {q.validUntil && <div className="flex justify-between"><dt className="text-ink-500">Valid until</dt><dd>{formatDate(q.validUntil)}</dd></div>}
             </dl>
           </Card>
+
+          <EntityDocuments projectId={q.projectId} entityType="QUOTATION" entityId={q.id} defaultDocType="QUOTATION_UPLOAD" title="Quotation Documents" />
 
           <EntityActivityLog entityType="QUOTATION" entityId={q.id} />
         </div>

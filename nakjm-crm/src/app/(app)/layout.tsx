@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import {
   AlertTriangle, Boxes, Briefcase, Building2, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Cog,
   FileSignature, FileSpreadsheet, FileText, Gavel, History, LayoutDashboard, Layers, LogOut, Menu, Search,
-  ShieldCheck, Trash2, Truck, Users, Users2, Wallet, X,
+  ShieldCheck, Trash2, Truck, Users, Users2, X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -53,10 +53,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/proforma-invoices", label: "Proforma Invoices", icon: FileSpreadsheet },
       { href: "/quotations", label: "Quotations", icon: FileSignature },
       { href: "/boq", label: "BOQ", icon: Layers },
-      { href: "/payments", label: "Payments", icon: Wallet },
       { href: "/assets", label: "Asset Register", icon: Boxes },
       { href: "/team", label: "Team Assignments", icon: ClipboardList },
-      { href: "/documents", label: "Documents", icon: FileText },
       { href: "/issues", label: "Issues", icon: AlertTriangle },
     ],
   },

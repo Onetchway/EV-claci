@@ -7,6 +7,7 @@ import { Plus, Printer, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
+import { EntityDocuments } from "@/components/entity-documents";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
@@ -191,6 +192,8 @@ export default function PurchaseOrderDetailPage() {
               </dl>
             </Card>
           )}
+
+          <EntityDocuments projectId={po.projectId} entityType="PURCHASE_ORDER" entityId={po.id} defaultDocType="WORK_ORDER" title="PO Documents" />
 
           <EntityActivityLog entityType="PURCHASE_ORDER" entityId={po.id} />
         </div>

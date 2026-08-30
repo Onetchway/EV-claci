@@ -28,7 +28,7 @@ const SOURCES: SourceConfig[] = [
   { type: "Proforma Invoice", collectionName: "proformaInvoices", matchFields: ["piNo", "projectName", "milestone"], toResult: (id, d) => ({ type: "Proforma Invoice", label: String(d.piNo ?? ""), sublabel: String(d.projectName ?? ""), href: `/proforma-invoices/${id}` }) },
   { type: "Vendor", collectionName: "vendors", matchFields: ["name", "contactName", "gstin"], toResult: (id, d) => ({ type: "Vendor", label: String(d.name ?? ""), sublabel: String(d.contactName ?? ""), href: `/vendors/${id}` }) },
   { type: "Issue", collectionName: "issues", matchFields: ["title", "projectName"], toResult: (id, d) => ({ type: "Issue", label: String(d.title ?? ""), sublabel: String(d.projectName ?? ""), href: `/issues` }) },
-  { type: "Document", collectionName: "documents", matchFields: ["fileName"], toResult: (id, d) => ({ type: "Document", label: String(d.fileName ?? ""), sublabel: String(d.docType ?? ""), href: `/documents` }) },
+  { type: "Document", collectionName: "documents", matchFields: ["fileName"], toResult: (id, d) => ({ type: "Document", label: String(d.fileName ?? ""), sublabel: String(d.docType ?? ""), href: d.projectId ? `/projects/${d.projectId}` : "/projects" }) },
 ];
 
 /**
