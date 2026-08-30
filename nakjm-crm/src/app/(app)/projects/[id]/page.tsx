@@ -523,7 +523,7 @@ function BoqTab({ project }: { project: Project }) {
             <tbody>
               {rows.map((b) => (
                 <tr key={b.id} className="border-t border-ink-100">
-                  <td className="td font-medium">{b.boqNo}</td>
+                  <td className="td font-medium"><Link href={`/boq/${b.id}`} className="text-brand-700 hover:underline">{b.boqNo}</Link></td>
                   <td className="td">{b.siteName || "—"}</td>
                   <td className="td"><Badge>{b.status}</Badge></td>
                   <td className="td">{formatDate(b.boqDate)}</td>

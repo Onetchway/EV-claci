@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Boxes, Briefcase, Building2, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Cog,
-  FileSignature, FileSpreadsheet, FileText, Gavel, History, LayoutDashboard, LogOut, Menu, Search, ShieldCheck,
+  FileSignature, FileSpreadsheet, FileText, Gavel, History, LayoutDashboard, Layers, LogOut, Menu, Search, ShieldCheck,
   Trash2, Truck, Users, Users2, Wallet, X,
 } from "lucide-react";
 
@@ -50,6 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
       { href: "/proforma-invoices", label: "Proforma Invoices", icon: FileSpreadsheet },
       { href: "/quotations", label: "Quotations", icon: FileSignature },
+      { href: "/boq", label: "BOQ", icon: Layers },
       { href: "/payments", label: "Payments", icon: Wallet },
       { href: "/assets", label: "Asset Register", icon: Boxes },
       { href: "/team", label: "Team Assignments", icon: ClipboardList },

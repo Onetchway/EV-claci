@@ -40,6 +40,23 @@ export async function getBoq(id: string): Promise<Boq | null> {
   return snap.exists() ? mapBoq(snap.id, snap.data()) : null;
 }
 
+export function subscribeBoq(id: string, cb: (b: Boq | null) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    doc(getDb(), BOQS, id),
+    (snap) => cb(snap.exists() ? mapBoq(snap.id, snap.data()) : null),
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Org-wide — the top-level BOQ page across every project. */
+export function subscribeBoqs(cb: (rows: Boq[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), BOQS)),
+    (snap) => cb(snap.docs.map((d) => mapBoq(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export interface BoqDraft {
   boqNo: string;
   projectId: string;
@@ -83,8 +100,12 @@ export async function createBoq(draft: BoqDraft, actor?: Actor): Promise<Boq> {
   return { id: ref.id, ...(payload as unknown as Omit<Boq, "id">) };
 }
 
-export async function updateBoqStatus(id: string, status: BoqStatus): Promise<void> {
-  await updateDoc(doc(getDb(), BOQS, id), { status, updatedAt: serverTimestamp() });
+export async function updateBoqStatus(boq: Boq, status: BoqStatus, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), BOQS, boq.id), { status, updatedAt: serverTimestamp() });
+  logActivitySafe({
+    entityType: "BOQ", entityId: boq.id, entityLabel: boq.boqNo, action: "STATUS_CHANGE",
+    message: `Marked BOQ ${boq.boqNo} ${status}`, actor, projectId: boq.projectId,
+  });
 }
 
 export interface BoqPatch {
