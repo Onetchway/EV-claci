@@ -206,6 +206,28 @@ Output:
 
 ---
 
+## Optional — PO/WO auto-extraction
+
+The New Project page has an "Auto-fill from PO/WO" button that reads an
+uploaded client purchase order or work order (PDF or photo) and extracts
+client name, project value, dates, location and scope, so the form doesn't
+have to be typed out by hand. This calls the Anthropic API and needs an API
+key; without one, the button is disabled with an explanatory message and
+everything else — including creating projects manually — works normally.
+
+1. Get a key at [console.anthropic.com](https://console.anthropic.com).
+2. Store it in Secret Manager:
+   ```bash
+   echo -n "sk-ant-..." | gcloud secrets create nakjm-crm-anthropic-key --data-file=-
+   ```
+3. Grant your App Hosting backend's service account access to it (Firebase
+   prompts for this automatically the first time you reference a secret it
+   can't yet read).
+4. Uncomment the `ANTHROPIC_API_KEY` block at the bottom of
+   `nakjm-crm/apphosting.yaml`, push, and let it redeploy.
+
+---
+
 ## Custom domain — `app.nakjminfra.com`
 
 1. **App Hosting → your backend → Custom domains → Add domain** →

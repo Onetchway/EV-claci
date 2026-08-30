@@ -2,16 +2,17 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { Upload } from "lucide-react";
+import { Sparkles, Upload } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
-import { Badge, Button, Card, Field, Input, PageHeader, Select, Textarea, useAsyncAction } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, PageHeader, Select, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { PROJECT_STATUSES, PROJECT_TYPES, statusMeta, type ProjectStatus, type ProjectType } from "@/lib/constants";
 import { listActiveClients } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
 import { createProject, getProject } from "@/lib/db/projects";
 import { linkTenderToProject } from "@/lib/db/tenders";
 import { listActiveTeamMembers } from "@/lib/db/team-members";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import type { Client, Project, TeamMember } from "@/lib/types";
 
 const EMPTY = {
@@ -32,6 +33,7 @@ function NewProjectForm() {
   const router = useRouter();
   const actor = useActor();
   const { busy, run } = useAsyncAction();
+  const { push } = useToast();
   const params = useSearchParams();
   const tenderId = params.get("tenderId");
   const parentProjectId = params.get("parentProjectId");
@@ -41,6 +43,8 @@ function NewProjectForm() {
   const [parentProject, setParentProject] = useState<Project | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [poFile, setPoFile] = useState<File | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [unmatchedClientName, setUnmatchedClientName] = useState<string | null>(null);
 
   useEffect(() => { void listActiveClients().then(setClients); void listActiveTeamMembers().then(setTeam); }, []);
 
@@ -96,6 +100,46 @@ function NewProjectForm() {
     }, "Project created.");
   }
 
+  async function onExtract(file: File) {
+    setPoFile(file);
+    setUnmatchedClientName(null);
+    setExtracting(true);
+    try {
+      const current = getFirebaseAuth().currentUser;
+      if (!current) throw new Error("Your session expired. Sign in again.");
+      const token = await current.getIdToken();
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/extract-po", { method: "POST", headers: { authorization: `Bearer ${token}` }, body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Extraction failed (${res.status}).`);
+
+      const matchedClient = data.clientName
+        ? clients.find((c) => c.name.toLowerCase().includes(String(data.clientName).toLowerCase()) || String(data.clientName).toLowerCase().includes(c.name.toLowerCase()))
+        : undefined;
+      if (data.clientName && !matchedClient) setUnmatchedClientName(data.clientName);
+
+      setForm((f) => ({
+        ...f,
+        name: data.projectName || f.name,
+        clientId: matchedClient?.id ?? f.clientId,
+        projectType: data.projectType ?? f.projectType,
+        contractValue: data.contractValue != null ? String(data.contractValue) : f.contractValue,
+        startDate: data.startDate || f.startDate,
+        targetEndDate: data.completionDate || f.targetEndDate,
+        address: data.location || f.address,
+      }));
+      push(
+        data.scopeOfWork ? `Extracted — scope: ${data.scopeOfWork}` : "Extracted — review the fields below before creating the project.",
+        "success",
+      );
+    } catch (err) {
+      push((err as Error).message, "error");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
@@ -113,6 +157,23 @@ function NewProjectForm() {
         </div>
       )}
       <Card>
+        <div className="mb-5 rounded-xl border border-dashed border-brand-300 bg-brand-50/40 p-4">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-brand-800">
+            <Sparkles className="h-4 w-4" />
+            {extracting ? "Reading document…" : "Auto-fill from a client PO / Work Order (PDF or photo)"}
+            <input
+              type="file" className="hidden" accept=".pdf,image/*" disabled={extracting}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) void onExtract(f); }}
+            />
+          </label>
+          <p className="mt-1 text-xs text-brand-700">Upload the client's PO/WO and the fields below get filled in automatically — review them before creating the project.</p>
+          {unmatchedClientName && (
+            <p className="mt-2 rounded-lg bg-amber-100 px-3 py-1.5 text-xs text-amber-800">
+              Extracted client "{unmatchedClientName}" doesn't match an existing client — pick one below, or <a href="/clients" className="underline">create it first</a>.
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Project Name" required className="col-span-2">
             <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
