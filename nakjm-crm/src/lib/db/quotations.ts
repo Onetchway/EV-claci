@@ -52,6 +52,14 @@ export async function getQuotation(id: string): Promise<Quotation | null> {
   return snap.exists() ? mapQuotation(snap.id, snap.data()) : null;
 }
 
+export function subscribeQuotation(id: string, cb: (q: Quotation | null) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    doc(getDb(), QUOTATIONS, id),
+    (snap) => cb(snap.exists() ? mapQuotation(snap.id, snap.data()) : null),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export async function nextQuotationVersion(projectId: string): Promise<number> {
   const snap = await getDocs(query(collection(getDb(), QUOTATIONS), where("projectId", "==", projectId)));
   return snap.docs.reduce((max, d) => Math.max(max, (d.data().version as number) || 0), 0) + 1;

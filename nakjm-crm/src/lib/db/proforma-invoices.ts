@@ -39,6 +39,14 @@ export async function getProformaInvoice(id: string): Promise<ProformaInvoice | 
   return snap.exists() ? mapPi(snap.id, snap.data()) : null;
 }
 
+export function subscribeProformaInvoice(id: string, cb: (pi: ProformaInvoice | null) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    doc(getDb(), PROFORMA_INVOICES, id),
+    (snap) => cb(snap.exists() ? mapPi(snap.id, snap.data()) : null),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export interface PiDraft {
   piNo: string;
   projectId: string;
@@ -109,12 +117,15 @@ export async function updateProformaInvoice(pi: ProformaInvoice, patch: PiPatch,
   if (patch.piNo !== undefined) update.piNo = patch.piNo;
   if (patch.milestone !== undefined) update.milestone = patch.milestone;
   if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.status !== undefined) update.status = patch.status;
   if (patch.piDate !== undefined) update.piDate = patch.piDate ? Timestamp.fromDate(patch.piDate) : null;
   if (patch.dueDate !== undefined) update.dueDate = patch.dueDate ? Timestamp.fromDate(patch.dueDate) : null;
   await updateDoc(doc(getDb(), PROFORMA_INVOICES, pi.id), update);
   logActivitySafe({
-    entityType: "PROFORMA_INVOICE", entityId: pi.id, entityLabel: pi.piNo, action: "UPDATE",
-    message: `Edited PI ${pi.piNo}`, actor, projectId: pi.projectId,
+    entityType: "PROFORMA_INVOICE", entityId: pi.id, entityLabel: pi.piNo,
+    action: patch.status && patch.status !== pi.status ? "STATUS_CHANGE" : "UPDATE",
+    message: patch.status && patch.status !== pi.status ? `Marked PI ${pi.piNo} ${patch.status}` : `Edited PI ${pi.piNo}`,
+    actor, projectId: pi.projectId,
   });
 }
 

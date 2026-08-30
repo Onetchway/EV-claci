@@ -400,7 +400,7 @@ function QuotationsTab({ project }: { project: Project }) {
             <tbody>
               {rows.map((q) => (
                 <tr key={q.id} className="border-t border-ink-100">
-                  <td className="td font-medium">{q.quotationNo}</td>
+                  <td className="td font-medium"><Link href={`/quotations/${q.id}`} className="text-brand-700 hover:underline">{q.quotationNo}</Link></td>
                   <td className="td">v{q.version}</td>
                   <td className="td"><Badge>{q.status}</Badge></td>
                   <td className="td">{formatDate(q.validUntil)}</td>
@@ -740,7 +740,7 @@ function PiTab({ project }: { project: Project }) {
             <tbody>
               {rows.map((pi) => (
                 <tr key={pi.id} className="border-t border-ink-100">
-                  <td className="td font-medium">{pi.piNo}</td>
+                  <td className="td font-medium"><Link href={`/proforma-invoices/${pi.id}`} className="text-brand-700 hover:underline">{pi.piNo}</Link></td>
                   <td className="td">{pi.milestone || "—"}</td>
                   <td className="td"><Badge>{pi.status}</Badge></td>
                   <td className="td">{formatINR(pi.totalAmount)}</td>
