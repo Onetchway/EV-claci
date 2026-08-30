@@ -332,7 +332,7 @@ export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
   "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
-  "PUNCH_ITEM", "HANDOVER",
+  "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -362,6 +362,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   DRAWING: "Drawing",
   PUNCH_ITEM: "Punch Item",
   HANDOVER: "Handover",
+  LEAVE_REQUEST: "Leave Request",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;
@@ -438,6 +439,26 @@ export const ATTENDANCE_STATUS_COLOR: Record<AttendanceStatus, string> = {
   ON_LEAVE: "bg-violet-50 text-violet-700 ring-violet-200",
   WEEK_OFF: "bg-ink-100 text-ink-600 ring-ink-200",
   HOLIDAY: "bg-sky-50 text-sky-700 ring-sky-200",
+};
+
+export const LEAVE_TYPES = ["CASUAL", "SICK", "EARNED", "UNPAID"] as const;
+export type LeaveType = (typeof LEAVE_TYPES)[number];
+
+export const LEAVE_TYPE_LABEL: Record<LeaveType, string> = {
+  CASUAL: "Casual leave",
+  SICK: "Sick leave",
+  EARNED: "Earned leave",
+  UNPAID: "Unpaid leave",
+};
+
+export const LEAVE_REQUEST_STATUSES = ["PENDING", "APPROVED", "REJECTED", "CANCELLED"] as const;
+export type LeaveRequestStatus = (typeof LEAVE_REQUEST_STATUSES)[number];
+
+export const LEAVE_REQUEST_STATUS_META: Record<LeaveRequestStatus, { label: string; className: string }> = {
+  PENDING: { label: "Pending", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  APPROVED: { label: "Approved", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  REJECTED: { label: "Rejected", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+  CANCELLED: { label: "Cancelled", className: "bg-ink-100 text-ink-600 ring-ink-200" },
 };
 
 // ---------------------------------------------------------------------------

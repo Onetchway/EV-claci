@@ -289,6 +289,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /leaveRequests/{requestId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == uid() && request.resource.data.status == 'PENDING';
+      // The requester may only cancel their own still-pending request; approving/rejecting is HR/admin only.
+      allow update: if signedIn()
+                    && (
+                      (resource.data.uid == uid() && resource.data.status == 'PENDING' && request.resource.data.status == 'CANCELLED')
+                      || canManageHrms()
+                    );
+      allow delete: if false;
+    }
+
     match /holidays/{holidayId} {
       allow read: if signedIn();
       allow create, delete: if canManageHrms();

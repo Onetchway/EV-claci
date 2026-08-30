@@ -3,9 +3,9 @@ import type { Timestamp } from "firebase/firestore";
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
   ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, EmploymentType,
-  HandoverStage, InspectionResult, IssuePriority, IssueStatus, NcrStatus, PaymentMode, PiStatus, PoStatus,
-  ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus, Role, RollStatus, SiteReportType,
-  StageStatus, TaskStatus, TenderStatus, VendorCategory,
+  HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus, LeaveType, NcrStatus,
+  PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus,
+  Role, RollStatus, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -641,6 +641,21 @@ export interface AttendanceRecord {
   createdAt: TS;
   updatedAt: TS;
   updatedBy?: Actor;
+}
+
+export interface LeaveRequest {
+  id: string;
+  uid: string;
+  userName: string;
+  leaveType: LeaveType;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: LeaveRequestStatus;
+  requestedAt: TS;
+  decidedBy?: Actor | null;
+  decidedAt?: TS | null;
+  decisionNote?: string;
 }
 
 
