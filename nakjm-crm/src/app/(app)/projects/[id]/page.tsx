@@ -1889,6 +1889,23 @@ function ReportsTab({ project }: { project: Project }) {
 
         <Field label="Next Week (for the printed report)" className="mt-4"><Textarea value={nextWeek} onChange={(e) => setNextWeek(e.target.value)} placeholder="Planned activities for next week…" /></Field>
       </Card>
+
+      <Card title="Other reports">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Link href={`/projects/${project.id}/reports/stages/print`} target="_blank" className="rounded-xl border border-ink-200 p-3 text-sm hover:bg-ink-50">
+            <p className="font-medium text-navy-900">Stage Progress Report</p>
+            <p className="text-xs text-ink-500">Planned vs actual dates, per stage.</p>
+          </Link>
+          <Link href={`/projects/${project.id}/reports/measurements/print`} target="_blank" className="rounded-xl border border-ink-200 p-3 text-sm hover:bg-ink-50">
+            <p className="font-medium text-navy-900">Measurement / BOQ Report</p>
+            <p className="text-xs text-ink-500">Executed vs planned quantity, per item.</p>
+          </Link>
+          <Link href={`/projects/${project.id}/reports/issues/print`} target="_blank" className="rounded-xl border border-ink-200 p-3 text-sm hover:bg-ink-50">
+            <p className="font-medium text-navy-900">Issue Report</p>
+            <p className="text-xs text-ink-500">Every issue, with status and priority.</p>
+          </Link>
+        </div>
+      </Card>
     </div>
   );
 }
