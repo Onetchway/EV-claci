@@ -22,6 +22,7 @@ import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, update
 import { listActiveClients } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
 import { createIssue, deleteIssue, subscribeIssuesForProject, updateIssue } from "@/lib/db/issues";
+import { recordMeasurement, subscribeMeasurementsForProject } from "@/lib/db/measurements";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
 import { createProformaInvoice, deleteProformaInvoice, subscribePisForProject, updateProformaInvoice } from "@/lib/db/proforma-invoices";
 import { assignTeamMember, subscribeProject, subscribeSubprojects, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
@@ -34,12 +35,12 @@ import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
-  Boq, BoqLineItem, Client, Issue, Project, ProformaInvoice, ProjectStage, ProjectTask, PurchaseOrder, Quotation,
-  SiteReport, TeamMember, Vendor,
+  Boq, BoqLineItem, Client, Issue, Measurement, Project, ProformaInvoice, ProjectStage, ProjectTask, PurchaseOrder,
+  Quotation, SiteReport, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Issues", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -193,6 +194,7 @@ export default function ProjectDetailPage() {
 
       {tab === "Overview" && <OverviewTab project={project} />}
       {tab === "Stages & Tasks" && <StagesTasksTab project={project} />}
+      {tab === "Measurements" && <MeasurementsTab project={project} />}
       {tab === "Issues" && <IssuesTab project={project} />}
       {tab === "Quotations" && <QuotationsTab project={project} />}
       {tab === "BOQ" && <BoqTab project={project} />}
@@ -1085,6 +1087,99 @@ function StagesTasksTab({ project }: { project: Project }) {
           <Field label="Planned End"><Input type="date" value={stageForm.plannedEnd} onChange={(e) => setStageForm((f) => ({ ...f, plannedEnd: e.target.value }))} /></Field>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ── Measurements ───────────────────────────────────────────────────────
+/** Quantity-based progress against the project's BOQ — not manual %. */
+function MeasurementsTab({ project }: { project: Project }) {
+  const actor = useActor();
+  const viewer = useViewer();
+  const [boqs, setBoqs] = useState<Boq[] | null>(null);
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [selectedBoqId, setSelectedBoqId] = useState("");
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const { busy, run } = useAsyncAction();
+  const canRecord = canManageTasks(viewer);
+
+  useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
+  useEffect(() => subscribeMeasurementsForProject(project.id, setMeasurements), [project.id]);
+
+  useEffect(() => {
+    if (!boqs || selectedBoqId) return;
+    const approved = boqs.find((b) => b.status === "APPROVED");
+    setSelectedBoqId((approved ?? boqs[0])?.id ?? "");
+  }, [boqs, selectedBoqId]);
+
+  const boq = boqs?.find((b) => b.id === selectedBoqId);
+  const byItem = (srNo: number) => measurements.find((m) => m.boqId === selectedBoqId && m.itemSrNo === srNo);
+
+  async function onSave(item: BoqLineItem) {
+    const raw = drafts[item.srNo];
+    if (raw === undefined || !boq) return;
+    const executedQty = Math.max(0, Number(raw) || 0);
+    await run(() => recordMeasurement({
+      projectId: project.id, boqId: boq.id, itemSrNo: item.srNo, description: item.description,
+      unit: item.unit, boqQty: item.qty, executedQty,
+    }, actor), "Recorded.");
+    setDrafts((d) => { const next = { ...d }; delete next[item.srNo]; return next; });
+  }
+
+  const totalPlanned = boq?.items.reduce((s, it) => s + it.qty, 0) ?? 0;
+  const totalExecuted = boq?.items.reduce((s, it) => s + (byItem(it.srNo)?.executedQty ?? 0), 0) ?? 0;
+  const overallPct = totalPlanned > 0 ? Math.round((totalExecuted / totalPlanned) * 100) : 0;
+
+  if (!boqs) return <p className="text-sm text-ink-400">Loading…</p>;
+  if (boqs.length === 0) return <EmptyState title="No BOQ yet" description="Measurements are tracked against a project's BOQ — add one on the BOQ tab first." />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Select value={selectedBoqId} className="w-auto" options={boqs.map((b) => ({ value: b.id, label: `${b.boqNo} (v${b.version}, ${b.status})` }))} onChange={(e) => setSelectedBoqId(e.target.value)} />
+        <div className="flex items-center gap-2 text-sm text-ink-600">
+          <ProgressBar pct={overallPct} className="w-40" />
+          <span className="tabular-nums">{overallPct}% executed</span>
+        </div>
+      </div>
+
+      {boq && (
+        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+          <table className="w-full">
+            <thead><tr><th className="th">Description</th><th className="th">Unit</th><th className="th text-right">BOQ Qty</th><th className="th text-right">Executed</th><th className="th text-right">Remaining</th><th className="th">Progress</th></tr></thead>
+            <tbody>
+              {boq.items.map((item) => {
+                const m = byItem(item.srNo);
+                const executed = m?.executedQty ?? 0;
+                const remaining = Math.max(0, item.qty - executed);
+                const pct = item.qty > 0 ? Math.round((executed / item.qty) * 100) : 0;
+                return (
+                  <tr key={item.srNo} className="border-t border-ink-100">
+                    <td className="td">{item.description}</td>
+                    <td className="td text-ink-500">{item.unit || "—"}</td>
+                    <td className="td text-right tabular-nums">{item.qty}</td>
+                    <td className="td text-right">
+                      {canRecord ? (
+                        <Input
+                          type="number" min={0} className="w-24 text-right"
+                          defaultValue={executed}
+                          onChange={(e) => setDrafts((d) => ({ ...d, [item.srNo]: e.target.value }))}
+                          onBlur={() => void onSave(item)}
+                          disabled={busy}
+                        />
+                      ) : (
+                        <span className="tabular-nums">{executed}</span>
+                      )}
+                    </td>
+                    <td className="td text-right tabular-nums">{remaining}</td>
+                    <td className="td"><div className="flex items-center gap-2"><ProgressBar pct={pct} className="w-20" /><span className="text-xs tabular-nums text-ink-500">{pct}%</span></div></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

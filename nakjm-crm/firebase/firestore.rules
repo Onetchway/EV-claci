@@ -201,6 +201,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /measurements/{measurementId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
     // ------------------------------------------------------------- site reports
 
     match /siteReports/{reportId} {

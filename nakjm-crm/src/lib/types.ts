@@ -358,6 +358,21 @@ export interface ProjectTask {
   updatedAt: TS;
 }
 
+/** One row per BOQ line item — executed quantity recorded against the planned BOQ quantity. */
+export interface Measurement {
+  id: string;
+  projectId: string;
+  boqId: string;
+  itemSrNo: number;
+  description: string;
+  unit?: string;
+  boqQty: number;
+  executedQty: number;
+  updatedAt: TS;
+  updatedById?: string | null;
+  updatedByName?: string;
+}
+
 export interface Issue {
   id: string;
   projectId: string;
