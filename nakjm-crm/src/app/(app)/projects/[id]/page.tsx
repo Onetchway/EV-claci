@@ -19,7 +19,6 @@ import {
   type StageStatus, type TaskStatus,
 } from "@/lib/constants";
 import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, QUOTATION_ITEM_FIELDS, PO_ITEM_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
-import { parseBoqFile } from "@/lib/boq-parser";
 import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, updateBoq } from "@/lib/db/boq";
 import { listActiveClients } from "@/lib/db/clients";
 import { deleteDocument, subscribeDocumentsForProject, uploadDocument } from "@/lib/db/documents";
@@ -528,31 +527,9 @@ function BoqTab({ project }: { project: Project }) {
   const [deleteTarget, setDeleteTarget] = useState<Boq | null>(null);
   const [form, setForm] = useState({ boqNo: "", siteName: "", notes: "" });
   const [items, setItems] = useState<DraftBoqItem[]>([]);
-  const [importing, setImporting] = useState(false);
   const { busy, run } = useAsyncAction();
-  const { push } = useToast();
 
   useEffect(() => subscribeBoqsForProject(project.id, setRows), [project.id]);
-
-  async function onFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setImporting(true);
-    try {
-      const parsed = await parseBoqFile(file);
-      if (!parsed.length) throw new Error("Could not detect a BOQ table in this file.");
-      setEditing(null);
-      setItems(parsed);
-      setForm((f) => ({ ...f, boqNo: f.boqNo || file.name.replace(/\.[^.]+$/, "") }));
-      setShowForm(true);
-      push(`Imported ${parsed.length} line items — review before saving.`, "success");
-    } catch (err) {
-      push((err as Error).message, "error");
-    } finally {
-      setImporting(false);
-    }
-  }
 
   function openEdit(b: Boq) {
     setEditing(b);
@@ -577,11 +554,7 @@ function BoqTab({ project }: { project: Project }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-300 bg-white px-3.5 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50">
-          <Upload className="h-4 w-4" /> {importing ? "Importing…" : "Import from Excel"}
-          <input type="file" accept=".xlsx,.xls" className="hidden" disabled={importing} onChange={(e) => void onFileSelect(e)} />
-        </label>
-        <Button onClick={() => { setEditing(null); setItems([]); setForm({ boqNo: "", siteName: "", notes: "" }); setShowForm(true); }}><Plus className="h-4 w-4" /> New BOQ</Button>
+        <Link href={`/boq/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New BOQ</Button></Link>
       </div>
 
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
