@@ -225,6 +225,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Drawings are never deleted — only superseded — so there is no delete rule.
+    match /drawings/{drawingId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+    }
+
     // ------------------------------------------------------------- site reports
 
     match /siteReports/{reportId} {

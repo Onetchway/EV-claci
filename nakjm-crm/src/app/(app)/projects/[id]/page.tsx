@@ -11,17 +11,19 @@ import {
   Select, StatCard, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
-  BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABEL, INSPECTION_RESULTS,
-  ISSUE_PRIORITIES, ISSUE_STATUSES, NCR_STATUSES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, RFI_STATUSES,
-  SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES, statusMeta,
-  type BoqCategory, type DocumentCategory, type InspectionResult, type IssuePriority, type IssueStatus,
-  type NcrStatus, type PaymentMode, type ProjectStatus, type ProjectType, type RfiStatus, type SiteReportType,
-  type StageStatus, type TaskStatus,
+  BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABEL, DRAWING_DISCIPLINES,
+  DRAWING_STATUSES, INSPECTION_RESULTS, ISSUE_PRIORITIES, ISSUE_STATUSES, NCR_STATUSES, PAYMENT_MODES,
+  PROJECT_STATUSES, PROJECT_TYPES, RFI_STATUSES, SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES,
+  statusMeta,
+  type BoqCategory, type DocumentCategory, type DrawingDiscipline, type DrawingStatus, type InspectionResult,
+  type IssuePriority, type IssueStatus, type NcrStatus, type PaymentMode, type ProjectStatus, type ProjectType,
+  type RfiStatus, type SiteReportType, type StageStatus, type TaskStatus,
 } from "@/lib/constants";
 import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, QUOTATION_ITEM_FIELDS, PO_ITEM_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, updateBoq } from "@/lib/db/boq";
 import { listActiveClients } from "@/lib/db/clients";
 import { deleteDocument, subscribeDocumentsForProject, uploadDocument } from "@/lib/db/documents";
+import { subscribeDrawingsForProject, updateDrawingStatus, uploadDrawing } from "@/lib/db/drawings";
 import { createIssue, deleteIssue, subscribeIssuesForProject, updateIssue } from "@/lib/db/issues";
 import { recordMeasurement, subscribeMeasurementsForProject } from "@/lib/db/measurements";
 import { createInspection, createNcr, subscribeInspectionsForProject, subscribeNcrsForProject, updateNcr } from "@/lib/db/quality";
@@ -38,12 +40,12 @@ import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
-  Boq, BoqLineItem, Client, Inspection, Issue, Measurement, NakjmDocument, Ncr, Project, ProformaInvoice,
+  Boq, BoqLineItem, Client, Drawing, Inspection, Issue, Measurement, NakjmDocument, Ncr, Project, ProformaInvoice,
   ProjectStage, ProjectTask, PurchaseOrder, Quotation, Rfi, SiteReport, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quality", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quality", "Drawings", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -201,6 +203,7 @@ export default function ProjectDetailPage() {
       {tab === "Issues" && <IssuesTab project={project} />}
       {tab === "RFI" && <RfiTab project={project} />}
       {tab === "Quality" && <QualityTab project={project} />}
+      {tab === "Drawings" && <DrawingsTab project={project} />}
       {tab === "Quotations" && <QuotationsTab project={project} />}
       {tab === "BOQ" && <BoqTab project={project} />}
       {tab === "Purchase Orders" && <PoTab project={project} />}
@@ -1573,6 +1576,87 @@ function QualityTab({ project }: { project: Project }) {
           <Field label="Issue" required className="col-span-2"><Textarea value={ncrForm.issue} onChange={(e) => setNcrForm((f) => ({ ...f, issue: e.target.value }))} /></Field>
           <Field label="Location"><Input value={ncrForm.location} onChange={(e) => setNcrForm((f) => ({ ...f, location: e.target.value }))} /></Field>
           <Field label="Responsible Person"><Select value={ncrForm.responsiblePersonId} placeholder="Unassigned" options={project.team.map((m) => ({ value: m.teamMemberId, label: m.name }))} onChange={(e) => setNcrForm((f) => ({ ...f, responsiblePersonId: e.target.value }))} /></Field>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Drawings ───────────────────────────────────────────────────────────
+/** Revision-controlled: uploading against an existing drawing number supersedes its prior revisions, never deletes them. */
+function DrawingsTab({ project }: { project: Project }) {
+  const actor = useActor();
+  const viewer = useViewer();
+  const [rows, setRows] = useState<Drawing[] | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [drawingNumber, setDrawingNumber] = useState("");
+  const [title, setTitle] = useState("");
+  const [discipline, setDiscipline] = useState<DrawingDiscipline>("OTHER");
+  const { busy, run } = useAsyncAction();
+  const canManage = canManageTasks(viewer);
+
+  useEffect(() => subscribeDrawingsForProject(project.id, setRows), [project.id]);
+
+  const groups = new Map<string, Drawing[]>();
+  for (const d of rows ?? []) {
+    const list = groups.get(d.drawingNumber) ?? [];
+    list.push(d);
+    groups.set(d.drawingNumber, list);
+  }
+
+  async function onUpload() {
+    if (!file || !drawingNumber.trim() || !title.trim()) return;
+    await run(async () => {
+      const existing = (rows ?? []).filter((d) => d.drawingNumber === drawingNumber.trim());
+      const nextRevision = `R${existing.length}`;
+      await uploadDrawing({
+        file, projectId: project.id, projectName: project.name, drawingNumber: drawingNumber.trim(), title,
+        discipline, revision: nextRevision, existingRevisionIds: existing.filter((d) => d.status !== "SUPERSEDED").map((d) => d.id),
+      }, actor);
+      setShowForm(false); setFile(null); setDrawingNumber(""); setTitle(""); setDiscipline("OTHER");
+    }, "Drawing uploaded.");
+  }
+
+  return (
+    <div className="space-y-4">
+      {canManage && <div className="flex justify-end"><Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> Upload Drawing</Button></div>}
+
+      {!rows ? <p className="text-sm text-ink-400">Loading…</p> : groups.size === 0 ? (
+        <EmptyState title="No drawings yet" description="Upload architectural, structural, civil or electrical drawings — each re-upload against the same drawing number becomes a new revision, and nothing is ever deleted." />
+      ) : (
+        <div className="space-y-3">
+          {Array.from(groups.entries()).map(([num, revisions]) => (
+            <Card key={num} title={num} subtitle={revisions[0].title}>
+              <div className="space-y-1.5">
+                {revisions.map((d) => (
+                  <div key={d.id} className="flex flex-wrap items-center gap-3 rounded-lg bg-ink-50 px-3 py-2 text-sm">
+                    <span className="font-medium text-navy-900">{d.revision}</span>
+                    <span className="text-ink-500">{d.discipline.replace(/_/g, " ")}</span>
+                    <a href={d.downloadUrl} target="_blank" rel="noreferrer" className="text-brand-700 hover:underline">{d.fileName}</a>
+                    <span className="text-xs text-ink-400">{formatDate(d.createdAt)}</span>
+                    <span className="flex-1" />
+                    {canManage ? (
+                      <Select value={d.status} className="w-auto" options={DRAWING_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))} onChange={(e) => void run(() => updateDrawingStatus(d, e.target.value as DrawingStatus, actor), "Updated.")} />
+                    ) : (
+                      <Badge>{d.status.replace(/_/g, " ")}</Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Upload Drawing" footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onUpload()} loading={busy}>Upload</Button></>}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Drawing Number" required hint="Re-use the same number to upload a new revision."><Input value={drawingNumber} onChange={(e) => setDrawingNumber(e.target.value)} /></Field>
+          <Field label="Discipline"><Select value={discipline} options={DRAWING_DISCIPLINES.map((d) => ({ value: d, label: d.replace(/_/g, " ") }))} onChange={(e) => setDiscipline(e.target.value as DrawingDiscipline)} /></Field>
+          <Field label="Title" required className="col-span-2"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+          <Field label="File" required className="col-span-2">
+            <input type="file" accept=".pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full text-sm" />
+          </Field>
         </div>
       </Modal>
     </div>

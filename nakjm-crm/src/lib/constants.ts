@@ -258,13 +258,32 @@ export const NCR_STATUS_META: Record<NcrStatus, { label: string; className: stri
 };
 
 // ---------------------------------------------------------------------------
+// Drawings — revision-controlled drawing register. Each upload is a new
+// revision under the same drawing number; previous revisions are never
+// deleted, only superseded.
+// ---------------------------------------------------------------------------
+
+export const DRAWING_DISCIPLINES = ["ARCHITECTURAL", "STRUCTURAL", "CIVIL", "ELECTRICAL", "MEP", "SOLAR", "OTHER"] as const;
+export type DrawingDiscipline = (typeof DRAWING_DISCIPLINES)[number];
+
+export const DRAWING_STATUSES = ["DRAFT", "UNDER_REVIEW", "APPROVED", "SUPERSEDED"] as const;
+export type DrawingStatus = (typeof DRAWING_STATUSES)[number];
+
+export const DRAWING_STATUS_META: Record<DrawingStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  UNDER_REVIEW: { label: "Under Review", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  APPROVED: { label: "Approved", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  SUPERSEDED: { label: "Superseded", className: "bg-ink-100 text-ink-500 ring-ink-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Audit log
 // ---------------------------------------------------------------------------
 
 export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
-  "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR",
+  "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -291,6 +310,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   RFI: "RFI",
   INSPECTION: "Inspection",
   NCR: "NCR",
+  DRAWING: "Drawing",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;

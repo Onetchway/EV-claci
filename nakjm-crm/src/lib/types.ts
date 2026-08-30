@@ -2,9 +2,9 @@ import type { Timestamp } from "firebase/firestore";
 
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
-  ClientType, Department, DepreciationMethod, DocumentCategory, InspectionResult, IssuePriority, IssueStatus,
-  NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, QuotationStatus, RfiStatus, Role,
-  SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
+  ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, InspectionResult,
+  IssuePriority, IssueStatus, NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, QuotationStatus,
+  RfiStatus, Role, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -416,6 +416,30 @@ export interface Rfi {
   assignedToId?: string | null;
   assignedToName?: string;
   responses: RfiResponse[];
+  createdAt: TS;
+  updatedAt: TS;
+}
+
+/**
+ * One doc per revision — drawingNumber groups them, revision distinguishes
+ * them (R0, R1, R2…). Never deleted; superseded revisions just get their
+ * status flipped to SUPERSEDED when a newer one is uploaded.
+ */
+export interface Drawing {
+  id: string;
+  projectId: string;
+  projectName: string;
+  drawingNumber: string;
+  title: string;
+  discipline: DrawingDiscipline;
+  revision: string;
+  status: DrawingStatus;
+  fileName: string;
+  storagePath: string;
+  downloadUrl: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  uploadedBy?: Actor;
   createdAt: TS;
   updatedAt: TS;
 }
