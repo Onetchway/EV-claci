@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  @apply h-full;
+}
+
+body {
+  @apply bg-ink-50 text-ink-900 antialiased;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-ink-200 bg-white shadow-card;
+  }
+
+  .card-pad {
+    @apply p-4 sm:p-5;
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-500;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm text-ink-900
+      placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20
+      disabled:cursor-not-allowed disabled:bg-ink-100 disabled:text-ink-500;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset;
+  }
+
+  .th {
+    @apply whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500;
+  }
+
+  .td {
+    @apply whitespace-nowrap px-3 py-3 text-sm text-ink-800;
+  }
+
+  .scroll-thin::-webkit-scrollbar {
+    @apply h-2 w-2;
+  }
+
+  .scroll-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-ink-300;
+  }
+}
+
+/*
+ * Printing a Quotation / PO / PI / BOQ.
+ *
+ * The browser's own print dialog is the PDF generator — "Save as PDF" is
+ * built in, the output is real selectable text, and it avoids shipping a
+ * PDF library to render one page. Everything that is not the document
+ * sheet is hidden.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  /* Chrome's Print-to-PDF pipeline can otherwise drop background colors/images the on-screen renderer shows fine. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide the app shell: sidebar, headers, toasts, and anything opted out. */
+  aside,
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .print-sheet {
+    max-width: none;
+    width: 100%;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    font-size: 10.5pt;
+    line-height: 1.5;
+    color: #000;
+  }
+
+  .print-sheet table {
+    page-break-inside: auto;
+  }
+
+  .print-sheet tr {
+    page-break-inside: avoid;
+  }
+}

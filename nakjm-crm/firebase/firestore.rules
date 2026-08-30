@@ -1,0 +1,310 @@
+rules_version = '2';
+
+// NAKJM EPC CRM — Firestore security rules.
+//
+// Model: everyone with an active profile reads the whole organisation (no
+// per-user "book of business" the way a sales CRM has) — this is a small
+// internal EPC team, not agents competing over leads. Writes are gated by
+// role. Roles are read from the auth token's custom claim, which the
+// /api/users route sets whenever a role changes (and it revokes refresh
+// tokens, so a demotion takes effect on the user's next request).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Login is restricted to NAKJM's own Workspace domain — the real
+    // enforcement boundary, not the login page's UI. Without this, any
+    // successfully-authenticated Google account could self-provision an
+    // active profile via the first-run bootstrap rule below.
+    function fromWorkspace() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower().matches('.*@nakjminfra[.]com')
+        && request.auth.token.email_verified == true;
+    }
+
+    function role() {
+      return signedIn() && request.auth.token.role != null
+        ? request.auth.token.role
+        : 'VIEWER';
+    }
+
+    function isAdmin() {
+      return role() == 'ADMIN' || role() == 'SUPER_ADMIN';
+    }
+
+    function isSuperAdmin() {
+      return role() == 'SUPER_ADMIN';
+    }
+
+    function canManageMasterData() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER', 'OPERATIONS'];
+    }
+
+    function canManageProcurement() {
+      return canManageMasterData();
+    }
+
+    function canManagePayments() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
+    function canSubmitSiteReports() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER', 'OPERATIONS', 'SITE_ENGINEER'];
+    }
+
+    function canManageAssets() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER', 'OPERATIONS', 'FINANCE'];
+    }
+
+    function canManageHrms() {
+      return isAdmin();
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // ------------------------------------------------------------------ users
+
+    match /users/{userId} {
+      // Everyone signed in can read the directory: pickers (project manager,
+      // reported-by) need the roster, and it shows who's who.
+      allow read: if signedIn();
+
+      // Profiles are created by the /api/users route with the Admin SDK,
+      // which bypasses these rules. The one exception is first-run
+      // bootstrap: any Workspace account may create its own profile, at the
+      // lowest privilege level.
+      allow create: if fromWorkspace()
+                    && userId == uid()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.role == 'VIEWER'
+                    && request.resource.data.active == true;
+
+      // A user may edit their own contact details, never their own role or
+      // active flag — that would be a self-promotion.
+      allow update: if signedIn()
+                    && userId == uid()
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.active == resource.data.active
+                    && request.resource.data.uid == resource.data.uid;
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------- counters
+
+    match /counters/{counterId} {
+      allow read, write: if signedIn();
+    }
+
+    // -------------------------------------------------------- master data
+
+    match /clients/{clientId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData();
+      allow delete: if isAdmin();
+    }
+
+    match /vendors/{vendorId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData();
+      allow delete: if isAdmin();
+    }
+
+    match /teamMembers/{memberId} {
+      allow read: if signedIn();
+      allow create, update: if role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER'];
+      allow delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------------------ tenders
+
+    match /tenders/{tenderId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ------------------------------------------------------------------ projects
+
+    match /projects/{projectId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData();
+      allow delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------------- procurement
+
+    match /quotations/{quotationId} {
+      allow read: if signedIn();
+      allow create, update: if canManageProcurement();
+      allow delete: if isAdmin();
+    }
+
+    match /boqs/{boqId} {
+      allow read: if signedIn();
+      allow create, update: if canManageProcurement();
+      allow delete: if isAdmin();
+    }
+
+    match /purchaseOrders/{poId} {
+      allow read: if signedIn();
+      allow create, update: if canManageProcurement() || canManagePayments();
+      allow delete: if isAdmin();
+    }
+
+    match /proformaInvoices/{piId} {
+      allow read: if signedIn();
+      allow create, update: if canManageProcurement() || canManagePayments();
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------- payments
+
+    match /clientPayments/{paymentId} {
+      allow read: if signedIn();
+      allow create: if canManagePayments();
+      allow update, delete: if isAdmin();
+    }
+
+    match /vendorPayments/{paymentId} {
+      allow read: if signedIn();
+      allow create: if canManagePayments();
+      allow update, delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------------- execution
+
+    match /stages/{stageId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    match /issues/{issueId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    match /measurements/{measurementId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    match /rfis/{rfiId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    match /inspections/{inspectionId} {
+      allow read: if signedIn();
+      allow create: if canManageMasterData() || canSubmitSiteReports();
+      allow update, delete: if isAdmin();
+    }
+
+    match /ncrs/{ncrId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    // Drawings are never deleted — only superseded — so there is no delete rule.
+    match /drawings/{drawingId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+    }
+
+    match /punchItems/{punchItemId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    match /handovers/{handoverId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData();
+    }
+
+    // ------------------------------------------------------------- site reports
+
+    match /siteReports/{reportId} {
+      allow read: if signedIn();
+      allow create: if canSubmitSiteReports();
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------- documents
+
+    match /documents/{documentId} {
+      allow read: if signedIn();
+      allow create: if canManageMasterData() || canManagePayments() || canSubmitSiteReports();
+      allow update: if canManageMasterData() || isAdmin();
+      allow delete: if canManageMasterData() || isAdmin();
+    }
+
+    // ------------------------------------------------------------- audit log
+
+    // Every create/update across the app appends one activity entry (see
+    // src/lib/db/activity.ts) — it's an append-only trail, so no client ever
+    // updates or deletes an entry, and only admins can read the org-wide log.
+    match /activities/{activityId} {
+      allow read: if isAdmin();
+      allow create: if signedIn() && request.resource.data.actor.uid == uid();
+      allow update, delete: if false;
+    }
+
+    // -------------------------------------------------------- asset register
+
+    match /assets/{assetId} {
+      allow read: if signedIn();
+      allow create, update: if canManageAssets();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ------------------------------------------------------------------ hrms
+
+    // Attendance: everyone can check themselves in/out and read the whole
+    // org's records (small internal team); only admins hand-correct a day.
+    match /attendance/{recordId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == uid();
+      allow update: if signedIn() && (resource.data.uid == uid() || canManageHrms());
+      allow delete: if false;
+    }
+
+    match /holidays/{holidayId} {
+      allow read: if signedIn();
+      allow create, delete: if canManageHrms();
+      allow update: if false;
+    }
+
+    // -------------------------------------------------------------- settings
+
+    match /settings/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /projectTemplates/{projectType} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
