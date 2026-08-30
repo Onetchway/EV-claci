@@ -8,7 +8,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "NAKJM EPC CRM",
+  title: "NAKJM CRM",
   description: "Client, project, procurement and vendor management for NAKJM's EPC business.",
 };
 

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { ArrowLeft, Printer } from "lucide-react";
 
 import { COMPANY_INFO } from "@/lib/constants";
+import type { BankDetails } from "@/lib/db/settings";
 import { Button } from "@/components/ui";
 
 /**
@@ -64,6 +65,22 @@ export function PrintToolbar({ backHref }: { backHref: string }) {
       <Button variant="primary" onClick={() => window.print()}>
         <Printer className="h-4 w-4" /> Print / Save as PDF
       </Button>
+    </div>
+  );
+}
+
+export function BankDetailsPrintBlock({ bank }: { bank: BankDetails | null | undefined }) {
+  if (!bank || !bank.accountNo) return null;
+  return (
+    <div className="mt-6 rounded-lg border border-ink-200 px-4 py-3 text-xs">
+      <p className="mb-1 font-semibold uppercase tracking-wide text-ink-500">Bank Details</p>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-ink-700">
+        {bank.accountName && <p><span className="text-ink-500">Account name: </span>{bank.accountName}</p>}
+        {bank.bankName && <p><span className="text-ink-500">Bank: </span>{bank.bankName}</p>}
+        {bank.accountNo && <p><span className="text-ink-500">Account no.: </span>{bank.accountNo}</p>}
+        {bank.ifsc && <p><span className="text-ink-500">IFSC: </span>{bank.ifsc}</p>}
+        {bank.branch && <p><span className="text-ink-500">Branch: </span>{bank.branch}</p>}
+      </div>
     </div>
   );
 }

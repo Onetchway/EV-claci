@@ -63,3 +63,11 @@ export function canAssignRole(viewer: Viewer, target: Role): boolean {
 
 export const canTrash = (viewer: Viewer) => viewerIsAdmin(viewer);
 export const canPermanentlyDelete = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN");
+
+export const canManageAssets = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES, "FINANCE");
+
+/** HR record management — designation, department, manager, attendance corrections. */
+export const canManageHrms = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN");
+
+/** Everyone sees their own attendance/roster; only admins see the whole org's. */
+export const canSeeAllHrms = (viewer: Viewer) => viewerIsAdmin(viewer);

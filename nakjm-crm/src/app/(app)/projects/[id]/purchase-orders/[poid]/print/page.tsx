@@ -3,8 +3,9 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
+import { BankDetailsPrintBlock, PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
 import { EmptyState, Spinner } from "@/components/ui";
+import { defaultSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
 import { getPurchaseOrder } from "@/lib/db/purchase-orders";
 import { getVendor } from "@/lib/db/vendors";
 import type { PurchaseOrder, Vendor } from "@/lib/types";
@@ -14,6 +15,7 @@ export default function PurchaseOrderPrintPage() {
   const { id, poid } = useParams<{ id: string; poid: string }>();
   const [po, setPo] = useState<PurchaseOrder | null | undefined>(undefined);
   const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings());
 
   useEffect(() => {
     void getPurchaseOrder(poid).then(async (row) => {
@@ -21,6 +23,7 @@ export default function PurchaseOrderPrintPage() {
       if (row?.vendorId) setVendor(await getVendor(row.vendorId));
     });
   }, [poid]);
+  useEffect(() => subscribeSettings(setSettings), []);
 
   if (po === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (po === null) return <EmptyState title="Purchase order not found" />;
@@ -86,6 +89,8 @@ export default function PurchaseOrderPrintPage() {
             <div className="flex justify-between text-ink-600"><dt>Paid</dt><dd className="tabular-nums">{formatINR(po.paidAmount)}</dd></div>
           </dl>
         </div>
+
+        <BankDetailsPrintBlock bank={settings.bank} />
 
         {po.terms && (
           <div className="mt-6">

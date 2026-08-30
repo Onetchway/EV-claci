@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, getDoc, getDocs, limit as fsLimit, onSnapshot, orderBy,
+  collection, deleteDoc, doc, getDoc, getDocs, limit as fsLimit, onSnapshot, orderBy,
   query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
@@ -209,9 +209,18 @@ export async function unassignTeamMember(project: Project, teamMemberId: string,
 }
 
 export async function trashProject(project: Project, actor: Actor): Promise<void> {
-  await updateDoc(doc(getDb(), PROJECTS, project.id), { deletedAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: actor });
+  await updateDoc(doc(getDb(), PROJECTS, project.id), {
+    deletedAt: serverTimestamp(), deletedBy: actor, updatedAt: serverTimestamp(), updatedBy: actor,
+  });
 }
 
 export async function restoreProject(project: Project, actor: Actor): Promise<void> {
-  await updateDoc(doc(getDb(), PROJECTS, project.id), { deletedAt: null, updatedAt: serverTimestamp(), updatedBy: actor });
+  await updateDoc(doc(getDb(), PROJECTS, project.id), {
+    deletedAt: null, deletedBy: null, updatedAt: serverTimestamp(), updatedBy: actor,
+  });
+}
+
+/** Super admin only, from the Trash page. */
+export async function deleteProject(project: Project): Promise<void> {
+  await deleteDoc(doc(getDb(), PROJECTS, project.id));
 }

@@ -3,10 +3,11 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
+import { BankDetailsPrintBlock, PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
 import { EmptyState, Spinner } from "@/components/ui";
 import { getClient } from "@/lib/db/clients";
 import { getProformaInvoice } from "@/lib/db/proforma-invoices";
+import { defaultSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
 import type { Client, ProformaInvoice } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ export default function ProformaInvoicePrintPage() {
   const { id, piid } = useParams<{ id: string; piid: string }>();
   const [pi, setPi] = useState<ProformaInvoice | null | undefined>(undefined);
   const [client, setClient] = useState<Client | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings());
 
   useEffect(() => {
     void getProformaInvoice(piid).then(async (row) => {
@@ -21,6 +23,7 @@ export default function ProformaInvoicePrintPage() {
       if (row?.clientId) setClient(await getClient(row.clientId));
     });
   }, [piid]);
+  useEffect(() => subscribeSettings(setSettings), []);
 
   if (pi === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (pi === null) return <EmptyState title="Proforma invoice not found" />;
@@ -87,6 +90,8 @@ export default function ProformaInvoicePrintPage() {
             <div className="flex justify-between text-ink-600"><dt>Paid</dt><dd className="tabular-nums">{formatINR(pi.paidAmount)}</dd></div>
           </dl>
         </div>
+
+        <BankDetailsPrintBlock bank={settings.bank} />
 
         {pi.notes && (
           <div className="mt-4 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{pi.notes}</div>

@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Plus, Printer, Trash2, Upload } from "lucide-react";
+import { Pencil, Plus, Printer, Trash2, Upload } from "lucide-react";
 
-import { useActor } from "@/components/auth-provider";
+import { useActor, useViewer } from "@/components/auth-provider";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, ProgressBar,
   Select, StatCard, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
-  BOQ_CATEGORIES, PAYMENT_MODES, SITE_REPORT_TYPES, statusMeta, type BoqCategory, type PaymentMode, type SiteReportType,
+  BOQ_CATEGORIES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, SITE_REPORT_TYPES, statusMeta,
+  type BoqCategory, type PaymentMode, type ProjectStatus, type ProjectType, type SiteReportType,
 } from "@/lib/constants";
 import { parseBoqFile } from "@/lib/boq-parser";
 import { computeBoqTotals, createBoq, subscribeBoqsForProject } from "@/lib/db/boq";
@@ -19,7 +20,8 @@ import { listActiveClients } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
 import { createProformaInvoice, subscribePisForProject } from "@/lib/db/proforma-invoices";
-import { assignTeamMember, subscribeProject, unassignTeamMember } from "@/lib/db/projects";
+import { assignTeamMember, subscribeProject, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
+import { canTrash } from "@/lib/permissions";
 import { createPurchaseOrder, subscribePosForProject } from "@/lib/db/purchase-orders";
 import { createQuotation, nextQuotationVersion, subscribeQuotationsForProject } from "@/lib/db/quotations";
 import { createSiteReport, subscribeSiteReportsForProject } from "@/lib/db/site-reports";
@@ -34,12 +36,56 @@ const TABS = ["Overview", "Quotations", "BOQ", "Purchase Orders", "Proforma Invo
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const actor = useActor();
+  const viewer = useViewer();
   const [project, setProject] = useState<Project | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [form, setForm] = useState<{
+    name: string; projectType: ProjectType; status: ProjectStatus; projectManagerId: string;
+    city: string; state: string; address: string; capacityKw: string; budgetAmount: string;
+    contractValue: string; startDate: string; targetEndDate: string; pocName: string; pocPhone: string; pocEmail: string; notes: string;
+  } | null>(null);
+  const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribeProject(id, setProject), [id]);
+  useEffect(() => { void listActiveTeamMembers().then(setTeam); }, []);
 
   if (!project) return <p className="text-sm text-ink-400">Loading…</p>;
+
+  function openEdit() {
+    setForm({
+      name: project!.name, projectType: project!.projectType, status: project!.status,
+      projectManagerId: project!.projectManagerId ?? "",
+      city: project!.site?.city ?? "", state: project!.site?.state ?? "", address: project!.site?.address ?? "",
+      capacityKw: project!.capacityKw != null ? String(project!.capacityKw) : "",
+      budgetAmount: String(project!.budgetAmount ?? 0), contractValue: String(project!.contractValue ?? 0),
+      startDate: project!.startDate ? project!.startDate.toDate().toISOString().slice(0, 10) : "",
+      targetEndDate: project!.targetEndDate ? project!.targetEndDate.toDate().toISOString().slice(0, 10) : "",
+      pocName: project!.pocName ?? "", pocPhone: project!.pocPhone ?? "", pocEmail: project!.pocEmail ?? "", notes: project!.notes ?? "",
+    });
+    setEditOpen(true);
+  }
+
+  async function onSave() {
+    if (!form || !form.name.trim() || !project) return;
+    await run(async () => {
+      const pm = team.find((t) => t.id === form.projectManagerId);
+      await updateProject(project, {
+        name: form.name, projectManagerId: pm?.id ?? null, projectManagerName: pm?.name ?? null,
+        site: { city: form.city, state: form.state, address: form.address },
+        capacityKw: form.capacityKw ? Number(form.capacityKw) : null,
+        status: form.status, budgetAmount: Number(form.budgetAmount) || 0, contractValue: Number(form.contractValue) || 0,
+        startDate: form.startDate ? new Date(form.startDate) : null,
+        targetEndDate: form.targetEndDate ? new Date(form.targetEndDate) : null,
+        pocName: form.pocName, pocPhone: form.pocPhone, pocEmail: form.pocEmail, notes: form.notes,
+      }, actor);
+      setEditOpen(false);
+    }, "Project updated.");
+  }
 
   return (
     <div className="space-y-5">
@@ -50,9 +96,81 @@ export default function ProjectDetailPage() {
             <h1 className="text-xl font-semibold text-ink-900">{project.name}</h1>
             <p className="text-sm text-ink-500">{project.clientName} · {[project.site?.city, project.site?.state].filter(Boolean).join(", ")}</p>
           </div>
-          <Badge className={statusMeta(project.status).className}>{statusMeta(project.status).label}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={statusMeta(project.status).className}>{statusMeta(project.status).label}</Badge>
+            <Button size="sm" onClick={openEdit}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
+            {canTrash(viewer) && (
+              <Button size="sm" className="text-rose-700 hover:bg-rose-50" onClick={() => setTrashOpen(true)}>
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
+            )}
+          </div>
         </div>
       </div>
+
+      <Modal
+        open={trashOpen}
+        onClose={() => setTrashOpen(false)}
+        title="Delete this project?"
+        description="Moves it to Trash — it disappears from every list, but an admin can restore it from Trash at any time. Nothing is permanently deleted."
+        footer={
+          <>
+            <Button onClick={() => setTrashOpen(false)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  await trashProject(project, actor);
+                  setTrashOpen(false);
+                  router.push("/projects");
+                }, "Project moved to Trash.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Move to Trash
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">{project.code} — {project.name}</p>
+      </Modal>
+
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit Project"
+        wide
+        footer={<><Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={() => void onSave()} loading={busy}>Save</Button></>}
+      >
+        {form && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Project Name" required className="col-span-2">
+              <Input value={form.name} onChange={(e) => setForm((f) => f && { ...f, name: e.target.value })} />
+            </Field>
+            <Field label="Project Type">
+              <Select value={form.projectType} options={PROJECT_TYPES.map((t) => ({ value: t, label: t.replace(/_/g, " ") }))} onChange={(e) => setForm((f) => f && { ...f, projectType: e.target.value as ProjectType })} />
+            </Field>
+            <Field label="Status">
+              <Select value={form.status} options={PROJECT_STATUSES.map((s) => ({ value: s, label: statusMeta(s).label }))} onChange={(e) => setForm((f) => f && { ...f, status: e.target.value as ProjectStatus })} />
+            </Field>
+            <Field label="City"><Input value={form.city} onChange={(e) => setForm((f) => f && { ...f, city: e.target.value })} /></Field>
+            <Field label="State"><Input value={form.state} onChange={(e) => setForm((f) => f && { ...f, state: e.target.value })} /></Field>
+            <Field label="Capacity (kW)"><Input type="number" value={form.capacityKw} onChange={(e) => setForm((f) => f && { ...f, capacityKw: e.target.value })} /></Field>
+            <Field label="Project Manager">
+              <Select placeholder="Unassigned" value={form.projectManagerId} options={team.map((t) => ({ value: t.id, label: t.name }))} onChange={(e) => setForm((f) => f && { ...f, projectManagerId: e.target.value })} />
+            </Field>
+            <Field label="Budget (₹)"><Input type="number" value={form.budgetAmount} onChange={(e) => setForm((f) => f && { ...f, budgetAmount: e.target.value })} /></Field>
+            <Field label="Contract Value (₹)"><Input type="number" value={form.contractValue} onChange={(e) => setForm((f) => f && { ...f, contractValue: e.target.value })} /></Field>
+            <Field label="Start Date"><Input type="date" value={form.startDate} onChange={(e) => setForm((f) => f && { ...f, startDate: e.target.value })} /></Field>
+            <Field label="Target End Date"><Input type="date" value={form.targetEndDate} onChange={(e) => setForm((f) => f && { ...f, targetEndDate: e.target.value })} /></Field>
+            <Field label="Site Address" className="col-span-2"><Textarea value={form.address} onChange={(e) => setForm((f) => f && { ...f, address: e.target.value })} /></Field>
+            <Field label="POC Name"><Input value={form.pocName} onChange={(e) => setForm((f) => f && { ...f, pocName: e.target.value })} /></Field>
+            <Field label="POC Phone"><Input value={form.pocPhone} onChange={(e) => setForm((f) => f && { ...f, pocPhone: e.target.value })} /></Field>
+            <Field label="POC Email" className="col-span-2"><Input type="email" value={form.pocEmail} onChange={(e) => setForm((f) => f && { ...f, pocEmail: e.target.value })} /></Field>
+            <Field label="Notes" className="col-span-2"><Textarea value={form.notes} onChange={(e) => setForm((f) => f && { ...f, notes: e.target.value })} /></Field>
+          </div>
+        )}
+      </Modal>
 
       <div className="flex gap-1 overflow-x-auto border-b border-ink-200">
         {TABS.map((t) => (

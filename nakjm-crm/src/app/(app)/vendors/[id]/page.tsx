@@ -2,9 +2,11 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Pencil } from "lucide-react";
 
-import { Badge, StatCard } from "@/components/ui";
-import { subscribeVendor } from "@/lib/db/vendors";
+import { Badge, Button, Field, Input, Modal, Select, StatCard, useAsyncAction } from "@/components/ui";
+import { VENDOR_CATEGORIES, type VendorCategory } from "@/lib/constants";
+import { subscribeVendor, updateVendor } from "@/lib/db/vendors";
 import { subscribePosForVendor } from "@/lib/db/purchase-orders";
 import { subscribeVendorPayments } from "@/lib/db/payments";
 import type { PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
@@ -15,6 +17,12 @@ export default function VendorDetailPage() {
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [pos, setPos] = useState<PurchaseOrder[] | null>(null);
   const [payments, setPayments] = useState<VendorPayment[] | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [form, setForm] = useState<{
+    name: string; category: VendorCategory; contactName: string; contactEmail: string;
+    contactPhone: string; gstin: string; bankAccountNo: string; bankIfsc: string; bankName: string; active: boolean;
+  } | null>(null);
+  const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribeVendor(id, setVendor), [id]);
   useEffect(() => subscribePosForVendor(id, setPos), [id]);
@@ -25,6 +33,24 @@ export default function VendorDetailPage() {
   const totalPoValue = (pos ?? []).reduce((s, p) => s + p.totalAmount, 0);
   const totalPaid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
 
+  function openEdit() {
+    setForm({
+      name: vendor!.name, category: vendor!.category, contactName: vendor!.contactName ?? "",
+      contactEmail: vendor!.contactEmail ?? "", contactPhone: vendor!.contactPhone ?? "",
+      gstin: vendor!.gstin ?? "", bankAccountNo: vendor!.bankAccountNo ?? "", bankIfsc: vendor!.bankIfsc ?? "",
+      bankName: vendor!.bankName ?? "", active: vendor!.active,
+    });
+    setEditOpen(true);
+  }
+
+  async function onSave() {
+    if (!form || !form.name.trim()) return;
+    await run(async () => {
+      await updateVendor(id, form);
+      setEditOpen(false);
+    }, "Vendor updated.");
+  }
+
   return (
     <div className="space-y-5">
       <div className="card card-pad">
@@ -33,9 +59,12 @@ export default function VendorDetailPage() {
             <h1 className="text-xl font-semibold text-ink-900">{vendor.name}</h1>
             <p className="text-sm capitalize text-ink-500">{vendor.category.replace(/_/g, " ").toLowerCase()}</p>
           </div>
-          <Badge className={vendor.active ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
-            {vendor.active ? "Active" : "Inactive"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={vendor.active ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
+              {vendor.active ? "Active" : "Inactive"}
+            </Badge>
+            <Button size="sm" onClick={openEdit}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
+          </div>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-ink-100 pt-5 text-sm md:grid-cols-4">
           <div><p className="text-ink-400">Contact</p><p className="font-medium">{vendor.contactName || "—"}</p></div>
@@ -88,6 +117,34 @@ export default function VendorDetailPage() {
           </tbody>
         </table>
       </div>
+
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit Vendor"
+        footer={<><Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={() => void onSave()} loading={busy}>Save</Button></>}
+      >
+        {form && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Vendor / Company Name" required className="col-span-2">
+              <Input value={form.name} onChange={(e) => setForm((f) => f && { ...f, name: e.target.value })} />
+            </Field>
+            <Field label="Category">
+              <Select value={form.category} options={VENDOR_CATEGORIES.map((c) => ({ value: c, label: c.replace(/_/g, " ") }))} onChange={(e) => setForm((f) => f && { ...f, category: e.target.value as VendorCategory })} />
+            </Field>
+            <Field label="Status">
+              <Select value={form.active ? "1" : "0"} options={[{ value: "1", label: "Active" }, { value: "0", label: "Inactive" }]} onChange={(e) => setForm((f) => f && { ...f, active: e.target.value === "1" })} />
+            </Field>
+            <Field label="GSTIN"><Input value={form.gstin} onChange={(e) => setForm((f) => f && { ...f, gstin: e.target.value })} /></Field>
+            <Field label="Contact Name"><Input value={form.contactName} onChange={(e) => setForm((f) => f && { ...f, contactName: e.target.value })} /></Field>
+            <Field label="Contact Email"><Input type="email" value={form.contactEmail} onChange={(e) => setForm((f) => f && { ...f, contactEmail: e.target.value })} /></Field>
+            <Field label="Phone" className="col-span-2"><Input value={form.contactPhone} onChange={(e) => setForm((f) => f && { ...f, contactPhone: e.target.value })} /></Field>
+            <Field label="Bank Name"><Input value={form.bankName} onChange={(e) => setForm((f) => f && { ...f, bankName: e.target.value })} /></Field>
+            <Field label="Account No."><Input value={form.bankAccountNo} onChange={(e) => setForm((f) => f && { ...f, bankAccountNo: e.target.value })} /></Field>
+            <Field label="IFSC" className="col-span-2"><Input value={form.bankIfsc} onChange={(e) => setForm((f) => f && { ...f, bankIfsc: e.target.value })} /></Field>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -14,6 +14,11 @@ const PatchUser = z.object({
   roles: z.array(z.enum(ROLES)).min(1).max(ROLES.length).optional(),
   active: z.boolean().optional(),
   password: z.string().min(8).max(72).optional(),
+  designation: z.string().max(80).optional(),
+  department: z.string().max(40).nullable().optional(),
+  officeLocation: z.string().max(120).optional(),
+  managerId: z.string().max(128).nullable().optional(),
+  managerName: z.string().max(80).nullable().optional(),
 });
 
 function assertCanAssign(callerRole: Role, target: Role) {
@@ -59,7 +64,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "active"] as const) {
+    for (const key of ["name", "phone", "active", "designation", "department", "officeLocation", "managerId", "managerName"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

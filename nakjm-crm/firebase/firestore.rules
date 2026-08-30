@@ -59,6 +59,14 @@ service cloud.firestore {
       return role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER', 'OPERATIONS', 'SITE_ENGINEER'];
     }
 
+    function canManageAssets() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER', 'OPERATIONS', 'FINANCE'];
+    }
+
+    function canManageHrms() {
+      return isAdmin();
+    }
+
     function uid() {
       return request.auth.uid;
     }
@@ -190,6 +198,43 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if signedIn() && request.resource.data.actor.uid == uid();
       allow update, delete: if false;
+    }
+
+    // -------------------------------------------------------- asset register
+
+    match /assets/{assetId} {
+      allow read: if signedIn();
+      allow create, update: if canManageAssets();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ------------------------------------------------------------------ hrms
+
+    // Attendance: everyone can check themselves in/out and read the whole
+    // org's records (small internal team); only admins hand-correct a day.
+    match /attendance/{recordId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == uid();
+      allow update: if signedIn() && (resource.data.uid == uid() || canManageHrms());
+      allow delete: if false;
+    }
+
+    match /rosters/{rosterId} {
+      allow read: if signedIn();
+      allow write: if signedIn() && (request.resource.data.uid == uid() || canManageHrms());
+    }
+
+    match /holidays/{holidayId} {
+      allow read: if signedIn();
+      allow create, delete: if canManageHrms();
+      allow update: if false;
+    }
+
+    // -------------------------------------------------------------- settings
+
+    match /settings/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
     }
   }
 }

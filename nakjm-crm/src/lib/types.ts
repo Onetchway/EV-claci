@@ -1,9 +1,10 @@
 import type { Timestamp } from "firebase/firestore";
 
 import type {
-  ActivityAction, ActivityEntityType, BoqCategory, BoqStatus, ClientType, Department, PaymentMode, PiStatus,
+  ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
+  ClientType, Department, DepreciationMethod, PaymentMode, PiStatus,
   PoStatus, ProjectStatus, ProjectType, QuotationStatus, Role, SiteReportType,
-  VendorCategory,
+  VendorCategory, WeekDay,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -24,6 +25,11 @@ export interface AppUser {
   roles?: Role[];
   active: boolean;
   photoURL?: string | null;
+  designation?: string;
+  department?: Department | null;
+  officeLocation?: string;
+  managerId?: string | null;
+  managerName?: string | null;
   createdAt: TS;
   updatedAt: TS;
   lastLoginAt?: TS;
@@ -128,6 +134,7 @@ export interface Project {
   team: ProjectTeamAssignment[];
   sourceDocumentId?: string | null;
   deletedAt?: TS;
+  deletedBy?: Actor | null;
   search: string[];
   createdAt: TS;
   updatedAt: TS;
@@ -312,4 +319,82 @@ export interface NakjmDocument {
   notes?: string;
   uploadedBy?: Actor;
   createdAt: TS;
+}
+
+// ---------------------------------------------------------------------------
+// Asset register
+// ---------------------------------------------------------------------------
+
+export interface Asset {
+  id: string;
+  assetTag: string;
+  name: string;
+  category: AssetCategory;
+  serialNumber?: string;
+  status: AssetStatus;
+  cost: number;
+  purchaseDate: TS;
+  method: DepreciationMethod;
+  usefulLifeYears?: number;
+  wdvRatePct?: number;
+  salvageValue?: number;
+  vendorId?: string | null;
+  vendorName?: string | null;
+  poId?: string | null;
+  poNumber?: string | null;
+  linkedProjectId?: string | null;
+  linkedProjectCode?: string | null;
+  warrantyUntil?: TS;
+  notes?: string;
+  deletedAt?: TS;
+  deletedBy?: Actor | null;
+  createdAt: TS;
+  createdBy?: Actor;
+  updatedAt: TS;
+  updatedBy?: Actor;
+}
+
+// ---------------------------------------------------------------------------
+// HRMS — attendance & roster
+// ---------------------------------------------------------------------------
+
+export interface AttendancePunch {
+  lat: number | null;
+  lng: number | null;
+  at: TS;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  uid: string;
+  userName: string;
+  date: string;
+  status: AttendanceStatus;
+  checkIn?: AttendancePunch | null;
+  checkOut?: AttendancePunch | null;
+  note?: string;
+  markedBy?: Actor;
+  createdAt: TS;
+  updatedAt: TS;
+  updatedBy?: Actor;
+}
+
+export interface RosterWeek {
+  id: string;
+  uid: string;
+  userName: string;
+  weekStart: string;
+  days: Record<WeekDay, "WORKING" | "WEEK_OFF">;
+  createdAt: TS;
+  createdBy?: Actor;
+  updatedAt?: TS;
+  updatedBy?: Actor;
+}
+
+export interface Holiday {
+  id: string;
+  date: string;
+  name: string;
+  createdAt: TS;
+  createdBy?: Actor;
 }
