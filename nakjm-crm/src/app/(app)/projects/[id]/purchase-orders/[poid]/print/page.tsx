@@ -1,0 +1,105 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+
+import { PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
+import { EmptyState, Spinner } from "@/components/ui";
+import { getPurchaseOrder } from "@/lib/db/purchase-orders";
+import { getVendor } from "@/lib/db/vendors";
+import type { PurchaseOrder, Vendor } from "@/lib/types";
+import { formatDate, formatINR } from "@/lib/utils";
+
+export default function PurchaseOrderPrintPage() {
+  const { id, poid } = useParams<{ id: string; poid: string }>();
+  const [po, setPo] = useState<PurchaseOrder | null | undefined>(undefined);
+  const [vendor, setVendor] = useState<Vendor | null>(null);
+
+  useEffect(() => {
+    void getPurchaseOrder(poid).then(async (row) => {
+      setPo(row);
+      if (row?.vendorId) setVendor(await getVendor(row.vendorId));
+    });
+  }, [poid]);
+
+  if (po === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
+  if (po === null) return <EmptyState title="Purchase order not found" />;
+
+  return (
+    <div>
+      <PrintToolbar backHref={`/projects/${id}`} />
+
+      <PrintSheet>
+        <PrintHeader
+          docLabel="Purchase Order"
+          docNumber={po.poNo}
+          meta={<p className="mt-0.5 text-[11px] text-ink-400">{formatDate(po.poDate)}</p>}
+        />
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-ink-500">Vendor</p>
+            <p className="font-medium text-ink-900">{vendor?.name ?? "—"}</p>
+            {vendor?.contactName && <p className="text-ink-600">{vendor.contactName}</p>}
+            {vendor?.contactPhone && <p className="text-ink-600">{vendor.contactPhone}</p>}
+            {vendor?.gstin && <p className="text-ink-600">GSTIN: {vendor.gstin}</p>}
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-ink-500">Project</p>
+            <p className="text-ink-900">{po.projectName}</p>
+            {po.deliveryDate && (<><p className="mt-2 text-xs text-ink-500">Delivery by</p><p className="text-ink-900">{formatDate(po.deliveryDate)}</p></>)}
+          </div>
+        </div>
+
+        <div className="mt-6 overflow-x-auto scroll-thin">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
+                <th className="pb-2">#</th>
+                <th className="pb-2">Description</th>
+                <th className="pb-2">Unit</th>
+                <th className="pb-2 text-right">Qty</th>
+                <th className="pb-2 text-right">Rate</th>
+                <th className="pb-2 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {po.items.map((line) => (
+                <tr key={line.srNo} className="border-b border-ink-100">
+                  <td className="py-2 text-ink-500">{line.srNo}</td>
+                  <td className="py-2">{line.description}</td>
+                  <td className="py-2 text-ink-500">{line.unit || "—"}</td>
+                  <td className="py-2 text-right tabular-nums">{line.qty}</td>
+                  <td className="py-2 text-right tabular-nums">{formatINR(line.rate)}</td>
+                  <td className="py-2 text-right tabular-nums">{formatINR(line.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <dl className="w-56 space-y-1.5 text-sm">
+            <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(po.subtotal)}</dd></div>
+            <div className="flex justify-between"><dt className="text-ink-600">Tax</dt><dd className="tabular-nums">{formatINR(po.taxAmount)}</dd></div>
+            <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(po.totalAmount)}</dd></div>
+            <div className="flex justify-between text-ink-600"><dt>Paid</dt><dd className="tabular-nums">{formatINR(po.paidAmount)}</dd></div>
+          </dl>
+        </div>
+
+        {po.terms && (
+          <div className="mt-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Terms</p>
+            <p className="mt-1 whitespace-pre-line text-sm text-ink-700">{po.terms}</p>
+          </div>
+        )}
+
+        {po.notes && (
+          <div className="mt-4 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{po.notes}</div>
+        )}
+
+        <PrintFooter />
+      </PrintSheet>
+    </div>
+  );
+}

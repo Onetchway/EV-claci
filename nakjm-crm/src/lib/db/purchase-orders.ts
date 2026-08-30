@@ -7,7 +7,8 @@ import {
 
 import type { PoStatus } from "../constants";
 import { getDb } from "../firebase/client";
-import type { LineItem, PurchaseOrder } from "../types";
+import type { Actor, LineItem, PurchaseOrder } from "../types";
+import { logActivitySafe } from "./activity";
 import { computeLineTotals } from "./quotations";
 
 export const PURCHASE_ORDERS = "purchaseOrders";
@@ -52,7 +53,7 @@ export interface PoDraft {
   notes?: string;
 }
 
-export async function createPurchaseOrder(draft: PoDraft): Promise<PurchaseOrder> {
+export async function createPurchaseOrder(draft: PoDraft, actor?: Actor): Promise<PurchaseOrder> {
   const { items, subtotal } = computeLineTotals(draft.items);
   const taxAmount = draft.taxAmount ?? 0;
   const ref = doc(collection(getDb(), PURCHASE_ORDERS));
@@ -76,6 +77,12 @@ export async function createPurchaseOrder(draft: PoDraft): Promise<PurchaseOrder
     updatedAt: serverTimestamp(),
   };
   await setDoc(ref, payload);
+  if (actor) {
+    logActivitySafe({
+      entityType: "PURCHASE_ORDER", entityId: ref.id, entityLabel: draft.poNo, action: "CREATE",
+      message: `Created PO ${draft.poNo} for ${draft.vendorName}`, actor, projectId: draft.projectId,
+    });
+  }
   return { id: ref.id, ...(payload as unknown as Omit<PurchaseOrder, "id">) };
 }
 
@@ -84,9 +91,15 @@ export async function updatePoStatus(id: string, status: PoStatus): Promise<void
 }
 
 /** Bumps paidAmount and, once it covers the total, marks the PO completed. */
-export async function recordPoPayment(po: PurchaseOrder, amount: number): Promise<void> {
+export async function recordPoPayment(po: PurchaseOrder, amount: number, actor?: Actor): Promise<void> {
   const paidAmount = po.paidAmount + amount;
   const update: Record<string, unknown> = { paidAmount, updatedAt: serverTimestamp() };
   if (paidAmount >= po.totalAmount) update.status = "COMPLETED";
   await updateDoc(doc(getDb(), PURCHASE_ORDERS, po.id), update);
+  if (actor) {
+    logActivitySafe({
+      entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNo, action: "UPDATE",
+      message: `Recorded payment against PO ${po.poNo}`, actor, projectId: po.projectId,
+    });
+  }
 }

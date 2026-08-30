@@ -6,7 +6,8 @@ import {
 
 import type { SiteReportType } from "../constants";
 import { getDb } from "../firebase/client";
-import type { SiteReport } from "../types";
+import type { Actor, SiteReport } from "../types";
+import { logActivitySafe } from "./activity";
 
 export const SITE_REPORTS = "siteReports";
 
@@ -45,7 +46,7 @@ export interface SiteReportDraft {
   visibleToClient?: boolean;
 }
 
-export async function createSiteReport(draft: SiteReportDraft): Promise<void> {
+export async function createSiteReport(draft: SiteReportDraft, actor?: Actor): Promise<void> {
   const ref = doc(collection(getDb(), SITE_REPORTS));
   await setDoc(ref, {
     projectId: draft.projectId,
@@ -62,4 +63,10 @@ export async function createSiteReport(draft: SiteReportDraft): Promise<void> {
     visibleToClient: draft.visibleToClient ?? false,
     createdAt: serverTimestamp(),
   });
+  if (actor) {
+    logActivitySafe({
+      entityType: "SITE_REPORT", entityId: ref.id, entityLabel: draft.projectName, action: "CREATE",
+      message: `Submitted a ${draft.reportType.toLowerCase()} site report for ${draft.projectName}`, actor, projectId: draft.projectId,
+    });
+  }
 }

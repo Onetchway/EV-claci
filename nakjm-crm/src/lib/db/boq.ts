@@ -7,7 +7,8 @@ import {
 
 import type { BoqStatus } from "../constants";
 import { getDb } from "../firebase/client";
-import type { Boq, BoqLineItem } from "../types";
+import type { Actor, Boq, BoqLineItem } from "../types";
+import { logActivitySafe } from "./activity";
 
 export const BOQS = "boqs";
 
@@ -53,7 +54,7 @@ export interface BoqDraft {
   sourceDocumentId?: string | null;
 }
 
-export async function createBoq(draft: BoqDraft): Promise<Boq> {
+export async function createBoq(draft: BoqDraft, actor?: Actor): Promise<Boq> {
   const { items, total } = computeBoqTotals(draft.items);
   const ref = doc(collection(getDb(), BOQS));
   const payload = {
@@ -73,6 +74,12 @@ export async function createBoq(draft: BoqDraft): Promise<Boq> {
     updatedAt: serverTimestamp(),
   };
   await setDoc(ref, payload);
+  if (actor) {
+    logActivitySafe({
+      entityType: "BOQ", entityId: ref.id, entityLabel: draft.boqNo, action: "CREATE",
+      message: `Created BOQ ${draft.boqNo}`, actor, projectId: draft.projectId,
+    });
+  }
   return { id: ref.id, ...(payload as unknown as Omit<Boq, "id">) };
 }
 

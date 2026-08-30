@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Star, Truck } from "lucide-react";
 
+import { useActor } from "@/components/auth-provider";
 import {
   Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, useAsyncAction,
 } from "@/components/ui";
@@ -17,6 +18,7 @@ const EMPTY = {
 };
 
 export default function VendorsPage() {
+  const actor = useActor();
   const [rows, setRows] = useState<Vendor[] | null>(null);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -35,7 +37,7 @@ export default function VendorsPage() {
   async function onCreate() {
     if (!form.name.trim()) return;
     await run(async () => {
-      await createVendor(form);
+      await createVendor(form, actor);
       setShowForm(false);
       setForm(EMPTY);
     }, "Vendor added.");

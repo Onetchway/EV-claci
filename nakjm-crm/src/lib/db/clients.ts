@@ -9,6 +9,7 @@ import type { ClientType } from "../constants";
 import { getDb } from "../firebase/client";
 import type { Actor, Client } from "../types";
 import { buildSearchTokens } from "../utils";
+import { logActivitySafe } from "./activity";
 
 export const CLIENTS = "clients";
 
@@ -88,6 +89,7 @@ export async function createClient(draft: ClientDraft, actor: Actor): Promise<Cl
     updatedAt: serverTimestamp(),
   };
   await setDoc(ref, payload);
+  logActivitySafe({ entityType: "CLIENT", entityId: ref.id, entityLabel: draft.name, action: "CREATE", message: `Added client ${draft.name}`, actor });
   return { id: ref.id, ...(payload as unknown as Omit<Client, "id">) };
 }
 

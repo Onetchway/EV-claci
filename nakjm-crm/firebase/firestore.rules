@@ -180,5 +180,16 @@ service cloud.firestore {
       allow create: if canManageMasterData() || canManagePayments();
       allow update, delete: if isAdmin();
     }
+
+    // ------------------------------------------------------------- audit log
+
+    // Every create/update across the app appends one activity entry (see
+    // src/lib/db/activity.ts) — it's an append-only trail, so no client ever
+    // updates or deletes an entry, and only admins can read the org-wide log.
+    match /activities/{activityId} {
+      allow read: if isAdmin();
+      allow create: if signedIn() && request.resource.data.actor.uid == uid();
+      allow update, delete: if false;
+    }
   }
 }

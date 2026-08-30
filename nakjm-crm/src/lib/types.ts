@@ -1,7 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 
 import type {
-  BoqCategory, BoqStatus, ClientType, Department, PaymentMode, PiStatus,
+  ActivityAction, ActivityEntityType, BoqCategory, BoqStatus, ClientType, Department, PaymentMode, PiStatus,
   PoStatus, ProjectStatus, ProjectType, QuotationStatus, Role, SiteReportType,
   VendorCategory,
 } from "./constants";
@@ -286,6 +286,18 @@ export interface SiteReport {
   weather?: string;
   visibleToClient: boolean;
   createdAt: TS;
+}
+
+export interface Activity {
+  id: string;
+  entityType: ActivityEntityType;
+  entityId: string;
+  entityLabel: string;
+  action: ActivityAction;
+  message: string;
+  actor: Actor;
+  projectId?: string | null;
+  at: TS;
 }
 
 export interface NakjmDocument {

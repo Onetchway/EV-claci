@@ -7,7 +7,8 @@ import {
 
 import type { PaymentMode } from "../constants";
 import { getDb } from "../firebase/client";
-import type { ClientPayment, VendorPayment } from "../types";
+import type { Actor, ClientPayment, VendorPayment } from "../types";
+import { logActivitySafe } from "./activity";
 import { PROFORMA_INVOICES } from "./proforma-invoices";
 import { PURCHASE_ORDERS } from "./purchase-orders";
 
@@ -71,7 +72,7 @@ export interface ClientPaymentDraft {
   notes?: string;
 }
 
-export async function recordClientPayment(draft: ClientPaymentDraft): Promise<void> {
+export async function recordClientPayment(draft: ClientPaymentDraft, actor?: Actor): Promise<void> {
   const db = getDb();
   const ref = doc(collection(db, CLIENT_PAYMENTS));
   await runTransaction(db, async (tx) => {
@@ -100,6 +101,12 @@ export async function recordClientPayment(draft: ClientPaymentDraft): Promise<vo
       tx.update(piRef, { paidAmount, status: paidAmount >= pi.totalAmount ? "PAID" : "PARTIALLY_PAID", updatedAt: serverTimestamp() });
     }
   });
+  if (actor) {
+    logActivitySafe({
+      entityType: "CLIENT_PAYMENT", entityId: ref.id, entityLabel: draft.clientName, action: "CREATE",
+      message: `Recorded payment of ${draft.amount} from ${draft.clientName}`, actor, projectId: draft.projectId,
+    });
+  }
 }
 
 export interface VendorPaymentDraft {
@@ -115,7 +122,7 @@ export interface VendorPaymentDraft {
   notes?: string;
 }
 
-export async function recordVendorPayment(draft: VendorPaymentDraft): Promise<void> {
+export async function recordVendorPayment(draft: VendorPaymentDraft, actor?: Actor): Promise<void> {
   const db = getDb();
   const ref = doc(collection(db, VENDOR_PAYMENTS));
   await runTransaction(db, async (tx) => {
@@ -143,4 +150,10 @@ export async function recordVendorPayment(draft: VendorPaymentDraft): Promise<vo
       tx.update(poRef, { paidAmount, status: paidAmount >= po.totalAmount ? "COMPLETED" : po.status, updatedAt: serverTimestamp() });
     }
   });
+  if (actor) {
+    logActivitySafe({
+      entityType: "VENDOR_PAYMENT", entityId: ref.id, entityLabel: draft.vendorName, action: "CREATE",
+      message: `Recorded payment of ${draft.amount} to ${draft.vendorName}`, actor, projectId: draft.projectId,
+    });
+  }
 }

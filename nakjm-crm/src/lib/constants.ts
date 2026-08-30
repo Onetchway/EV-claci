@@ -102,6 +102,50 @@ export type PaymentMode = (typeof PAYMENT_MODES)[number];
 export const SITE_REPORT_TYPES = ["DAILY", "WEEKLY", "MILESTONE", "ISSUE"] as const;
 export type SiteReportType = (typeof SITE_REPORT_TYPES)[number];
 
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+export const ACTIVITY_ENTITY_TYPES = [
+  "CLIENT", "VENDOR", "PROJECT", "QUOTATION", "BOQ", "PURCHASE_ORDER",
+  "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER",
+] as const;
+export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
+
+export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
+  CLIENT: "Client",
+  VENDOR: "Vendor",
+  PROJECT: "Project",
+  QUOTATION: "Quotation",
+  BOQ: "BOQ",
+  PURCHASE_ORDER: "Purchase Order",
+  PROFORMA_INVOICE: "Proforma Invoice",
+  CLIENT_PAYMENT: "Client Payment",
+  VENDOR_PAYMENT: "Vendor Payment",
+  SITE_REPORT: "Site Report",
+  TEAM_MEMBER: "Team Member",
+  USER: "User",
+};
+
+export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;
+export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
+
+// ---------------------------------------------------------------------------
+// Company details — used on the printed letterhead for PI/PO/Quotation/BOQ
+// ---------------------------------------------------------------------------
+
+export const COMPANY_INFO = {
+  name: "NAKJM INFRASTRUCTURE PRIVATE LIMITED",
+  gstin: "07AALCN2650H1ZE",
+  cin: "U41001DL2026PTC462479",
+  email: "connect@nakjminfra.com",
+  website: "www.nakjminfra.com",
+  registeredAddress:
+    "Ground Floor, Plot No. 5-A, KH No. 44/17 & 14, Chhawla Extn, New Delhi, South West Delhi, Delhi 110071, India",
+  officeAddress:
+    "CoWynd Managed Office, First Floor, Plot 103, Dwarka Sector 19, New Delhi, Delhi 110075, India",
+};
+
 export function statusMeta(status: string): { label: string; className: string } {
   return (
     PROJECT_STATUS_META[status as ProjectStatus] ?? {

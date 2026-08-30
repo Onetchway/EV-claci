@@ -7,7 +7,8 @@ import {
 
 import type { PiStatus } from "../constants";
 import { getDb } from "../firebase/client";
-import type { LineItem, ProformaInvoice } from "../types";
+import type { Actor, LineItem, ProformaInvoice } from "../types";
+import { logActivitySafe } from "./activity";
 import { computeLineTotals } from "./quotations";
 
 export const PROFORMA_INVOICES = "proformaInvoices";
@@ -45,7 +46,7 @@ export interface PiDraft {
   sourceDocumentId?: string | null;
 }
 
-export async function createProformaInvoice(draft: PiDraft): Promise<ProformaInvoice> {
+export async function createProformaInvoice(draft: PiDraft, actor?: Actor): Promise<ProformaInvoice> {
   const { items, subtotal } = computeLineTotals(draft.items);
   const taxAmount = draft.taxAmount ?? 0;
   const ref = doc(collection(getDb(), PROFORMA_INVOICES));
@@ -70,12 +71,24 @@ export async function createProformaInvoice(draft: PiDraft): Promise<ProformaInv
     updatedAt: serverTimestamp(),
   };
   await setDoc(ref, payload);
+  if (actor) {
+    logActivitySafe({
+      entityType: "PROFORMA_INVOICE", entityId: ref.id, entityLabel: draft.piNo, action: "CREATE",
+      message: `Created PI ${draft.piNo}`, actor, projectId: draft.projectId,
+    });
+  }
   return { id: ref.id, ...(payload as unknown as Omit<ProformaInvoice, "id">) };
 }
 
 /** Bumps paidAmount and updates status to PAID / PARTIALLY_PAID accordingly. */
-export async function recordPiPayment(pi: ProformaInvoice, amount: number): Promise<void> {
+export async function recordPiPayment(pi: ProformaInvoice, amount: number, actor?: Actor): Promise<void> {
   const paidAmount = pi.paidAmount + amount;
   const status: PiStatus = paidAmount >= pi.totalAmount ? "PAID" : "PARTIALLY_PAID";
   await updateDoc(doc(getDb(), PROFORMA_INVOICES, pi.id), { paidAmount, status, updatedAt: serverTimestamp() });
+  if (actor) {
+    logActivitySafe({
+      entityType: "PROFORMA_INVOICE", entityId: pi.id, entityLabel: pi.piNo, action: "UPDATE",
+      message: `Recorded payment against PI ${pi.piNo}`, actor, projectId: pi.projectId,
+    });
+  }
 }

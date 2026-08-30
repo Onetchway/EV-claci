@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { Plus, Printer, Trash2, Upload } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
 import {
@@ -212,6 +213,7 @@ type DraftBoqItem = Omit<BoqLineItem, "amount" | "srNo" | "rate" | "category"> &
 
 // ── Quotations ──────────────────────────────────────────────────────────
 function QuotationsTab({ project }: { project: Project }) {
+  const actor = useActor();
   const [rows, setRows] = useState<Quotation[] | null>(null);
   const [boqs, setBoqs] = useState<Boq[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -250,7 +252,7 @@ function QuotationsTab({ project }: { project: Project }) {
         taxPercent: Number(form.taxPercent) || 0,
         notes: form.notes,
         sourceBoqId,
-      });
+      }, actor);
       setShowForm(false); setItems([]); setSourceBoqId(null);
     }, "Quotation created.");
   }
@@ -277,7 +279,7 @@ function QuotationsTab({ project }: { project: Project }) {
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
           <table className="w-full">
-            <thead><tr><th className="th">No.</th><th className="th">Version</th><th className="th">Status</th><th className="th">Valid Until</th><th className="th">Total</th></tr></thead>
+            <thead><tr><th className="th">No.</th><th className="th">Version</th><th className="th">Status</th><th className="th">Valid Until</th><th className="th">Total</th><th className="th"></th></tr></thead>
             <tbody>
               {rows.map((q) => (
                 <tr key={q.id} className="border-t border-ink-100">
@@ -286,6 +288,11 @@ function QuotationsTab({ project }: { project: Project }) {
                   <td className="td"><Badge>{q.status}</Badge></td>
                   <td className="td">{formatDate(q.validUntil)}</td>
                   <td className="td">{formatINR(q.totalAmount)}</td>
+                  <td className="td text-right">
+                    <Link href={`/projects/${project.id}/quotations/${q.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
+                      <Printer className="h-3.5 w-3.5" /> Print
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -313,6 +320,7 @@ function QuotationsTab({ project }: { project: Project }) {
 
 // ── BOQ ─────────────────────────────────────────────────────────────────
 function BoqTab({ project }: { project: Project }) {
+  const actor = useActor();
   const [rows, setRows] = useState<Boq[] | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ boqNo: "", siteName: "", notes: "" });
@@ -346,7 +354,7 @@ function BoqTab({ project }: { project: Project }) {
     if (!form.boqNo.trim()) return;
     await run(async () => {
       const cleanItems = items.map((it) => ({ ...it, category: (it.category as BoqCategory) || "OTHER" })) as BoqLineItem[];
-      await createBoq({ boqNo: form.boqNo, projectId: project.id, projectName: project.name, siteName: form.siteName, items: cleanItems, notes: form.notes });
+      await createBoq({ boqNo: form.boqNo, projectId: project.id, projectName: project.name, siteName: form.siteName, items: cleanItems, notes: form.notes }, actor);
       setShowForm(false); setItems([]); setForm({ boqNo: "", siteName: "", notes: "" });
     }, "BOQ created.");
   }
@@ -366,7 +374,7 @@ function BoqTab({ project }: { project: Project }) {
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
           <table className="w-full">
-            <thead><tr><th className="th">No.</th><th className="th">Site</th><th className="th">Status</th><th className="th">Date</th><th className="th">Total</th></tr></thead>
+            <thead><tr><th className="th">No.</th><th className="th">Site</th><th className="th">Status</th><th className="th">Date</th><th className="th">Total</th><th className="th"></th></tr></thead>
             <tbody>
               {rows.map((b) => (
                 <tr key={b.id} className="border-t border-ink-100">
@@ -375,6 +383,11 @@ function BoqTab({ project }: { project: Project }) {
                   <td className="td"><Badge>{b.status}</Badge></td>
                   <td className="td">{formatDate(b.boqDate)}</td>
                   <td className="td">{formatINR(b.totalAmount)}</td>
+                  <td className="td text-right">
+                    <Link href={`/projects/${project.id}/boq/${b.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
+                      <Printer className="h-3.5 w-3.5" /> Print
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -402,6 +415,7 @@ function BoqTab({ project }: { project: Project }) {
 
 // ── Purchase Orders ─────────────────────────────────────────────────────
 function PoTab({ project }: { project: Project }) {
+  const actor = useActor();
   const [rows, setRows] = useState<PurchaseOrder[] | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -419,7 +433,7 @@ function PoTab({ project }: { project: Project }) {
       await createPurchaseOrder({
         poNo: form.poNo, projectId: project.id, projectName: project.name, vendorId: form.vendorId, vendorName: vendor?.name ?? "",
         deliveryDate: form.deliveryDate ? new Date(form.deliveryDate) : null, items, notes: form.notes,
-      });
+      }, actor);
       setShowForm(false); setItems([]); setForm({ poNo: "", vendorId: "", deliveryDate: "", notes: "" });
     }, "Purchase order created.");
   }
@@ -432,7 +446,7 @@ function PoTab({ project }: { project: Project }) {
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
           <table className="w-full">
-            <thead><tr><th className="th">No.</th><th className="th">Vendor</th><th className="th">Status</th><th className="th">Total</th><th className="th">Paid</th></tr></thead>
+            <thead><tr><th className="th">No.</th><th className="th">Vendor</th><th className="th">Status</th><th className="th">Total</th><th className="th">Paid</th><th className="th"></th></tr></thead>
             <tbody>
               {rows.map((po) => (
                 <tr key={po.id} className="border-t border-ink-100">
@@ -441,6 +455,11 @@ function PoTab({ project }: { project: Project }) {
                   <td className="td"><Badge>{po.status}</Badge></td>
                   <td className="td">{formatINR(po.totalAmount)}</td>
                   <td className="td text-emerald-600">{formatINR(po.paidAmount)}</td>
+                  <td className="td text-right">
+                    <Link href={`/projects/${project.id}/purchase-orders/${po.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
+                      <Printer className="h-3.5 w-3.5" /> Print
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -491,7 +510,7 @@ function PiTab({ project }: { project: Project }) {
       await createProformaInvoice({
         piNo: form.piNo, projectId: project.id, projectName: project.name, clientId: project.clientId,
         dueDate: form.dueDate ? new Date(form.dueDate) : null, milestone: form.milestone, items, notes: form.notes, sourceDocumentId,
-      });
+      }, actor);
       setShowForm(false); setItems([]); setPoFile(null); setForm({ piNo: "", dueDate: "", milestone: "", notes: "" });
     }, "Proforma invoice created.");
   }
@@ -504,7 +523,7 @@ function PiTab({ project }: { project: Project }) {
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
           <table className="w-full">
-            <thead><tr><th className="th">No.</th><th className="th">Milestone</th><th className="th">Status</th><th className="th">Total</th><th className="th">Paid</th></tr></thead>
+            <thead><tr><th className="th">No.</th><th className="th">Milestone</th><th className="th">Status</th><th className="th">Total</th><th className="th">Paid</th><th className="th"></th></tr></thead>
             <tbody>
               {rows.map((pi) => (
                 <tr key={pi.id} className="border-t border-ink-100">
@@ -513,6 +532,11 @@ function PiTab({ project }: { project: Project }) {
                   <td className="td"><Badge>{pi.status}</Badge></td>
                   <td className="td">{formatINR(pi.totalAmount)}</td>
                   <td className="td text-emerald-600">{formatINR(pi.paidAmount)}</td>
+                  <td className="td text-right">
+                    <Link href={`/projects/${project.id}/proforma-invoices/${pi.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
+                      <Printer className="h-3.5 w-3.5" /> Print
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -546,6 +570,7 @@ function PiTab({ project }: { project: Project }) {
 
 // ── Payments ────────────────────────────────────────────────────────────
 function PaymentsTab({ project }: { project: Project }) {
+  const actor = useActor();
   const [clientPayments, setClientPayments] = useState<import("@/lib/types").ClientPayment[] | null>(null);
   const [vendorPayments, setVendorPayments] = useState<import("@/lib/types").VendorPayment[] | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -565,7 +590,7 @@ function PaymentsTab({ project }: { project: Project }) {
       await recordClientPayment({
         projectId: project.id, projectName: project.name, clientId: project.clientId, clientName: project.clientName,
         amount: Number(clientForm.amount), mode: clientForm.mode, referenceNo: clientForm.referenceNo, milestone: clientForm.milestone,
-      });
+      }, actor);
       setShowClientForm(false); setClientForm({ amount: "", mode: "BANK_TRANSFER", referenceNo: "", milestone: "" });
     }, "Payment recorded.");
   }
@@ -577,7 +602,7 @@ function PaymentsTab({ project }: { project: Project }) {
       await recordVendorPayment({
         vendorId: vendorForm.vendorId, vendorName: vendor?.name ?? "", projectId: project.id, projectName: project.name,
         amount: Number(vendorForm.amount), mode: vendorForm.mode, referenceNo: vendorForm.referenceNo,
-      });
+      }, actor);
       setShowVendorForm(false); setVendorForm({ vendorId: "", amount: "", mode: "BANK_TRANSFER", referenceNo: "" });
     }, "Payout recorded.");
   }
@@ -703,7 +728,7 @@ function SiteReportsTab({ project }: { project: Project }) {
         projectId: project.id, projectName: project.name, reportedById: actor.uid, reportedByName: actor.name,
         reportType: form.reportType, progressPct: Number(form.progressPct) || 0, workDone: form.workDone, issues: form.issues,
         manpowerCount: Number(form.manpowerCount) || 0, visibleToClient: form.visibleToClient,
-      });
+      }, actor);
       setShowForm(false);
       setForm({ reportType: "DAILY", progressPct: "", workDone: "", issues: "", manpowerCount: "", visibleToClient: false });
     }, "Report submitted.");

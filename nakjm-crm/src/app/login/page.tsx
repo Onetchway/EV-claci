@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { Building2, HardHat, ShieldCheck, Truck, Zap } from "lucide-react";
+import { Building2, HardHat, ShieldCheck, Truck } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
 import { Button, Input, Spinner, useToast } from "@/components/ui";
@@ -100,9 +101,7 @@ export default function LoginPage() {
         <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-navy-200/30 blur-3xl" />
 
         <div className="relative">
-          <p className="text-3xl font-bold tracking-tight text-ink-900">
-            NAKJM <span className="text-brand-600">infra.</span>
-          </p>
+          <Image src="/logo.png" alt="NAKJM Infrastructure" width={220} height={70} priority className="h-14 w-auto" />
 
           <h1 className="mt-14 text-5xl font-bold leading-[1.1] text-ink-900">
             Running EPC projects
@@ -130,10 +129,7 @@ export default function LoginPage() {
         </div>
 
         <div className="relative flex items-center gap-2.5 text-sm text-ink-400">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-white">
-            <Zap className="h-4 w-4" />
-          </span>
-          NAKJM Infra Private Limited
+          NAKJM Infrastructure Private Limited
         </div>
       </div>
 

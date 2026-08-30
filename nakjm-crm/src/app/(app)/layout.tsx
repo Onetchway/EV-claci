@@ -1,11 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Briefcase, Building2, ClipboardList, LayoutDashboard, LogOut, Menu,
-  ShieldCheck, Truck, Users2, Wallet, X, Zap,
+  Briefcase, Building2, ClipboardList, History, LayoutDashboard, LogOut, Menu,
+  ShieldCheck, Truck, Users2, Wallet, X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -29,18 +30,14 @@ const NAV: NavItem[] = [
   { href: "/payments", label: "Payments", icon: Wallet },
   { href: "/team", label: "Team", icon: ClipboardList },
   { href: "/users", label: "Users & Roles", icon: Users2, adminOnly: true },
+  { href: "/audit-log", label: "Audit Log", icon: History, adminOnly: true },
 ];
 
 function Wordmark() {
   return (
     <div className="flex items-center gap-2">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-white">
-        <Zap className="h-4 w-4" />
-      </span>
-      <div>
-        <p className="text-sm font-bold leading-none text-navy-900">NAKJM</p>
-        <p className="text-[11px] text-ink-500">EPC CRM</p>
-      </div>
+      <Image src="/logo.png" alt="NAKJM" width={132} height={42} priority className="h-9 w-auto" />
+      <p className="text-[11px] font-medium leading-none text-ink-500">EPC CRM</p>
     </div>
   );
 }

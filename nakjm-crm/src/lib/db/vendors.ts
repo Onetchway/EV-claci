@@ -7,8 +7,9 @@ import {
 
 import type { VendorCategory } from "../constants";
 import { getDb } from "../firebase/client";
-import type { Vendor } from "../types";
+import type { Actor, Vendor } from "../types";
 import { buildSearchTokens } from "../utils";
+import { logActivitySafe } from "./activity";
 
 export const VENDORS = "vendors";
 
@@ -80,7 +81,7 @@ export interface VendorDraft {
   notes?: string;
 }
 
-export async function createVendor(draft: VendorDraft): Promise<Vendor> {
+export async function createVendor(draft: VendorDraft, actor?: Actor): Promise<Vendor> {
   const db = getDb();
   const ref = doc(collection(db, VENDORS));
   const payload = {
@@ -91,6 +92,7 @@ export async function createVendor(draft: VendorDraft): Promise<Vendor> {
     updatedAt: serverTimestamp(),
   };
   await setDoc(ref, payload);
+  if (actor) logActivitySafe({ entityType: "VENDOR", entityId: ref.id, entityLabel: draft.name, action: "CREATE", message: `Added vendor ${draft.name}`, actor });
   return { id: ref.id, ...(payload as unknown as Omit<Vendor, "id">) };
 }
 

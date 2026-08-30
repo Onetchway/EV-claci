@@ -9,6 +9,7 @@ import type { ProjectStatus, ProjectType } from "../constants";
 import { getDb } from "../firebase/client";
 import type { Actor, Project, ProjectSite, ProjectTeamAssignment } from "../types";
 import { buildSearchTokens } from "../utils";
+import { logActivitySafe } from "./activity";
 
 export const PROJECTS = "projects";
 const COUNTERS = "counters";
@@ -145,6 +146,7 @@ export async function createProject(draft: ProjectDraft, actor: Actor): Promise<
   };
 
   await setDoc(ref, payload);
+  logActivitySafe({ entityType: "PROJECT", entityId: ref.id, entityLabel: `${code} — ${draft.name}`, action: "CREATE", message: `Created project ${code} — ${draft.name}`, actor, projectId: ref.id });
   return { id: ref.id, ...(payload as unknown as Omit<Project, "id">) };
 }
 
@@ -185,6 +187,14 @@ export async function updateProject(project: Project, patch: ProjectPatch, actor
   }
 
   await updateDoc(doc(getDb(), PROJECTS, project.id), update);
+  logActivitySafe({
+    entityType: "PROJECT", entityId: project.id, entityLabel: `${project.code} — ${patch.name ?? project.name}`,
+    action: patch.status && patch.status !== project.status ? "STATUS_CHANGE" : "UPDATE",
+    message: patch.status && patch.status !== project.status
+      ? `Changed ${project.code} status to ${patch.status}`
+      : `Updated project ${project.code}`,
+    actor, projectId: project.id,
+  });
 }
 
 /** Assign / unassign a team member — the whole array is small, so it's stored inline on the project. */

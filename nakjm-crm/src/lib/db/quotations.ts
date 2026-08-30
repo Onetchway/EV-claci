@@ -7,7 +7,8 @@ import {
 
 import type { QuotationStatus } from "../constants";
 import { getDb } from "../firebase/client";
-import type { LineItem, Quotation } from "../types";
+import type { Actor, LineItem, Quotation } from "../types";
+import { logActivitySafe } from "./activity";
 
 export const QUOTATIONS = "quotations";
 
@@ -63,7 +64,7 @@ export interface QuotationDraft {
   sourceBoqId?: string | null;
 }
 
-export async function createQuotation(draft: QuotationDraft): Promise<Quotation> {
+export async function createQuotation(draft: QuotationDraft, actor?: Actor): Promise<Quotation> {
   const { items, subtotal, taxAmount, total } = computeLineTotals(draft.items, draft.taxPercent);
   const ref = doc(collection(getDb(), QUOTATIONS));
   const payload = {
@@ -87,9 +88,21 @@ export async function createQuotation(draft: QuotationDraft): Promise<Quotation>
     updatedAt: serverTimestamp(),
   };
   await setDoc(ref, payload);
+  if (actor) {
+    logActivitySafe({
+      entityType: "QUOTATION", entityId: ref.id, entityLabel: draft.quotationNo, action: "CREATE",
+      message: `Created quotation ${draft.quotationNo} (v${draft.version})`, actor, projectId: draft.projectId,
+    });
+  }
   return { id: ref.id, ...(payload as unknown as Omit<Quotation, "id">) };
 }
 
-export async function updateQuotationStatus(id: string, status: QuotationStatus): Promise<void> {
+export async function updateQuotationStatus(id: string, status: QuotationStatus, actor?: Actor, context?: { quotationNo: string; projectId: string }): Promise<void> {
   await updateDoc(doc(getDb(), QUOTATIONS, id), { status, updatedAt: serverTimestamp() });
+  if (actor && context) {
+    logActivitySafe({
+      entityType: "QUOTATION", entityId: id, entityLabel: context.quotationNo, action: "STATUS_CHANGE",
+      message: `Marked quotation ${context.quotationNo} ${status}`, actor, projectId: context.projectId,
+    });
+  }
 }

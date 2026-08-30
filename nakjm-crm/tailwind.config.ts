@@ -5,34 +5,35 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // NAKJM's brand: amber/industrial accent for an EPC contractor, navy
-        // for the sidebar/headings. Every primary button, active nav item,
-        // link and focus ring draws from brand-*, so this token is the one
-        // place that re-themes the whole CRM at once.
+        // NAKJM's brand, sampled from the real logo/letterhead: the red
+        // accent (the triangle in the "K" and the "Infrastructure"
+        // wordmark) and the navy of "NAKJM" itself. Every primary button,
+        // active nav item, link and focus ring draws from brand-*, so this
+        // token is the one place that re-themes the whole CRM at once.
         brand: {
-          50: "#fff8eb",
-          100: "#ffecc6",
-          200: "#ffd98a",
-          300: "#ffc04d",
-          400: "#ffa91f",
-          500: "#f98c07",
-          600: "#dc6a02",
-          700: "#b64b06",
-          800: "#943a0c",
-          900: "#7a300d",
+          50: "#fdecec",
+          100: "#f9cdd0",
+          200: "#f2999f",
+          300: "#e9636d",
+          400: "#dc3743",
+          500: "#c8102e",
+          600: "#a80c26",
+          700: "#870a20",
+          800: "#6b0919",
+          900: "#560913",
         },
         navy: {
-          50: "#eef1f7",
-          100: "#d7deec",
-          200: "#adbcd9",
-          300: "#7f95bf",
-          400: "#51699c",
-          500: "#33477a",
-          600: "#263660",
-          700: "#1c2a4c",
-          800: "#17233f",
-          900: "#101830",
-          950: "#0a0f1f",
+          50: "#e9edf3",
+          100: "#ccd6e5",
+          200: "#9aacc9",
+          300: "#6580a9",
+          400: "#3c5c88",
+          500: "#1f3d68",
+          600: "#152f54",
+          700: "#0f2445",
+          800: "#0a1c38",
+          900: "#052757",
+          950: "#031a3d",
         },
         ink: {
           50: "#f6f7f9",
