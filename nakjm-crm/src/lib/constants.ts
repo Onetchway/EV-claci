@@ -63,6 +63,23 @@ export const DEPARTMENT_LABEL: Record<Department, string> = {
   ADMIN: "Admin",
 };
 
+export const EMPLOYMENT_TYPES = ["FULL_TIME", "PART_TIME", "TEMPORARY"] as const;
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
+
+export const EMPLOYMENT_TYPE_LABEL: Record<EmploymentType, string> = {
+  FULL_TIME: "Full-time",
+  PART_TIME: "Part-time",
+  TEMPORARY: "Temporary",
+};
+
+export const ROLL_STATUSES = ["ON_ROLL", "OFF_ROLL"] as const;
+export type RollStatus = (typeof ROLL_STATUSES)[number];
+
+export const ROLL_STATUS_LABEL: Record<RollStatus, string> = {
+  ON_ROLL: "On roll",
+  OFF_ROLL: "Off roll",
+};
+
 // ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------

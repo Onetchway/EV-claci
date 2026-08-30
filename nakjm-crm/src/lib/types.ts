@@ -2,10 +2,10 @@ import type { Timestamp } from "firebase/firestore";
 
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
-  ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, HandoverStage,
-  InspectionResult, IssuePriority, IssueStatus, NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus,
-  ProjectType, PunchItemStatus, QuotationStatus, RfiStatus, Role, SiteReportType, StageStatus, TaskStatus,
-  TenderStatus, VendorCategory,
+  ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, EmploymentType,
+  HandoverStage, InspectionResult, IssuePriority, IssueStatus, NcrStatus, PaymentMode, PiStatus, PoStatus,
+  ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus, Role, RollStatus, SiteReportType,
+  StageStatus, TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -45,6 +45,8 @@ export interface AppUser {
   officeLocation?: string;
   managerId?: string | null;
   managerName?: string | null;
+  employmentType?: EmploymentType | null;
+  rollStatus?: RollStatus | null;
   payroll?: Payroll;
   createdAt: TS;
   updatedAt: TS;

@@ -2,23 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, Landmark } from "lucide-react";
+import { UserPlus } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Avatar, Button, Checkbox, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard, useAsyncAction,
+  Avatar, Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard, useAsyncAction,
 } from "@/components/ui";
-import { DEPARTMENTS, DEPARTMENT_LABEL, type Department } from "@/lib/constants";
+import { DEPARTMENT_LABEL, EMPLOYMENT_TYPE_LABEL, ROLES, ROLE_LABEL, ROLL_STATUS_LABEL, type Role } from "@/lib/constants";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { canManageHrms, canSeeAllHrms } from "@/lib/permissions";
-import type { AppUser, Payroll } from "@/lib/types";
+import type { AppUser } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
-
-const BLANK_PAYROLL: Payroll = {
-  monthlySalary: 0, panNumber: "", pfApplicable: false, pfNumber: "", uanNumber: "",
-  esiApplicable: false, esiNumber: "", tdsPercent: 0, bankAccountNo: "", bankIfsc: "", bankName: "",
-};
 
 async function authedFetch(path: string, init: RequestInit) {
   const current = getFirebaseAuth().currentUser;
@@ -28,10 +23,12 @@ async function authedFetch(path: string, init: RequestInit) {
     ...init,
     headers: { "content-type": "application/json", authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
   });
-  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  const body = (await res.json().catch(() => ({}))) as { error?: string; temporaryPassword?: string; resetLink?: string };
   if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status}).`);
   return body;
 }
+
+const BLANK_FORM = { name: "", email: "", phone: "", role: "VIEWER" as Role };
 
 export default function EmployeesPage() {
   const { profile } = useAuth();
@@ -40,8 +37,9 @@ export default function EmployeesPage() {
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<AppUser | null>(null);
-  const [payrollForm, setPayrollForm] = useState<Payroll>(BLANK_PAYROLL);
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState(BLANK_FORM);
+  const [credentials, setCredentials] = useState<{ email: string; password?: string } | null>(null);
 
   const canView = canManageHrms(viewer);
   const canEdit = canView;
@@ -62,21 +60,14 @@ export default function EmployeesPage() {
     );
   }
 
-  async function patchUser(uid: string, patch: Record<string, unknown>) {
-    await authedFetch(`/api/users/${uid}`, { method: "PATCH", body: JSON.stringify(patch) });
-  }
-
-  function openManage(u: AppUser) {
-    setEditing(u);
-    setPayrollForm({ ...BLANK_PAYROLL, ...u.payroll });
-  }
-
-  async function savePayroll() {
-    if (!editing) return;
+  async function onAddEmployee() {
+    if (!form.name.trim() || !form.email.trim()) return;
     await run(async () => {
-      await patchUser(editing.uid, { payroll: payrollForm });
-      setEditing({ ...editing, payroll: payrollForm });
-    }, "Payroll saved.");
+      const res = await authedFetch("/api/users", { method: "POST", body: JSON.stringify({ ...form, roles: [form.role] }) });
+      setAddOpen(false);
+      setCredentials({ email: form.email, password: res.temporaryPassword });
+      setForm(BLANK_FORM);
+    }, "Employee added.");
   }
 
   const activeUsers = users.filter((u) => u.active);
@@ -93,7 +84,8 @@ export default function EmployeesPage() {
     <>
       <PageHeader
         title="Employees"
-        description="Job title, department, work location and reporting manager for every employee."
+        description="Job title, department, employment type and payroll for every employee."
+        actions={canEdit ? <Button onClick={() => setAddOpen(true)}><UserPlus className="h-4 w-4" /> Add Employee</Button> : undefined}
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -113,41 +105,42 @@ export default function EmployeesPage() {
                 <th className="th">Employee</th>
                 <th className="th">Designation</th>
                 <th className="th">Department</th>
-                <th className="th">Location</th>
-                <th className="th">Reports to</th>
+                <th className="th">Employment</th>
+                <th className="th">Roll status</th>
                 <th className="th text-right">Monthly salary</th>
                 <th className="th"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
-              {visible.map((u) => {
-                const manager = u.managerId ? users.find((m) => m.uid === u.managerId) : null;
-                return (
-                  <tr key={u.id} className="hover:bg-ink-50">
-                    <td className="td">
-                      <span className="flex items-center gap-2">
-                        <Avatar name={u.name} size={30} />
-                        <span>
-                          <span className="block font-medium text-ink-900">{u.name}</span>
-                          <span className="block text-xs text-ink-500">{u.email}</span>
-                        </span>
+              {visible.map((u) => (
+                <tr key={u.id} className="hover:bg-ink-50">
+                  <td className="td">
+                    <span className="flex items-center gap-2">
+                      <Avatar name={u.name} size={30} />
+                      <span>
+                        <span className="block font-medium text-ink-900">{u.name}</span>
+                        <span className="block text-xs text-ink-500">{u.email}</span>
                       </span>
-                    </td>
-                    <td className="td text-ink-600">{u.designation || "—"}</td>
-                    <td className="td text-ink-600">{u.department ? DEPARTMENT_LABEL[u.department] : "—"}</td>
-                    <td className="td text-ink-600">{u.officeLocation || "—"}</td>
-                    <td className="td text-ink-600">{manager?.name || "—"}</td>
-                    <td className="td text-right tabular-nums">{u.payroll?.monthlySalary ? formatINR(u.payroll.monthlySalary) : "—"}</td>
-                    <td className="td text-right">
-                      {canEdit && (
-                        <button onClick={() => openManage(u)} className="rounded px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50">
-                          Manage
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                    </span>
+                  </td>
+                  <td className="td text-ink-600">{u.designation || "—"}</td>
+                  <td className="td text-ink-600">{u.department ? DEPARTMENT_LABEL[u.department] : "—"}</td>
+                  <td className="td text-ink-600">{u.employmentType ? EMPLOYMENT_TYPE_LABEL[u.employmentType] : "—"}</td>
+                  <td className="td">
+                    {u.rollStatus ? (
+                      <Badge className={u.rollStatus === "ON_ROLL" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
+                        {ROLL_STATUS_LABEL[u.rollStatus]}
+                      </Badge>
+                    ) : "—"}
+                  </td>
+                  <td className="td text-right tabular-nums">{u.payroll?.monthlySalary ? formatINR(u.payroll.monthlySalary) : "—"}</td>
+                  <td className="td text-right">
+                    <Link href={`/employees/${u.uid}`} className="rounded px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50">
+                      Manage
+                    </Link>
+                  </td>
+                </tr>
+              ))}
               {visible.length === 0 && (
                 <tr><td colSpan={7} className="td py-10 text-center text-ink-400">No employees to show.</td></tr>
               )}
@@ -157,95 +150,33 @@ export default function EmployeesPage() {
       )}
 
       <Modal
-        open={editing !== null}
-        onClose={() => setEditing(null)}
-        title={editing ? `Manage ${editing.name}` : ""}
-        footer={<Button onClick={() => setEditing(null)}>Done</Button>}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="Add Employee"
+        footer={<><Button variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button><Button onClick={() => void onAddEmployee()} loading={busy}>Add</Button></>}
       >
-        {editing && (
-          <div className="space-y-4">
-            <Field label="Designation" hint="Job title, shown in the directory.">
-              <Input
-                defaultValue={editing.designation ?? ""}
-                onBlur={(e) => void run(() => patchUser(editing.uid, { designation: e.target.value }), "Saved.")}
-              />
-            </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Full name" required className="col-span-2"><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
+          <Field label="Email" required className="col-span-2"><Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></Field>
+          <Field label="Phone"><Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} /></Field>
+          <Field label="Sign-in role"><Select value={form.role} options={ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))} /></Field>
+        </div>
+        <p className="mt-3 text-xs text-ink-500">
+          This creates a sign-in account for them too. Designation, department, employment type, and payroll are set from their employee page afterwards.
+        </p>
+      </Modal>
 
-            <Field label="Department">
-              <Select
-                placeholder="No department"
-                value={editing.department ?? ""}
-                onChange={(e) => {
-                  const department = (e.target.value || null) as Department | null;
-                  void run(async () => { await patchUser(editing.uid, { department }); setEditing({ ...editing, department }); }, "Saved.");
-                }}
-                options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABEL[d] }))}
-              />
-            </Field>
-
-            <Field label="Location" hint="Office or site they're based at.">
-              <Input
-                defaultValue={editing.officeLocation ?? ""}
-                onBlur={(e) => void run(() => patchUser(editing.uid, { officeLocation: e.target.value }), "Saved.")}
-              />
-            </Field>
-
-            <Field label="Reports to" hint="Who approves this person's attendance corrections.">
-              <Select
-                placeholder="No manager"
-                value={editing.managerId ?? ""}
-                onChange={(e) => {
-                  const mgr = activeUsers.find((u) => u.uid === e.target.value);
-                  void run(async () => {
-                    await patchUser(editing.uid, { managerId: mgr?.uid ?? null, managerName: mgr?.name ?? null });
-                    setEditing({ ...editing, managerId: mgr?.uid ?? null, managerName: mgr?.name ?? null });
-                  }, "Saved.");
-                }}
-                options={activeUsers.filter((u) => u.uid !== editing.uid).map((u) => ({ value: u.uid, label: u.name }))}
-              />
-            </Field>
-
-            <div className="border-t border-ink-200 pt-4">
-              <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink-900">
-                <Landmark className="h-4 w-4" /> Payroll
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Monthly salary (₹)">
-                  <Input type="number" min={0} value={payrollForm.monthlySalary ?? 0} onChange={(e) => setPayrollForm((f) => ({ ...f, monthlySalary: Number(e.target.value) || 0 }))} />
-                </Field>
-                <Field label="TDS (%)">
-                  <Input type="number" min={0} max={100} step={0.1} value={payrollForm.tdsPercent ?? 0} onChange={(e) => setPayrollForm((f) => ({ ...f, tdsPercent: Number(e.target.value) || 0 }))} />
-                </Field>
-                <Field label="PAN"><Input value={payrollForm.panNumber ?? ""} onChange={(e) => setPayrollForm((f) => ({ ...f, panNumber: e.target.value }))} /></Field>
-                <Field label="Bank account no."><Input value={payrollForm.bankAccountNo ?? ""} onChange={(e) => setPayrollForm((f) => ({ ...f, bankAccountNo: e.target.value }))} /></Field>
-                <Field label="Bank name"><Input value={payrollForm.bankName ?? ""} onChange={(e) => setPayrollForm((f) => ({ ...f, bankName: e.target.value }))} /></Field>
-                <Field label="IFSC"><Input value={payrollForm.bankIfsc ?? ""} onChange={(e) => setPayrollForm((f) => ({ ...f, bankIfsc: e.target.value }))} /></Field>
-                <Field label="PF" className="col-span-2">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Checkbox label="PF applicable" checked={!!payrollForm.pfApplicable} onChange={(v) => setPayrollForm((f) => ({ ...f, pfApplicable: v }))} />
-                    {payrollForm.pfApplicable && (
-                      <>
-                        <Input placeholder="PF number" className="flex-1" value={payrollForm.pfNumber ?? ""} onChange={(e) => setPayrollForm((f) => ({ ...f, pfNumber: e.target.value }))} />
-                        <Input placeholder="UAN number" className="flex-1" value={payrollForm.uanNumber ?? ""} onChange={(e) => setPayrollForm((f) => ({ ...f, uanNumber: e.target.value }))} />
-                      </>
-                    )}
-                  </div>
-                </Field>
-                <Field label="ESI" className="col-span-2">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Checkbox label="ESI applicable" checked={!!payrollForm.esiApplicable} onChange={(v) => setPayrollForm((f) => ({ ...f, esiApplicable: v }))} />
-                    {payrollForm.esiApplicable && (
-                      <Input placeholder="ESI number" className="flex-1" value={payrollForm.esiNumber ?? ""} onChange={(e) => setPayrollForm((f) => ({ ...f, esiNumber: e.target.value }))} />
-                    )}
-                  </div>
-                </Field>
-              </div>
-              <Button className="mt-3" loading={busy} onClick={() => void savePayroll()}>Save payroll</Button>
-            </div>
-
-            <p className="flex items-center gap-1.5 text-xs text-ink-500">
-              <Building2 className="h-3.5 w-3.5" /> Role and sign-in access are managed from Settings → Team &amp; Roles.
-            </p>
+      <Modal
+        open={credentials !== null}
+        onClose={() => setCredentials(null)}
+        title="Employee added"
+        footer={<Button onClick={() => setCredentials(null)}>Done</Button>}
+      >
+        {credentials && (
+          <div className="space-y-2 text-sm">
+            <p>Share these sign-in details with <strong>{credentials.email}</strong>:</p>
+            {credentials.password && <p className="rounded-lg bg-ink-50 px-3 py-2 font-mono text-xs">{credentials.password}</p>}
+            <p className="text-xs text-ink-500">They'll be prompted to set their own password on first sign-in.</p>
           </div>
         )}
       </Modal>
