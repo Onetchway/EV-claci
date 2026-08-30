@@ -50,7 +50,7 @@ import type {
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quality", "Drawings", "Handover", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quality", "Drawings", "Handover", "Reports", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -210,6 +210,7 @@ export default function ProjectDetailPage() {
       {tab === "Quality" && <QualityTab project={project} />}
       {tab === "Drawings" && <DrawingsTab project={project} />}
       {tab === "Handover" && <HandoverTab project={project} />}
+      {tab === "Reports" && <ReportsTab project={project} />}
       {tab === "Quotations" && <QuotationsTab project={project} />}
       {tab === "BOQ" && <BoqTab project={project} />}
       {tab === "Purchase Orders" && <PoTab project={project} />}
@@ -1767,6 +1768,63 @@ function HandoverTab({ project }: { project: Project }) {
           <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ── Reports ────────────────────────────────────────────────────────────
+/** Report Centre — currently one report type (Weekly Progress), generated live from existing data, not stored. */
+function ReportsTab({ project }: { project: Project }) {
+  const [stages, setStages] = useState<ProjectStage[]>([]);
+  const [reports, setReports] = useState<SiteReport[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const today = new Date();
+  const weekAgo = new Date(today.getTime() - 6 * 86400000);
+  const [from, setFrom] = useState(weekAgo.toISOString().slice(0, 10));
+  const [to, setTo] = useState(today.toISOString().slice(0, 10));
+  const [nextWeek, setNextWeek] = useState("");
+
+  useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
+  useEffect(() => subscribeSiteReportsForProject(project.id, setReports), [project.id]);
+  useEffect(() => subscribeIssuesForProject(project.id, setIssues), [project.id]);
+
+  const fromTime = new Date(from).getTime();
+  const toTime = new Date(to).getTime() + 86400000;
+  const weekReports = reports.filter((r) => { const t = r.reportDate?.seconds ? r.reportDate.seconds * 1000 : 0; return t >= fromTime && t < toTime; });
+  const overallProgress = stages.length ? Math.round(stages.reduce((s, st) => s + st.progressPct, 0) / stages.length) : 0;
+  const active = stages.filter((s) => s.status === "IN_PROGRESS");
+  const delayed = stages.filter((s) => s.status === "DELAYED" || s.status === "BLOCKED");
+  const openIssues = issues.filter((i) => i.status === "OPEN" || i.status === "IN_PROGRESS");
+
+  const printHref = `/projects/${project.id}/reports/weekly/print?from=${from}&to=${to}&nextWeek=${encodeURIComponent(nextWeek)}`;
+
+  return (
+    <div className="space-y-4">
+      <Card title="Weekly Progress Report">
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <Field label="From"><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+          <Field label="To"><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+          <Link href={printHref} target="_blank"><Button><Printer className="h-4 w-4" /> Preview / PDF</Button></Link>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
+          <div><p className="text-ink-400">Overall Progress</p><p className="text-lg font-semibold text-navy-900">{overallProgress}%</p></div>
+          <div><p className="text-ink-400">Current Activities</p><p className="text-lg font-semibold text-navy-900">{active.length}</p></div>
+          <div><p className="text-ink-400">Delayed</p><p className="text-lg font-semibold text-rose-600">{delayed.length}</p></div>
+          <div><p className="text-ink-400">Open Issues</p><p className="text-lg font-semibold text-navy-900">{openIssues.length}</p></div>
+        </div>
+
+        <div className="mt-4 border-t border-ink-100 pt-4">
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-500">Completed This Week</p>
+          {weekReports.length === 0 ? <p className="text-sm text-ink-400">No site reports logged in this range.</p> : (
+            <ul className="list-disc space-y-1 pl-5 text-sm text-ink-700">
+              {weekReports.map((r) => <li key={r.id}>{r.workDone || `${r.progressPct}% progress recorded`}</li>)}
+            </ul>
+          )}
+        </div>
+
+        <Field label="Next Week (for the printed report)" className="mt-4"><Textarea value={nextWeek} onChange={(e) => setNextWeek(e.target.value)} placeholder="Planned activities for next week…" /></Field>
+      </Card>
     </div>
   );
 }
