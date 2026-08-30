@@ -47,6 +47,14 @@ export async function getPurchaseOrder(id: string): Promise<PurchaseOrder | null
   return snap.exists() ? mapPo(snap.id, snap.data()) : null;
 }
 
+export function subscribePurchaseOrder(id: string, cb: (po: PurchaseOrder | null) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    doc(getDb(), PURCHASE_ORDERS, id),
+    (snap) => cb(snap.exists() ? mapPo(snap.id, snap.data()) : null),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export interface PoDraft {
   poNo: string;
   projectId: string;
@@ -95,8 +103,12 @@ export async function createPurchaseOrder(draft: PoDraft, actor?: Actor): Promis
   return { id: ref.id, ...(payload as unknown as Omit<PurchaseOrder, "id">) };
 }
 
-export async function updatePoStatus(id: string, status: PoStatus): Promise<void> {
-  await updateDoc(doc(getDb(), PURCHASE_ORDERS, id), { status, updatedAt: serverTimestamp() });
+export async function updatePoStatus(po: PurchaseOrder, status: PoStatus, actor: Actor): Promise<void> {
+  await updateDoc(doc(getDb(), PURCHASE_ORDERS, po.id), { status, updatedAt: serverTimestamp() });
+  logActivitySafe({
+    entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNo, action: "STATUS_CHANGE",
+    message: `Marked PO ${po.poNo} ${status}`, actor, projectId: po.projectId,
+  });
 }
 
 export type PoPatch = Partial<Omit<PoDraft, "projectId" | "projectName" | "vendorId" | "vendorName" | "items">> & {

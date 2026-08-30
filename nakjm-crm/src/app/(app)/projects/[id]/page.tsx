@@ -629,7 +629,7 @@ function PoTab({ project }: { project: Project }) {
             <tbody>
               {rows.map((po) => (
                 <tr key={po.id} className="border-t border-ink-100">
-                  <td className="td font-medium">{po.poNo}</td>
+                  <td className="td font-medium"><Link href={`/purchase-orders/${po.id}`} className="text-brand-700 hover:underline">{po.poNo}</Link></td>
                   <td className="td">{po.vendorName}</td>
                   <td className="td"><Badge>{po.status}</Badge></td>
                   <td className="td">{formatINR(po.totalAmount)}</td>
