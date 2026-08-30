@@ -103,6 +103,9 @@ export default function QuotationDetailPage() {
             </div>
           </Card>
 
+          {q.shipToDifferent && q.shipToAddress && (
+            <Card title="Ship to"><p className="whitespace-pre-line text-sm text-ink-700">{q.shipToAddress}</p></Card>
+          )}
           {q.terms && (
             <Card title="Terms &amp; conditions"><p className="whitespace-pre-line text-sm text-ink-700">{q.terms}</p></Card>
           )}

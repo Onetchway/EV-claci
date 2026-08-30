@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 
 import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
-import { GstTypeField } from "@/components/gst-fields";
+import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import type { GstType } from "@/lib/constants";
 import { getBoq } from "@/lib/db/boq";
@@ -37,6 +37,8 @@ function NewQuotationForm() {
   const [gstType, setGstType] = useState<GstType>("IGST");
   const [terms, setTerms] = useState("");
   const [notes, setNotes] = useState("");
+  const [shipToDifferent, setShipToDifferent] = useState(false);
+  const [shipToAddress, setShipToAddress] = useState("");
   const [items, setItems] = useState<DraftItem[]>([]);
   const [sourceBoqId, setSourceBoqId] = useState<string | null>(null);
 
@@ -69,6 +71,7 @@ function NewQuotationForm() {
         quotationNo, projectId, projectName: project.name, clientId: project.clientId, version,
         quotationDate: new Date(), validUntil: validUntil ? new Date(validUntil) : null,
         items, taxPercent: Number(taxPercent) || 0, gstType, terms, notes, sourceBoqId,
+        shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "",
       }, actor);
       router.push(`/quotations/${q.id}`);
     }, "Quotation created.");
@@ -92,6 +95,7 @@ function NewQuotationForm() {
               <Field label="Valid Until"><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
               <Field label="Tax %"><Input type="number" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} /></Field>
               <GstTypeField value={gstType} onChange={setGstType} className="col-span-2" />
+              <ShipToField enabled={shipToDifferent} onEnabledChange={setShipToDifferent} address={shipToAddress} onAddressChange={setShipToAddress} className="col-span-2" />
               <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
             </div>

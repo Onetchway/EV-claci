@@ -60,6 +60,8 @@ export interface PiDraft {
   items: Omit<LineItem, "amount" | "srNo">[];
   taxAmount?: number;
   gstType?: "IGST" | "CGST_SGST";
+  shipToDifferent?: boolean;
+  shipToAddress?: string;
   terms?: string;
   notes?: string;
   sourceDocumentId?: string | null;
@@ -95,6 +97,8 @@ export async function createProformaInvoice(draft: PiDraft, actor?: Actor): Prom
     ...splitGst(taxAmount, gstType),
     totalAmount: subtotal + taxAmount,
     paidAmount: 0,
+    shipToDifferent: draft.shipToDifferent ?? false,
+    shipToAddress: draft.shipToDifferent ? (draft.shipToAddress ?? "") : "",
     terms: draft.terms ?? "",
     notes: draft.notes ?? "",
     sourceDocumentId: draft.sourceDocumentId ?? null,
@@ -137,6 +141,8 @@ export async function updateProformaInvoice(pi: ProformaInvoice, patch: PiPatch,
   if (patch.piNo !== undefined) update.piNo = patch.piNo;
   if (patch.milestone !== undefined) update.milestone = patch.milestone;
   if (patch.terms !== undefined) update.terms = patch.terms;
+  if (patch.shipToDifferent !== undefined) update.shipToDifferent = patch.shipToDifferent;
+  if (patch.shipToAddress !== undefined) update.shipToAddress = patch.shipToAddress;
   if (patch.notes !== undefined) update.notes = patch.notes;
   if (patch.status !== undefined) update.status = patch.status;
   if (patch.piDate !== undefined) update.piDate = patch.piDate ? Timestamp.fromDate(patch.piDate) : null;

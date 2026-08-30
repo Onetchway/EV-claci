@@ -127,6 +127,9 @@ export default function ProformaInvoiceDetailPage() {
             </div>
           </Card>
 
+          {pi.shipToDifferent && pi.shipToAddress && (
+            <Card title="Ship to"><p className="whitespace-pre-line text-sm text-ink-700">{pi.shipToAddress}</p></Card>
+          )}
           {pi.terms && <Card title="Terms &amp; conditions"><p className="whitespace-pre-line text-sm text-ink-700">{pi.terms}</p></Card>}
           {pi.notes && <Card title="Notes"><p className="whitespace-pre-line text-sm text-ink-700">{pi.notes}</p></Card>}
 

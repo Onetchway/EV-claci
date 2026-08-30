@@ -6,7 +6,7 @@ import { Upload } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
-import { GstTypeField } from "@/components/gst-fields";
+import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import type { GstType } from "@/lib/constants";
 import { createProformaInvoice } from "@/lib/db/proforma-invoices";
@@ -40,6 +40,8 @@ function NewProformaInvoiceForm() {
   const [gstType, setGstType] = useState<GstType>("IGST");
   const [terms, setTerms] = useState("");
   const [notes, setNotes] = useState("");
+  const [shipToDifferent, setShipToDifferent] = useState(false);
+  const [shipToAddress, setShipToAddress] = useState("");
   const [poFile, setPoFile] = useState<File | null>(null);
   const [items, setItems] = useState<DraftItem[]>([]);
 
@@ -67,6 +69,7 @@ function NewProformaInvoiceForm() {
         piNo, projectId, projectName: project.name, clientId: project.clientId,
         dueDate: dueDate ? new Date(dueDate) : null, milestone, items,
         taxAmount: tax, gstType, terms, notes, sourceDocumentId,
+        shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "",
       }, actor);
       router.push(`/proforma-invoices/${pi.id}`);
     }, "Proforma invoice created.");
@@ -91,6 +94,7 @@ function NewProformaInvoiceForm() {
               <Field label="Milestone"><Input value={milestone} onChange={(e) => setMilestone(e.target.value)} /></Field>
               <Field label="Tax Amount (₹)"><Input type="number" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} /></Field>
               <GstTypeField value={gstType} onChange={setGstType} />
+              <ShipToField enabled={shipToDifferent} onEnabledChange={setShipToDifferent} address={shipToAddress} onAddressChange={setShipToAddress} className="col-span-2" />
               <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
               <Field label="Client PO / Work Order" className="col-span-2" hint="Optional — attaches the source document to this PI.">

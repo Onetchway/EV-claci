@@ -82,6 +82,8 @@ export interface QuotationDraft {
   items: Omit<LineItem, "amount" | "srNo">[];
   taxPercent: number;
   gstType?: "IGST" | "CGST_SGST";
+  shipToDifferent?: boolean;
+  shipToAddress?: string;
   terms?: string;
   notes?: string;
   sourceBoqId?: string | null;
@@ -109,6 +111,8 @@ export async function createQuotation(draft: QuotationDraft, actor?: Actor): Pro
     cgstAmount,
     sgstAmount,
     totalAmount: total,
+    shipToDifferent: draft.shipToDifferent ?? false,
+    shipToAddress: draft.shipToDifferent ? (draft.shipToAddress ?? "") : "",
     terms: draft.terms ?? "",
     notes: draft.notes ?? "",
     sourceBoqId: draft.sourceBoqId ?? null,
@@ -152,6 +156,8 @@ export async function updateQuotation(quotation: Quotation, patch: QuotationPatc
   if (patch.quotationDate !== undefined) update.quotationDate = patch.quotationDate ? Timestamp.fromDate(patch.quotationDate) : null;
   if (patch.validUntil !== undefined) update.validUntil = patch.validUntil ? Timestamp.fromDate(patch.validUntil) : null;
   if (patch.terms !== undefined) update.terms = patch.terms;
+  if (patch.shipToDifferent !== undefined) update.shipToDifferent = patch.shipToDifferent;
+  if (patch.shipToAddress !== undefined) update.shipToAddress = patch.shipToAddress;
   if (patch.notes !== undefined) update.notes = patch.notes;
   if (patch.quotationNo !== undefined) update.quotationNo = patch.quotationNo;
   await updateDoc(doc(getDb(), QUOTATIONS, quotation.id), update);

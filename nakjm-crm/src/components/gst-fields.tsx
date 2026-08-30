@@ -1,6 +1,6 @@
 "use client";
 
-import { Field } from "@/components/ui";
+import { Field, Textarea } from "@/components/ui";
 import { GST_TYPES, GST_TYPE_LABEL, type GstType } from "@/lib/constants";
 
 /** IGST vs CGST+SGST radio — same total tax, different printed breakdown. */
@@ -22,5 +22,28 @@ export function GstTypeField({
         ))}
       </div>
     </Field>
+  );
+}
+
+/** "Ship to a different address" checkbox that reveals an address textarea. */
+export function ShipToField({
+  enabled, onEnabledChange, address, onAddressChange, className,
+}: {
+  enabled: boolean;
+  onEnabledChange: (v: boolean) => void;
+  address: string;
+  onAddressChange: (v: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-800">
+        <input type="checkbox" checked={enabled} onChange={(e) => onEnabledChange(e.target.checked)} />
+        Ship to a different address
+      </label>
+      {enabled && (
+        <div className="mt-2"><Textarea value={address} onChange={(e) => onAddressChange(e.target.value)} placeholder="Delivery address" /></div>
+      )}
+    </div>
   );
 }

@@ -233,6 +233,8 @@ export interface Quotation {
   igstAmount?: number;
   cgstAmount?: number;
   sgstAmount?: number;
+  shipToDifferent?: boolean;
+  shipToAddress?: string;
   totalAmount: number;
   terms?: string;
   notes?: string;
@@ -304,6 +306,8 @@ export interface ProformaInvoice {
   igstAmount?: number;
   cgstAmount?: number;
   sgstAmount?: number;
+  shipToDifferent?: boolean;
+  shipToAddress?: string;
   totalAmount: number;
   paidAmount: number;
   terms?: string;
