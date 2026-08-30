@@ -15,15 +15,15 @@ import {
   type BoqCategory, type PaymentMode, type ProjectStatus, type ProjectType, type SiteReportType,
 } from "@/lib/constants";
 import { parseBoqFile } from "@/lib/boq-parser";
-import { computeBoqTotals, createBoq, subscribeBoqsForProject } from "@/lib/db/boq";
+import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, updateBoq } from "@/lib/db/boq";
 import { listActiveClients } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
-import { createProformaInvoice, subscribePisForProject } from "@/lib/db/proforma-invoices";
+import { createProformaInvoice, deleteProformaInvoice, subscribePisForProject, updateProformaInvoice } from "@/lib/db/proforma-invoices";
 import { assignTeamMember, subscribeProject, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
 import { canTrash } from "@/lib/permissions";
-import { createPurchaseOrder, subscribePosForProject } from "@/lib/db/purchase-orders";
-import { createQuotation, nextQuotationVersion, subscribeQuotationsForProject } from "@/lib/db/quotations";
+import { createPurchaseOrder, deletePurchaseOrder, subscribePosForProject, updatePurchaseOrder } from "@/lib/db/purchase-orders";
+import { createQuotation, deleteQuotation, nextQuotationVersion, subscribeQuotationsForProject, updateQuotation } from "@/lib/db/quotations";
 import { createSiteReport, subscribeSiteReportsForProject } from "@/lib/db/site-reports";
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
@@ -335,6 +335,8 @@ function QuotationsTab({ project }: { project: Project }) {
   const [rows, setRows] = useState<Quotation[] | null>(null);
   const [boqs, setBoqs] = useState<Boq[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Quotation | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Quotation | null>(null);
   const [form, setForm] = useState({ quotationNo: "", validUntil: "", taxPercent: "18", notes: "" });
   const [items, setItems] = useState<DraftItem[]>([]);
   const [sourceBoqId, setSourceBoqId] = useState<string | null>(null);
@@ -348,31 +350,55 @@ function QuotationsTab({ project }: { project: Project }) {
     const boq = boqs.find((b) => b.id === boqId);
     if (!boq) return;
     const version = await nextQuotationVersion(project.id);
+    setEditing(null);
     setSourceBoqId(boqId);
     setItems(boq.items.map((it) => ({ description: [it.section, it.description].filter(Boolean).join(" — "), unit: it.unit, qty: it.qty, rate: it.rate })));
     setForm({ quotationNo: `${boq.boqNo}-Q${version}`, validUntil: "", taxPercent: "18", notes: `Generated from BOQ ${boq.boqNo} (v${boq.version})` });
     setShowForm(true);
   }
 
-  async function onCreate() {
+  function openEdit(q: Quotation) {
+    setEditing(q);
+    setSourceBoqId(q.sourceBoqId ?? null);
+    setItems(q.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate })));
+    setForm({
+      quotationNo: q.quotationNo,
+      validUntil: q.validUntil ? q.validUntil.toDate().toISOString().slice(0, 10) : "",
+      taxPercent: String(q.taxPercent),
+      notes: q.notes ?? "",
+    });
+    setShowForm(true);
+  }
+
+  async function onSave() {
     if (!form.quotationNo.trim()) return;
     await run(async () => {
-      const version = await nextQuotationVersion(project.id);
-      await createQuotation({
-        quotationNo: form.quotationNo,
-        projectId: project.id,
-        projectName: project.name,
-        clientId: project.clientId,
-        version,
-        quotationDate: new Date(),
-        validUntil: form.validUntil ? new Date(form.validUntil) : null,
-        items,
-        taxPercent: Number(form.taxPercent) || 0,
-        notes: form.notes,
-        sourceBoqId,
-      }, actor);
-      setShowForm(false); setItems([]); setSourceBoqId(null);
-    }, "Quotation created.");
+      if (editing) {
+        await updateQuotation(editing, {
+          quotationNo: form.quotationNo,
+          validUntil: form.validUntil ? new Date(form.validUntil) : null,
+          items,
+          taxPercent: Number(form.taxPercent) || 0,
+          notes: form.notes,
+        }, actor);
+      } else {
+        const version = await nextQuotationVersion(project.id);
+        await createQuotation({
+          quotationNo: form.quotationNo,
+          projectId: project.id,
+          projectName: project.name,
+          clientId: project.clientId,
+          version,
+          quotationDate: new Date(),
+          validUntil: form.validUntil ? new Date(form.validUntil) : null,
+          items,
+          taxPercent: Number(form.taxPercent) || 0,
+          notes: form.notes,
+          sourceBoqId,
+        }, actor);
+      }
+      setShowForm(false); setEditing(null); setItems([]); setSourceBoqId(null);
+    }, editing ? "Quotation updated." : "Quotation created.");
   }
 
   return (
@@ -387,7 +413,7 @@ function QuotationsTab({ project }: { project: Project }) {
             onChange={(e) => void generateFromBoq(e.target.value)}
           />
         )}
-        <Button onClick={() => { setSourceBoqId(null); setItems([]); setForm({ quotationNo: "", validUntil: "", taxPercent: "18", notes: "" }); setShowForm(true); }}>
+        <Button onClick={() => { setEditing(null); setSourceBoqId(null); setItems([]); setForm({ quotationNo: "", validUntil: "", taxPercent: "18", notes: "" }); setShowForm(true); }}>
           <Plus className="h-4 w-4" /> New Quotation
         </Button>
       </div>
@@ -407,9 +433,13 @@ function QuotationsTab({ project }: { project: Project }) {
                   <td className="td">{formatDate(q.validUntil)}</td>
                   <td className="td">{formatINR(q.totalAmount)}</td>
                   <td className="td text-right">
-                    <Link href={`/projects/${project.id}/quotations/${q.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
-                      <Printer className="h-3.5 w-3.5" /> Print
-                    </Link>
+                    <div className="flex justify-end gap-3">
+                      <Link href={`/projects/${project.id}/quotations/${q.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
+                        <Printer className="h-3.5 w-3.5" /> Print
+                      </Link>
+                      <button onClick={() => openEdit(q)} className="inline-flex items-center gap-1 text-ink-600 hover:underline"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                      <button onClick={() => setDeleteTarget(q)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -421,9 +451,9 @@ function QuotationsTab({ project }: { project: Project }) {
       <Modal
         open={showForm}
         onClose={() => setShowForm(false)}
-        title="New Quotation"
+        title={editing ? "Edit Quotation" : "New Quotation"}
         wide
-        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onCreate()} loading={busy}>Create</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onSave()} loading={busy}>{editing ? "Save" : "Create"}</Button></>}
       >
         <div className="mb-4 grid grid-cols-3 gap-3">
           <Field label="Quotation No." required><Input value={form.quotationNo} onChange={(e) => setForm((f) => ({ ...f, quotationNo: e.target.value }))} /></Field>
@@ -431,6 +461,16 @@ function QuotationsTab({ project }: { project: Project }) {
           <Field label="Tax %"><Input type="number" value={form.taxPercent} onChange={(e) => setForm((f) => ({ ...f, taxPercent: e.target.value }))} /></Field>
         </div>
         <ItemsTable items={items} setItems={setItems} fields={ITEM_FIELDS} />
+      </Modal>
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete this quotation?"
+        description="This cannot be undone."
+        footer={<><Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button><Button variant="danger" loading={busy} onClick={() => void run(async () => { if (deleteTarget) await deleteQuotation(deleteTarget, actor); setDeleteTarget(null); }, "Quotation deleted.")}><Trash2 className="h-4 w-4" /> Delete</Button></>}
+      >
+        {deleteTarget && <p className="text-sm text-ink-700">{deleteTarget.quotationNo}</p>}
       </Modal>
     </div>
   );
@@ -441,6 +481,8 @@ function BoqTab({ project }: { project: Project }) {
   const actor = useActor();
   const [rows, setRows] = useState<Boq[] | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Boq | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Boq | null>(null);
   const [form, setForm] = useState({ boqNo: "", siteName: "", notes: "" });
   const [items, setItems] = useState<DraftBoqItem[]>([]);
   const [importing, setImporting] = useState(false);
@@ -457,6 +499,7 @@ function BoqTab({ project }: { project: Project }) {
     try {
       const parsed = await parseBoqFile(file);
       if (!parsed.length) throw new Error("Could not detect a BOQ table in this file.");
+      setEditing(null);
       setItems(parsed);
       setForm((f) => ({ ...f, boqNo: f.boqNo || file.name.replace(/\.[^.]+$/, "") }));
       setShowForm(true);
@@ -468,13 +511,24 @@ function BoqTab({ project }: { project: Project }) {
     }
   }
 
-  async function onCreate() {
+  function openEdit(b: Boq) {
+    setEditing(b);
+    setItems(b.items.map((it) => ({ section: it.section, description: it.description, makeOem: it.makeOem, unit: it.unit, qty: it.qty, supplyRate: it.supplyRate, installationRate: it.installationRate, category: it.category })));
+    setForm({ boqNo: b.boqNo, siteName: b.siteName ?? "", notes: b.notes ?? "" });
+    setShowForm(true);
+  }
+
+  async function onSave() {
     if (!form.boqNo.trim()) return;
     await run(async () => {
       const cleanItems = items.map((it) => ({ ...it, category: (it.category as BoqCategory) || "OTHER" })) as BoqLineItem[];
-      await createBoq({ boqNo: form.boqNo, projectId: project.id, projectName: project.name, siteName: form.siteName, items: cleanItems, notes: form.notes }, actor);
-      setShowForm(false); setItems([]); setForm({ boqNo: "", siteName: "", notes: "" });
-    }, "BOQ created.");
+      if (editing) {
+        await updateBoq(editing, { boqNo: form.boqNo, siteName: form.siteName, items: cleanItems, notes: form.notes }, actor);
+      } else {
+        await createBoq({ boqNo: form.boqNo, projectId: project.id, projectName: project.name, siteName: form.siteName, items: cleanItems, notes: form.notes }, actor);
+      }
+      setShowForm(false); setEditing(null); setItems([]); setForm({ boqNo: "", siteName: "", notes: "" });
+    }, editing ? "BOQ updated." : "BOQ created.");
   }
 
   return (
@@ -484,7 +538,7 @@ function BoqTab({ project }: { project: Project }) {
           <Upload className="h-4 w-4" /> {importing ? "Importing…" : "Import from Excel"}
           <input type="file" accept=".xlsx,.xls" className="hidden" disabled={importing} onChange={(e) => void onFileSelect(e)} />
         </label>
-        <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New BOQ</Button>
+        <Button onClick={() => { setEditing(null); setItems([]); setForm({ boqNo: "", siteName: "", notes: "" }); setShowForm(true); }}><Plus className="h-4 w-4" /> New BOQ</Button>
       </div>
 
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
@@ -502,9 +556,13 @@ function BoqTab({ project }: { project: Project }) {
                   <td className="td">{formatDate(b.boqDate)}</td>
                   <td className="td">{formatINR(b.totalAmount)}</td>
                   <td className="td text-right">
-                    <Link href={`/projects/${project.id}/boq/${b.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
-                      <Printer className="h-3.5 w-3.5" /> Print
-                    </Link>
+                    <div className="flex justify-end gap-3">
+                      <Link href={`/projects/${project.id}/boq/${b.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
+                        <Printer className="h-3.5 w-3.5" /> Print
+                      </Link>
+                      <button onClick={() => openEdit(b)} className="inline-flex items-center gap-1 text-ink-600 hover:underline"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                      <button onClick={() => setDeleteTarget(b)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -516,9 +574,9 @@ function BoqTab({ project }: { project: Project }) {
       <Modal
         open={showForm}
         onClose={() => setShowForm(false)}
-        title="New BOQ"
+        title={editing ? "Edit BOQ" : "New BOQ"}
         wide
-        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onCreate()} loading={busy}>Create</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onSave()} loading={busy}>{editing ? "Save" : "Create"}</Button></>}
       >
         <div className="mb-4 grid grid-cols-2 gap-3">
           <Field label="BOQ No." required><Input value={form.boqNo} onChange={(e) => setForm((f) => ({ ...f, boqNo: e.target.value }))} /></Field>
@@ -526,6 +584,16 @@ function BoqTab({ project }: { project: Project }) {
         </div>
         <ItemsTable items={items} setItems={setItems} fields={BOQ_FIELDS} />
         <p className="mt-2 text-xs text-ink-500">Category defaults to OTHER for imported rows; categories: {BOQ_CATEGORIES.join(", ")}.</p>
+      </Modal>
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete this BOQ?"
+        description="This cannot be undone."
+        footer={<><Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button><Button variant="danger" loading={busy} onClick={() => void run(async () => { if (deleteTarget) await deleteBoq(deleteTarget, actor); setDeleteTarget(null); }, "BOQ deleted.")}><Trash2 className="h-4 w-4" /> Delete</Button></>}
+      >
+        {deleteTarget && <p className="text-sm text-ink-700">{deleteTarget.boqNo}</p>}
       </Modal>
     </div>
   );
@@ -537,6 +605,8 @@ function PoTab({ project }: { project: Project }) {
   const [rows, setRows] = useState<PurchaseOrder[] | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<PurchaseOrder | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PurchaseOrder | null>(null);
   const [form, setForm] = useState({ poNo: "", vendorId: "", deliveryDate: "", notes: "" });
   const [items, setItems] = useState<DraftItem[]>([]);
   const { busy, run } = useAsyncAction();
@@ -544,21 +614,39 @@ function PoTab({ project }: { project: Project }) {
   useEffect(() => subscribePosForProject(project.id, setRows), [project.id]);
   useEffect(() => { void listActiveVendors().then(setVendors); }, []);
 
-  async function onCreate() {
+  function openEdit(po: PurchaseOrder) {
+    setEditing(po);
+    setItems(po.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate })));
+    setForm({
+      poNo: po.poNo, vendorId: po.vendorId,
+      deliveryDate: po.deliveryDate ? po.deliveryDate.toDate().toISOString().slice(0, 10) : "",
+      notes: po.notes ?? "",
+    });
+    setShowForm(true);
+  }
+
+  async function onSave() {
     if (!form.poNo.trim() || !form.vendorId) return;
     await run(async () => {
       const vendor = vendors.find((v) => v.id === form.vendorId);
-      await createPurchaseOrder({
-        poNo: form.poNo, projectId: project.id, projectName: project.name, vendorId: form.vendorId, vendorName: vendor?.name ?? "",
-        deliveryDate: form.deliveryDate ? new Date(form.deliveryDate) : null, items, notes: form.notes,
-      }, actor);
-      setShowForm(false); setItems([]); setForm({ poNo: "", vendorId: "", deliveryDate: "", notes: "" });
-    }, "Purchase order created.");
+      if (editing) {
+        await updatePurchaseOrder(editing, {
+          poNo: form.poNo, vendorId: form.vendorId, vendorName: vendor?.name ?? editing.vendorName,
+          deliveryDate: form.deliveryDate ? new Date(form.deliveryDate) : null, items, notes: form.notes,
+        }, actor);
+      } else {
+        await createPurchaseOrder({
+          poNo: form.poNo, projectId: project.id, projectName: project.name, vendorId: form.vendorId, vendorName: vendor?.name ?? "",
+          deliveryDate: form.deliveryDate ? new Date(form.deliveryDate) : null, items, notes: form.notes,
+        }, actor);
+      }
+      setShowForm(false); setEditing(null); setItems([]); setForm({ poNo: "", vendorId: "", deliveryDate: "", notes: "" });
+    }, editing ? "Purchase order updated." : "Purchase order created.");
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New PO</Button></div>
+      <div className="flex justify-end"><Button onClick={() => { setEditing(null); setItems([]); setForm({ poNo: "", vendorId: "", deliveryDate: "", notes: "" }); setShowForm(true); }}><Plus className="h-4 w-4" /> New PO</Button></div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No purchase orders yet" />
       ) : (
@@ -574,9 +662,13 @@ function PoTab({ project }: { project: Project }) {
                   <td className="td">{formatINR(po.totalAmount)}</td>
                   <td className="td text-emerald-600">{formatINR(po.paidAmount)}</td>
                   <td className="td text-right">
-                    <Link href={`/projects/${project.id}/purchase-orders/${po.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
-                      <Printer className="h-3.5 w-3.5" /> Print
-                    </Link>
+                    <div className="flex justify-end gap-3">
+                      <Link href={`/projects/${project.id}/purchase-orders/${po.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
+                        <Printer className="h-3.5 w-3.5" /> Print
+                      </Link>
+                      <button onClick={() => openEdit(po)} className="inline-flex items-center gap-1 text-ink-600 hover:underline"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                      <button onClick={() => setDeleteTarget(po)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -588,9 +680,9 @@ function PoTab({ project }: { project: Project }) {
       <Modal
         open={showForm}
         onClose={() => setShowForm(false)}
-        title="New Purchase Order"
+        title={editing ? "Edit Purchase Order" : "New Purchase Order"}
         wide
-        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onCreate()} loading={busy}>Create</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onSave()} loading={busy}>{editing ? "Save" : "Create"}</Button></>}
       >
         <div className="mb-4 grid grid-cols-3 gap-3">
           <Field label="PO No." required><Input value={form.poNo} onChange={(e) => setForm((f) => ({ ...f, poNo: e.target.value }))} /></Field>
@@ -601,6 +693,16 @@ function PoTab({ project }: { project: Project }) {
         </div>
         <ItemsTable items={items} setItems={setItems} fields={ITEM_FIELDS} />
       </Modal>
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete this purchase order?"
+        description="This cannot be undone."
+        footer={<><Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button><Button variant="danger" loading={busy} onClick={() => void run(async () => { if (deleteTarget) await deletePurchaseOrder(deleteTarget, actor); setDeleteTarget(null); }, "Purchase order deleted.")}><Trash2 className="h-4 w-4" /> Delete</Button></>}
+      >
+        {deleteTarget && <p className="text-sm text-ink-700">{deleteTarget.poNo}</p>}
+      </Modal>
     </div>
   );
 }
@@ -610,6 +712,8 @@ function PiTab({ project }: { project: Project }) {
   const actor = useActor();
   const [rows, setRows] = useState<ProformaInvoice[] | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<ProformaInvoice | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProformaInvoice | null>(null);
   const [form, setForm] = useState({ piNo: "", dueDate: "", milestone: "", notes: "" });
   const [items, setItems] = useState<DraftItem[]>([]);
   const [poFile, setPoFile] = useState<File | null>(null);
@@ -617,25 +721,43 @@ function PiTab({ project }: { project: Project }) {
 
   useEffect(() => subscribePisForProject(project.id, setRows), [project.id]);
 
-  async function onCreate() {
+  function openEdit(pi: ProformaInvoice) {
+    setEditing(pi);
+    setItems(pi.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate })));
+    setForm({
+      piNo: pi.piNo, dueDate: pi.dueDate ? pi.dueDate.toDate().toISOString().slice(0, 10) : "",
+      milestone: pi.milestone ?? "", notes: pi.notes ?? "",
+    });
+    setPoFile(null);
+    setShowForm(true);
+  }
+
+  async function onSave() {
     if (!form.piNo.trim()) return;
     await run(async () => {
-      let sourceDocumentId: string | null = null;
-      if (poFile) {
-        const doc = await uploadDocument({ file: poFile, projectId: project.id, docType: "CLIENT_PO", actor });
-        sourceDocumentId = doc.id;
+      if (editing) {
+        await updateProformaInvoice(editing, {
+          piNo: form.piNo, dueDate: form.dueDate ? new Date(form.dueDate) : null,
+          milestone: form.milestone, items, notes: form.notes,
+        }, actor);
+      } else {
+        let sourceDocumentId: string | null = null;
+        if (poFile) {
+          const doc = await uploadDocument({ file: poFile, projectId: project.id, docType: "CLIENT_PO", actor });
+          sourceDocumentId = doc.id;
+        }
+        await createProformaInvoice({
+          piNo: form.piNo, projectId: project.id, projectName: project.name, clientId: project.clientId,
+          dueDate: form.dueDate ? new Date(form.dueDate) : null, milestone: form.milestone, items, notes: form.notes, sourceDocumentId,
+        }, actor);
       }
-      await createProformaInvoice({
-        piNo: form.piNo, projectId: project.id, projectName: project.name, clientId: project.clientId,
-        dueDate: form.dueDate ? new Date(form.dueDate) : null, milestone: form.milestone, items, notes: form.notes, sourceDocumentId,
-      }, actor);
-      setShowForm(false); setItems([]); setPoFile(null); setForm({ piNo: "", dueDate: "", milestone: "", notes: "" });
-    }, "Proforma invoice created.");
+      setShowForm(false); setEditing(null); setItems([]); setPoFile(null); setForm({ piNo: "", dueDate: "", milestone: "", notes: "" });
+    }, editing ? "Proforma invoice updated." : "Proforma invoice created.");
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New PI</Button></div>
+      <div className="flex justify-end"><Button onClick={() => { setEditing(null); setItems([]); setPoFile(null); setForm({ piNo: "", dueDate: "", milestone: "", notes: "" }); setShowForm(true); }}><Plus className="h-4 w-4" /> New PI</Button></div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No proforma invoices yet" />
       ) : (
@@ -651,9 +773,13 @@ function PiTab({ project }: { project: Project }) {
                   <td className="td">{formatINR(pi.totalAmount)}</td>
                   <td className="td text-emerald-600">{formatINR(pi.paidAmount)}</td>
                   <td className="td text-right">
-                    <Link href={`/projects/${project.id}/proforma-invoices/${pi.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
-                      <Printer className="h-3.5 w-3.5" /> Print
-                    </Link>
+                    <div className="flex justify-end gap-3">
+                      <Link href={`/projects/${project.id}/proforma-invoices/${pi.id}/print`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
+                        <Printer className="h-3.5 w-3.5" /> Print
+                      </Link>
+                      <button onClick={() => openEdit(pi)} className="inline-flex items-center gap-1 text-ink-600 hover:underline"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                      <button onClick={() => setDeleteTarget(pi)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -665,22 +791,34 @@ function PiTab({ project }: { project: Project }) {
       <Modal
         open={showForm}
         onClose={() => setShowForm(false)}
-        title="New Proforma Invoice"
+        title={editing ? "Edit Proforma Invoice" : "New Proforma Invoice"}
         wide
-        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onCreate()} loading={busy}>Create</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onSave()} loading={busy}>{editing ? "Save" : "Create"}</Button></>}
       >
         <div className="mb-4 grid grid-cols-3 gap-3">
           <Field label="PI No." required><Input value={form.piNo} onChange={(e) => setForm((f) => ({ ...f, piNo: e.target.value }))} /></Field>
           <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
           <Field label="Milestone"><Input value={form.milestone} onChange={(e) => setForm((f) => ({ ...f, milestone: e.target.value }))} /></Field>
-          <Field label="Client PO / Work Order" className="col-span-3" hint="Optional — generates this PI against the uploaded document.">
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-ink-300 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50">
-              <Upload className="h-4 w-4" /> {poFile ? poFile.name : "Choose a file…"}
-              <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.doc,.docx,image/*" onChange={(e) => setPoFile(e.target.files?.[0] ?? null)} />
-            </label>
-          </Field>
+          {!editing && (
+            <Field label="Client PO / Work Order" className="col-span-3" hint="Optional — generates this PI against the uploaded document.">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-ink-300 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50">
+                <Upload className="h-4 w-4" /> {poFile ? poFile.name : "Choose a file…"}
+                <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.doc,.docx,image/*" onChange={(e) => setPoFile(e.target.files?.[0] ?? null)} />
+              </label>
+            </Field>
+          )}
         </div>
         <ItemsTable items={items} setItems={setItems} fields={ITEM_FIELDS} />
+      </Modal>
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete this proforma invoice?"
+        description="This cannot be undone."
+        footer={<><Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button><Button variant="danger" loading={busy} onClick={() => void run(async () => { if (deleteTarget) await deleteProformaInvoice(deleteTarget, actor); setDeleteTarget(null); }, "Proforma invoice deleted.")}><Trash2 className="h-4 w-4" /> Delete</Button></>}
+      >
+        {deleteTarget && <p className="text-sm text-ink-700">{deleteTarget.piNo}</p>}
       </Modal>
     </div>
   );

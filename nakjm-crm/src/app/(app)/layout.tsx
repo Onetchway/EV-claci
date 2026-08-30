@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Boxes, Briefcase, Building2, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Cog,
-  History, KanbanSquare, LayoutDashboard, LogOut, Menu, Search, ShieldCheck,
+  FileSignature, FileSpreadsheet, FileText, History, LayoutDashboard, LogOut, Menu, Search, ShieldCheck,
   Trash2, Truck, Users, Users2, Wallet, X,
 } from "lucide-react";
 
@@ -29,24 +29,29 @@ interface NavGroup {
 }
 
 /**
- * Mirrors Livanto Green CRM's sidebar structure (Dashboard / Operations /
- * HRMS / Settings) minus its CMS and Sales groups — those are the EV
- * charging network and lead-pipeline modules that don't apply to an EPC
- * contractor.
+ * EPC project-management focused nav — Dashboard and Clients up top, then
+ * Operations (the project execution pipeline: projects, vendors, PO, PI,
+ * quotation/BOQ, assets), HRMS and Settings below.
  */
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "",
-    items: [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/clients", label: "Clients", icon: Building2 },
+    ],
   },
   {
     label: "Operations",
     items: [
       { href: "/projects", label: "Project Management", icon: Briefcase },
-      { href: "/clients", label: "Clients", icon: Building2 },
       { href: "/vendors", label: "Vendor Management", icon: Truck },
+      { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
+      { href: "/proforma-invoices", label: "Proforma Invoices", icon: FileSpreadsheet },
+      { href: "/quotations", label: "Quotations", icon: FileSignature },
       { href: "/payments", label: "Payments", icon: Wallet },
       { href: "/assets", label: "Asset Register", icon: Boxes },
+      { href: "/team", label: "Team Assignments", icon: ClipboardList },
     ],
   },
   {
@@ -54,9 +59,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/employees", label: "Employees", icon: Users2 },
       { href: "/attendance", label: "Attendance", icon: CalendarCheck },
-      { href: "/roster", label: "Roster", icon: KanbanSquare },
       { href: "/holidays", label: "Holidays", icon: CalendarDays },
-      { href: "/team", label: "Team Assignments", icon: ClipboardList },
     ],
   },
   {

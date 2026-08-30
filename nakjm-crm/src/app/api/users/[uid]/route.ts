@@ -8,6 +8,20 @@ import { ApiError, errorResponse, highestRole, requireCaller } from "../../_lib/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const Payroll = z.object({
+  monthlySalary: z.number().min(0).optional(),
+  panNumber: z.string().max(20).optional(),
+  pfApplicable: z.boolean().optional(),
+  pfNumber: z.string().max(30).optional(),
+  uanNumber: z.string().max(20).optional(),
+  esiApplicable: z.boolean().optional(),
+  esiNumber: z.string().max(30).optional(),
+  tdsPercent: z.number().min(0).max(100).optional(),
+  bankAccountNo: z.string().max(30).optional(),
+  bankIfsc: z.string().max(20).optional(),
+  bankName: z.string().max(80).optional(),
+});
+
 const PatchUser = z.object({
   name: z.string().min(2).max(80).optional(),
   phone: z.string().max(20).optional(),
@@ -19,6 +33,7 @@ const PatchUser = z.object({
   officeLocation: z.string().max(120).optional(),
   managerId: z.string().max(128).nullable().optional(),
   managerName: z.string().max(80).nullable().optional(),
+  payroll: Payroll.optional(),
 });
 
 function assertCanAssign(callerRole: Role, target: Role) {
@@ -64,7 +79,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "active", "designation", "department", "officeLocation", "managerId", "managerName"] as const) {
+    for (const key of ["name", "phone", "active", "designation", "department", "officeLocation", "managerId", "managerName", "payroll"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

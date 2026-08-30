@@ -214,13 +214,6 @@ export const ATTENDANCE_STATUS_COLOR: Record<AttendanceStatus, string> = {
   HOLIDAY: "bg-sky-50 text-sky-700 ring-sky-200",
 };
 
-export const WEEK_DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
-export type WeekDay = (typeof WEEK_DAYS)[number];
-
-export const WEEK_DAY_LABEL: Record<WeekDay, string> = {
-  MON: "Mon", TUE: "Tue", WED: "Wed", THU: "Thu", FRI: "Fri", SAT: "Sat", SUN: "Sun",
-};
-
 // ---------------------------------------------------------------------------
 // Company details — used on the printed letterhead for PI/PO/Quotation/BOQ
 // ---------------------------------------------------------------------------

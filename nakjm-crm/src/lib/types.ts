@@ -4,7 +4,7 @@ import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
   ClientType, Department, DepreciationMethod, PaymentMode, PiStatus,
   PoStatus, ProjectStatus, ProjectType, QuotationStatus, Role, SiteReportType,
-  VendorCategory, WeekDay,
+  VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -13,6 +13,20 @@ export interface Actor {
   uid: string;
   name: string;
   role: Role;
+}
+
+export interface Payroll {
+  monthlySalary?: number;
+  panNumber?: string;
+  pfApplicable?: boolean;
+  pfNumber?: string;
+  uanNumber?: string;
+  esiApplicable?: boolean;
+  esiNumber?: string;
+  tdsPercent?: number;
+  bankAccountNo?: string;
+  bankIfsc?: string;
+  bankName?: string;
 }
 
 export interface AppUser {
@@ -30,6 +44,7 @@ export interface AppUser {
   officeLocation?: string;
   managerId?: string | null;
   managerName?: string | null;
+  payroll?: Payroll;
   createdAt: TS;
   updatedAt: TS;
   lastLoginAt?: TS;
@@ -379,17 +394,6 @@ export interface AttendanceRecord {
   updatedBy?: Actor;
 }
 
-export interface RosterWeek {
-  id: string;
-  uid: string;
-  userName: string;
-  weekStart: string;
-  days: Record<WeekDay, "WORKING" | "WEEK_OFF">;
-  createdAt: TS;
-  createdBy?: Actor;
-  updatedAt?: TS;
-  updatedBy?: Actor;
-}
 
 export interface Holiday {
   id: string;

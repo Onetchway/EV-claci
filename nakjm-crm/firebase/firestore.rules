@@ -219,11 +219,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    match /rosters/{rosterId} {
-      allow read: if signedIn();
-      allow write: if signedIn() && (request.resource.data.uid == uid() || canManageHrms());
-    }
-
     match /holidays/{holidayId} {
       allow read: if signedIn();
       allow create, delete: if canManageHrms();

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc,
+  collection, deleteDoc, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc,
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
@@ -20,6 +20,15 @@ function mapPi(id: string, data: Record<string, unknown>): ProformaInvoice {
 export function subscribePisForProject(projectId: string, cb: (rows: ProformaInvoice[]) => void, onError?: (e: Error) => void): () => void {
   return onSnapshot(
     query(collection(getDb(), PROFORMA_INVOICES), where("projectId", "==", projectId)),
+    (snap) => cb(snap.docs.map((d) => mapPi(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))),
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Org-wide — the top-level Proforma Invoices page across every project. */
+export function subscribeProformaInvoices(cb: (rows: ProformaInvoice[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), PROFORMA_INVOICES)),
     (snap) => cb(snap.docs.map((d) => mapPi(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))),
     (err) => onError?.(err as Error),
   );
@@ -78,6 +87,43 @@ export async function createProformaInvoice(draft: PiDraft, actor?: Actor): Prom
     });
   }
   return { id: ref.id, ...(payload as unknown as Omit<ProformaInvoice, "id">) };
+}
+
+export type PiPatch = Partial<Omit<PiDraft, "projectId" | "projectName" | "clientId" | "items">> & {
+  items?: Omit<LineItem, "amount" | "srNo">[];
+};
+
+export async function updateProformaInvoice(pi: ProformaInvoice, patch: PiPatch, actor: Actor): Promise<void> {
+  const update: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  if (patch.items) {
+    const { items, subtotal } = computeLineTotals(patch.items);
+    const taxAmount = patch.taxAmount ?? pi.taxAmount;
+    update.items = items;
+    update.subtotal = subtotal;
+    update.taxAmount = taxAmount;
+    update.totalAmount = subtotal + taxAmount;
+  } else if (patch.taxAmount !== undefined) {
+    update.taxAmount = patch.taxAmount;
+    update.totalAmount = pi.subtotal + patch.taxAmount;
+  }
+  if (patch.piNo !== undefined) update.piNo = patch.piNo;
+  if (patch.milestone !== undefined) update.milestone = patch.milestone;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.piDate !== undefined) update.piDate = patch.piDate ? Timestamp.fromDate(patch.piDate) : null;
+  if (patch.dueDate !== undefined) update.dueDate = patch.dueDate ? Timestamp.fromDate(patch.dueDate) : null;
+  await updateDoc(doc(getDb(), PROFORMA_INVOICES, pi.id), update);
+  logActivitySafe({
+    entityType: "PROFORMA_INVOICE", entityId: pi.id, entityLabel: pi.piNo, action: "UPDATE",
+    message: `Edited PI ${pi.piNo}`, actor, projectId: pi.projectId,
+  });
+}
+
+export async function deleteProformaInvoice(pi: ProformaInvoice, actor: Actor): Promise<void> {
+  await deleteDoc(doc(getDb(), PROFORMA_INVOICES, pi.id));
+  logActivitySafe({
+    entityType: "PROFORMA_INVOICE", entityId: pi.id, entityLabel: pi.piNo, action: "DELETE",
+    message: `Deleted PI ${pi.piNo}`, actor, projectId: pi.projectId,
+  });
 }
 
 /** Bumps paidAmount and updates status to PAID / PARTIALLY_PAID accordingly. */

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc,
+  collection, deleteDoc, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc,
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
@@ -28,6 +28,15 @@ export function subscribePosForProject(projectId: string, cb: (rows: PurchaseOrd
 export function subscribePosForVendor(vendorId: string, cb: (rows: PurchaseOrder[]) => void, onError?: (e: Error) => void): () => void {
   return onSnapshot(
     query(collection(getDb(), PURCHASE_ORDERS), where("vendorId", "==", vendorId)),
+    (snap) => cb(snap.docs.map((d) => mapPo(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))),
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Org-wide — the top-level Purchase Orders page across every project. */
+export function subscribePurchaseOrders(cb: (rows: PurchaseOrder[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), PURCHASE_ORDERS)),
     (snap) => cb(snap.docs.map((d) => mapPo(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))),
     (err) => onError?.(err as Error),
   );
@@ -88,6 +97,47 @@ export async function createPurchaseOrder(draft: PoDraft, actor?: Actor): Promis
 
 export async function updatePoStatus(id: string, status: PoStatus): Promise<void> {
   await updateDoc(doc(getDb(), PURCHASE_ORDERS, id), { status, updatedAt: serverTimestamp() });
+}
+
+export type PoPatch = Partial<Omit<PoDraft, "projectId" | "projectName" | "vendorId" | "vendorName" | "items">> & {
+  items?: Omit<LineItem, "amount" | "srNo">[];
+  vendorId?: string;
+  vendorName?: string;
+};
+
+export async function updatePurchaseOrder(po: PurchaseOrder, patch: PoPatch, actor: Actor): Promise<void> {
+  const update: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  if (patch.items) {
+    const { items, subtotal } = computeLineTotals(patch.items);
+    const taxAmount = patch.taxAmount ?? po.taxAmount;
+    update.items = items;
+    update.subtotal = subtotal;
+    update.taxAmount = taxAmount;
+    update.totalAmount = subtotal + taxAmount;
+  } else if (patch.taxAmount !== undefined) {
+    update.taxAmount = patch.taxAmount;
+    update.totalAmount = po.subtotal + patch.taxAmount;
+  }
+  if (patch.poNo !== undefined) update.poNo = patch.poNo;
+  if (patch.vendorId !== undefined) update.vendorId = patch.vendorId;
+  if (patch.vendorName !== undefined) update.vendorName = patch.vendorName;
+  if (patch.terms !== undefined) update.terms = patch.terms;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.poDate !== undefined) update.poDate = patch.poDate ? Timestamp.fromDate(patch.poDate) : null;
+  if (patch.deliveryDate !== undefined) update.deliveryDate = patch.deliveryDate ? Timestamp.fromDate(patch.deliveryDate) : null;
+  await updateDoc(doc(getDb(), PURCHASE_ORDERS, po.id), update);
+  logActivitySafe({
+    entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNo, action: "UPDATE",
+    message: `Edited PO ${po.poNo}`, actor, projectId: po.projectId,
+  });
+}
+
+export async function deletePurchaseOrder(po: PurchaseOrder, actor: Actor): Promise<void> {
+  await deleteDoc(doc(getDb(), PURCHASE_ORDERS, po.id));
+  logActivitySafe({
+    entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNo, action: "DELETE",
+    message: `Deleted PO ${po.poNo}`, actor, projectId: po.projectId,
+  });
 }
 
 /** Bumps paidAmount and, once it covers the total, marks the PO completed. */

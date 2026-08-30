@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, getDoc, getDocs, onSnapshot, orderBy, query,
+  collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query,
   serverTimestamp, setDoc, updateDoc, where, Timestamp,
 } from "firebase/firestore";
 
@@ -34,6 +34,15 @@ export function subscribeQuotationsForProject(projectId: string, cb: (rows: Quot
   return onSnapshot(
     query(collection(getDb(), QUOTATIONS), where("projectId", "==", projectId)),
     (snap) => cb(snap.docs.map((d) => mapQuotation(d.id, d.data())).sort((a, b) => b.version - a.version)),
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Org-wide — the top-level Quotations page across every project. */
+export function subscribeQuotations(cb: (rows: Quotation[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), QUOTATIONS)),
+    (snap) => cb(snap.docs.map((d) => mapQuotation(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))),
     (err) => onError?.(err as Error),
   );
 }
@@ -105,4 +114,36 @@ export async function updateQuotationStatus(id: string, status: QuotationStatus,
       message: `Marked quotation ${context.quotationNo} ${status}`, actor, projectId: context.projectId,
     });
   }
+}
+
+export type QuotationPatch = Partial<Omit<QuotationDraft, "projectId" | "projectName" | "clientId" | "version" | "items" | "taxPercent">> & {
+  items?: Omit<LineItem, "amount" | "srNo">[];
+  taxPercent?: number;
+};
+
+export async function updateQuotation(quotation: Quotation, patch: QuotationPatch, actor: Actor): Promise<void> {
+  const items = patch.items ?? quotation.items;
+  const taxPercent = patch.taxPercent ?? quotation.taxPercent;
+  const { items: computedItems, subtotal, taxAmount, total } = computeLineTotals(items, taxPercent);
+  const update: Record<string, unknown> = {
+    items: computedItems, subtotal, taxPercent, taxAmount, totalAmount: total, updatedAt: serverTimestamp(),
+  };
+  if (patch.quotationDate !== undefined) update.quotationDate = patch.quotationDate ? Timestamp.fromDate(patch.quotationDate) : null;
+  if (patch.validUntil !== undefined) update.validUntil = patch.validUntil ? Timestamp.fromDate(patch.validUntil) : null;
+  if (patch.terms !== undefined) update.terms = patch.terms;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.quotationNo !== undefined) update.quotationNo = patch.quotationNo;
+  await updateDoc(doc(getDb(), QUOTATIONS, quotation.id), update);
+  logActivitySafe({
+    entityType: "QUOTATION", entityId: quotation.id, entityLabel: quotation.quotationNo, action: "UPDATE",
+    message: `Edited quotation ${quotation.quotationNo}`, actor, projectId: quotation.projectId,
+  });
+}
+
+export async function deleteQuotation(quotation: Quotation, actor: Actor): Promise<void> {
+  await deleteDoc(doc(getDb(), QUOTATIONS, quotation.id));
+  logActivitySafe({
+    entityType: "QUOTATION", entityId: quotation.id, entityLabel: quotation.quotationNo, action: "DELETE",
+    message: `Deleted quotation ${quotation.quotationNo}`, actor, projectId: quotation.projectId,
+  });
 }
