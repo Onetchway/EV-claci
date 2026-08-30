@@ -231,6 +231,17 @@ service cloud.firestore {
       allow create, update: if canManageMasterData() || canSubmitSiteReports();
     }
 
+    match /punchItems/{punchItemId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    match /handovers/{handoverId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData();
+    }
+
     // ------------------------------------------------------------- site reports
 
     match /siteReports/{reportId} {

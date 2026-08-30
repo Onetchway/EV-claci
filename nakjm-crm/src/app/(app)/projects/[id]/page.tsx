@@ -12,18 +12,23 @@ import {
 } from "@/components/ui";
 import {
   BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABEL, DRAWING_DISCIPLINES,
-  DRAWING_STATUSES, INSPECTION_RESULTS, ISSUE_PRIORITIES, ISSUE_STATUSES, NCR_STATUSES, PAYMENT_MODES,
-  PROJECT_STATUSES, PROJECT_TYPES, RFI_STATUSES, SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES,
-  statusMeta,
-  type BoqCategory, type DocumentCategory, type DrawingDiscipline, type DrawingStatus, type InspectionResult,
-  type IssuePriority, type IssueStatus, type NcrStatus, type PaymentMode, type ProjectStatus, type ProjectType,
-  type RfiStatus, type SiteReportType, type StageStatus, type TaskStatus,
+  DRAWING_STATUSES, HANDOVER_STAGES, HANDOVER_STAGE_LABEL, INSPECTION_RESULTS, ISSUE_PRIORITIES, ISSUE_STATUSES,
+  NCR_STATUSES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, PUNCH_ITEM_STATUSES, RFI_STATUSES,
+  SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES, statusMeta,
+  type BoqCategory, type DocumentCategory, type DrawingDiscipline, type DrawingStatus, type HandoverStage,
+  type InspectionResult, type IssuePriority, type IssueStatus, type NcrStatus, type PaymentMode,
+  type ProjectStatus, type ProjectType, type PunchItemStatus, type RfiStatus, type SiteReportType,
+  type StageStatus, type TaskStatus,
 } from "@/lib/constants";
 import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, QUOTATION_ITEM_FIELDS, PO_ITEM_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, updateBoq } from "@/lib/db/boq";
 import { listActiveClients } from "@/lib/db/clients";
 import { deleteDocument, subscribeDocumentsForProject, uploadDocument } from "@/lib/db/documents";
 import { subscribeDrawingsForProject, updateDrawingStatus, uploadDrawing } from "@/lib/db/drawings";
+import {
+  advanceHandoverStage, createPunchItem, getOrCreateHandover, subscribeHandover, subscribePunchItemsForProject,
+  updatePunchItem,
+} from "@/lib/db/handover";
 import { createIssue, deleteIssue, subscribeIssuesForProject, updateIssue } from "@/lib/db/issues";
 import { recordMeasurement, subscribeMeasurementsForProject } from "@/lib/db/measurements";
 import { createInspection, createNcr, subscribeInspectionsForProject, subscribeNcrsForProject, updateNcr } from "@/lib/db/quality";
@@ -40,12 +45,12 @@ import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
-  Boq, BoqLineItem, Client, Drawing, Inspection, Issue, Measurement, NakjmDocument, Ncr, Project, ProformaInvoice,
-  ProjectStage, ProjectTask, PurchaseOrder, Quotation, Rfi, SiteReport, TeamMember, Vendor,
+  Boq, BoqLineItem, Client, Drawing, Handover, Inspection, Issue, Measurement, NakjmDocument, Ncr, Project,
+  ProformaInvoice, ProjectStage, ProjectTask, PunchItem, PurchaseOrder, Quotation, Rfi, SiteReport, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quality", "Drawings", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quality", "Drawings", "Handover", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -204,6 +209,7 @@ export default function ProjectDetailPage() {
       {tab === "RFI" && <RfiTab project={project} />}
       {tab === "Quality" && <QualityTab project={project} />}
       {tab === "Drawings" && <DrawingsTab project={project} />}
+      {tab === "Handover" && <HandoverTab project={project} />}
       {tab === "Quotations" && <QuotationsTab project={project} />}
       {tab === "BOQ" && <BoqTab project={project} />}
       {tab === "Purchase Orders" && <PoTab project={project} />}
@@ -1657,6 +1663,108 @@ function DrawingsTab({ project }: { project: Project }) {
           <Field label="File" required className="col-span-2">
             <input type="file" accept=".pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full text-sm" />
           </Field>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Handover (Punch List + close-out workflow) ────────────────────────
+function HandoverTab({ project }: { project: Project }) {
+  const actor = useActor();
+  const viewer = useViewer();
+  const [handover, setHandover] = useState<Handover | null | undefined>(undefined);
+  const [items, setItems] = useState<PunchItem[] | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ description: "", assignedToId: "", dueDate: "" });
+  const [resolutionDrafts, setResolutionDrafts] = useState<Record<string, string>>({});
+  const { busy, run } = useAsyncAction();
+  const canManage = canManageIssues(viewer);
+
+  useEffect(() => { void getOrCreateHandover(project.id, project.name).then(setHandover); }, [project.id, project.name]);
+  useEffect(() => subscribeHandover(project.id, setHandover), [project.id]);
+  useEffect(() => subscribePunchItemsForProject(project.id, setItems), [project.id]);
+
+  const stageIndex = handover ? HANDOVER_STAGES.indexOf(handover.stage) : -1;
+  const openItems = (items ?? []).filter((i) => i.status !== "ACCEPTED").length;
+
+  async function onAddItem() {
+    if (!form.description.trim()) return;
+    await run(async () => {
+      const member = project.team.find((m) => m.teamMemberId === form.assignedToId);
+      await createPunchItem({
+        projectId: project.id, projectName: project.name, description: form.description,
+        assignedToId: member?.teamMemberId ?? null, assignedToName: member?.name,
+        dueDate: form.dueDate ? new Date(form.dueDate) : null,
+      }, actor);
+      setShowForm(false); setForm({ description: "", assignedToId: "", dueDate: "" });
+    }, "Punch item added.");
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card title="Close-out workflow">
+        <div className="flex flex-wrap items-center gap-2">
+          {HANDOVER_STAGES.map((s, i) => (
+            <div key={s} className="flex items-center gap-2">
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${i <= stageIndex ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-ink-100 text-ink-500 ring-ink-200"}`}>
+                {HANDOVER_STAGE_LABEL[s]}
+              </span>
+              {i < HANDOVER_STAGES.length - 1 && <span className="text-ink-300">→</span>}
+            </div>
+          ))}
+        </div>
+        {canManage && handover && stageIndex < HANDOVER_STAGES.length - 1 && (
+          <Button className="mt-4" onClick={() => void run(() => advanceHandoverStage(handover, HANDOVER_STAGES[stageIndex + 1], actor), "Advanced.")} loading={busy}>
+            Advance to {HANDOVER_STAGE_LABEL[HANDOVER_STAGES[stageIndex + 1]]}
+          </Button>
+        )}
+        {handover?.handoverDate && <p className="mt-3 text-xs text-ink-500">Handed over {formatDate(handover.handoverDate)}</p>}
+      </Card>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-navy-900">Punch List <span className="font-normal text-ink-500">({openItems} open)</span></h3>
+          {canManage && <Button size="sm" onClick={() => setShowForm(true)}><Plus className="h-3.5 w-3.5" /> Add Item</Button>}
+        </div>
+        {!items ? <p className="text-sm text-ink-400">Loading…</p> : items.length === 0 ? (
+          <EmptyState title="No punch items" description="Snags found during internal or client inspection — track them here through to client acceptance." />
+        ) : (
+          <div className="space-y-2">
+            {items.map((it) => (
+              <Card key={it.id}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-navy-900">{it.description}</p>
+                    <p className="text-xs text-ink-500">{it.assignedToName || "Unassigned"}{it.dueDate ? ` · Due ${formatDate(it.dueDate)}` : ""}</p>
+                  </div>
+                  {canManage ? (
+                    <Select value={it.status} className="w-auto" options={PUNCH_ITEM_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))} onChange={(e) => void run(() => updatePunchItem(it, { status: e.target.value as PunchItemStatus }, actor), "Updated.")} />
+                  ) : (
+                    <Badge>{it.status.replace(/_/g, " ")}</Badge>
+                  )}
+                </div>
+                {it.resolution && <p className="mt-2 text-sm text-ink-700">Resolution: {it.resolution}</p>}
+                {canManage && it.status !== "ACCEPTED" && (
+                  <div className="mt-3 flex items-end gap-2 border-t border-ink-100 pt-3">
+                    <Field label="Resolution" className="flex-1">
+                      <Input defaultValue={it.resolution} onChange={(e) => setResolutionDrafts((d) => ({ ...d, [it.id]: e.target.value }))} />
+                    </Field>
+                    <Button variant="secondary" onClick={() => void run(() => updatePunchItem(it, { resolution: resolutionDrafts[it.id] ?? it.resolution, status: "RESOLVED" }, actor), "Updated.")} loading={busy}>Resolve</Button>
+                    <Button onClick={() => void run(() => updatePunchItem(it, { status: "ACCEPTED", clientAccepted: true }, actor), "Accepted.")} loading={busy}>Client Accept</Button>
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Punch Item" footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onAddItem()} loading={busy}>Add</Button></>}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Description" required className="col-span-2"><Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} /></Field>
+          <Field label="Assignee"><Select value={form.assignedToId} placeholder="Unassigned" options={project.team.map((m) => ({ value: m.teamMemberId, label: m.name }))} onChange={(e) => setForm((f) => ({ ...f, assignedToId: e.target.value }))} /></Field>
+          <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
         </div>
       </Modal>
     </div>

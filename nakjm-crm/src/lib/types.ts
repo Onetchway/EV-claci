@@ -2,9 +2,10 @@ import type { Timestamp } from "firebase/firestore";
 
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
-  ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, InspectionResult,
-  IssuePriority, IssueStatus, NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, QuotationStatus,
-  RfiStatus, Role, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
+  ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, HandoverStage,
+  InspectionResult, IssuePriority, IssueStatus, NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus,
+  ProjectType, PunchItemStatus, QuotationStatus, RfiStatus, Role, SiteReportType, StageStatus, TaskStatus,
+  TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -440,6 +441,45 @@ export interface Drawing {
   mimeType?: string;
   sizeBytes?: number;
   uploadedBy?: Actor;
+  createdAt: TS;
+  updatedAt: TS;
+}
+
+export interface PunchItem {
+  id: string;
+  projectId: string;
+  projectName: string;
+  stageId?: string | null;
+  stageName?: string;
+  description: string;
+  photoUrl?: string;
+  assignedToId?: string | null;
+  assignedToName?: string;
+  dueDate?: TS;
+  status: PunchItemStatus;
+  resolution?: string;
+  clientAccepted: boolean;
+  createdAt: TS;
+  updatedAt: TS;
+}
+
+export interface HandoverStageEntry {
+  stage: HandoverStage;
+  at: TS;
+  byId?: string | null;
+  byName?: string;
+}
+
+/** One doc per project — the close-out workflow's current state and history. */
+export interface Handover {
+  id: string;
+  projectId: string;
+  projectName: string;
+  stage: HandoverStage;
+  history: HandoverStageEntry[];
+  completionDocumentIds: string[];
+  notes?: string;
+  handoverDate?: TS;
   createdAt: TS;
   updatedAt: TS;
 }

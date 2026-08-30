@@ -277,6 +277,37 @@ export const DRAWING_STATUS_META: Record<DrawingStatus, { label: string; classNa
 };
 
 // ---------------------------------------------------------------------------
+// Punch list + Handover — project close-out.
+// ---------------------------------------------------------------------------
+
+export const PUNCH_ITEM_STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "ACCEPTED"] as const;
+export type PunchItemStatus = (typeof PUNCH_ITEM_STATUSES)[number];
+
+export const PUNCH_ITEM_STATUS_META: Record<PunchItemStatus, { label: string; className: string }> = {
+  OPEN: { label: "Open", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+  IN_PROGRESS: { label: "In Progress", className: "bg-brand-50 text-brand-700 ring-brand-200" },
+  RESOLVED: { label: "Resolved", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  ACCEPTED: { label: "Accepted", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+};
+
+/** Execution Complete -> Internal Inspection -> Punch List -> Punch List Closure -> Client Inspection -> Handover -> Completed. */
+export const HANDOVER_STAGES = [
+  "EXECUTION_COMPLETE", "INTERNAL_INSPECTION", "PUNCH_LIST", "PUNCH_LIST_CLOSURE",
+  "CLIENT_INSPECTION", "HANDED_OVER", "COMPLETED",
+] as const;
+export type HandoverStage = (typeof HANDOVER_STAGES)[number];
+
+export const HANDOVER_STAGE_LABEL: Record<HandoverStage, string> = {
+  EXECUTION_COMPLETE: "Execution Complete",
+  INTERNAL_INSPECTION: "Internal Inspection",
+  PUNCH_LIST: "Punch List",
+  PUNCH_LIST_CLOSURE: "Punch List Closure",
+  CLIENT_INSPECTION: "Client Inspection",
+  HANDED_OVER: "Handed Over",
+  COMPLETED: "Completed",
+};
+
+// ---------------------------------------------------------------------------
 // Audit log
 // ---------------------------------------------------------------------------
 
@@ -284,6 +315,7 @@ export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
   "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
+  "PUNCH_ITEM", "HANDOVER",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -311,6 +343,8 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   INSPECTION: "Inspection",
   NCR: "NCR",
   DRAWING: "Drawing",
+  PUNCH_ITEM: "Punch Item",
+  HANDOVER: "Handover",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;
