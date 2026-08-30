@@ -6,16 +6,16 @@ import { FileSpreadsheet, Plus } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
 import {
-  Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, StatCard, useAsyncAction,
+  Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, StatCard, Textarea, useAsyncAction,
 } from "@/components/ui";
-import { ItemsTable, ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
+import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { PI_STATUSES, type PiStatus } from "@/lib/constants";
 import { subscribeProjects } from "@/lib/db/projects";
 import { createProformaInvoice, subscribeProformaInvoices } from "@/lib/db/proforma-invoices";
 import type { Project, ProformaInvoice } from "@/lib/types";
 import { formatCompactINR, formatINR } from "@/lib/utils";
 
-const EMPTY_FORM = { piNo: "", projectId: "", dueDate: "", milestone: "", notes: "" };
+const EMPTY_FORM = { piNo: "", projectId: "", dueDate: "", milestone: "", taxAmount: "0", gstType: "IGST" as "IGST" | "CGST_SGST", terms: "", notes: "" };
 
 export default function ProformaInvoicesPage() {
   const actor = useActor();
@@ -49,7 +49,8 @@ export default function ProformaInvoicesPage() {
       if (!project) return;
       const pi = await createProformaInvoice({
         piNo: form.piNo, projectId: form.projectId, projectName: project.name, clientId: project.clientId,
-        dueDate: form.dueDate ? new Date(form.dueDate) : null, milestone: form.milestone, items, notes: form.notes,
+        dueDate: form.dueDate ? new Date(form.dueDate) : null, milestone: form.milestone, items,
+        taxAmount: Number(form.taxAmount) || 0, gstType: form.gstType, terms: form.terms, notes: form.notes,
       }, actor);
       setShowForm(false); setForm(EMPTY_FORM); setItems([]);
       window.location.href = `/proforma-invoices/${pi.id}`;
@@ -123,8 +124,16 @@ export default function ProformaInvoicesPage() {
           </Field>
           <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
           <Field label="Milestone"><Input value={form.milestone} onChange={(e) => setForm((f) => ({ ...f, milestone: e.target.value }))} /></Field>
+          <Field label="Tax Amount (₹)"><Input type="number" value={form.taxAmount} onChange={(e) => setForm((f) => ({ ...f, taxAmount: e.target.value }))} /></Field>
+          <Field label="GST Type">
+            <div className="flex items-center gap-4 pt-2 text-sm">
+              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "IGST"} onChange={() => setForm((f) => ({ ...f, gstType: "IGST" }))} /> IGST</label>
+              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "CGST_SGST"} onChange={() => setForm((f) => ({ ...f, gstType: "CGST_SGST" }))} /> CGST &amp; SGST</label>
+            </div>
+          </Field>
+          <Field label="Terms &amp; Conditions" className="col-span-3"><Textarea value={form.terms} onChange={(e) => setForm((f) => ({ ...f, terms: e.target.value }))} /></Field>
         </div>
-        <ItemsTable items={items} setItems={setItems} fields={ITEM_FIELDS} />
+        <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
       </Modal>
     </div>
   );

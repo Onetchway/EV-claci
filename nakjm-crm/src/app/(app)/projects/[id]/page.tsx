@@ -18,7 +18,7 @@ import {
   type NcrStatus, type PaymentMode, type ProjectStatus, type ProjectType, type RfiStatus, type SiteReportType,
   type StageStatus, type TaskStatus,
 } from "@/lib/constants";
-import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
+import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, QUOTATION_ITEM_FIELDS, PO_ITEM_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { parseBoqFile } from "@/lib/boq-parser";
 import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, updateBoq } from "@/lib/db/boq";
 import { listActiveClients } from "@/lib/db/clients";
@@ -379,7 +379,7 @@ function QuotationsTab({ project }: { project: Project }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Quotation | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Quotation | null>(null);
-  const [form, setForm] = useState({ quotationNo: "", validUntil: "", taxPercent: "18", notes: "" });
+  const [form, setForm] = useState({ quotationNo: "", validUntil: "", taxPercent: "18", gstType: "IGST" as "IGST" | "CGST_SGST", terms: "", notes: "" });
   const [items, setItems] = useState<DraftItem[]>([]);
   const [sourceBoqId, setSourceBoqId] = useState<string | null>(null);
   const { busy, run } = useAsyncAction();
@@ -395,18 +395,20 @@ function QuotationsTab({ project }: { project: Project }) {
     setEditing(null);
     setSourceBoqId(boqId);
     setItems(boq.items.map((it) => ({ description: [it.section, it.description].filter(Boolean).join(" — "), unit: it.unit, qty: it.qty, rate: it.rate })));
-    setForm({ quotationNo: `${boq.boqNo}-Q${version}`, validUntil: "", taxPercent: "18", notes: `Generated from BOQ ${boq.boqNo} (v${boq.version})` });
+    setForm({ quotationNo: `${boq.boqNo}-Q${version}`, validUntil: "", taxPercent: "18", gstType: "IGST", terms: "", notes: `Generated from BOQ ${boq.boqNo} (v${boq.version})` });
     setShowForm(true);
   }
 
   function openEdit(q: Quotation) {
     setEditing(q);
     setSourceBoqId(q.sourceBoqId ?? null);
-    setItems(q.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate })));
+    setItems(q.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode })));
     setForm({
       quotationNo: q.quotationNo,
       validUntil: q.validUntil ? q.validUntil.toDate().toISOString().slice(0, 10) : "",
       taxPercent: String(q.taxPercent),
+      gstType: q.gstType ?? "IGST",
+      terms: q.terms ?? "",
       notes: q.notes ?? "",
     });
     setShowForm(true);
@@ -421,6 +423,8 @@ function QuotationsTab({ project }: { project: Project }) {
           validUntil: form.validUntil ? new Date(form.validUntil) : null,
           items,
           taxPercent: Number(form.taxPercent) || 0,
+          gstType: form.gstType,
+          terms: form.terms,
           notes: form.notes,
         }, actor);
       } else {
@@ -435,6 +439,8 @@ function QuotationsTab({ project }: { project: Project }) {
           validUntil: form.validUntil ? new Date(form.validUntil) : null,
           items,
           taxPercent: Number(form.taxPercent) || 0,
+          gstType: form.gstType,
+          terms: form.terms,
           notes: form.notes,
           sourceBoqId,
         }, actor);
@@ -455,7 +461,7 @@ function QuotationsTab({ project }: { project: Project }) {
             onChange={(e) => void generateFromBoq(e.target.value)}
           />
         )}
-        <Button onClick={() => { setEditing(null); setSourceBoqId(null); setItems([]); setForm({ quotationNo: "", validUntil: "", taxPercent: "18", notes: "" }); setShowForm(true); }}>
+        <Button onClick={() => { setEditing(null); setSourceBoqId(null); setItems([]); setForm({ quotationNo: "", validUntil: "", taxPercent: "18", gstType: "IGST", terms: "", notes: "" }); setShowForm(true); }}>
           <Plus className="h-4 w-4" /> New Quotation
         </Button>
       </div>
@@ -501,8 +507,15 @@ function QuotationsTab({ project }: { project: Project }) {
           <Field label="Quotation No." required><Input value={form.quotationNo} onChange={(e) => setForm((f) => ({ ...f, quotationNo: e.target.value }))} /></Field>
           <Field label="Valid Until"><Input type="date" value={form.validUntil} onChange={(e) => setForm((f) => ({ ...f, validUntil: e.target.value }))} /></Field>
           <Field label="Tax %"><Input type="number" value={form.taxPercent} onChange={(e) => setForm((f) => ({ ...f, taxPercent: e.target.value }))} /></Field>
+          <Field label="GST Type">
+            <div className="flex items-center gap-4 pt-2 text-sm">
+              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "IGST"} onChange={() => setForm((f) => ({ ...f, gstType: "IGST" }))} /> IGST</label>
+              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "CGST_SGST"} onChange={() => setForm((f) => ({ ...f, gstType: "CGST_SGST" }))} /> CGST &amp; SGST</label>
+            </div>
+          </Field>
+          <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={form.terms} onChange={(e) => setForm((f) => ({ ...f, terms: e.target.value }))} /></Field>
         </div>
-        <ItemsTable items={items} setItems={setItems} fields={ITEM_FIELDS} />
+        <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
       </Modal>
 
       <Modal
@@ -759,7 +772,7 @@ function PiTab({ project }: { project: Project }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProformaInvoice | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProformaInvoice | null>(null);
-  const [form, setForm] = useState({ piNo: "", dueDate: "", milestone: "", notes: "" });
+  const [form, setForm] = useState({ piNo: "", dueDate: "", milestone: "", taxAmount: "0", gstType: "IGST" as "IGST" | "CGST_SGST", terms: "", notes: "" });
   const [items, setItems] = useState<DraftItem[]>([]);
   const [poFile, setPoFile] = useState<File | null>(null);
   const { busy, run } = useAsyncAction();
@@ -768,10 +781,10 @@ function PiTab({ project }: { project: Project }) {
 
   function openEdit(pi: ProformaInvoice) {
     setEditing(pi);
-    setItems(pi.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate })));
+    setItems(pi.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode })));
     setForm({
       piNo: pi.piNo, dueDate: pi.dueDate ? pi.dueDate.toDate().toISOString().slice(0, 10) : "",
-      milestone: pi.milestone ?? "", notes: pi.notes ?? "",
+      milestone: pi.milestone ?? "", taxAmount: String(pi.taxAmount), gstType: pi.gstType ?? "IGST", terms: pi.terms ?? "", notes: pi.notes ?? "",
     });
     setPoFile(null);
     setShowForm(true);
@@ -783,7 +796,7 @@ function PiTab({ project }: { project: Project }) {
       if (editing) {
         await updateProformaInvoice(editing, {
           piNo: form.piNo, dueDate: form.dueDate ? new Date(form.dueDate) : null,
-          milestone: form.milestone, items, notes: form.notes,
+          milestone: form.milestone, items, taxAmount: Number(form.taxAmount) || 0, gstType: form.gstType, terms: form.terms, notes: form.notes,
         }, actor);
       } else {
         let sourceDocumentId: string | null = null;
@@ -793,16 +806,17 @@ function PiTab({ project }: { project: Project }) {
         }
         await createProformaInvoice({
           piNo: form.piNo, projectId: project.id, projectName: project.name, clientId: project.clientId,
-          dueDate: form.dueDate ? new Date(form.dueDate) : null, milestone: form.milestone, items, notes: form.notes, sourceDocumentId,
+          dueDate: form.dueDate ? new Date(form.dueDate) : null, milestone: form.milestone, items,
+          taxAmount: Number(form.taxAmount) || 0, gstType: form.gstType, terms: form.terms, notes: form.notes, sourceDocumentId,
         }, actor);
       }
-      setShowForm(false); setEditing(null); setItems([]); setPoFile(null); setForm({ piNo: "", dueDate: "", milestone: "", notes: "" });
+      setShowForm(false); setEditing(null); setItems([]); setPoFile(null); setForm({ piNo: "", dueDate: "", milestone: "", taxAmount: "0", gstType: "IGST", terms: "", notes: "" });
     }, editing ? "Proforma invoice updated." : "Proforma invoice created.");
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Button onClick={() => { setEditing(null); setItems([]); setPoFile(null); setForm({ piNo: "", dueDate: "", milestone: "", notes: "" }); setShowForm(true); }}><Plus className="h-4 w-4" /> New PI</Button></div>
+      <div className="flex justify-end"><Button onClick={() => { setEditing(null); setItems([]); setPoFile(null); setForm({ piNo: "", dueDate: "", milestone: "", taxAmount: "0", gstType: "IGST", terms: "", notes: "" }); setShowForm(true); }}><Plus className="h-4 w-4" /> New PI</Button></div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No proforma invoices yet" />
       ) : (
@@ -844,6 +858,14 @@ function PiTab({ project }: { project: Project }) {
           <Field label="PI No." required><Input value={form.piNo} onChange={(e) => setForm((f) => ({ ...f, piNo: e.target.value }))} /></Field>
           <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
           <Field label="Milestone"><Input value={form.milestone} onChange={(e) => setForm((f) => ({ ...f, milestone: e.target.value }))} /></Field>
+          <Field label="Tax Amount (₹)"><Input type="number" value={form.taxAmount} onChange={(e) => setForm((f) => ({ ...f, taxAmount: e.target.value }))} /></Field>
+          <Field label="GST Type">
+            <div className="flex items-center gap-4 pt-2 text-sm">
+              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "IGST"} onChange={() => setForm((f) => ({ ...f, gstType: "IGST" }))} /> IGST</label>
+              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "CGST_SGST"} onChange={() => setForm((f) => ({ ...f, gstType: "CGST_SGST" }))} /> CGST &amp; SGST</label>
+            </div>
+          </Field>
+          <Field label="Terms &amp; Conditions" className="col-span-3"><Textarea value={form.terms} onChange={(e) => setForm((f) => ({ ...f, terms: e.target.value }))} /></Field>
           {!editing && (
             <Field label="Client PO / Work Order" className="col-span-3" hint="Optional — generates this PI against the uploaded document.">
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-ink-300 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50">
@@ -853,7 +875,7 @@ function PiTab({ project }: { project: Project }) {
             </Field>
           )}
         </div>
-        <ItemsTable items={items} setItems={setItems} fields={ITEM_FIELDS} />
+        <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
       </Modal>
 
       <Modal

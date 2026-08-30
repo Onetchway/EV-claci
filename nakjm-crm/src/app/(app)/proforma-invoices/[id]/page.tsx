@@ -90,6 +90,7 @@ export default function ProformaInvoiceDetailPage() {
                 <thead>
                   <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
                     <th className="pb-2">Description</th>
+                    <th className="pb-2">HSN/SAC</th>
                     <th className="pb-2">Unit</th>
                     <th className="pb-2 text-right">Qty</th>
                     <th className="pb-2 text-right">Rate</th>
@@ -100,6 +101,7 @@ export default function ProformaInvoiceDetailPage() {
                   {pi.items.map((line) => (
                     <tr key={line.srNo} className="border-b border-ink-100">
                       <td className="py-2">{line.description}</td>
+                      <td className="py-2 text-ink-500">{line.hsnCode || "—"}</td>
                       <td className="py-2 text-ink-500">{line.unit || "—"}</td>
                       <td className="py-2 text-right tabular-nums">{line.qty}</td>
                       <td className="py-2 text-right tabular-nums">{formatINR(line.rate)}</td>
@@ -112,12 +114,20 @@ export default function ProformaInvoiceDetailPage() {
             <div className="mt-4 flex justify-end">
               <dl className="w-56 space-y-1.5 text-sm">
                 <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(pi.subtotal)}</dd></div>
-                <div className="flex justify-between"><dt className="text-ink-600">Tax</dt><dd className="tabular-nums">{formatINR(pi.taxAmount)}</dd></div>
+                {pi.gstType === "CGST_SGST" ? (
+                  <>
+                    <div className="flex justify-between"><dt className="text-ink-600">CGST</dt><dd className="tabular-nums">{formatINR(pi.cgstAmount ?? 0)}</dd></div>
+                    <div className="flex justify-between"><dt className="text-ink-600">SGST</dt><dd className="tabular-nums">{formatINR(pi.sgstAmount ?? 0)}</dd></div>
+                  </>
+                ) : (
+                  <div className="flex justify-between"><dt className="text-ink-600">IGST</dt><dd className="tabular-nums">{formatINR(pi.igstAmount ?? pi.taxAmount)}</dd></div>
+                )}
                 <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(pi.totalAmount)}</dd></div>
               </dl>
             </div>
           </Card>
 
+          {pi.terms && <Card title="Terms &amp; conditions"><p className="whitespace-pre-line text-sm text-ink-700">{pi.terms}</p></Card>}
           {pi.notes && <Card title="Notes"><p className="whitespace-pre-line text-sm text-ink-700">{pi.notes}</p></Card>}
 
           <Card title="Payment ledger" subtitle={`${piPayments.length} ${piPayments.length === 1 ? "entry" : "entries"}`}>

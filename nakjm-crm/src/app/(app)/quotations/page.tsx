@@ -6,9 +6,9 @@ import { FileSignature, Plus } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
 import {
-  Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, StatCard, useAsyncAction,
+  Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, StatCard, Textarea, useAsyncAction,
 } from "@/components/ui";
-import { ItemsTable, ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
+import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { QUOTATION_STATUSES, type QuotationStatus } from "@/lib/constants";
 import { subscribeProjects } from "@/lib/db/projects";
 import { createQuotation, nextQuotationVersion, subscribeQuotations } from "@/lib/db/quotations";
@@ -16,7 +16,7 @@ import type { Project, Quotation } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
 
 const OPEN_STATUSES: QuotationStatus[] = ["DRAFT", "SENT", "NEGOTIATION"];
-const EMPTY_FORM = { quotationNo: "", projectId: "", validUntil: "", taxPercent: "18", notes: "" };
+const EMPTY_FORM = { quotationNo: "", projectId: "", validUntil: "", taxPercent: "18", gstType: "IGST" as "IGST" | "CGST_SGST", terms: "", notes: "" };
 
 export default function QuotationsPage() {
   const actor = useActor();
@@ -52,7 +52,7 @@ export default function QuotationsPage() {
       const q = await createQuotation({
         quotationNo: form.quotationNo, projectId: form.projectId, projectName: project.name, clientId: project.clientId,
         version, quotationDate: new Date(), validUntil: form.validUntil ? new Date(form.validUntil) : null,
-        items, taxPercent: Number(form.taxPercent) || 0, notes: form.notes,
+        items, taxPercent: Number(form.taxPercent) || 0, gstType: form.gstType, terms: form.terms, notes: form.notes,
       }, actor);
       setShowForm(false); setForm(EMPTY_FORM); setItems([]);
       window.location.href = `/quotations/${q.id}`;
@@ -126,8 +126,15 @@ export default function QuotationsPage() {
           </Field>
           <Field label="Valid Until"><Input type="date" value={form.validUntil} onChange={(e) => setForm((f) => ({ ...f, validUntil: e.target.value }))} /></Field>
           <Field label="Tax %"><Input type="number" value={form.taxPercent} onChange={(e) => setForm((f) => ({ ...f, taxPercent: e.target.value }))} /></Field>
+          <Field label="GST Type">
+            <div className="flex items-center gap-4 pt-2 text-sm">
+              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "IGST"} onChange={() => setForm((f) => ({ ...f, gstType: "IGST" }))} /> IGST</label>
+              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "CGST_SGST"} onChange={() => setForm((f) => ({ ...f, gstType: "CGST_SGST" }))} /> CGST &amp; SGST</label>
+            </div>
+          </Field>
+          <Field label="Terms &amp; Conditions" className="col-span-3"><Textarea value={form.terms} onChange={(e) => setForm((f) => ({ ...f, terms: e.target.value }))} /></Field>
         </div>
-        <ItemsTable items={items} setItems={setItems} fields={ITEM_FIELDS} />
+        <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
       </Modal>
     </div>
   );

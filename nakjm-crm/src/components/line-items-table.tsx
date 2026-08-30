@@ -53,6 +53,13 @@ export const ITEM_FIELDS = [
   { key: "qty" as const, label: "Qty", type: "number" },
   { key: "rate" as const, label: "Rate (₹)", type: "number" },
 ];
+export const QUOTATION_ITEM_FIELDS = [
+  { key: "description" as const, label: "Description" },
+  { key: "unit" as const, label: "Unit" },
+  { key: "qty" as const, label: "Qty", type: "number" },
+  { key: "rate" as const, label: "Rate (₹)", type: "number" },
+  { key: "hsnCode" as const, label: "HSN/SAC" },
+];
 export const PO_ITEM_FIELDS = [
   { key: "description" as const, label: "Description" },
   { key: "unit" as const, label: "Unit" },

@@ -59,13 +59,24 @@ export interface PiDraft {
   milestone?: string;
   items: Omit<LineItem, "amount" | "srNo">[];
   taxAmount?: number;
+  gstType?: "IGST" | "CGST_SGST";
+  terms?: string;
   notes?: string;
   sourceDocumentId?: string | null;
+}
+
+function splitGst(taxAmount: number, gstType: "IGST" | "CGST_SGST") {
+  return {
+    igstAmount: gstType === "IGST" ? taxAmount : 0,
+    cgstAmount: gstType === "CGST_SGST" ? taxAmount / 2 : 0,
+    sgstAmount: gstType === "CGST_SGST" ? taxAmount / 2 : 0,
+  };
 }
 
 export async function createProformaInvoice(draft: PiDraft, actor?: Actor): Promise<ProformaInvoice> {
   const { items, subtotal } = computeLineTotals(draft.items);
   const taxAmount = draft.taxAmount ?? 0;
+  const gstType = draft.gstType ?? "IGST";
   const ref = doc(collection(getDb(), PROFORMA_INVOICES));
   const payload = {
     piNo: draft.piNo,
@@ -80,8 +91,11 @@ export async function createProformaInvoice(draft: PiDraft, actor?: Actor): Prom
     items,
     subtotal,
     taxAmount,
+    gstType,
+    ...splitGst(taxAmount, gstType),
     totalAmount: subtotal + taxAmount,
     paidAmount: 0,
+    terms: draft.terms ?? "",
     notes: draft.notes ?? "",
     sourceDocumentId: draft.sourceDocumentId ?? null,
     createdAt: serverTimestamp(),
@@ -103,19 +117,26 @@ export type PiPatch = Partial<Omit<PiDraft, "projectId" | "projectName" | "clien
 
 export async function updateProformaInvoice(pi: ProformaInvoice, patch: PiPatch, actor: Actor): Promise<void> {
   const update: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  const gstType = patch.gstType ?? pi.gstType ?? "IGST";
   if (patch.items) {
     const { items, subtotal } = computeLineTotals(patch.items);
     const taxAmount = patch.taxAmount ?? pi.taxAmount;
     update.items = items;
     update.subtotal = subtotal;
     update.taxAmount = taxAmount;
+    update.gstType = gstType;
+    Object.assign(update, splitGst(taxAmount, gstType));
     update.totalAmount = subtotal + taxAmount;
-  } else if (patch.taxAmount !== undefined) {
-    update.taxAmount = patch.taxAmount;
-    update.totalAmount = pi.subtotal + patch.taxAmount;
+  } else if (patch.taxAmount !== undefined || patch.gstType !== undefined) {
+    const taxAmount = patch.taxAmount ?? pi.taxAmount;
+    update.taxAmount = taxAmount;
+    update.gstType = gstType;
+    Object.assign(update, splitGst(taxAmount, gstType));
+    update.totalAmount = pi.subtotal + taxAmount;
   }
   if (patch.piNo !== undefined) update.piNo = patch.piNo;
   if (patch.milestone !== undefined) update.milestone = patch.milestone;
+  if (patch.terms !== undefined) update.terms = patch.terms;
   if (patch.notes !== undefined) update.notes = patch.notes;
   if (patch.status !== undefined) update.status = patch.status;
   if (patch.piDate !== undefined) update.piDate = patch.piDate ? Timestamp.fromDate(patch.piDate) : null;

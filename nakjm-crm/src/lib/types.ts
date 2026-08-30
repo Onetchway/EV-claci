@@ -229,6 +229,10 @@ export interface Quotation {
   subtotal: number;
   taxPercent: number;
   taxAmount: number;
+  gstType?: "IGST" | "CGST_SGST";
+  igstAmount?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
   totalAmount: number;
   terms?: string;
   notes?: string;
@@ -296,8 +300,13 @@ export interface ProformaInvoice {
   items: LineItem[];
   subtotal: number;
   taxAmount: number;
+  gstType?: "IGST" | "CGST_SGST";
+  igstAmount?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
   totalAmount: number;
   paidAmount: number;
+  terms?: string;
   notes?: string;
   sourceDocumentId?: string | null;
   createdAt: TS;

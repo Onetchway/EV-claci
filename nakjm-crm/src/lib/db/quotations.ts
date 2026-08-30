@@ -16,7 +16,8 @@ function mapQuotation(id: string, data: Record<string, unknown>): Quotation {
   return { id, ...(data as Omit<Quotation, "id">) };
 }
 
-export function computeLineTotals(items: Omit<LineItem, "amount" | "srNo">[], taxPercent = 0) {
+/** gstType only changes how the (already flat-rate) tax is split for display/print — IGST, or half-half CGST+SGST. */
+export function computeLineTotals(items: Omit<LineItem, "amount" | "srNo">[], taxPercent = 0, gstType: "IGST" | "CGST_SGST" = "IGST") {
   const withAmounts: LineItem[] = items.map((it, i) => ({
     srNo: i + 1,
     description: it.description,
@@ -24,10 +25,14 @@ export function computeLineTotals(items: Omit<LineItem, "amount" | "srNo">[], ta
     qty: Number(it.qty) || 0,
     rate: Number(it.rate) || 0,
     amount: (Number(it.qty) || 0) * (Number(it.rate) || 0),
+    hsnCode: it.hsnCode,
   }));
   const subtotal = withAmounts.reduce((s, it) => s + it.amount, 0);
   const taxAmount = Math.round(subtotal * (taxPercent / 100) * 100) / 100;
-  return { items: withAmounts, subtotal, taxAmount, total: subtotal + taxAmount };
+  const igstAmount = gstType === "IGST" ? taxAmount : 0;
+  const cgstAmount = gstType === "CGST_SGST" ? taxAmount / 2 : 0;
+  const sgstAmount = gstType === "CGST_SGST" ? taxAmount / 2 : 0;
+  return { items: withAmounts, subtotal, taxAmount, igstAmount, cgstAmount, sgstAmount, total: subtotal + taxAmount };
 }
 
 export function subscribeQuotationsForProject(projectId: string, cb: (rows: Quotation[]) => void, onError?: (e: Error) => void): () => void {
@@ -76,13 +81,15 @@ export interface QuotationDraft {
   validUntil?: Date | null;
   items: Omit<LineItem, "amount" | "srNo">[];
   taxPercent: number;
+  gstType?: "IGST" | "CGST_SGST";
   terms?: string;
   notes?: string;
   sourceBoqId?: string | null;
 }
 
 export async function createQuotation(draft: QuotationDraft, actor?: Actor): Promise<Quotation> {
-  const { items, subtotal, taxAmount, total } = computeLineTotals(draft.items, draft.taxPercent);
+  const gstType = draft.gstType ?? "IGST";
+  const { items, subtotal, taxAmount, igstAmount, cgstAmount, sgstAmount, total } = computeLineTotals(draft.items, draft.taxPercent, gstType);
   const ref = doc(collection(getDb(), QUOTATIONS));
   const payload = {
     quotationNo: draft.quotationNo,
@@ -97,6 +104,10 @@ export async function createQuotation(draft: QuotationDraft, actor?: Actor): Pro
     subtotal,
     taxPercent: draft.taxPercent,
     taxAmount,
+    gstType,
+    igstAmount,
+    cgstAmount,
+    sgstAmount,
     totalAmount: total,
     terms: draft.terms ?? "",
     notes: draft.notes ?? "",
@@ -132,9 +143,11 @@ export type QuotationPatch = Partial<Omit<QuotationDraft, "projectId" | "project
 export async function updateQuotation(quotation: Quotation, patch: QuotationPatch, actor: Actor): Promise<void> {
   const items = patch.items ?? quotation.items;
   const taxPercent = patch.taxPercent ?? quotation.taxPercent;
-  const { items: computedItems, subtotal, taxAmount, total } = computeLineTotals(items, taxPercent);
+  const gstType = patch.gstType ?? quotation.gstType ?? "IGST";
+  const { items: computedItems, subtotal, taxAmount, igstAmount, cgstAmount, sgstAmount, total } = computeLineTotals(items, taxPercent, gstType);
   const update: Record<string, unknown> = {
-    items: computedItems, subtotal, taxPercent, taxAmount, totalAmount: total, updatedAt: serverTimestamp(),
+    items: computedItems, subtotal, taxPercent, taxAmount, gstType, igstAmount, cgstAmount, sgstAmount,
+    totalAmount: total, updatedAt: serverTimestamp(),
   };
   if (patch.quotationDate !== undefined) update.quotationDate = patch.quotationDate ? Timestamp.fromDate(patch.quotationDate) : null;
   if (patch.validUntil !== undefined) update.validUntil = patch.validUntil ? Timestamp.fromDate(patch.validUntil) : null;
