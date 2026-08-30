@@ -18,7 +18,7 @@ import type { Client, Project, TeamMember } from "@/lib/types";
 const EMPTY = {
   name: "", clientId: "", projectType: "EV_CHARGING_STATION" as ProjectType, city: "", state: "", address: "",
   capacityKw: "", status: "LEAD" as ProjectStatus, budgetAmount: "0", contractValue: "0",
-  startDate: "", targetEndDate: "", projectManagerId: "",
+  startDate: "", targetEndDate: "", projectManagerId: "", clientRequirements: "",
 };
 
 export default function NewProjectPage() {
@@ -88,6 +88,7 @@ function NewProjectForm() {
           targetEndDate: form.targetEndDate ? new Date(form.targetEndDate) : null,
           budgetAmount: Number(form.budgetAmount) || 0,
           contractValue: Number(form.contractValue) || 0,
+          clientRequirements: form.clientRequirements,
           sourceDocumentId,
           tenderId: tenderId || null,
           parentProjectId: parentProjectId || null,
@@ -216,6 +217,9 @@ function NewProjectForm() {
           <Field label="Start Date"><Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} /></Field>
           <Field label="Target End Date"><Input type="date" value={form.targetEndDate} onChange={(e) => setForm((f) => ({ ...f, targetEndDate: e.target.value }))} /></Field>
           <Field label="Site Address" className="col-span-2"><Textarea value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} /></Field>
+          <Field label="Client Requirements" className="col-span-2" hint="What the client asked for — shown on the project's stage-wise client report.">
+            <Textarea value={form.clientRequirements} onChange={(e) => setForm((f) => ({ ...f, clientRequirements: e.target.value }))} />
+          </Field>
           <Field
             label="Client PO / Work Order"
             hint="Optional — attach the document this project is being created from."

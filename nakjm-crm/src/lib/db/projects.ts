@@ -119,6 +119,7 @@ export interface ProjectDraft {
   pocPhone?: string;
   pocEmail?: string;
   notes?: string;
+  clientRequirements?: string;
   sourceDocumentId?: string | null;
   tenderId?: string | null;
   parentProjectId?: string | null;
@@ -150,6 +151,7 @@ export async function createProject(draft: ProjectDraft, actor: Actor): Promise<
     pocPhone: draft.pocPhone ?? "",
     pocEmail: draft.pocEmail ?? "",
     notes: draft.notes ?? "",
+    clientRequirements: draft.clientRequirements ?? "",
     team: [] as ProjectTeamAssignment[],
     sourceDocumentId: draft.sourceDocumentId ?? null,
     tenderId: draft.tenderId ?? null,
@@ -184,12 +186,13 @@ export interface ProjectPatch {
   pocPhone?: string;
   pocEmail?: string;
   notes?: string;
+  clientRequirements?: string;
 }
 
 export async function updateProject(project: Project, patch: ProjectPatch, actor: Actor): Promise<void> {
   const update: Record<string, unknown> = { updatedAt: serverTimestamp(), updatedBy: actor };
 
-  for (const k of ["name", "projectManagerId", "projectManagerName", "site", "pocName", "pocPhone", "pocEmail", "notes", "status", "capacityKw", "budgetAmount", "contractValue"] as const) {
+  for (const k of ["name", "projectManagerId", "projectManagerName", "site", "pocName", "pocPhone", "pocEmail", "notes", "clientRequirements", "status", "capacityKw", "budgetAmount", "contractValue"] as const) {
     if (patch[k] !== undefined) update[k] = patch[k];
   }
   for (const k of ["startDate", "targetEndDate", "actualEndDate"] as const) {

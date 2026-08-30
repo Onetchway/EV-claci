@@ -67,6 +67,7 @@ export default function ProjectDetailPage() {
     name: string; projectType: ProjectType; status: ProjectStatus; projectManagerId: string;
     city: string; state: string; address: string; capacityKw: string; budgetAmount: string;
     contractValue: string; startDate: string; targetEndDate: string; pocName: string; pocPhone: string; pocEmail: string; notes: string;
+    clientRequirements: string;
   } | null>(null);
   const { busy, run } = useAsyncAction();
 
@@ -85,6 +86,7 @@ export default function ProjectDetailPage() {
       startDate: project!.startDate ? project!.startDate.toDate().toISOString().slice(0, 10) : "",
       targetEndDate: project!.targetEndDate ? project!.targetEndDate.toDate().toISOString().slice(0, 10) : "",
       pocName: project!.pocName ?? "", pocPhone: project!.pocPhone ?? "", pocEmail: project!.pocEmail ?? "", notes: project!.notes ?? "",
+      clientRequirements: project!.clientRequirements ?? "",
     });
     setEditOpen(true);
   }
@@ -101,6 +103,7 @@ export default function ProjectDetailPage() {
         startDate: form.startDate ? new Date(form.startDate) : null,
         targetEndDate: form.targetEndDate ? new Date(form.targetEndDate) : null,
         pocName: form.pocName, pocPhone: form.pocPhone, pocEmail: form.pocEmail, notes: form.notes,
+        clientRequirements: form.clientRequirements,
       }, actor);
       setEditOpen(false);
     }, "Project updated.");
@@ -187,6 +190,9 @@ export default function ProjectDetailPage() {
             <Field label="POC Phone"><Input value={form.pocPhone} onChange={(e) => setForm((f) => f && { ...f, pocPhone: e.target.value })} /></Field>
             <Field label="POC Email" className="col-span-2"><Input type="email" value={form.pocEmail} onChange={(e) => setForm((f) => f && { ...f, pocEmail: e.target.value })} /></Field>
             <Field label="Notes" className="col-span-2"><Textarea value={form.notes} onChange={(e) => setForm((f) => f && { ...f, notes: e.target.value })} /></Field>
+            <Field label="Client Requirements" className="col-span-2" hint="What the client actually asked for — shown on the stage-wise client report.">
+              <Textarea value={form.clientRequirements} onChange={(e) => setForm((f) => f && { ...f, clientRequirements: e.target.value })} />
+            </Field>
           </div>
         )}
       </Modal>
@@ -1903,6 +1909,10 @@ function ReportsTab({ project }: { project: Project }) {
           <Link href={`/projects/${project.id}/reports/issues/print`} target="_blank" className="rounded-xl border border-ink-200 p-3 text-sm hover:bg-ink-50">
             <p className="font-medium text-navy-900">Issue Report</p>
             <p className="text-xs text-ink-500">Every issue, with status and priority.</p>
+          </Link>
+          <Link href={`/projects/${project.id}/reports/stage-wise/print`} target="_blank" className="rounded-xl border border-ink-200 p-3 text-sm hover:bg-ink-50">
+            <p className="font-medium text-navy-900">Stage-wise Client Report</p>
+            <p className="text-xs text-ink-500">Client requirements, then every stage's tasks &amp; issues.</p>
           </Link>
         </div>
       </Card>

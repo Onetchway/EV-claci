@@ -178,6 +178,7 @@ export interface Project {
   pocPhone?: string;
   pocEmail?: string;
   notes?: string;
+  clientRequirements?: string;
   team: ProjectTeamAssignment[];
   sourceDocumentId?: string | null;
   tenderId?: string | null;
