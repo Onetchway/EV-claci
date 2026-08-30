@@ -234,7 +234,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 /** Grouped, collapsible, searchable sidebar nav — mirrors Livanto's NavList. */
 function NavList({ groups, pathname }: { groups: NavGroup[]; pathname: string }) {
-  const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -254,27 +253,10 @@ function NavList({ groups, pathname }: { groups: NavGroup[]; pathname: string })
     });
   }
 
-  const needle = query.trim().toLowerCase();
-  const filtered = needle
-    ? groups
-        .map((g) => ({ ...g, items: g.items.filter((it) => it.label.toLowerCase().includes(needle)) }))
-        .filter((g) => g.items.length > 0)
-    : groups;
-
   return (
     <>
-      <div className="relative mb-3 px-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-400" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search…"
-          className="w-full rounded-lg border border-ink-200 bg-ink-50 py-1.5 pl-8 pr-2 text-sm text-navy-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none"
-        />
-      </div>
-
-      {filtered.map((group, i) => {
-        const isCollapsed = !needle && group.label && collapsed[group.label];
+      {groups.map((group, i) => {
+        const isCollapsed = group.label && collapsed[group.label];
         return (
           <div key={group.label || `group-${i}`} className="mb-3">
             {group.label && (
