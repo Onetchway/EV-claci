@@ -8,7 +8,7 @@ import { GripVertical, Minus, Plus, RotateCcw, Trash2, Zap } from "lucide-react"
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui";
-import { catalogueAllIn, type ChargerSpec } from "@/lib/catalog";
+import { catalogueAllIn, getSpec, type ChargerSpec } from "@/lib/catalog";
 import { useChargerCatalog } from "@/hooks/use-catalog";
 import { CHARGER_OEMS, GST_SLABS } from "@/lib/constants";
 import {
@@ -562,7 +562,13 @@ export function ChargerConfigurator({
                 ) : (
                   <ul className="space-y-2">
                     {config.map((item, i) => {
-                      const spec = CATALOG_LIST.find((s) => s.sku === item.sku);
+                      // CATALOG_LIST (from useChargerCatalog) only carries
+                      // active chargers — a lead configured with a custom
+                      // charger that's since been archived on the Catalogue
+                      // page needs getSpec()'s registry (which keeps
+                      // archived ones too) to still show up here and stay
+                      // editable, not silently vanish from the basket.
+                      const spec = CATALOG_LIST.find((s) => s.sku === item.sku) ?? getSpec(item.sku);
                       if (!spec) return null;
                       return (
                         <BasketRow

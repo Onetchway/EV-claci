@@ -410,13 +410,17 @@ export function buildQuote(items: ConfigItem[], opts: QuoteOptions = {}): Quote 
 export function describeConfig(items: ConfigItem[] | undefined | null): string {
   const config = normaliseConfig(items);
   if (!config.length) return "—";
-  return config.map((it) => `${it.qty} × ${CATALOG[it.sku as keyof typeof CATALOG].label}`).join(" + ");
+  // getSpec() (not a raw CATALOG lookup) because a basket can include a
+  // charger added on the Catalogue page — a custom sku that only resolves
+  // through the runtime registry set by useChargerCatalog(), never through
+  // the compiled CATALOG object alone.
+  return config.map((it) => `${it.qty} × ${getSpec(it.sku)?.label ?? it.sku}`).join(" + ");
 }
 
 /** "60 kW" / "60 kW + 120 kW" — used in the LOI subject line. */
 export function describeCapacity(items: ConfigItem[] | undefined | null): string {
   const config = normaliseConfig(items);
   if (!config.length) return "";
-  const labels = [...new Set(config.map((it) => CATALOG[it.sku as keyof typeof CATALOG].label))];
+  const labels = [...new Set(config.map((it) => getSpec(it.sku)?.label ?? it.sku))];
   return labels.join(" + ");
 }
