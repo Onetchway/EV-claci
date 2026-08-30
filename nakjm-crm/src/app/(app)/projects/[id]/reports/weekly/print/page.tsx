@@ -57,7 +57,7 @@ function WeeklyReportPrintInner() {
       <PrintToolbar backHref={`/projects/${id}`} />
       <PrintSheet>
         <PrintHeader
-          docLabel="Weekly Progress Report"
+          docLabel="Progress Report"
           docNumber={project.code}
           meta={<p className="mt-0.5 text-[11px] text-ink-400">{from ? formatDate(from) : "—"} – {to ? formatDate(to) : "—"}</p>}
         />
@@ -68,7 +68,7 @@ function WeeklyReportPrintInner() {
         </div>
 
         <div className="mt-6">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Completed This Week</h2>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Completed In This Period</h2>
           {weekReports.length === 0 ? <p className="text-sm text-ink-400">No site reports logged this week.</p> : (
             <ul className="list-disc space-y-1 pl-5 text-sm text-ink-800">
               {weekReports.map((r) => <li key={r.id}>{r.workDone || `${r.progressPct}% progress recorded`}{r.manpowerCount ? ` — ${r.manpowerCount} workers` : ""}</li>)}
@@ -96,7 +96,7 @@ function WeeklyReportPrintInner() {
 
         {nextWeek && (
           <div className="mt-6">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Next Week</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Planned Next</h2>
             <p className="whitespace-pre-line text-sm text-ink-800">{nextWeek}</p>
           </div>
         )}

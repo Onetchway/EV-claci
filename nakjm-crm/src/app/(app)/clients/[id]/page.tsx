@@ -85,6 +85,7 @@ export default function ClientDetailPage() {
             <Badge className={client.active ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
               {client.active ? "Active" : "Inactive"}
             </Badge>
+            <Link href={`/clients/${id}/report/print`} target="_blank"><Button size="sm" variant="secondary">Client Report</Button></Link>
             <Button size="sm" onClick={openEdit}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
           </div>
         </div>

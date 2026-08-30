@@ -1850,6 +1850,7 @@ function ReportsTab({ project }: { project: Project }) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const today = new Date();
   const weekAgo = new Date(today.getTime() - 6 * 86400000);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
   const [from, setFrom] = useState(weekAgo.toISOString().slice(0, 10));
   const [to, setTo] = useState(today.toISOString().slice(0, 10));
   const [nextWeek, setNextWeek] = useState("");
@@ -1870,10 +1871,22 @@ function ReportsTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      <Card title="Weekly Progress Report">
+      <Card title="Weekly / Monthly Progress Report">
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <Field label="From"><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
           <Field label="To"><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+          <Button
+            variant="secondary"
+            onClick={() => { setFrom(weekAgo.toISOString().slice(0, 10)); setTo(today.toISOString().slice(0, 10)); }}
+          >
+            This Week
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => { setFrom(monthStart.toISOString().slice(0, 10)); setTo(today.toISOString().slice(0, 10)); }}
+          >
+            This Month
+          </Button>
           <Link href={printHref} target="_blank"><Button><Printer className="h-4 w-4" /> Preview / PDF</Button></Link>
         </div>
 
@@ -1885,7 +1898,7 @@ function ReportsTab({ project }: { project: Project }) {
         </div>
 
         <div className="mt-4 border-t border-ink-100 pt-4">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-500">Completed This Week</p>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-500">Completed In This Period</p>
           {weekReports.length === 0 ? <p className="text-sm text-ink-400">No site reports logged in this range.</p> : (
             <ul className="list-disc space-y-1 pl-5 text-sm text-ink-700">
               {weekReports.map((r) => <li key={r.id}>{r.workDone || `${r.progressPct}% progress recorded`}</li>)}
@@ -1893,7 +1906,7 @@ function ReportsTab({ project }: { project: Project }) {
           )}
         </div>
 
-        <Field label="Next Week (for the printed report)" className="mt-4"><Textarea value={nextWeek} onChange={(e) => setNextWeek(e.target.value)} placeholder="Planned activities for next week…" /></Field>
+        <Field label="Planned Next (for the printed report)" className="mt-4"><Textarea value={nextWeek} onChange={(e) => setNextWeek(e.target.value)} placeholder="Planned activities for the next period…" /></Field>
       </Card>
 
       <Card title="Other reports">

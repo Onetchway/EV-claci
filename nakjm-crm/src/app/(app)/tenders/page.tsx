@@ -62,7 +62,12 @@ export default function TendersPage() {
       <PageHeader
         title="Tenders"
         description="Government and institutional tenders, from preparation through award."
-        actions={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New Tender</Button>}
+        actions={
+          <>
+            <Link href="/tenders/report" target="_blank"><Button variant="secondary">Tender Report</Button></Link>
+            <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New Tender</Button>
+          </>
+        }
       />
 
       <div className="mb-4 flex flex-wrap gap-3">
