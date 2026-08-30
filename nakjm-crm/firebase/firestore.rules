@@ -119,6 +119,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /vendorRatings/{ratingId} {
+      allow read: if signedIn();
+      allow create: if canManageMasterData();
+      allow update, delete: if false;
+    }
+
     match /teamMembers/{memberId} {
       allow read: if signedIn();
       allow create, update: if role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER'];

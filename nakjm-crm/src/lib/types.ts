@@ -97,6 +97,18 @@ export interface Vendor {
   updatedAt: TS;
 }
 
+export interface VendorRating {
+  id: string;
+  vendorId: string;
+  vendorName: string;
+  projectId?: string | null;
+  projectName?: string | null;
+  score: number;
+  notes?: string;
+  ratedBy: Actor;
+  createdAt: TS;
+}
+
 export interface TeamMember {
   id: string;
   name: string;
