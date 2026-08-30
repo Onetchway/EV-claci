@@ -1914,6 +1914,10 @@ function ReportsTab({ project }: { project: Project }) {
             <p className="font-medium text-navy-900">Stage-wise Client Report</p>
             <p className="text-xs text-ink-500">Client requirements, then every stage's tasks &amp; issues.</p>
           </Link>
+          <Link href={`/projects/${project.id}/reports/completion/print`} target="_blank" className="rounded-xl border border-ink-200 p-3 text-sm hover:bg-ink-50">
+            <p className="font-medium text-navy-900">Project Completion Report</p>
+            <p className="text-xs text-ink-500">Financials, handover status, punch list closure.</p>
+          </Link>
         </div>
       </Card>
     </div>
