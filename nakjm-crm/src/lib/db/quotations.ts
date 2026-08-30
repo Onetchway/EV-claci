@@ -43,6 +43,14 @@ export function subscribeQuotationsForProject(projectId: string, cb: (rows: Quot
   );
 }
 
+export function subscribeQuotationsForClient(clientId: string, cb: (rows: Quotation[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), QUOTATIONS), where("clientId", "==", clientId)),
+    (snap) => cb(snap.docs.map((d) => mapQuotation(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))),
+    (err) => onError?.(err as Error),
+  );
+}
+
 /** Org-wide — the top-level Quotations page across every project. */
 export function subscribeQuotations(cb: (rows: Quotation[]) => void, onError?: (e: Error) => void): () => void {
   return onSnapshot(

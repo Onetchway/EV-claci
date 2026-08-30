@@ -25,6 +25,14 @@ export function subscribePisForProject(projectId: string, cb: (rows: ProformaInv
   );
 }
 
+export function subscribePisForClient(clientId: string, cb: (rows: ProformaInvoice[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), PROFORMA_INVOICES), where("clientId", "==", clientId)),
+    (snap) => cb(snap.docs.map((d) => mapPi(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))),
+    (err) => onError?.(err as Error),
+  );
+}
+
 /** Org-wide — the top-level Proforma Invoices page across every project. */
 export function subscribeProformaInvoices(cb: (rows: ProformaInvoice[]) => void, onError?: (e: Error) => void): () => void {
   return onSnapshot(
