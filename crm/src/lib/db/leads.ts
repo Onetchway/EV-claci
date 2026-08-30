@@ -1234,6 +1234,12 @@ export const AGREEMENT_VERSIONS = "agreementVersions";
 export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc {
   const eoi = lead.eoi;
   const tenureYears = eoi?.tenureYears || lead.site?.tenureYears;
+  // The site's own manually-agreed figures (if set) beat whatever the EOI
+  // happened to carry — same override precedence used to build the EOI
+  // itself, so a value entered once on the lead stays authoritative
+  // everywhere it's used.
+  const minMonthlyPayout = lead.site?.minMonthlyPayout ?? eoi?.minMonthlyPayout;
+  const payoutMonths = lead.site?.payoutMonths ?? eoi?.payoutMonths;
   const perKwh = (n?: number) => (n ? `Rs. ${n.toFixed(2)} per kWh` : "");
   return {
     number,
@@ -1246,8 +1252,8 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
       siteAddress: lead.site?.address || lead.site?.locationName || "",
       chargerTypeCapacity: describeCapacity(lead.config),
       tenure: tenureYears ? `${tenureYears} years from the Commercial Commissioning Date` : "",
-      minimumAssuredAmount: eoi?.minMonthlyPayout ? `Rs. ${eoi.minMonthlyPayout.toLocaleString("en-IN")} per month` : "",
-      payoutPeriod: eoi?.payoutMonths ? `${eoi.payoutMonths} months from the Commercial Commissioning Date` : "",
+      minimumAssuredAmount: minMonthlyPayout ? `Rs. ${minMonthlyPayout.toLocaleString("en-IN")} per month` : "",
+      payoutPeriod: payoutMonths ? `${payoutMonths} months from the Commercial Commissioning Date` : "",
       livantoFee: perKwh(eoi?.livantoEarningPerKwh),
       discomFee: perKwh(eoi?.discomRatePerKwh),
       landUsageFee: perKwh(eoi?.siteOwnerSharePerKwh),

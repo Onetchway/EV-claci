@@ -77,7 +77,9 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
   // The site's own negotiated tenure (if set) beats the company-wide default —
   // it's the number that was actually agreed for this deal.
   const tenureYears = opts.tenureYears ?? lead.site?.tenureYears ?? opts.settings?.loi.tenureYears ?? DEFAULT_TENURE_YEARS;
-  const payoutMonths = opts.payoutMonths ?? opts.settings?.loi.payoutMonths ?? DEFAULT_PAYOUT_MONTHS;
+  // The site's own manually-agreed payout period (if set) beats every
+  // computed/default fallback — same reasoning as tenureYears above.
+  const payoutMonths = opts.payoutMonths ?? lead.site?.payoutMonths ?? opts.settings?.loi.payoutMonths ?? DEFAULT_PAYOUT_MONTHS;
   const shortName = opts.settings?.company.shortName?.trim() || COMPANY.shortName;
   const scopeItems = opts.settings?.loi.scopeItems?.length ? opts.settings.loi.scopeItems : DEFAULT_SCOPE_ITEMS;
   const signatory = opts.settings?.loi.signatory?.trim() || COMPANY.signatory;
@@ -155,7 +157,9 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     });
   }
 
-  const minMonthlyPayout = quote.projected.assuredMinMonthly;
+  // Same override precedence as payoutMonths — a manually agreed assured
+  // amount on the site beats the pricing engine's computed projection.
+  const minMonthlyPayout = lead.site?.minMonthlyPayout ?? quote.projected.assuredMinMonthly;
   const maxAggregateSupport = minMonthlyPayout * payoutMonths;
   const pronoun = pronounFor(salutationFor(lead));
 

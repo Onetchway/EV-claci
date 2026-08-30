@@ -305,6 +305,10 @@ export interface SiteInfo {
   b2bRatePerKwh?: number | null;
   /** Lease/hosting agreement tenure, in years. */
   tenureYears?: number | null;
+  /** Manually agreed payout period, in months from Commercial Commissioning — overrides the pricing engine's own assured-payout figures on both the EOI and the Agreement when set. */
+  payoutMonths?: number | null;
+  /** Manually agreed minimum assured monthly amount (₹) — overrides the pricing engine's computed figure on both the EOI and the Agreement when set. */
+  minMonthlyPayout?: number | null;
 }
 
 /**

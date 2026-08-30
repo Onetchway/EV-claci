@@ -544,6 +544,26 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 onChange={(e) => setSite({ tenureYears: e.target.value === "" ? null : Number(e.target.value) })}
               />
             </Field>
+            {values.type === "FRANCHISE" && (
+              <>
+                <Field label="Payout period (months)" hint="Overrides the computed default on the EOI and Agreement, once set.">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={values.site.payoutMonths ?? ""}
+                    onChange={(e) => setSite({ payoutMonths: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Minimum assured monthly amount (₹)" hint="Overrides the pricing engine's computed figure on the EOI and Agreement, once set.">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={values.site.minMonthlyPayout ?? ""}
+                    onChange={(e) => setSite({ minMonthlyPayout: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                </Field>
+              </>
+            )}
             {(isInstitutional || values.type === "FRANCHISE") && (
               <>
                 <Field label="Customer selling rate (₹/kWh)" hint="Retail rate charged to the EV driver at this site." required>
