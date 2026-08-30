@@ -131,6 +131,11 @@ export type PoStatus = (typeof PO_STATUSES)[number];
 export const PI_STATUSES = ["DRAFT", "SENT", "PAID", "PARTIALLY_PAID", "CANCELLED"] as const;
 export type PiStatus = (typeof PI_STATUSES)[number];
 
+/** Same total tax, different printed breakdown: IGST (inter-state) or CGST+SGST (intra-state). */
+export const GST_TYPES = ["IGST", "CGST_SGST"] as const;
+export type GstType = (typeof GST_TYPES)[number];
+export const GST_TYPE_LABEL: Record<GstType, string> = { IGST: "IGST", CGST_SGST: "CGST & SGST" };
+
 export const PAYMENT_MODES = ["BANK_TRANSFER", "CHEQUE", "UPI", "CASH", "OTHER"] as const;
 export type PaymentMode = (typeof PAYMENT_MODES)[number];
 

@@ -374,6 +374,7 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: "pos
 function QuotationsTab({ project }: { project: Project }) {
   const actor = useActor();
   const viewer = useViewer();
+  const router = useRouter();
   const [rows, setRows] = useState<Quotation[] | null>(null);
   const [boqs, setBoqs] = useState<Boq[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -386,18 +387,6 @@ function QuotationsTab({ project }: { project: Project }) {
 
   useEffect(() => subscribeQuotationsForProject(project.id, setRows), [project.id]);
   useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
-
-  async function generateFromBoq(boqId: string) {
-    if (!boqId) return;
-    const boq = boqs.find((b) => b.id === boqId);
-    if (!boq) return;
-    const version = await nextQuotationVersion(project.id);
-    setEditing(null);
-    setSourceBoqId(boqId);
-    setItems(boq.items.map((it) => ({ description: [it.section, it.description].filter(Boolean).join(" — "), unit: it.unit, qty: it.qty, rate: it.rate })));
-    setForm({ quotationNo: `${boq.boqNo}-Q${version}`, validUntil: "", taxPercent: "18", gstType: "IGST", terms: "", notes: `Generated from BOQ ${boq.boqNo} (v${boq.version})` });
-    setShowForm(true);
-  }
 
   function openEdit(q: Quotation) {
     setEditing(q);
@@ -458,12 +447,10 @@ function QuotationsTab({ project }: { project: Project }) {
             className="w-56"
             options={boqs.map((b) => ({ value: b.id, label: `${b.boqNo} (v${b.version})` }))}
             placeholder="Generate from BOQ…"
-            onChange={(e) => void generateFromBoq(e.target.value)}
+            onChange={(e) => { if (e.target.value) router.push(`/quotations/new?projectId=${project.id}&sourceBoqId=${e.target.value}`); }}
           />
         )}
-        <Button onClick={() => { setEditing(null); setSourceBoqId(null); setItems([]); setForm({ quotationNo: "", validUntil: "", taxPercent: "18", gstType: "IGST", terms: "", notes: "" }); setShowForm(true); }}>
-          <Plus className="h-4 w-4" /> New Quotation
-        </Button>
+        <Link href={`/quotations/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New Quotation</Button></Link>
       </div>
 
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
@@ -816,7 +803,7 @@ function PiTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Button onClick={() => { setEditing(null); setItems([]); setPoFile(null); setForm({ piNo: "", dueDate: "", milestone: "", taxAmount: "0", gstType: "IGST", terms: "", notes: "" }); setShowForm(true); }}><Plus className="h-4 w-4" /> New PI</Button></div>
+      <div className="flex justify-end"><Link href={`/proforma-invoices/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PI</Button></Link></div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No proforma invoices yet" />
       ) : (

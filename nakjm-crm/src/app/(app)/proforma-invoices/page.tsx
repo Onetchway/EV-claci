@@ -4,31 +4,17 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, Plus } from "lucide-react";
 
-import { useActor } from "@/components/auth-provider";
-import {
-  Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, StatCard, Textarea, useAsyncAction,
-} from "@/components/ui";
-import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
+import { Badge, Button, EmptyState, PageHeader, Select, StatCard } from "@/components/ui";
 import { PI_STATUSES, type PiStatus } from "@/lib/constants";
-import { subscribeProjects } from "@/lib/db/projects";
-import { createProformaInvoice, subscribeProformaInvoices } from "@/lib/db/proforma-invoices";
-import type { Project, ProformaInvoice } from "@/lib/types";
+import { subscribeProformaInvoices } from "@/lib/db/proforma-invoices";
+import type { ProformaInvoice } from "@/lib/types";
 import { formatCompactINR, formatINR } from "@/lib/utils";
 
-const EMPTY_FORM = { piNo: "", projectId: "", dueDate: "", milestone: "", taxAmount: "0", gstType: "IGST" as "IGST" | "CGST_SGST", terms: "", notes: "" };
-
 export default function ProformaInvoicesPage() {
-  const actor = useActor();
   const [rows, setRows] = useState<ProformaInvoice[] | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [status, setStatus] = useState<PiStatus | "ALL">("ALL");
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [items, setItems] = useState<DraftItem[]>([]);
-  const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribeProformaInvoices(setRows), []);
-  useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
 
   const filtered = useMemo(() => (!rows ? [] : status === "ALL" ? rows : rows.filter((r) => r.status === status)), [rows, status]);
 
@@ -42,21 +28,6 @@ export default function ProformaInvoicesPage() {
     };
   }, [rows]);
 
-  async function onCreate() {
-    if (!form.piNo.trim() || !form.projectId) return;
-    await run(async () => {
-      const project = projects.find((p) => p.id === form.projectId);
-      if (!project) return;
-      const pi = await createProformaInvoice({
-        piNo: form.piNo, projectId: form.projectId, projectName: project.name, clientId: project.clientId,
-        dueDate: form.dueDate ? new Date(form.dueDate) : null, milestone: form.milestone, items,
-        taxAmount: Number(form.taxAmount) || 0, gstType: form.gstType, terms: form.terms, notes: form.notes,
-      }, actor);
-      setShowForm(false); setForm(EMPTY_FORM); setItems([]);
-      window.location.href = `/proforma-invoices/${pi.id}`;
-    }, "Proforma invoice created.");
-  }
-
   return (
     <div>
       <PageHeader
@@ -65,7 +36,7 @@ export default function ProformaInvoicesPage() {
         actions={
           <>
             <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...PI_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))]} onChange={(e) => setStatus(e.target.value as PiStatus | "ALL")} />
-            <Button variant="primary" onClick={() => { setForm(EMPTY_FORM); setItems([]); setShowForm(true); }}><Plus className="h-4 w-4" /> New PI</Button>
+            <Link href="/proforma-invoices/new"><Button variant="primary"><Plus className="h-4 w-4" /> New PI</Button></Link>
           </>
         }
       />
@@ -80,7 +51,7 @@ export default function ProformaInvoicesPage() {
       {!rows ? (
         <p className="text-sm text-ink-400">Loading…</p>
       ) : filtered.length === 0 ? (
-        <EmptyState icon={<FileSpreadsheet className="h-8 w-8" />} title="No proforma invoices yet" description="Create one here, or from a project's Proforma Invoices tab — either way it links to the project." action={<Button variant="primary" onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New PI</Button>} />
+        <EmptyState icon={<FileSpreadsheet className="h-8 w-8" />} title="No proforma invoices yet" description="Create one here, or from a project's Proforma Invoices tab — either way it links to the project." action={<Link href="/proforma-invoices/new"><Button variant="primary"><Plus className="h-4 w-4" /> New PI</Button></Link>} />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
           <table className="w-full">
@@ -109,32 +80,6 @@ export default function ProformaInvoicesPage() {
           </table>
         </div>
       )}
-
-      <Modal
-        open={showForm}
-        onClose={() => setShowForm(false)}
-        title="New Proforma Invoice"
-        wide
-        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onCreate()} loading={busy}>Create</Button></>}
-      >
-        <div className="mb-4 grid grid-cols-3 gap-3">
-          <Field label="PI No." required><Input value={form.piNo} onChange={(e) => setForm((f) => ({ ...f, piNo: e.target.value }))} /></Field>
-          <Field label="Project" required>
-            <Select value={form.projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))} />
-          </Field>
-          <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
-          <Field label="Milestone"><Input value={form.milestone} onChange={(e) => setForm((f) => ({ ...f, milestone: e.target.value }))} /></Field>
-          <Field label="Tax Amount (₹)"><Input type="number" value={form.taxAmount} onChange={(e) => setForm((f) => ({ ...f, taxAmount: e.target.value }))} /></Field>
-          <Field label="GST Type">
-            <div className="flex items-center gap-4 pt-2 text-sm">
-              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "IGST"} onChange={() => setForm((f) => ({ ...f, gstType: "IGST" }))} /> IGST</label>
-              <label className="flex items-center gap-1.5"><input type="radio" checked={form.gstType === "CGST_SGST"} onChange={() => setForm((f) => ({ ...f, gstType: "CGST_SGST" }))} /> CGST &amp; SGST</label>
-            </div>
-          </Field>
-          <Field label="Terms &amp; Conditions" className="col-span-3"><Textarea value={form.terms} onChange={(e) => setForm((f) => ({ ...f, terms: e.target.value }))} /></Field>
-        </div>
-        <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
-      </Modal>
     </div>
   );
 }
