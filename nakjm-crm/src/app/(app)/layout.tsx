@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
+import { GlobalSearchModal } from "@/components/global-search-modal";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/constants";
 import { isAdmin } from "@/lib/permissions";
@@ -90,12 +91,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { loading, user, profile, role, configured, signOut } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && configured && !user) router.replace("/login");
   }, [loading, user, configured, router]);
 
   useEffect(() => setNavOpen(false), [pathname]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   if (!configured) {
     return (
@@ -144,6 +157,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <nav className="flex h-full flex-col">
       <div className="px-4 py-4"><Wordmark /></div>
+
+      <div className="px-3 pb-2">
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="flex w-full items-center gap-2 rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-500 hover:bg-ink-100"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="flex-1 text-left">Search everywhere…</span>
+          <kbd className="rounded border border-ink-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-ink-500">⌘K</kbd>
+        </button>
+      </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-2 scroll-thin">
         <NavList groups={groups} pathname={pathname} />
@@ -200,6 +224,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
       </div>
+
+      <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }
