@@ -2,9 +2,9 @@ import type { Timestamp } from "firebase/firestore";
 
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
-  ClientType, Department, DepreciationMethod, DocumentCategory, IssuePriority, IssueStatus, PaymentMode, PiStatus,
-  PoStatus, ProjectStatus, ProjectType, QuotationStatus, RfiStatus, Role, SiteReportType, StageStatus, TaskStatus,
-  TenderStatus, VendorCategory,
+  ClientType, Department, DepreciationMethod, DocumentCategory, InspectionResult, IssuePriority, IssueStatus,
+  NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, QuotationStatus, RfiStatus, Role,
+  SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -394,6 +394,38 @@ export interface Rfi {
   assignedToId?: string | null;
   assignedToName?: string;
   responses: RfiResponse[];
+  createdAt: TS;
+  updatedAt: TS;
+}
+
+export interface Inspection {
+  id: string;
+  projectId: string;
+  projectName: string;
+  stageId?: string | null;
+  stageName?: string;
+  checklist: string;
+  result: InspectionResult;
+  remarks?: string;
+  inspectedById?: string | null;
+  inspectedByName?: string;
+  inspectedAt: TS;
+  createdAt: TS;
+}
+
+export interface Ncr {
+  id: string;
+  projectId: string;
+  projectName: string;
+  stageId?: string | null;
+  stageName?: string;
+  issue: string;
+  location?: string;
+  responsiblePersonId?: string | null;
+  responsiblePersonName?: string;
+  correctiveAction?: string;
+  status: NcrStatus;
+  closureDate?: TS;
   createdAt: TS;
   updatedAt: TS;
 }

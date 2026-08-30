@@ -237,13 +237,29 @@ export const RFI_STATUS_META: Record<RfiStatus, { label: string; className: stri
 };
 
 // ---------------------------------------------------------------------------
+// Quality — lightweight inspections + NCRs. Not a full QMS per the brief.
+// ---------------------------------------------------------------------------
+
+export const INSPECTION_RESULTS = ["PASS", "FAIL", "PASS_WITH_OBSERVATIONS"] as const;
+export type InspectionResult = (typeof INSPECTION_RESULTS)[number];
+
+export const NCR_STATUSES = ["OPEN", "CORRECTIVE_ACTION", "CLOSED"] as const;
+export type NcrStatus = (typeof NCR_STATUSES)[number];
+
+export const NCR_STATUS_META: Record<NcrStatus, { label: string; className: string }> = {
+  OPEN: { label: "Open", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+  CORRECTIVE_ACTION: { label: "Corrective Action", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  CLOSED: { label: "Closed", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Audit log
 // ---------------------------------------------------------------------------
 
 export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
-  "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI",
+  "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -268,6 +284,8 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   MEASUREMENT: "Measurement",
   DOCUMENT: "Document",
   RFI: "RFI",
+  INSPECTION: "Inspection",
+  NCR: "NCR",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;

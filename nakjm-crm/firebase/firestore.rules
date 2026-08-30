@@ -213,6 +213,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /inspections/{inspectionId} {
+      allow read: if signedIn();
+      allow create: if canManageMasterData() || canSubmitSiteReports();
+      allow update, delete: if isAdmin();
+    }
+
+    match /ncrs/{ncrId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
     // ------------------------------------------------------------- site reports
 
     match /siteReports/{reportId} {

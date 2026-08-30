@@ -11,11 +11,12 @@ import {
   Select, StatCard, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
-  BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABEL, ISSUE_PRIORITIES, ISSUE_STATUSES,
-  PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, RFI_STATUSES, SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES,
-  TASK_STATUSES, statusMeta,
-  type BoqCategory, type DocumentCategory, type IssuePriority, type IssueStatus, type PaymentMode, type ProjectStatus,
-  type ProjectType, type RfiStatus, type SiteReportType, type StageStatus, type TaskStatus,
+  BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABEL, INSPECTION_RESULTS,
+  ISSUE_PRIORITIES, ISSUE_STATUSES, NCR_STATUSES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, RFI_STATUSES,
+  SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES, statusMeta,
+  type BoqCategory, type DocumentCategory, type InspectionResult, type IssuePriority, type IssueStatus,
+  type NcrStatus, type PaymentMode, type ProjectStatus, type ProjectType, type RfiStatus, type SiteReportType,
+  type StageStatus, type TaskStatus,
 } from "@/lib/constants";
 import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { parseBoqFile } from "@/lib/boq-parser";
@@ -24,6 +25,7 @@ import { listActiveClients } from "@/lib/db/clients";
 import { deleteDocument, subscribeDocumentsForProject, uploadDocument } from "@/lib/db/documents";
 import { createIssue, deleteIssue, subscribeIssuesForProject, updateIssue } from "@/lib/db/issues";
 import { recordMeasurement, subscribeMeasurementsForProject } from "@/lib/db/measurements";
+import { createInspection, createNcr, subscribeInspectionsForProject, subscribeNcrsForProject, updateNcr } from "@/lib/db/quality";
 import { createRfi, respondToRfi, subscribeRfisForProject, updateRfiStatus } from "@/lib/db/rfis";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
 import { createProformaInvoice, deleteProformaInvoice, subscribePisForProject, updateProformaInvoice } from "@/lib/db/proforma-invoices";
@@ -37,12 +39,12 @@ import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
-  Boq, BoqLineItem, Client, Issue, Measurement, NakjmDocument, Project, ProformaInvoice, ProjectStage, ProjectTask,
-  PurchaseOrder, Quotation, Rfi, SiteReport, TeamMember, Vendor,
+  Boq, BoqLineItem, Client, Inspection, Issue, Measurement, NakjmDocument, Ncr, Project, ProformaInvoice,
+  ProjectStage, ProjectTask, PurchaseOrder, Quotation, Rfi, SiteReport, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quality", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -199,6 +201,7 @@ export default function ProjectDetailPage() {
       {tab === "Measurements" && <MeasurementsTab project={project} />}
       {tab === "Issues" && <IssuesTab project={project} />}
       {tab === "RFI" && <RfiTab project={project} />}
+      {tab === "Quality" && <QualityTab project={project} />}
       {tab === "Quotations" && <QuotationsTab project={project} />}
       {tab === "BOQ" && <BoqTab project={project} />}
       {tab === "Purchase Orders" && <PoTab project={project} />}
@@ -1460,6 +1463,130 @@ function RfiTab({ project }: { project: Project }) {
           <Field label="Subject" required className="col-span-2"><Input value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} /></Field>
           <Field label="Question" required className="col-span-2"><Textarea value={form.question} onChange={(e) => setForm((f) => ({ ...f, question: e.target.value }))} /></Field>
           <Field label="Assign To" className="col-span-2"><Select value={form.assignedToId} placeholder="Unassigned" options={project.team.map((m) => ({ value: m.teamMemberId, label: m.name }))} onChange={(e) => setForm((f) => ({ ...f, assignedToId: e.target.value }))} /></Field>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Quality (Inspections + NCR) ───────────────────────────────────────
+function QualityTab({ project }: { project: Project }) {
+  const actor = useActor();
+  const viewer = useViewer();
+  const [inspections, setInspections] = useState<Inspection[] | null>(null);
+  const [ncrs, setNcrs] = useState<Ncr[] | null>(null);
+  const [showInspectionForm, setShowInspectionForm] = useState(false);
+  const [showNcrForm, setShowNcrForm] = useState(false);
+  const [inspectionForm, setInspectionForm] = useState({ checklist: "", result: "PASS" as InspectionResult, remarks: "" });
+  const [ncrForm, setNcrForm] = useState({ issue: "", location: "", responsiblePersonId: "" });
+  const [correctiveDrafts, setCorrectiveDrafts] = useState<Record<string, string>>({});
+  const { busy, run } = useAsyncAction();
+  const canManage = canManageIssues(viewer);
+
+  useEffect(() => subscribeInspectionsForProject(project.id, setInspections), [project.id]);
+  useEffect(() => subscribeNcrsForProject(project.id, setNcrs), [project.id]);
+
+  async function onAddInspection() {
+    if (!inspectionForm.checklist.trim()) return;
+    await run(async () => {
+      await createInspection({ projectId: project.id, projectName: project.name, ...inspectionForm }, actor);
+      setShowInspectionForm(false); setInspectionForm({ checklist: "", result: "PASS", remarks: "" });
+    }, "Inspection recorded.");
+  }
+
+  async function onAddNcr() {
+    if (!ncrForm.issue.trim()) return;
+    await run(async () => {
+      const person = project.team.find((m) => m.teamMemberId === ncrForm.responsiblePersonId);
+      await createNcr({
+        projectId: project.id, projectName: project.name, issue: ncrForm.issue, location: ncrForm.location,
+        responsiblePersonId: person?.teamMemberId ?? null, responsiblePersonName: person?.name,
+      }, actor);
+      setShowNcrForm(false); setNcrForm({ issue: "", location: "", responsiblePersonId: "" });
+    }, "NCR raised.");
+  }
+
+  async function onCloseNcr(ncr: Ncr) {
+    const correctiveAction = correctiveDrafts[ncr.id]?.trim() || ncr.correctiveAction;
+    await run(() => updateNcr(ncr, { correctiveAction, status: "CLOSED" }, actor), "NCR closed.");
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-navy-900">Inspections</h3>
+          {canManage && <Button size="sm" onClick={() => setShowInspectionForm(true)}><Plus className="h-3.5 w-3.5" /> Record Inspection</Button>}
+        </div>
+        {!inspections ? <p className="text-sm text-ink-400">Loading…</p> : inspections.length === 0 ? (
+          <EmptyState title="No inspections recorded" />
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+            <table className="w-full">
+              <thead><tr><th className="th">Checklist</th><th className="th">Result</th><th className="th">Remarks</th><th className="th">Inspected By</th><th className="th">Date</th></tr></thead>
+              <tbody>
+                {inspections.map((i) => (
+                  <tr key={i.id} className="border-t border-ink-100">
+                    <td className="td font-medium">{i.checklist}</td>
+                    <td className="td"><Badge className={i.result === "FAIL" ? "bg-rose-50 text-rose-700 ring-rose-200" : i.result === "PASS" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-amber-50 text-amber-700 ring-amber-200"}>{i.result.replace(/_/g, " ")}</Badge></td>
+                    <td className="td">{i.remarks || "—"}</td>
+                    <td className="td">{i.inspectedByName}</td>
+                    <td className="td">{formatDate(i.inspectedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-navy-900">NCRs (Non-Conformance Reports)</h3>
+          {canManage && <Button size="sm" onClick={() => setShowNcrForm(true)}><Plus className="h-3.5 w-3.5" /> Raise NCR</Button>}
+        </div>
+        {!ncrs ? <p className="text-sm text-ink-400">Loading…</p> : ncrs.length === 0 ? (
+          <EmptyState title="No NCRs raised" />
+        ) : (
+          <div className="space-y-3">
+            {ncrs.map((n) => (
+              <Card key={n.id}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-navy-900">{n.issue}</p>
+                    <p className="text-xs text-ink-500">{n.location || "—"} · Responsible: {n.responsiblePersonName || "Unassigned"}</p>
+                  </div>
+                  <Badge>{n.status.replace(/_/g, " ")}</Badge>
+                </div>
+                {n.correctiveAction && <p className="mt-2 text-sm text-ink-700">Corrective action: {n.correctiveAction}</p>}
+                {canManage && n.status !== "CLOSED" && (
+                  <div className="mt-3 flex items-end gap-2 border-t border-ink-100 pt-3">
+                    <Field label="Corrective action" className="flex-1">
+                      <Input defaultValue={n.correctiveAction} onChange={(e) => setCorrectiveDrafts((d) => ({ ...d, [n.id]: e.target.value }))} />
+                    </Field>
+                    <Button variant="secondary" onClick={() => void run(() => updateNcr(n, { correctiveAction: correctiveDrafts[n.id] ?? n.correctiveAction, status: "CORRECTIVE_ACTION" }, actor), "Updated.")} loading={busy}>Save</Button>
+                    <Button onClick={() => void onCloseNcr(n)} loading={busy}>Close</Button>
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Modal open={showInspectionForm} onClose={() => setShowInspectionForm(false)} title="Record Inspection" footer={<><Button variant="secondary" onClick={() => setShowInspectionForm(false)}>Cancel</Button><Button onClick={() => void onAddInspection()} loading={busy}>Save</Button></>}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Checklist / Item" required className="col-span-2"><Input value={inspectionForm.checklist} onChange={(e) => setInspectionForm((f) => ({ ...f, checklist: e.target.value }))} /></Field>
+          <Field label="Result"><Select value={inspectionForm.result} options={INSPECTION_RESULTS.map((r) => ({ value: r, label: r.replace(/_/g, " ") }))} onChange={(e) => setInspectionForm((f) => ({ ...f, result: e.target.value as InspectionResult }))} /></Field>
+          <Field label="Remarks" className="col-span-2"><Textarea value={inspectionForm.remarks} onChange={(e) => setInspectionForm((f) => ({ ...f, remarks: e.target.value }))} /></Field>
+        </div>
+      </Modal>
+
+      <Modal open={showNcrForm} onClose={() => setShowNcrForm(false)} title="Raise NCR" footer={<><Button variant="secondary" onClick={() => setShowNcrForm(false)}>Cancel</Button><Button onClick={() => void onAddNcr()} loading={busy}>Raise</Button></>}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Issue" required className="col-span-2"><Textarea value={ncrForm.issue} onChange={(e) => setNcrForm((f) => ({ ...f, issue: e.target.value }))} /></Field>
+          <Field label="Location"><Input value={ncrForm.location} onChange={(e) => setNcrForm((f) => ({ ...f, location: e.target.value }))} /></Field>
+          <Field label="Responsible Person"><Select value={ncrForm.responsiblePersonId} placeholder="Unassigned" options={project.team.map((m) => ({ value: m.teamMemberId, label: m.name }))} onChange={(e) => setNcrForm((f) => ({ ...f, responsiblePersonId: e.target.value }))} /></Field>
         </div>
       </Modal>
     </div>
