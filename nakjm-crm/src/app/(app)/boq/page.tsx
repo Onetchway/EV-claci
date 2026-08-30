@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, Plus } from "lucide-react";
 
 import { Badge, Button, EmptyState, PageHeader, Select, StatCard } from "@/components/ui";
+import { ExportButton } from "@/components/export-button";
 import { BOQ_STATUSES, type BoqStatus } from "@/lib/constants";
 import { subscribeBoqs } from "@/lib/db/boq";
 import type { Boq } from "@/lib/types";
@@ -35,6 +36,14 @@ export default function BoqListPage() {
         actions={
           <>
             <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...BOQ_STATUSES.map((s) => ({ value: s, label: s }))]} onChange={(e) => setStatus(e.target.value as BoqStatus | "ALL")} />
+            <ExportButton
+              filename="boq"
+              sheetName="BOQ"
+              rows={filtered.map((b) => ({
+                "BOQ No.": b.boqNo, Project: b.projectName, Site: b.siteName ?? "", Status: b.status,
+                Total: b.totalAmount, Date: formatDate(b.boqDate),
+              }))}
+            />
             <Link href="/boq/new"><Button variant="primary"><Plus className="h-4 w-4" /> New BOQ</Button></Link>
           </>
         }

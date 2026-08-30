@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Briefcase, Plus } from "lucide-react";
 
 import { Badge, Button, EmptyState, PageHeader, Select } from "@/components/ui";
+import { ExportButton } from "@/components/export-button";
 import { PROJECT_STATUSES, statusMeta, type ProjectStatus } from "@/lib/constants";
 import { subscribeProjects } from "@/lib/db/projects";
 import type { Project } from "@/lib/types";
@@ -28,6 +29,14 @@ export default function ProjectsPage() {
               options={[{ value: "ALL", label: "All statuses" }, ...PROJECT_STATUSES.map((s) => ({ value: s, label: statusMeta(s).label }))]}
               onChange={(e) => setStatus(e.target.value as ProjectStatus | "ALL")}
               className="w-44"
+            />
+            <ExportButton
+              filename="projects"
+              sheetName="Projects"
+              rows={(rows ?? []).map((p) => ({
+                Code: p.code, Name: p.name, Status: statusMeta(p.status).label, "Contract Value": p.contractValue,
+                Start: formatDate(p.startDate), "Target End": formatDate(p.targetEndDate),
+              }))}
             />
             <Link href="/projects/new"><Button><Plus className="h-4 w-4" /> New Project</Button></Link>
           </>

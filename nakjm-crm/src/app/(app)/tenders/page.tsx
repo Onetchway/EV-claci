@@ -8,6 +8,7 @@ import { useActor } from "@/components/auth-provider";
 import {
   Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, useAsyncAction,
 } from "@/components/ui";
+import { ExportButton } from "@/components/export-button";
 import { TENDER_STATUS_META, TENDER_STATUSES, type TenderStatus } from "@/lib/constants";
 import { listActiveClients } from "@/lib/db/clients";
 import { createTender, subscribeTenders } from "@/lib/db/tenders";
@@ -65,6 +66,14 @@ export default function TendersPage() {
         actions={
           <>
             <Link href="/tenders/report" target="_blank"><Button variant="secondary">Tender Report</Button></Link>
+            <ExportButton
+              filename="tenders"
+              sheetName="Tenders"
+              rows={filtered.map((t) => ({
+                Code: t.tenderCode, Title: t.title, Client: t.clientName, Authority: t.authority ?? "",
+                Status: TENDER_STATUS_META[t.status].label, Value: t.tenderValue ?? 0, Submission: formatDate(t.submissionDate),
+              }))}
+            />
             <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New Tender</Button>
           </>
         }

@@ -8,6 +8,7 @@ import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Avatar, Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, StatCard, useAsyncAction,
 } from "@/components/ui";
+import { ExportButton } from "@/components/export-button";
 import { DEPARTMENT_LABEL, EMPLOYMENT_TYPE_LABEL, ROLES, ROLE_LABEL, ROLL_STATUS_LABEL, type Role } from "@/lib/constants";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
@@ -85,7 +86,22 @@ export default function EmployeesPage() {
       <PageHeader
         title="Employees"
         description="Job title, department, employment type and payroll for every employee."
-        actions={canEdit ? <Button onClick={() => setAddOpen(true)}><UserPlus className="h-4 w-4" /> Add Employee</Button> : undefined}
+        actions={
+          <>
+            <ExportButton
+              filename="employees"
+              sheetName="Employees"
+              rows={visible.map((u) => ({
+                Name: u.name, Email: u.email, Designation: u.designation ?? "",
+                Department: u.department ? DEPARTMENT_LABEL[u.department] : "",
+                "Employment Type": u.employmentType ? EMPLOYMENT_TYPE_LABEL[u.employmentType] : "",
+                "Roll Status": u.rollStatus ? ROLL_STATUS_LABEL[u.rollStatus] : "",
+                "Monthly Salary": u.payroll?.monthlySalary ?? "",
+              }))}
+            />
+            {canEdit && <Button onClick={() => setAddOpen(true)}><UserPlus className="h-4 w-4" /> Add Employee</Button>}
+          </>
+        }
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">

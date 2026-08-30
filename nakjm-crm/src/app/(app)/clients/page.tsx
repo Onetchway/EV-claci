@@ -8,6 +8,7 @@ import { useActor } from "@/components/auth-provider";
 import {
   Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, useAsyncAction,
 } from "@/components/ui";
+import { ExportButton } from "@/components/export-button";
 import { CLIENT_TYPES, type ClientType } from "@/lib/constants";
 import { createClient, subscribeClients } from "@/lib/db/clients";
 import type { Client } from "@/lib/types";
@@ -45,7 +46,20 @@ export default function ClientsPage() {
       <PageHeader
         title="Clients"
         description="Who NAKJM builds for — OEMs, CPOs, private and government clients."
-        actions={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> Add Client</Button>}
+        actions={
+          <>
+            <ExportButton
+              filename="clients"
+              sheetName="Clients"
+              rows={filtered.map((c) => ({
+                Name: c.name, Type: c.clientType, Contact: c.contactName ?? "", Email: c.contactEmail ?? "",
+                Phone: c.contactPhone ?? "", City: c.city ?? "", State: c.state ?? "", GSTIN: c.gstin ?? "",
+                Status: c.active ? "Active" : "Inactive",
+              }))}
+            />
+            <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> Add Client</Button>
+          </>
+        }
       />
 
       <div className="relative mb-4 max-w-sm">

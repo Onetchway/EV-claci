@@ -7,10 +7,11 @@ import { FileText, Plus } from "lucide-react";
 import {
   Badge, Button, EmptyState, PageHeader, Select, StatCard,
 } from "@/components/ui";
+import { ExportButton } from "@/components/export-button";
 import { PO_STATUSES, type PoStatus } from "@/lib/constants";
 import { subscribePurchaseOrders } from "@/lib/db/purchase-orders";
 import type { PurchaseOrder } from "@/lib/types";
-import { formatCompactINR, formatINR } from "@/lib/utils";
+import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
 
 const OPEN_STATUSES: PoStatus[] = ["DRAFT", "ISSUED", "ACKNOWLEDGED", "PARTIALLY_DELIVERED"];
 
@@ -41,6 +42,14 @@ export default function PurchaseOrdersPage() {
         actions={
           <>
             <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...PO_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))]} onChange={(e) => setStatus(e.target.value as PoStatus | "ALL")} />
+            <ExportButton
+              filename="purchase-orders"
+              sheetName="Purchase Orders"
+              rows={filtered.map((po) => ({
+                "PO No.": po.poNo, Vendor: po.vendorName, Project: po.projectName, Status: po.status.replace(/_/g, " "),
+                Total: po.totalAmount, Paid: po.paidAmount, Date: formatDate(po.poDate),
+              }))}
+            />
             <Link href="/purchase-orders/new"><Button variant="primary"><Plus className="h-4 w-4" /> New PO</Button></Link>
           </>
         }
