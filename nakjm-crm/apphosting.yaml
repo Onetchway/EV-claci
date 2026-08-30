@@ -44,19 +44,15 @@ env:
     value: "1:981864653831:web:f0fe8a64a7746ac56436a2"
     availability: [BUILD, RUNTIME]
 
+  # Powers "Auto-fill from PO/WO" on the New Project page.
+  - variable: ANTHROPIC_API_KEY
+    secret: nakjm-crm-anthropic-key
+    availability: [RUNTIME]
+
 # If you ever need to run this somewhere without Application Default
 # Credentials, store the service-account JSON in Cloud Secret Manager and
 # reference it here instead of pasting the key inline:
 #
 #   - variable: FIREBASE_SERVICE_ACCOUNT_KEY
 #     secret: nakjm-crm-service-account
-#     availability: [RUNTIME]
-
-# Optional — powers "Auto-fill from PO/WO" on the New Project page. Without
-# it that one button is disabled with an explanatory message; nothing else
-# is affected. Get a key at console.anthropic.com, store it in Secret
-# Manager, then uncomment:
-#
-#   - variable: ANTHROPIC_API_KEY
-#     secret: nakjm-crm-anthropic-key
 #     availability: [RUNTIME]
