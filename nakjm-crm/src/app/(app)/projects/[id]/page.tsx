@@ -12,10 +12,10 @@ import {
 } from "@/components/ui";
 import {
   BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABEL, ISSUE_PRIORITIES, ISSUE_STATUSES,
-  PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES,
-  statusMeta,
+  PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, RFI_STATUSES, SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES,
+  TASK_STATUSES, statusMeta,
   type BoqCategory, type DocumentCategory, type IssuePriority, type IssueStatus, type PaymentMode, type ProjectStatus,
-  type ProjectType, type SiteReportType, type StageStatus, type TaskStatus,
+  type ProjectType, type RfiStatus, type SiteReportType, type StageStatus, type TaskStatus,
 } from "@/lib/constants";
 import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { parseBoqFile } from "@/lib/boq-parser";
@@ -24,6 +24,7 @@ import { listActiveClients } from "@/lib/db/clients";
 import { deleteDocument, subscribeDocumentsForProject, uploadDocument } from "@/lib/db/documents";
 import { createIssue, deleteIssue, subscribeIssuesForProject, updateIssue } from "@/lib/db/issues";
 import { recordMeasurement, subscribeMeasurementsForProject } from "@/lib/db/measurements";
+import { createRfi, respondToRfi, subscribeRfisForProject, updateRfiStatus } from "@/lib/db/rfis";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
 import { createProformaInvoice, deleteProformaInvoice, subscribePisForProject, updateProformaInvoice } from "@/lib/db/proforma-invoices";
 import { assignTeamMember, subscribeProject, subscribeSubprojects, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
@@ -37,11 +38,11 @@ import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
   Boq, BoqLineItem, Client, Issue, Measurement, NakjmDocument, Project, ProformaInvoice, ProjectStage, ProjectTask,
-  PurchaseOrder, Quotation, SiteReport, TeamMember, Vendor,
+  PurchaseOrder, Quotation, Rfi, SiteReport, TeamMember, Vendor,
 } from "@/lib/types";
-import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
+import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -197,6 +198,7 @@ export default function ProjectDetailPage() {
       {tab === "Stages & Tasks" && <StagesTasksTab project={project} />}
       {tab === "Measurements" && <MeasurementsTab project={project} />}
       {tab === "Issues" && <IssuesTab project={project} />}
+      {tab === "RFI" && <RfiTab project={project} />}
       {tab === "Quotations" && <QuotationsTab project={project} />}
       {tab === "BOQ" && <BoqTab project={project} />}
       {tab === "Purchase Orders" && <PoTab project={project} />}
@@ -1365,6 +1367,99 @@ function DocumentsTab({ project }: { project: Project }) {
           <Field label="File" required className="col-span-2"><input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full text-sm" /></Field>
           <Field label="Category" required><Select value={docType} options={DOCUMENT_CATEGORIES.map((c) => ({ value: c, label: DOCUMENT_CATEGORY_LABEL[c] }))} onChange={(e) => setDocType(e.target.value as DocumentCategory)} /></Field>
           <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── RFI ────────────────────────────────────────────────────────────────
+function RfiTab({ project }: { project: Project }) {
+  const actor = useActor();
+  const viewer = useViewer();
+  const [rfis, setRfis] = useState<Rfi[] | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ subject: "", question: "", assignedToId: "" });
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const { busy, run } = useAsyncAction();
+  const canManage = canManageIssues(viewer);
+
+  useEffect(() => subscribeRfisForProject(project.id, setRfis), [project.id]);
+
+  async function onCreate() {
+    if (!form.subject.trim() || !form.question.trim()) return;
+    await run(async () => {
+      const assignee = project.team.find((m) => m.teamMemberId === form.assignedToId);
+      await createRfi({
+        projectId: project.id, projectName: project.name, subject: form.subject, question: form.question,
+        assignedToId: assignee?.teamMemberId ?? null, assignedToName: assignee?.name,
+      }, actor);
+      setShowForm(false); setForm({ subject: "", question: "", assignedToId: "" });
+    }, "RFI raised.");
+  }
+
+  async function onRespond(rfi: Rfi, closeIt: boolean) {
+    const message = replyDrafts[rfi.id]?.trim();
+    if (!message) return;
+    await run(async () => {
+      await respondToRfi(rfi, message, actor, closeIt);
+      setReplyDrafts((d) => ({ ...d, [rfi.id]: "" }));
+    }, closeIt ? "RFI closed." : "Response added.");
+  }
+
+  return (
+    <div className="space-y-4">
+      {canManage && <div className="flex justify-end"><Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> Raise RFI</Button></div>}
+
+      {!rfis ? <p className="text-sm text-ink-400">Loading…</p> : rfis.length === 0 ? (
+        <EmptyState title="No RFIs yet" description="A site clarification request — a missing dimension, an unclear spec — with a full response history." />
+      ) : (
+        <div className="space-y-3">
+          {rfis.map((rfi) => (
+            <Card key={rfi.id}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-navy-900">{rfi.subject}</p>
+                  <p className="mt-1 text-sm text-ink-600">{rfi.question}</p>
+                  <p className="mt-1 text-xs text-ink-400">Raised by {rfi.raisedByName} · {rfi.assignedToName ? `Assigned to ${rfi.assignedToName}` : "Unassigned"}</p>
+                </div>
+                {canManage ? (
+                  <Select value={rfi.status} className="w-auto" options={RFI_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))} onChange={(e) => void run(() => updateRfiStatus(rfi, e.target.value as RfiStatus, actor), "Updated.")} />
+                ) : (
+                  <Badge>{rfi.status.replace(/_/g, " ")}</Badge>
+                )}
+              </div>
+
+              {rfi.responses.length > 0 && (
+                <div className="mt-3 space-y-2 border-t border-ink-100 pt-3">
+                  {rfi.responses.map((r, i) => (
+                    <div key={i} className="rounded-lg bg-ink-50 px-3 py-2 text-sm">
+                      <p className="text-ink-700">{r.message}</p>
+                      <p className="mt-1 text-xs text-ink-400">{r.byName} · {formatDateTime(r.at)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {canManage && rfi.status !== "CLOSED" && (
+                <div className="mt-3 flex items-end gap-2 border-t border-ink-100 pt-3">
+                  <Field label="Response" className="flex-1">
+                    <Textarea value={replyDrafts[rfi.id] ?? ""} onChange={(e) => setReplyDrafts((d) => ({ ...d, [rfi.id]: e.target.value }))} />
+                  </Field>
+                  <Button variant="secondary" onClick={() => void onRespond(rfi, false)} loading={busy}>Respond</Button>
+                  <Button onClick={() => void onRespond(rfi, true)} loading={busy}>Respond & Close</Button>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Raise RFI" footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onCreate()} loading={busy}>Raise</Button></>}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Subject" required className="col-span-2"><Input value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} /></Field>
+          <Field label="Question" required className="col-span-2"><Textarea value={form.question} onChange={(e) => setForm((f) => ({ ...f, question: e.target.value }))} /></Field>
+          <Field label="Assign To" className="col-span-2"><Select value={form.assignedToId} placeholder="Unassigned" options={project.team.map((m) => ({ value: m.teamMemberId, label: m.name }))} onChange={(e) => setForm((f) => ({ ...f, assignedToId: e.target.value }))} /></Field>
         </div>
       </Modal>
     </div>

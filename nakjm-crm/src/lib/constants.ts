@@ -222,13 +222,28 @@ export const ISSUE_STATUS_META: Record<IssueStatus, { label: string; className: 
 };
 
 // ---------------------------------------------------------------------------
+// RFI — Request for Information, a lightweight clarification thread.
+// ---------------------------------------------------------------------------
+
+export const RFI_STATUSES = ["OPEN", "ASSIGNED", "RESPONSE_REQUIRED", "CLARIFIED", "CLOSED"] as const;
+export type RfiStatus = (typeof RFI_STATUSES)[number];
+
+export const RFI_STATUS_META: Record<RfiStatus, { label: string; className: string }> = {
+  OPEN: { label: "Open", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  ASSIGNED: { label: "Assigned", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  RESPONSE_REQUIRED: { label: "Response Required", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  CLARIFIED: { label: "Clarified", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  CLOSED: { label: "Closed", className: "bg-ink-100 text-ink-500 ring-ink-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Audit log
 // ---------------------------------------------------------------------------
 
 export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
-  "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT",
+  "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -252,6 +267,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   ISSUE: "Issue",
   MEASUREMENT: "Measurement",
   DOCUMENT: "Document",
+  RFI: "RFI",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;

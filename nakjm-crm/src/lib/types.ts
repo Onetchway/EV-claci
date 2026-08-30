@@ -3,8 +3,8 @@ import type { Timestamp } from "firebase/firestore";
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
   ClientType, Department, DepreciationMethod, DocumentCategory, IssuePriority, IssueStatus, PaymentMode, PiStatus,
-  PoStatus, ProjectStatus, ProjectType, QuotationStatus, Role, SiteReportType, StageStatus, TaskStatus, TenderStatus,
-  VendorCategory,
+  PoStatus, ProjectStatus, ProjectType, QuotationStatus, RfiStatus, Role, SiteReportType, StageStatus, TaskStatus,
+  TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -371,6 +371,31 @@ export interface Measurement {
   updatedAt: TS;
   updatedById?: string | null;
   updatedByName?: string;
+}
+
+export interface RfiResponse {
+  byId: string;
+  byName: string;
+  message: string;
+  at: TS;
+}
+
+export interface Rfi {
+  id: string;
+  projectId: string;
+  projectName: string;
+  stageId?: string | null;
+  stageName?: string;
+  subject: string;
+  question: string;
+  status: RfiStatus;
+  raisedById?: string | null;
+  raisedByName?: string;
+  assignedToId?: string | null;
+  assignedToName?: string;
+  responses: RfiResponse[];
+  createdAt: TS;
+  updatedAt: TS;
 }
 
 export interface Issue {
