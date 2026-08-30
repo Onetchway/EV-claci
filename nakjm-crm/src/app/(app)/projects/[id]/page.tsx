@@ -11,16 +11,17 @@ import {
   Select, StatCard, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
-  BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, ISSUE_PRIORITIES, ISSUE_STATUSES, PAYMENT_MODES, PROJECT_STATUSES,
-  PROJECT_TYPES, SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES, statusMeta,
-  type BoqCategory, type IssuePriority, type IssueStatus, type PaymentMode, type ProjectStatus, type ProjectType,
-  type SiteReportType, type StageStatus, type TaskStatus,
+  BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABEL, ISSUE_PRIORITIES, ISSUE_STATUSES,
+  PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES,
+  statusMeta,
+  type BoqCategory, type DocumentCategory, type IssuePriority, type IssueStatus, type PaymentMode, type ProjectStatus,
+  type ProjectType, type SiteReportType, type StageStatus, type TaskStatus,
 } from "@/lib/constants";
 import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { parseBoqFile } from "@/lib/boq-parser";
 import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, updateBoq } from "@/lib/db/boq";
 import { listActiveClients } from "@/lib/db/clients";
-import { uploadDocument } from "@/lib/db/documents";
+import { deleteDocument, subscribeDocumentsForProject, uploadDocument } from "@/lib/db/documents";
 import { createIssue, deleteIssue, subscribeIssuesForProject, updateIssue } from "@/lib/db/issues";
 import { recordMeasurement, subscribeMeasurementsForProject } from "@/lib/db/measurements";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
@@ -35,12 +36,12 @@ import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
-  Boq, BoqLineItem, Client, Issue, Measurement, Project, ProformaInvoice, ProjectStage, ProjectTask, PurchaseOrder,
-  Quotation, SiteReport, TeamMember, Vendor,
+  Boq, BoqLineItem, Client, Issue, Measurement, NakjmDocument, Project, ProformaInvoice, ProjectStage, ProjectTask,
+  PurchaseOrder, Quotation, SiteReport, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -203,6 +204,7 @@ export default function ProjectDetailPage() {
       {tab === "Payments" && <PaymentsTab project={project} />}
       {tab === "Team" && <TeamTab project={project} />}
       {tab === "Site Reports" && <SiteReportsTab project={project} />}
+      {tab === "Documents" && <DocumentsTab project={project} />}
     </div>
   );
 }
@@ -1296,6 +1298,73 @@ function IssuesTab({ project }: { project: Project }) {
           <Field label="Priority"><Select value={form.priority} options={ISSUE_PRIORITIES.map((p) => ({ value: p, label: p }))} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value as IssuePriority }))} /></Field>
           <Field label="Assignee"><Select value={form.assigneeId} placeholder="Unassigned" options={project.team.map((m) => ({ value: m.teamMemberId, label: m.name }))} onChange={(e) => setForm((f) => ({ ...f, assigneeId: e.target.value }))} /></Field>
           <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Documents ──────────────────────────────────────────────────────────
+function DocumentsTab({ project }: { project: Project }) {
+  const actor = useActor();
+  const viewer = useViewer();
+  const [rows, setRows] = useState<NakjmDocument[] | null>(null);
+  const [category, setCategory] = useState<DocumentCategory | "ALL">("ALL");
+  const [showForm, setShowForm] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState<DocumentCategory>("OTHER");
+  const [notes, setNotes] = useState("");
+  const { busy, run } = useAsyncAction();
+  const canUpload = canManageTasks(viewer);
+  const canDelete = canManageStages(viewer);
+
+  useEffect(() => subscribeDocumentsForProject(project.id, setRows), [project.id]);
+
+  const filtered = (rows ?? []).filter((d) => category === "ALL" || d.docType === category);
+
+  async function onUpload() {
+    if (!file) return;
+    await run(async () => {
+      await uploadDocument({ file, projectId: project.id, docType, notes, actor });
+      setShowForm(false); setFile(null); setDocType("OTHER"); setNotes("");
+    }, "Document uploaded.");
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Select value={category} className="w-auto" options={[{ value: "ALL", label: "All categories" }, ...DOCUMENT_CATEGORIES.map((c) => ({ value: c, label: DOCUMENT_CATEGORY_LABEL[c] }))]} onChange={(e) => setCategory(e.target.value as DocumentCategory | "ALL")} />
+        {canUpload && <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> Upload</Button>}
+      </div>
+
+      {!rows ? <p className="text-sm text-ink-400">Loading…</p> : filtered.length === 0 ? (
+        <EmptyState title="No documents yet" description="Drawings, approvals, technical documents, inspection reports, DPR photos — everything for this project lives here, categorised." />
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+          <table className="w-full">
+            <thead><tr><th className="th">File</th><th className="th">Category</th><th className="th">Uploaded By</th><th className="th">Date</th><th className="th" /></tr></thead>
+            <tbody>
+              {filtered.map((d) => (
+                <tr key={d.id} className="border-t border-ink-100">
+                  <td className="td font-medium"><a href={d.downloadUrl} target="_blank" rel="noreferrer" className="text-brand-700 hover:underline">{d.fileName}</a></td>
+                  <td className="td"><Badge>{DOCUMENT_CATEGORY_LABEL[d.docType]}</Badge></td>
+                  <td className="td">{d.uploadedBy?.name || "—"}</td>
+                  <td className="td">{formatDate(d.createdAt)}</td>
+                  <td className="td text-right">
+                    {canDelete && <button onClick={() => void run(async () => { await deleteDocument(d, actor); }, "Document deleted.")} disabled={busy}><Trash2 className="h-4 w-4 text-rose-500" /></button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Upload Document" footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onUpload()} loading={busy}>Upload</Button></>}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="File" required className="col-span-2"><input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full text-sm" /></Field>
+          <Field label="Category" required><Select value={docType} options={DOCUMENT_CATEGORIES.map((c) => ({ value: c, label: DOCUMENT_CATEGORY_LABEL[c] }))} onChange={(e) => setDocType(e.target.value as DocumentCategory)} /></Field>
+          <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
         </div>
       </Modal>
     </div>

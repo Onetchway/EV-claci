@@ -2,7 +2,7 @@ import type { Timestamp } from "firebase/firestore";
 
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
-  ClientType, Department, DepreciationMethod, IssuePriority, IssueStatus, PaymentMode, PiStatus,
+  ClientType, Department, DepreciationMethod, DocumentCategory, IssuePriority, IssueStatus, PaymentMode, PiStatus,
   PoStatus, ProjectStatus, ProjectType, QuotationStatus, Role, SiteReportType, StageStatus, TaskStatus, TenderStatus,
   VendorCategory,
 } from "./constants";
@@ -425,7 +425,7 @@ export interface Activity {
 export interface NakjmDocument {
   id: string;
   projectId?: string | null;
-  docType: "CLIENT_PO" | "WORK_ORDER" | "BOQ_UPLOAD" | "QUOTATION_UPLOAD" | "OTHER";
+  docType: DocumentCategory;
   fileName: string;
   storagePath: string;
   downloadUrl: string;

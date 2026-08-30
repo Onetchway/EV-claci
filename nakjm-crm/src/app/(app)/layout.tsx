@@ -5,9 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Boxes, Briefcase, Building2, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Cog,
-  FileSignature, FileSpreadsheet, FileText, Gavel, History, LayoutDashboard, Layers, LogOut, Menu, Search, ShieldCheck,
-  Trash2, Truck, Users, Users2, Wallet, X,
+  AlertTriangle, Boxes, Briefcase, Building2, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Cog,
+  FileSignature, FileSpreadsheet, FileText, Gavel, History, LayoutDashboard, Layers, LogOut, Menu, Search,
+  ShieldCheck, Trash2, Truck, Users, Users2, Wallet, X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -54,6 +54,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/payments", label: "Payments", icon: Wallet },
       { href: "/assets", label: "Asset Register", icon: Boxes },
       { href: "/team", label: "Team Assignments", icon: ClipboardList },
+      { href: "/documents", label: "Documents", icon: FileText },
+      { href: "/issues", label: "Issues", icon: AlertTriangle },
     ],
   },
   {

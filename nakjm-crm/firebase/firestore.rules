@@ -219,8 +219,9 @@ service cloud.firestore {
 
     match /documents/{documentId} {
       allow read: if signedIn();
-      allow create: if canManageMasterData() || canManagePayments();
-      allow update, delete: if isAdmin();
+      allow create: if canManageMasterData() || canManagePayments() || canSubmitSiteReports();
+      allow update: if canManageMasterData() || isAdmin();
+      allow delete: if canManageMasterData() || isAdmin();
     }
 
     // ------------------------------------------------------------- audit log

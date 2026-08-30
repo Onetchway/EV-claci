@@ -178,6 +178,26 @@ export const TASK_STATUS_META: Record<TaskStatus, { label: string; className: st
 };
 
 // ---------------------------------------------------------------------------
+// Documents — central repository, categorised, per the brief's Document
+// Management module. CLIENT_PO / WORK_ORDER / BOQ_UPLOAD / QUOTATION_UPLOAD
+// are the categories the app itself writes when a PO/BOQ/quotation source
+// file is attached; the rest are user-driven uploads on a project.
+// ---------------------------------------------------------------------------
+
+export const DOCUMENT_CATEGORIES = [
+  "CLIENT_PO", "WORK_ORDER", "TENDER", "BOQ_UPLOAD", "QUOTATION_UPLOAD", "DRAWING", "TECHNICAL",
+  "APPROVAL", "DPR", "MEASUREMENT", "PHOTO", "INSPECTION", "COMPLETION", "OTHER",
+] as const;
+export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
+
+export const DOCUMENT_CATEGORY_LABEL: Record<DocumentCategory, string> = {
+  CLIENT_PO: "Client PO", WORK_ORDER: "Work Order", TENDER: "Tender Document", BOQ_UPLOAD: "BOQ",
+  QUOTATION_UPLOAD: "Quotation", DRAWING: "Drawing", TECHNICAL: "Technical Document", APPROVAL: "Approval",
+  DPR: "DPR", MEASUREMENT: "Measurement", PHOTO: "Photo", INSPECTION: "Inspection Report",
+  COMPLETION: "Completion Document", OTHER: "Other",
+};
+
+// ---------------------------------------------------------------------------
 // Issues — lightweight site issue tracker, scoped to a project/stage.
 // ---------------------------------------------------------------------------
 
@@ -208,7 +228,7 @@ export const ISSUE_STATUS_META: Record<IssueStatus, { label: string; className: 
 export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
-  "STAGE", "TASK", "ISSUE", "MEASUREMENT",
+  "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -231,6 +251,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   TASK: "Task",
   ISSUE: "Issue",
   MEASUREMENT: "Measurement",
+  DOCUMENT: "Document",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;

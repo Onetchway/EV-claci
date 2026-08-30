@@ -23,7 +23,16 @@ export function subscribeIssuesForProject(projectId: string, cb: (rows: Issue[])
   );
 }
 
-/** Org-wide — for a future Issues rollup on the dashboard/report centre. */
+/** Org-wide — the top-level Issues page across every project. */
+export function subscribeIssues(cb: (rows: Issue[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), ISSUES)),
+    (snap) => cb(snap.docs.map((d) => mapIssue(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))),
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Open-only, for a future dashboard/report centre rollup. */
 export function subscribeOpenIssues(cb: (rows: Issue[]) => void, onError?: (e: Error) => void): () => void {
   return onSnapshot(
     query(collection(getDb(), ISSUES), where("status", "in", ["OPEN", "IN_PROGRESS"])),
