@@ -3,7 +3,7 @@ import type { Timestamp } from "firebase/firestore";
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
   ClientType, Department, DepreciationMethod, PaymentMode, PiStatus,
-  PoStatus, ProjectStatus, ProjectType, QuotationStatus, Role, SiteReportType,
+  PoStatus, ProjectStatus, ProjectType, QuotationStatus, Role, SiteReportType, TenderStatus,
   VendorCategory,
 } from "./constants";
 
@@ -108,6 +108,36 @@ export interface TeamMember {
 }
 
 // ---------------------------------------------------------------------------
+// Tenders
+// ---------------------------------------------------------------------------
+
+export interface Tender {
+  id: string;
+  tenderCode: string;
+  tenderNumber?: string;
+  title: string;
+  clientId: string;
+  clientName: string;
+  department?: string;
+  authority?: string;
+  location?: string;
+  tenderValue?: number;
+  emdAmount?: number;
+  tenderFee?: number;
+  submissionDate?: TS;
+  openingDate?: TS;
+  status: TenderStatus;
+  notes?: string;
+  linkedProjectId?: string | null;
+  deletedAt?: TS;
+  deletedBy?: Actor | null;
+  search: string[];
+  createdAt: TS;
+  updatedAt: TS;
+  createdBy?: Actor;
+}
+
+// ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
 
@@ -148,6 +178,9 @@ export interface Project {
   notes?: string;
   team: ProjectTeamAssignment[];
   sourceDocumentId?: string | null;
+  tenderId?: string | null;
+  parentProjectId?: string | null;
+  parentProjectCode?: string | null;
   deletedAt?: TS;
   deletedBy?: Actor | null;
   search: string[];

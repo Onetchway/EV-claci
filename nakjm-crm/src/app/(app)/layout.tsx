@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Boxes, Briefcase, Building2, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Cog,
-  FileSignature, FileSpreadsheet, FileText, History, LayoutDashboard, LogOut, Menu, Search, ShieldCheck,
+  FileSignature, FileSpreadsheet, FileText, Gavel, History, LayoutDashboard, LogOut, Menu, Search, ShieldCheck,
   Trash2, Truck, Users, Users2, Wallet, X,
 } from "lucide-react";
 
@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/clients", label: "Clients", icon: Building2 },
+      { href: "/tenders", label: "Tenders", icon: Gavel },
     ],
   },
   {

@@ -125,6 +125,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ------------------------------------------------------------------ tenders
+
+    match /tenders/{tenderId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData();
+      allow delete: if isSuperAdmin();
+    }
+
     // ------------------------------------------------------------------ projects
 
     match /projects/{projectId} {

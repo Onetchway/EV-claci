@@ -1,17 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { Upload } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
-import { Button, Card, Field, Input, PageHeader, Select, Textarea, useAsyncAction } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, PageHeader, Select, Textarea, useAsyncAction } from "@/components/ui";
 import { PROJECT_STATUSES, PROJECT_TYPES, statusMeta, type ProjectStatus, type ProjectType } from "@/lib/constants";
 import { listActiveClients } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
-import { createProject } from "@/lib/db/projects";
+import { createProject, getProject } from "@/lib/db/projects";
+import { linkTenderToProject } from "@/lib/db/tenders";
 import { listActiveTeamMembers } from "@/lib/db/team-members";
-import type { Client, TeamMember } from "@/lib/types";
+import type { Client, Project, TeamMember } from "@/lib/types";
 
 const EMPTY = {
   name: "", clientId: "", projectType: "EV_CHARGING_STATION" as ProjectType, city: "", state: "", address: "",
@@ -20,16 +21,43 @@ const EMPTY = {
 };
 
 export default function NewProjectPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewProjectForm />
+    </Suspense>
+  );
+}
+
+function NewProjectForm() {
   const router = useRouter();
   const actor = useActor();
   const { busy, run } = useAsyncAction();
+  const params = useSearchParams();
+  const tenderId = params.get("tenderId");
+  const parentProjectId = params.get("parentProjectId");
 
   const [clients, setClients] = useState<Client[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [parentProject, setParentProject] = useState<Project | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [poFile, setPoFile] = useState<File | null>(null);
 
   useEffect(() => { void listActiveClients().then(setClients); void listActiveTeamMembers().then(setTeam); }, []);
+
+  useEffect(() => {
+    const clientId = params.get("clientId");
+    const name = params.get("name");
+    const contractValue = params.get("contractValue");
+    if (clientId || name || contractValue) {
+      setForm((f) => ({
+        ...f,
+        clientId: clientId ?? f.clientId,
+        name: name ?? f.name,
+        contractValue: contractValue ?? f.contractValue,
+      }));
+    }
+    if (parentProjectId) void getProject(parentProjectId).then(setParentProject);
+  }, [params, parentProjectId]);
 
   async function onCreate() {
     if (!form.name.trim() || !form.clientId) return;
@@ -57,16 +85,33 @@ export default function NewProjectPage() {
           budgetAmount: Number(form.budgetAmount) || 0,
           contractValue: Number(form.contractValue) || 0,
           sourceDocumentId,
+          tenderId: tenderId || null,
+          parentProjectId: parentProjectId || null,
+          parentProjectCode: parentProject?.code ?? null,
         },
         actor,
       );
+      if (tenderId) await linkTenderToProject(tenderId, project.id);
       router.push(`/projects/${project.id}`);
     }, "Project created.");
   }
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="New Project" description="Start from scratch, or bootstrap it from a client PO / work order." />
+      <PageHeader
+        title={parentProject ? `New Sub-project of ${parentProject.code}` : "New Project"}
+        description={
+          parentProject
+            ? `Under ${parentProject.name} — inherits nothing automatically, fill in this sub-project's own scope.`
+            : "Start from scratch, or bootstrap it from a client PO / work order."
+        }
+      />
+      {(parentProject || tenderId) && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {parentProject && <Badge className="bg-indigo-50 text-indigo-700 ring-indigo-200">Parent project: {parentProject.code}</Badge>}
+          {tenderId && <Badge className="bg-violet-50 text-violet-700 ring-violet-200">Linked to a tender</Badge>}
+        </div>
+      )}
       <Card>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Project Name" required className="col-span-2">

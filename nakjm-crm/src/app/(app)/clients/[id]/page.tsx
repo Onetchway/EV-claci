@@ -9,14 +9,16 @@ import { Badge, Button, Field, Input, Modal, Select, StatCard, useAsyncAction } 
 import { updateClient, subscribeClient } from "@/lib/db/clients";
 import { listProjectsForClient } from "@/lib/db/projects";
 import { subscribeClientPayments } from "@/lib/db/payments";
-import { CLIENT_TYPES, statusMeta, type ClientType } from "@/lib/constants";
-import type { Client, ClientPayment, Project } from "@/lib/types";
+import { subscribeTendersForClient } from "@/lib/db/tenders";
+import { CLIENT_TYPES, statusMeta, TENDER_STATUS_META, type ClientType } from "@/lib/constants";
+import type { Client, ClientPayment, Project, Tender } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [client, setClient] = useState<Client | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [tenders, setTenders] = useState<Tender[]>([]);
   const [payments, setPayments] = useState<ClientPayment[] | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<{
@@ -27,6 +29,7 @@ export default function ClientDetailPage() {
 
   useEffect(() => subscribeClient(id, setClient), [id]);
   useEffect(() => { void listProjectsForClient(id).then(setProjects); }, [id]);
+  useEffect(() => subscribeTendersForClient(id, setTenders), [id]);
   useEffect(() => subscribeClientPayments({ clientId: id }, setPayments), [id]);
 
   if (!client) return <p className="text-sm text-ink-400">Loading…</p>;
@@ -86,7 +89,10 @@ export default function ClientDetailPage() {
               <tr><td colSpan={6} className="td text-center text-ink-400">No projects yet.</td></tr>
             ) : projects.map((p) => (
               <tr key={p.id} className="border-t border-ink-100">
-                <td className="td"><Link href={`/projects/${p.id}`} className="font-medium text-brand-700">{p.code}</Link></td>
+                <td className="td">
+                  <Link href={`/projects/${p.id}`} className="font-medium text-brand-700">{p.code}</Link>
+                  {p.parentProjectCode && <span className="ml-1.5 text-xs text-ink-400">(sub-project of {p.parentProjectCode})</span>}
+                </td>
                 <td className="td">{p.name}</td>
                 <td className="td"><Badge className={statusMeta(p.status).className}>{statusMeta(p.status).label}</Badge></td>
                 <td className="td">{formatINR(p.contractValue)}</td>
@@ -96,6 +102,31 @@ export default function ClientDetailPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink-900">Tenders</h2>
+          <Link href="/tenders" className="text-xs text-brand-700 hover:underline">View all tenders</Link>
+        </div>
+        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+          <table className="w-full">
+            <thead><tr><th className="th">Code</th><th className="th">Title</th><th className="th">Status</th><th className="th">Value</th><th className="th">Submission</th></tr></thead>
+            <tbody>
+              {tenders.length === 0 ? (
+                <tr><td colSpan={5} className="td text-center text-ink-400">No tenders yet.</td></tr>
+              ) : tenders.map((t) => (
+                <tr key={t.id} className="border-t border-ink-100">
+                  <td className="td"><Link href={`/tenders/${t.id}`} className="font-medium text-brand-700">{t.tenderCode}</Link></td>
+                  <td className="td">{t.title}</td>
+                  <td className="td"><Badge className={TENDER_STATUS_META[t.status].className}>{TENDER_STATUS_META[t.status].label}</Badge></td>
+                  <td className="td">{formatINR(t.tenderValue)}</td>
+                  <td className="td">{formatDate(t.submissionDate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <Modal

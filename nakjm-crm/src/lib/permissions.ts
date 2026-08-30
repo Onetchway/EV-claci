@@ -39,6 +39,7 @@ const WRITE_ROLES: Role[] = ["SUPER_ADMIN", "ADMIN", "PROJECT_MANAGER", "OPERATI
 
 export const canManageClients = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES);
 export const canManageVendors = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES);
+export const canManageTenders = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES);
 export const canManageTeam = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN", "PROJECT_MANAGER");
 export const canManageProjects = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES);
 

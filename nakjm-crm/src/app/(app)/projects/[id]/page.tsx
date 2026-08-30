@@ -14,13 +14,14 @@ import {
   BOQ_CATEGORIES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, SITE_REPORT_TYPES, statusMeta,
   type BoqCategory, type PaymentMode, type ProjectStatus, type ProjectType, type SiteReportType,
 } from "@/lib/constants";
+import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { parseBoqFile } from "@/lib/boq-parser";
 import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, updateBoq } from "@/lib/db/boq";
 import { listActiveClients } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
 import { createProformaInvoice, deleteProformaInvoice, subscribePisForProject, updateProformaInvoice } from "@/lib/db/proforma-invoices";
-import { assignTeamMember, subscribeProject, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
+import { assignTeamMember, subscribeProject, subscribeSubprojects, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
 import { canTrash } from "@/lib/permissions";
 import { createPurchaseOrder, deletePurchaseOrder, subscribePosForProject, updatePurchaseOrder } from "@/lib/db/purchase-orders";
 import { createQuotation, deleteQuotation, nextQuotationVersion, subscribeQuotationsForProject, updateQuotation } from "@/lib/db/quotations";
@@ -28,7 +29,7 @@ import { createSiteReport, subscribeSiteReportsForProject } from "@/lib/db/site-
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
-  Boq, BoqLineItem, Client, LineItem, Project, ProformaInvoice, PurchaseOrder, Quotation, SiteReport, TeamMember, Vendor,
+  Boq, BoqLineItem, Client, Project, ProformaInvoice, PurchaseOrder, Quotation, SiteReport, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
 
@@ -202,11 +203,13 @@ function OverviewTab({ project }: { project: Project }) {
   const [pis, setPis] = useState<ProformaInvoice[] | null>(null);
   const [cps, setCps] = useState<{ amount: number }[] | null>(null);
   const [reports, setReports] = useState<SiteReport[] | null>(null);
+  const [subprojects, setSubprojects] = useState<Project[]>([]);
 
   useEffect(() => subscribePosForProject(project.id, setPos), [project.id]);
   useEffect(() => subscribePisForProject(project.id, setPis), [project.id]);
   useEffect(() => subscribeClientPayments({ projectId: project.id }, setCps), [project.id]);
   useEffect(() => subscribeSiteReportsForProject(project.id, setReports), [project.id]);
+  useEffect(() => subscribeSubprojects(project.id, setSubprojects), [project.id]);
 
   const committed = (pos ?? []).filter((p) => p.status !== "CANCELLED").reduce((s, p) => s + p.totalAmount, 0);
   const paidToVendors = (pos ?? []).reduce((s, p) => s + p.paidAmount, 0);
@@ -254,6 +257,37 @@ function OverviewTab({ project }: { project: Project }) {
           <div><p className="text-ink-400">Target End</p><p className="font-medium">{formatDate(project.targetEndDate)}</p></div>
         </div>
       </Card>
+
+      {project.parentProjectId && (
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm text-indigo-800">
+          Sub-project of <Link href={`/projects/${project.parentProjectId}`} className="font-medium underline">{project.parentProjectCode}</Link>
+        </div>
+      )}
+
+      <Card
+        title="Sub-projects"
+        actions={<Link href={`/projects/new?parentProjectId=${project.id}`}><Button size="sm"><Plus className="h-3.5 w-3.5" /> New Sub-project</Button></Link>}
+      >
+        {subprojects.length === 0 ? (
+          <p className="text-sm text-ink-400">No sub-projects yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-ink-200">
+            <table className="w-full">
+              <thead><tr><th className="th">Code</th><th className="th">Name</th><th className="th">Status</th><th className="th">Contract Value</th></tr></thead>
+              <tbody>
+                {subprojects.map((sp) => (
+                  <tr key={sp.id} className="border-t border-ink-100">
+                    <td className="td"><Link href={`/projects/${sp.id}`} className="font-medium text-brand-700">{sp.code}</Link></td>
+                    <td className="td">{sp.name}</td>
+                    <td className="td"><Badge className={statusMeta(sp.status).className}>{statusMeta(sp.status).label}</Badge></td>
+                    <td className="td">{formatINR(sp.contractValue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -268,67 +302,6 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: "pos
 }
 
 // ── Shared line-item editor ─────────────────────────────────────────────
-function ItemsTable<T extends Record<string, unknown>>({
-  items, setItems, fields,
-}: {
-  items: T[];
-  setItems: (items: T[]) => void;
-  fields: { key: keyof T; label: string; type?: string }[];
-}) {
-  const addRow = () => setItems([...items, Object.fromEntries(fields.map((f) => [f.key, f.type === "number" ? 0 : ""])) as T]);
-  const update = (i: number, key: keyof T, value: string) =>
-    setItems(items.map((it, idx) => (idx === i ? { ...it, [key]: value } : it)));
-  const remove = (i: number) => setItems(items.filter((_, idx) => idx !== i));
-
-  return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto rounded-xl border border-ink-200">
-        <table className="w-full">
-          <thead><tr>{fields.map((f) => <th key={String(f.key)} className="th">{f.label}</th>)}<th className="th" /></tr></thead>
-          <tbody>
-            {items.map((it, i) => (
-              <tr key={i} className="border-t border-ink-100">
-                {fields.map((f) => (
-                  <td key={String(f.key)} className="td">
-                    <input
-                      className="input py-1"
-                      type={f.type ?? "text"}
-                      value={(it[f.key] as string | number) ?? ""}
-                      onChange={(e) => update(i, f.key, e.target.value)}
-                    />
-                  </td>
-                ))}
-                <td className="td"><button type="button" onClick={() => remove(i)}><Trash2 className="h-4 w-4 text-rose-500" /></button></td>
-              </tr>
-            ))}
-            {items.length === 0 && <tr><td colSpan={fields.length + 1} className="td text-center text-ink-400">No line items yet.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      <Button type="button" variant="secondary" size="sm" onClick={addRow}><Plus className="h-3.5 w-3.5" /> Add Line</Button>
-    </div>
-  );
-}
-
-const ITEM_FIELDS = [
-  { key: "description" as const, label: "Description" },
-  { key: "unit" as const, label: "Unit" },
-  { key: "qty" as const, label: "Qty", type: "number" },
-  { key: "rate" as const, label: "Rate (₹)", type: "number" },
-];
-const BOQ_FIELDS = [
-  { key: "section" as const, label: "Section" },
-  { key: "description" as const, label: "Description" },
-  { key: "makeOem" as const, label: "Make/OEM" },
-  { key: "unit" as const, label: "Unit" },
-  { key: "qty" as const, label: "Qty", type: "number" },
-  { key: "supplyRate" as const, label: "Supply Rate", type: "number" },
-  { key: "installationRate" as const, label: "Install Rate", type: "number" },
-];
-
-type DraftItem = Omit<LineItem, "amount" | "srNo">;
-type DraftBoqItem = Omit<BoqLineItem, "amount" | "srNo" | "rate" | "category"> & { category?: string };
-
 // ── Quotations ──────────────────────────────────────────────────────────
 function QuotationsTab({ project }: { project: Project }) {
   const actor = useActor();

@@ -88,6 +88,27 @@ export const PROJECT_STATUS_META: Record<ProjectStatus, { label: string; classNa
 };
 
 // ---------------------------------------------------------------------------
+// Tenders — government/institutional tender tracking, upstream of BOQ and
+// Quotations in the Client → Tender → BOQ → Quotation → PO/WO → Project chain.
+// ---------------------------------------------------------------------------
+
+export const TENDER_STATUSES = [
+  "DRAFT", "PREPARING", "SUBMITTED", "TECHNICAL_QUALIFIED", "FINANCIAL_BID", "AWARDED", "LOST", "CANCELLED",
+] as const;
+export type TenderStatus = (typeof TENDER_STATUSES)[number];
+
+export const TENDER_STATUS_META: Record<TenderStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  PREPARING: { label: "Preparing", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  SUBMITTED: { label: "Submitted", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  TECHNICAL_QUALIFIED: { label: "Technical Qualified", className: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
+  FINANCIAL_BID: { label: "Financial Bid", className: "bg-violet-50 text-violet-700 ring-violet-200" },
+  AWARDED: { label: "Awarded", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  LOST: { label: "Lost", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+  CANCELLED: { label: "Cancelled", className: "bg-ink-100 text-ink-500 ring-ink-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Quotations / BOQ / PO / PI
 // ---------------------------------------------------------------------------
 
@@ -117,7 +138,7 @@ export type SiteReportType = (typeof SITE_REPORT_TYPES)[number];
 // ---------------------------------------------------------------------------
 
 export const ACTIVITY_ENTITY_TYPES = [
-  "CLIENT", "VENDOR", "PROJECT", "QUOTATION", "BOQ", "PURCHASE_ORDER",
+  "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
@@ -126,6 +147,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   CLIENT: "Client",
   VENDOR: "Vendor",
   PROJECT: "Project",
+  TENDER: "Tender",
   QUOTATION: "Quotation",
   BOQ: "BOQ",
   PURCHASE_ORDER: "Purchase Order",

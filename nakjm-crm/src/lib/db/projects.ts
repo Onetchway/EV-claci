@@ -89,6 +89,18 @@ export async function listProjectsForClient(clientId: string): Promise<Project[]
   return snap.docs.map((d) => mapProject(d.id, d.data())).sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
 }
 
+export function subscribeSubprojects(parentProjectId: string, cb: (rows: Project[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), PROJECTS), where("parentProjectId", "==", parentProjectId)),
+    (snap) => cb(
+      snap.docs.map((d) => mapProject(d.id, d.data()))
+        .filter((p) => !p.deletedAt)
+        .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0)),
+    ),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export interface ProjectDraft {
   name: string;
   clientId: string;
@@ -108,6 +120,9 @@ export interface ProjectDraft {
   pocEmail?: string;
   notes?: string;
   sourceDocumentId?: string | null;
+  tenderId?: string | null;
+  parentProjectId?: string | null;
+  parentProjectCode?: string | null;
 }
 
 export async function createProject(draft: ProjectDraft, actor: Actor): Promise<Project> {
@@ -137,6 +152,9 @@ export async function createProject(draft: ProjectDraft, actor: Actor): Promise<
     notes: draft.notes ?? "",
     team: [] as ProjectTeamAssignment[],
     sourceDocumentId: draft.sourceDocumentId ?? null,
+    tenderId: draft.tenderId ?? null,
+    parentProjectId: draft.parentProjectId ?? null,
+    parentProjectCode: draft.parentProjectCode ?? null,
     deletedAt: null,
     search: searchTokensForProject({ code, name: draft.name, clientName: draft.clientName, site: draft.site }),
     createdAt: serverTimestamp(),
