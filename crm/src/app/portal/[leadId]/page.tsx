@@ -173,6 +173,7 @@ export default function PortalLeadDetailPage() {
   const kycDocs = docs.filter((d) => KYC_KINDS.includes(d.kind));
   const siteDocs = docs.filter((d) => SITE_KINDS.includes(d.kind));
   const agreementDocs = docs.filter((d) => AGREEMENT_KINDS.includes(d.kind));
+  const uploadedAgreementDocs = docs.filter((d) => d.kind === "FRANCHISE_AGREEMENT");
   const otherDocs = docs.filter((d) => !KYC_KINDS.includes(d.kind) && !SITE_KINDS.includes(d.kind) && !AGREEMENT_KINDS.includes(d.kind));
 
   return (
@@ -347,6 +348,26 @@ export default function PortalLeadDetailPage() {
               <span className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-700">
                 {AGREEMENT_STATUS_LABEL[lead.agreement.status]}
               </span>
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Agreement uploaded as a file instead of drafted in-system — shown only when there's no system-drafted one above, so the section never appears twice. */}
+        {!lead.agreement && uploadedAgreementDocs.length > 0 && (
+          <SectionCard title="Franchise Agreement" icon={FileText}>
+            <div className="space-y-2">
+              {uploadedAgreementDocs.map((d) => (
+                <a
+                  key={d.id}
+                  href={d.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 px-3 py-2 text-sm transition hover:border-brand-300 hover:bg-brand-50/40"
+                >
+                  <span className="truncate text-ink-800">{d.fileName}</span>
+                  <Download className="h-3.5 w-3.5 shrink-0 text-ink-400" />
+                </a>
+              ))}
             </div>
           </SectionCard>
         )}

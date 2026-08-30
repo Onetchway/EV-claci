@@ -1,10 +1,12 @@
 "use client";
 
-import { Clock, Download, FileText, Plus, Printer, Send, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  Clock, Download, ExternalLink, FileText, Plus, Printer, Send, Trash2, Upload,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, Select, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, ProgressBar, Select, useAsyncAction, useToast,
 } from "@/components/ui";
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { useSettings } from "@/hooks/use-settings";
@@ -13,14 +15,151 @@ import {
   type AgreementScheduleKey, type AgreementStatus,
 } from "@/lib/constants";
 import { AGREEMENT_CLAUSES, AGREEMENT_RECITALS } from "@/lib/agreement-template";
+import { deleteDocument, subscribeDocuments, uploadDocument, validateFile } from "@/lib/db/documents";
 import {
   buildAgreementFromLead, deleteAgreement, deleteAgreementVersion, issueAgreement,
   nextAgreementNumber, regenerateAgreement, saveAgreement, setAgreementStatus,
   subscribeAgreementVersions,
 } from "@/lib/db/leads";
-import { canDeleteEoi, canIssueEoi, type Viewer } from "@/lib/permissions";
-import type { Actor, AgreementDoc, AgreementVersion, AppSettings, Lead } from "@/lib/types";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { canDeleteDocument, canDeleteEoi, canIssueEoi, type Viewer } from "@/lib/permissions";
+import type { Actor, AgreementDoc, AgreementVersion, AppSettings, Lead, LeadDocument } from "@/lib/types";
+import { cn, formatDate, formatDateTime } from "@/lib/utils";
+
+const STATUS_STYLE: Record<string, string> = {
+  PENDING: "bg-amber-100 text-amber-800 ring-amber-200",
+  VERIFIED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  REJECTED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
+function fileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * The alternative to drafting in-system: upload an already-signed or
+ * externally-drawn-up Agreement as a file. Uses the same leads/{id}/documents
+ * storage as the Documents tab (kind FRANCHISE_AGREEMENT) — so a file
+ * uploaded here shows up there too, and vice versa — which is also exactly
+ * what the investor portal already reads to show the Agreement under its
+ * Documents section.
+ */
+function UploadedAgreementsCard({
+  lead, actor, viewer, canEdit,
+}: {
+  lead: Lead;
+  actor: Actor;
+  viewer: Viewer;
+  canEdit: boolean;
+}) {
+  const [docs, setDocs] = useState<LeadDocument[]>([]);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<LeadDocument | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { busy, run } = useAsyncAction();
+  const { push } = useToast();
+
+  const mergedFromIds = (lead.mergedFrom ?? []).map((m) => m.id);
+  useEffect(
+    () => subscribeDocuments([lead.id, ...mergedFromIds], (rows) => setDocs(rows.filter((d) => d.kind === "FRANCHISE_AGREEMENT"))),
+    [lead.id, mergedFromIds.join(",")],
+  );
+
+  function pickFile(f: File | null) {
+    if (!f) return;
+    const problem = validateFile(f);
+    if (problem) { push(problem, "error"); return; }
+    void run(async () => {
+      setProgress(0);
+      try {
+        await uploadDocument(lead, f, { kind: "FRANCHISE_AGREEMENT", onProgress: setProgress }, actor);
+      } finally {
+        setProgress(null);
+      }
+    }, "Agreement uploaded.");
+  }
+
+  if (docs.length === 0 && !canEdit) return null;
+
+  return (
+    <Card
+      className="print:hidden"
+      title="Uploaded copies"
+      subtitle={docs.length ? `${docs.length} file${docs.length === 1 ? "" : "s"} on record` : "A signed PDF or scan, as an alternative to drafting in-system."}
+      actions={
+        canEdit && (
+          <>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="application/pdf,image/png,image/jpeg,image/webp,image/heic"
+              className="hidden"
+              onChange={(e) => { pickFile(e.target.files?.[0] ?? null); e.target.value = ""; }}
+            />
+            <Button size="sm" loading={busy} onClick={() => inputRef.current?.click()}>
+              <Upload className="h-3.5 w-3.5" /> Upload signed Agreement
+            </Button>
+          </>
+        )
+      }
+    >
+      {progress !== null && <ProgressBar pct={progress} />}
+      {docs.length === 0 ? (
+        <p className="text-sm text-ink-500">No signed copy uploaded yet.</p>
+      ) : (
+        <div className="divide-y divide-ink-100">
+          {docs.map((d) => (
+            <div key={d.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-ink-900">{d.fileName}</p>
+                <p className="mt-0.5 text-xs text-ink-500">
+                  {fileSize(d.size)} · uploaded {formatDateTime(d.uploadedAt)} by {d.uploadedBy?.name}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge className={cn("ml-1", STATUS_STYLE[d.status])}>{d.status}</Badge>
+                <a href={d.url} target="_blank" rel="noreferrer" className="rounded p-1.5 text-ink-500 hover:bg-ink-50 hover:text-brand-700">
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+                {canDeleteDocument(viewer, d) && (
+                  <Button size="sm" onClick={() => setConfirmDelete(d)} className="text-rose-700 hover:bg-rose-50">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete this file?"
+        footer={
+          <>
+            <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() =>
+                void run(async () => {
+                  if (confirmDelete) await deleteDocument(lead, confirmDelete, actor);
+                  setConfirmDelete(null);
+                }, "File deleted.")
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Delete
+            </Button>
+          </>
+        }
+      >
+        {confirmDelete && <p className="text-sm text-ink-700">{confirmDelete.fileName} will be permanently removed.</p>}
+      </Modal>
+    </Card>
+  );
+}
 
 const EDITABLE =
   "w-full resize-y rounded border border-transparent bg-transparent px-1 leading-relaxed hover:border-ink-200 hover:bg-ink-50 " +
@@ -257,12 +396,13 @@ export function AgreementPanel({
   // never written to Firestore.
   if (!lead.agreement) {
     return (
-      <>
+      <div className="space-y-4">
         <EmptyState
           title="No Franchise Agreement yet"
-          description="Draft one from the lead's own details, or upload an already-signed copy from the Documents tab."
+          description="Draft one from the lead's own details, or upload an already-signed or externally-drawn-up copy below."
           action={canEdit && <Button variant="primary" onClick={() => void startCreate()}><Plus className="h-4 w-4" /> Draft Agreement</Button>}
         />
+        <UploadedAgreementsCard lead={lead} actor={actor} viewer={viewer} canEdit={canEdit} />
         <CreateModal
           open={createOpen}
           draft={draft}
@@ -279,7 +419,7 @@ export function AgreementPanel({
             }, "Agreement drafted.")
           }
         />
-      </>
+      </div>
     );
   }
 
@@ -374,6 +514,8 @@ export function AgreementPanel({
           onPatch={canEdit ? patch : undefined}
         />
       </div>
+
+      <UploadedAgreementsCard lead={lead} actor={actor} viewer={viewer} canEdit={canEdit} />
 
       <Modal
         open={regenerateOpen}
