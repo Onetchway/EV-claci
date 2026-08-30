@@ -49,6 +49,9 @@ export const canManageStages = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLE
 /** Site engineers update task status/progress day to day, not just office roles. */
 export const canManageTasks = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES, "SITE_ENGINEER");
 
+/** Anyone executing site work can raise/manage an issue, not just office roles. */
+export const canManageIssues = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES, "SITE_ENGINEER");
+
 /** Drafting quotations/BOQ/POs/PIs is a pricing decision. */
 export const canManageProcurement = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "PROJECT_MANAGER", "OPERATIONS");

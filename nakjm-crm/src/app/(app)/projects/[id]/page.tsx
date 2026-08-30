@@ -11,18 +11,21 @@ import {
   Select, StatCard, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
-  BOQ_CATEGORIES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, SITE_REPORT_TYPES, STAGE_STATUSES, TASK_STATUSES, statusMeta,
-  type BoqCategory, type PaymentMode, type ProjectStatus, type ProjectType, type SiteReportType, type StageStatus, type TaskStatus,
+  BOQ_CATEGORIES, ISSUE_PRIORITIES, ISSUE_STATUSES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES,
+  SITE_REPORT_TYPES, STAGE_STATUSES, TASK_STATUSES, statusMeta,
+  type BoqCategory, type IssuePriority, type IssueStatus, type PaymentMode, type ProjectStatus, type ProjectType,
+  type SiteReportType, type StageStatus, type TaskStatus,
 } from "@/lib/constants";
 import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { parseBoqFile } from "@/lib/boq-parser";
 import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, updateBoq } from "@/lib/db/boq";
 import { listActiveClients } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
+import { createIssue, deleteIssue, subscribeIssuesForProject, updateIssue } from "@/lib/db/issues";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
 import { createProformaInvoice, deleteProformaInvoice, subscribePisForProject, updateProformaInvoice } from "@/lib/db/proforma-invoices";
 import { assignTeamMember, subscribeProject, subscribeSubprojects, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
-import { canManageStages, canManageTasks, canTrash } from "@/lib/permissions";
+import { canManageIssues, canManageStages, canManageTasks, canTrash } from "@/lib/permissions";
 import { createPurchaseOrder, deletePurchaseOrder, subscribePosForProject, updatePurchaseOrder } from "@/lib/db/purchase-orders";
 import { createQuotation, deleteQuotation, nextQuotationVersion, subscribeQuotationsForProject, updateQuotation } from "@/lib/db/quotations";
 import { createSiteReport, subscribeSiteReportsForProject } from "@/lib/db/site-reports";
@@ -31,11 +34,12 @@ import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
-  Boq, BoqLineItem, Client, Project, ProformaInvoice, ProjectStage, ProjectTask, PurchaseOrder, Quotation, SiteReport, TeamMember, Vendor,
+  Boq, BoqLineItem, Client, Issue, Project, ProformaInvoice, ProjectStage, ProjectTask, PurchaseOrder, Quotation,
+  SiteReport, TeamMember, Vendor,
 } from "@/lib/types";
-import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
+import { formatCompactINR, formatDate, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Issues", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -189,6 +193,7 @@ export default function ProjectDetailPage() {
 
       {tab === "Overview" && <OverviewTab project={project} />}
       {tab === "Stages & Tasks" && <StagesTasksTab project={project} />}
+      {tab === "Issues" && <IssuesTab project={project} />}
       {tab === "Quotations" && <QuotationsTab project={project} />}
       {tab === "BOQ" && <BoqTab project={project} />}
       {tab === "Purchase Orders" && <PoTab project={project} />}
@@ -207,12 +212,16 @@ function OverviewTab({ project }: { project: Project }) {
   const [cps, setCps] = useState<{ amount: number }[] | null>(null);
   const [reports, setReports] = useState<SiteReport[] | null>(null);
   const [subprojects, setSubprojects] = useState<Project[]>([]);
+  const [stages, setStages] = useState<ProjectStage[] | null>(null);
 
   useEffect(() => subscribePosForProject(project.id, setPos), [project.id]);
   useEffect(() => subscribePisForProject(project.id, setPis), [project.id]);
   useEffect(() => subscribeClientPayments({ projectId: project.id }, setCps), [project.id]);
   useEffect(() => subscribeSiteReportsForProject(project.id, setReports), [project.id]);
   useEffect(() => subscribeSubprojects(project.id, setSubprojects), [project.id]);
+  useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
+
+  const health = computeProjectHealth(project, stages ?? []);
 
   const committed = (pos ?? []).filter((p) => p.status !== "CANCELLED").reduce((s, p) => s + p.totalAmount, 0);
   const paidToVendors = (pos ?? []).reduce((s, p) => s + p.paidAmount, 0);
@@ -230,6 +239,26 @@ function OverviewTab({ project }: { project: Project }) {
         <StatCard label="Estimated Margin" value={formatCompactINR(project.contractValue - committed)} tone="positive" />
         <StatCard label="Site Progress" value={`${latestProgress}%`} />
       </div>
+
+      <Card title="Project Health">
+        <div className="flex items-center gap-3">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${health.className}`}>
+            <span className="h-2 w-2 rounded-full bg-current" /> {health.label}
+          </span>
+          <span className="text-sm text-ink-500">{health.detail}</span>
+        </div>
+        {stages && stages.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {stages.map((s) => (
+              <div key={s.id} className="flex items-center gap-3 text-sm">
+                <span className="w-40 shrink-0 truncate text-ink-700">{s.name}</span>
+                <ProgressBar pct={s.progressPct} className="flex-1" />
+                <span className="w-10 shrink-0 text-right tabular-nums text-ink-500">{s.progressPct}%</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card title="Client Collection">
@@ -293,6 +322,33 @@ function OverviewTab({ project }: { project: Project }) {
       </Card>
     </div>
   );
+}
+
+/**
+ * Auto health indicator: compares average stage progress to the fraction of
+ * the planned schedule elapsed. No stages / no dates yet -> grey (unknown),
+ * ON_HOLD/COMPLETED short-circuit to their own state.
+ */
+function computeProjectHealth(project: Project, stages: ProjectStage[]): { label: string; detail: string; className: string } {
+  const GREY = "bg-ink-100 text-ink-600 ring-ink-200";
+  if (project.status === "ON_HOLD") return { label: "On Hold", detail: "Project is paused.", className: GREY };
+  if (project.status === "COMPLETED") return { label: "Completed", detail: "Project delivered.", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" };
+  if (stages.some((s) => s.status === "BLOCKED")) return { label: "Delayed", detail: "One or more stages are blocked.", className: "bg-rose-50 text-rose-700 ring-rose-200" };
+
+  const start = toDate(project.startDate);
+  const end = toDate(project.targetEndDate);
+  if (!stages.length || !start || !end || end <= start) {
+    return { label: "Not Started", detail: "Add stages and a schedule to track health.", className: GREY };
+  }
+
+  const actualProgress = stages.reduce((s, st) => s + st.progressPct, 0) / stages.length;
+  const now = Date.now();
+  const elapsedPct = Math.max(0, Math.min(100, ((now - start.getTime()) / (end.getTime() - start.getTime())) * 100));
+  const delta = actualProgress - elapsedPct;
+
+  if (delta >= -5) return { label: "On Track", detail: `${Math.round(actualProgress)}% done vs ${Math.round(elapsedPct)}% of schedule elapsed.`, className: "bg-emerald-50 text-emerald-700 ring-emerald-200" };
+  if (delta >= -15) return { label: "At Risk", detail: `${Math.round(actualProgress)}% done vs ${Math.round(elapsedPct)}% of schedule elapsed.`, className: "bg-amber-50 text-amber-700 ring-amber-200" };
+  return { label: "Delayed", detail: `${Math.round(actualProgress)}% done vs ${Math.round(elapsedPct)}% of schedule elapsed.`, className: "bg-rose-50 text-rose-700 ring-rose-200" };
 }
 
 function Row({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }) {
@@ -1027,6 +1083,89 @@ function StagesTasksTab({ project }: { project: Project }) {
           <Field label="Stage Name" required className="col-span-2"><Input value={stageForm.name} onChange={(e) => setStageForm((f) => ({ ...f, name: e.target.value }))} /></Field>
           <Field label="Planned Start"><Input type="date" value={stageForm.plannedStart} onChange={(e) => setStageForm((f) => ({ ...f, plannedStart: e.target.value }))} /></Field>
           <Field label="Planned End"><Input type="date" value={stageForm.plannedEnd} onChange={(e) => setStageForm((f) => ({ ...f, plannedEnd: e.target.value }))} /></Field>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Issues ─────────────────────────────────────────────────────────────
+function IssuesTab({ project }: { project: Project }) {
+  const actor = useActor();
+  const viewer = useViewer();
+  const [issues, setIssues] = useState<Issue[] | null>(null);
+  const [stages, setStages] = useState<ProjectStage[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", priority: "MEDIUM" as IssuePriority, stageId: "", assigneeId: "", dueDate: "" });
+  const { busy, run } = useAsyncAction();
+  const canManage = canManageIssues(viewer);
+
+  useEffect(() => subscribeIssuesForProject(project.id, setIssues), [project.id]);
+  useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
+
+  async function onCreate() {
+    if (!form.title.trim()) return;
+    await run(async () => {
+      const stage = stages.find((s) => s.id === form.stageId);
+      const member = project.team.find((m) => m.teamMemberId === form.assigneeId);
+      await createIssue({
+        projectId: project.id, projectName: project.name, stageId: stage?.id ?? null, stageName: stage?.name,
+        title: form.title, description: form.description, priority: form.priority,
+        assigneeId: member?.teamMemberId ?? null, assigneeName: member?.name,
+        dueDate: form.dueDate ? new Date(form.dueDate) : null,
+      }, actor);
+      setShowForm(false); setForm({ title: "", description: "", priority: "MEDIUM", stageId: "", assigneeId: "", dueDate: "" });
+    }, "Issue raised.");
+  }
+
+  const openCount = (issues ?? []).filter((i) => i.status === "OPEN" || i.status === "IN_PROGRESS").length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-ink-500">{openCount} open issue{openCount === 1 ? "" : "s"}</p>
+        {canManage && <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> Raise Issue</Button>}
+      </div>
+
+      {!issues ? <p className="text-sm text-ink-400">Loading…</p> : issues.length === 0 ? (
+        <EmptyState title="No issues raised" description="Site issues blocking progress — a missing drawing, a delayed approval, a site conflict — go here." />
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+          <table className="w-full">
+            <thead><tr><th className="th">Title</th><th className="th">Stage</th><th className="th">Priority</th><th className="th">Assignee</th><th className="th">Due</th><th className="th">Status</th><th className="th" /></tr></thead>
+            <tbody>
+              {issues.map((i) => (
+                <tr key={i.id} className="border-t border-ink-100">
+                  <td className="td font-medium">{i.title}</td>
+                  <td className="td">{i.stageName || "—"}</td>
+                  <td className="td"><Badge>{i.priority}</Badge></td>
+                  <td className="td">{i.assigneeName || "Unassigned"}</td>
+                  <td className="td">{i.dueDate ? formatDate(i.dueDate) : "—"}</td>
+                  <td className="td">
+                    {canManage ? (
+                      <Select value={i.status} className="w-auto" options={ISSUE_STATUSES.map((s) => ({ value: s, label: s.replace("_", " ") }))} onChange={(e) => void run(() => updateIssue(i, { status: e.target.value as IssueStatus }, actor), "Updated.")} />
+                    ) : (
+                      <Badge>{i.status.replace("_", " ")}</Badge>
+                    )}
+                  </td>
+                  <td className="td text-right">
+                    {canManage && <button onClick={() => void run(async () => { await deleteIssue(i, actor); }, "Issue deleted.")} disabled={busy}><Trash2 className="h-4 w-4 text-rose-500" /></button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Raise Issue" footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onCreate()} loading={busy}>Raise</Button></>}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Title" required className="col-span-2"><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></Field>
+          <Field label="Description" className="col-span-2"><Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} /></Field>
+          <Field label="Stage"><Select value={form.stageId} placeholder="Unlinked" options={stages.map((s) => ({ value: s.id, label: s.name }))} onChange={(e) => setForm((f) => ({ ...f, stageId: e.target.value }))} /></Field>
+          <Field label="Priority"><Select value={form.priority} options={ISSUE_PRIORITIES.map((p) => ({ value: p, label: p }))} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value as IssuePriority }))} /></Field>
+          <Field label="Assignee"><Select value={form.assigneeId} placeholder="Unassigned" options={project.team.map((m) => ({ value: m.teamMemberId, label: m.name }))} onChange={(e) => setForm((f) => ({ ...f, assigneeId: e.target.value }))} /></Field>
+          <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
         </div>
       </Modal>
     </div>

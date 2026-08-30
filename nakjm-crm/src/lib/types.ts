@@ -2,7 +2,7 @@ import type { Timestamp } from "firebase/firestore";
 
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
-  ClientType, Department, DepreciationMethod, PaymentMode, PiStatus,
+  ClientType, Department, DepreciationMethod, IssuePriority, IssueStatus, PaymentMode, PiStatus,
   PoStatus, ProjectStatus, ProjectType, QuotationStatus, Role, SiteReportType, StageStatus, TaskStatus, TenderStatus,
   VendorCategory,
 } from "./constants";
@@ -354,6 +354,26 @@ export interface ProjectTask {
   dueDate?: TS;
   completedAt?: TS;
   notes?: string;
+  createdAt: TS;
+  updatedAt: TS;
+}
+
+export interface Issue {
+  id: string;
+  projectId: string;
+  projectName: string;
+  stageId?: string | null;
+  stageName?: string;
+  title: string;
+  description?: string;
+  priority: IssuePriority;
+  status: IssueStatus;
+  assigneeId?: string | null;
+  assigneeName?: string;
+  dueDate?: TS;
+  raisedById?: string | null;
+  raisedByName?: string;
+  resolution?: string;
   createdAt: TS;
   updatedAt: TS;
 }

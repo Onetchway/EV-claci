@@ -159,13 +159,37 @@ export const TASK_STATUS_META: Record<TaskStatus, { label: string; className: st
 };
 
 // ---------------------------------------------------------------------------
+// Issues — lightweight site issue tracker, scoped to a project/stage.
+// ---------------------------------------------------------------------------
+
+export const ISSUE_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+export type IssuePriority = (typeof ISSUE_PRIORITIES)[number];
+
+export const ISSUE_PRIORITY_META: Record<IssuePriority, { label: string; className: string }> = {
+  LOW: { label: "Low", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  MEDIUM: { label: "Medium", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  HIGH: { label: "High", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  CRITICAL: { label: "Critical", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+
+export const ISSUE_STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const;
+export type IssueStatus = (typeof ISSUE_STATUSES)[number];
+
+export const ISSUE_STATUS_META: Record<IssueStatus, { label: string; className: string }> = {
+  OPEN: { label: "Open", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+  IN_PROGRESS: { label: "In Progress", className: "bg-brand-50 text-brand-700 ring-brand-200" },
+  RESOLVED: { label: "Resolved", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  CLOSED: { label: "Closed", className: "bg-ink-100 text-ink-500 ring-ink-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Audit log
 // ---------------------------------------------------------------------------
 
 export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
-  "STAGE", "TASK",
+  "STAGE", "TASK", "ISSUE",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -186,6 +210,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   ASSET: "Asset",
   STAGE: "Stage",
   TASK: "Task",
+  ISSUE: "Issue",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;
