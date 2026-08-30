@@ -4,35 +4,21 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FileText, Plus } from "lucide-react";
 
-import { useActor } from "@/components/auth-provider";
 import {
-  Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, StatCard, useAsyncAction,
+  Badge, Button, EmptyState, PageHeader, Select, StatCard,
 } from "@/components/ui";
-import { ItemsTable, ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { PO_STATUSES, type PoStatus } from "@/lib/constants";
-import { subscribeProjects } from "@/lib/db/projects";
-import { createPurchaseOrder, subscribePurchaseOrders } from "@/lib/db/purchase-orders";
-import { listActiveVendors } from "@/lib/db/vendors";
-import type { Project, PurchaseOrder, Vendor } from "@/lib/types";
+import { subscribePurchaseOrders } from "@/lib/db/purchase-orders";
+import type { PurchaseOrder } from "@/lib/types";
 import { formatCompactINR, formatINR } from "@/lib/utils";
 
 const OPEN_STATUSES: PoStatus[] = ["DRAFT", "ISSUED", "ACKNOWLEDGED", "PARTIALLY_DELIVERED"];
-const EMPTY_FORM = { poNo: "", projectId: "", vendorId: "", deliveryDate: "", notes: "" };
 
 export default function PurchaseOrdersPage() {
-  const actor = useActor();
   const [rows, setRows] = useState<PurchaseOrder[] | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [status, setStatus] = useState<PoStatus | "ALL">("ALL");
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [items, setItems] = useState<DraftItem[]>([]);
-  const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribePurchaseOrders(setRows), []);
-  useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
-  useEffect(() => { void listActiveVendors().then(setVendors); }, []);
 
   const filtered = useMemo(() => (!rows ? [] : status === "ALL" ? rows : rows.filter((r) => r.status === status)), [rows, status]);
 
@@ -47,21 +33,6 @@ export default function PurchaseOrdersPage() {
     };
   }, [rows]);
 
-  async function onCreate() {
-    if (!form.poNo.trim() || !form.projectId || !form.vendorId) return;
-    await run(async () => {
-      const project = projects.find((p) => p.id === form.projectId);
-      const vendor = vendors.find((v) => v.id === form.vendorId);
-      const po = await createPurchaseOrder({
-        poNo: form.poNo, projectId: form.projectId, projectName: project?.name ?? "",
-        vendorId: form.vendorId, vendorName: vendor?.name ?? "",
-        deliveryDate: form.deliveryDate ? new Date(form.deliveryDate) : null, items, notes: form.notes,
-      }, actor);
-      setShowForm(false); setForm(EMPTY_FORM); setItems([]);
-      window.location.href = `/purchase-orders/${po.id}`;
-    }, "Purchase order created.");
-  }
-
   return (
     <div>
       <PageHeader
@@ -70,7 +41,7 @@ export default function PurchaseOrdersPage() {
         actions={
           <>
             <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...PO_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))]} onChange={(e) => setStatus(e.target.value as PoStatus | "ALL")} />
-            <Button variant="primary" onClick={() => { setForm(EMPTY_FORM); setItems([]); setShowForm(true); }}><Plus className="h-4 w-4" /> New PO</Button>
+            <Link href="/purchase-orders/new"><Button variant="primary"><Plus className="h-4 w-4" /> New PO</Button></Link>
           </>
         }
       />
@@ -85,7 +56,7 @@ export default function PurchaseOrdersPage() {
       {!rows ? (
         <p className="text-sm text-ink-400">Loading…</p>
       ) : filtered.length === 0 ? (
-        <EmptyState icon={<FileText className="h-8 w-8" />} title="No purchase orders yet" description="Create one here, or from a project's Purchase Orders tab — either way it links to the project." action={<Button variant="primary" onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New PO</Button>} />
+        <EmptyState icon={<FileText className="h-8 w-8" />} title="No purchase orders yet" description="Create one here, or from a project's Purchase Orders tab — either way it links to the project." action={<Link href="/purchase-orders/new"><Button variant="primary"><Plus className="h-4 w-4" /> New PO</Button></Link>} />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
           <table className="w-full">
@@ -114,26 +85,6 @@ export default function PurchaseOrdersPage() {
           </table>
         </div>
       )}
-
-      <Modal
-        open={showForm}
-        onClose={() => setShowForm(false)}
-        title="New Purchase Order"
-        wide
-        footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onCreate()} loading={busy}>Create</Button></>}
-      >
-        <div className="mb-4 grid grid-cols-3 gap-3">
-          <Field label="PO No." required><Input value={form.poNo} onChange={(e) => setForm((f) => ({ ...f, poNo: e.target.value }))} /></Field>
-          <Field label="Project" required>
-            <Select value={form.projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))} />
-          </Field>
-          <Field label="Vendor" required>
-            <Select value={form.vendorId} placeholder="Select vendor…" options={vendors.map((v) => ({ value: v.id, label: v.name }))} onChange={(e) => setForm((f) => ({ ...f, vendorId: e.target.value }))} />
-          </Field>
-          <Field label="Delivery Date"><Input type="date" value={form.deliveryDate} onChange={(e) => setForm((f) => ({ ...f, deliveryDate: e.target.value }))} /></Field>
-        </div>
-        <ItemsTable items={items} setItems={setItems} fields={ITEM_FIELDS} />
-      </Modal>
     </div>
   );
 }

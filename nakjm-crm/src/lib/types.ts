@@ -82,6 +82,7 @@ export interface Vendor {
   contactPhone?: string;
   address?: string;
   gstin?: string;
+  paymentTerms?: string;
   bankAccountNo?: string;
   bankIfsc?: string;
   bankName?: string;
@@ -201,6 +202,8 @@ export interface LineItem {
   qty: number;
   rate: number;
   amount: number;
+  hsnCode?: string;
+  gstPercent?: number;
 }
 
 export interface BoqLineItem extends LineItem {
@@ -265,6 +268,12 @@ export interface PurchaseOrder {
   items: LineItem[];
   subtotal: number;
   taxAmount: number;
+  gstType?: "IGST" | "CGST_SGST";
+  igstAmount?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  shipToDifferent?: boolean;
+  shipToAddress?: string;
   totalAmount: number;
   paidAmount: number;
   terms?: string;

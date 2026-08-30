@@ -74,6 +74,7 @@ export interface VendorDraft {
   contactPhone?: string;
   address?: string;
   gstin?: string;
+  paymentTerms?: string;
   bankAccountNo?: string;
   bankIfsc?: string;
   bankName?: string;

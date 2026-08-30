@@ -373,6 +373,7 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: "pos
 // ── Quotations ──────────────────────────────────────────────────────────
 function QuotationsTab({ project }: { project: Project }) {
   const actor = useActor();
+  const viewer = useViewer();
   const [rows, setRows] = useState<Quotation[] | null>(null);
   const [boqs, setBoqs] = useState<Boq[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -479,7 +480,7 @@ function QuotationsTab({ project }: { project: Project }) {
                         <Printer className="h-3.5 w-3.5" /> Print
                       </Link>
                       <button onClick={() => openEdit(q)} className="inline-flex items-center gap-1 text-ink-600 hover:underline"><Pencil className="h-3.5 w-3.5" /> Edit</button>
-                      <button onClick={() => setDeleteTarget(q)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                      {canTrash(viewer) && <button onClick={() => setDeleteTarget(q)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
                     </div>
                   </td>
                 </tr>
@@ -520,6 +521,7 @@ function QuotationsTab({ project }: { project: Project }) {
 // ── BOQ ─────────────────────────────────────────────────────────────────
 function BoqTab({ project }: { project: Project }) {
   const actor = useActor();
+  const viewer = useViewer();
   const [rows, setRows] = useState<Boq[] | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Boq | null>(null);
@@ -602,7 +604,7 @@ function BoqTab({ project }: { project: Project }) {
                         <Printer className="h-3.5 w-3.5" /> Print
                       </Link>
                       <button onClick={() => openEdit(b)} className="inline-flex items-center gap-1 text-ink-600 hover:underline"><Pencil className="h-3.5 w-3.5" /> Edit</button>
-                      <button onClick={() => setDeleteTarget(b)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                      {canTrash(viewer) && <button onClick={() => setDeleteTarget(b)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
                     </div>
                   </td>
                 </tr>
@@ -643,6 +645,7 @@ function BoqTab({ project }: { project: Project }) {
 // ── Purchase Orders ─────────────────────────────────────────────────────
 function PoTab({ project }: { project: Project }) {
   const actor = useActor();
+  const viewer = useViewer();
   const [rows, setRows] = useState<PurchaseOrder[] | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -687,7 +690,7 @@ function PoTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Button onClick={() => { setEditing(null); setItems([]); setForm({ poNo: "", vendorId: "", deliveryDate: "", notes: "" }); setShowForm(true); }}><Plus className="h-4 w-4" /> New PO</Button></div>
+      <div className="flex justify-end"><Link href={`/purchase-orders/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PO</Button></Link></div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No purchase orders yet" />
       ) : (
@@ -708,7 +711,7 @@ function PoTab({ project }: { project: Project }) {
                         <Printer className="h-3.5 w-3.5" /> Print
                       </Link>
                       <button onClick={() => openEdit(po)} className="inline-flex items-center gap-1 text-ink-600 hover:underline"><Pencil className="h-3.5 w-3.5" /> Edit</button>
-                      <button onClick={() => setDeleteTarget(po)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                      {canTrash(viewer) && <button onClick={() => setDeleteTarget(po)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
                     </div>
                   </td>
                 </tr>
@@ -751,6 +754,7 @@ function PoTab({ project }: { project: Project }) {
 // ── Proforma Invoices ───────────────────────────────────────────────────
 function PiTab({ project }: { project: Project }) {
   const actor = useActor();
+  const viewer = useViewer();
   const [rows, setRows] = useState<ProformaInvoice[] | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProformaInvoice | null>(null);
@@ -819,7 +823,7 @@ function PiTab({ project }: { project: Project }) {
                         <Printer className="h-3.5 w-3.5" /> Print
                       </Link>
                       <button onClick={() => openEdit(pi)} className="inline-flex items-center gap-1 text-ink-600 hover:underline"><Pencil className="h-3.5 w-3.5" /> Edit</button>
-                      <button onClick={() => setDeleteTarget(pi)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                      {canTrash(viewer) && <button onClick={() => setDeleteTarget(pi)} className="inline-flex items-center gap-1 text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
                     </div>
                   </td>
                 </tr>

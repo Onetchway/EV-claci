@@ -5,28 +5,20 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 
-import { useActor } from "@/components/auth-provider";
 import { Badge, Button, Field, Input, Modal, Select, StatCard, useAsyncAction } from "@/components/ui";
-import { ItemsTable, ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { VENDOR_CATEGORIES, type VendorCategory } from "@/lib/constants";
 import { subscribeVendor, updateVendor } from "@/lib/db/vendors";
-import { createPurchaseOrder, subscribePosForVendor } from "@/lib/db/purchase-orders";
+import { subscribePosForVendor } from "@/lib/db/purchase-orders";
 import { subscribeVendorPayments } from "@/lib/db/payments";
-import { subscribeProjects } from "@/lib/db/projects";
-import type { Project, PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
+import type { PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
 
 export default function VendorDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const actor = useActor();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [pos, setPos] = useState<PurchaseOrder[] | null>(null);
   const [payments, setPayments] = useState<VendorPayment[] | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [editOpen, setEditOpen] = useState(false);
-  const [poOpen, setPoOpen] = useState(false);
-  const [poForm, setPoForm] = useState({ poNo: "", projectId: "", deliveryDate: "", notes: "" });
-  const [poItems, setPoItems] = useState<DraftItem[]>([]);
   const [form, setForm] = useState<{
     name: string; category: VendorCategory; contactName: string; contactEmail: string;
     contactPhone: string; gstin: string; bankAccountNo: string; bankIfsc: string; bankName: string; active: boolean;
@@ -36,25 +28,11 @@ export default function VendorDetailPage() {
   useEffect(() => subscribeVendor(id, setVendor), [id]);
   useEffect(() => subscribePosForVendor(id, setPos), [id]);
   useEffect(() => subscribeVendorPayments({ vendorId: id }, setPayments), [id]);
-  useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
 
   if (!vendor) return <p className="text-sm text-ink-400">Loading…</p>;
 
   const totalPoValue = (pos ?? []).reduce((s, p) => s + p.totalAmount, 0);
   const totalPaid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
-
-  async function onCreatePo() {
-    if (!poForm.poNo.trim() || !poForm.projectId) return;
-    await run(async () => {
-      const project = projects.find((p) => p.id === poForm.projectId);
-      await createPurchaseOrder({
-        poNo: poForm.poNo, projectId: poForm.projectId, projectName: project?.name ?? "",
-        vendorId: vendor!.id, vendorName: vendor!.name,
-        deliveryDate: poForm.deliveryDate ? new Date(poForm.deliveryDate) : null, items: poItems, notes: poForm.notes,
-      }, actor);
-      setPoOpen(false); setPoForm({ poNo: "", projectId: "", deliveryDate: "", notes: "" }); setPoItems([]);
-    }, "Purchase order created.");
-  }
 
   function openEdit() {
     setForm({
@@ -87,7 +65,7 @@ export default function VendorDetailPage() {
               {vendor.active ? "Active" : "Inactive"}
             </Badge>
             <Button size="sm" onClick={openEdit}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-            <Button size="sm" variant="primary" onClick={() => { setPoForm({ poNo: "", projectId: "", deliveryDate: "", notes: "" }); setPoItems([]); setPoOpen(true); }}><Plus className="h-3.5 w-3.5" /> New PO</Button>
+            <Link href={`/purchase-orders/new?vendorId=${vendor.id}`}><Button size="sm" variant="primary"><Plus className="h-3.5 w-3.5" /> New PO</Button></Link>
           </div>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-ink-100 pt-5 text-sm md:grid-cols-4">
@@ -168,23 +146,6 @@ export default function VendorDetailPage() {
             <Field label="IFSC" className="col-span-2"><Input value={form.bankIfsc} onChange={(e) => setForm((f) => f && { ...f, bankIfsc: e.target.value })} /></Field>
           </div>
         )}
-      </Modal>
-
-      <Modal
-        open={poOpen}
-        onClose={() => setPoOpen(false)}
-        title={`New PO for ${vendor.name}`}
-        wide
-        footer={<><Button variant="secondary" onClick={() => setPoOpen(false)}>Cancel</Button><Button onClick={() => void onCreatePo()} loading={busy}>Create</Button></>}
-      >
-        <div className="mb-4 grid grid-cols-3 gap-3">
-          <Field label="PO No." required><Input value={poForm.poNo} onChange={(e) => setPoForm((f) => ({ ...f, poNo: e.target.value }))} /></Field>
-          <Field label="Project" required>
-            <Select value={poForm.projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setPoForm((f) => ({ ...f, projectId: e.target.value }))} />
-          </Field>
-          <Field label="Delivery Date"><Input type="date" value={poForm.deliveryDate} onChange={(e) => setPoForm((f) => ({ ...f, deliveryDate: e.target.value }))} /></Field>
-        </div>
-        <ItemsTable items={poItems} setItems={setPoItems} fields={ITEM_FIELDS} />
       </Modal>
     </div>
   );

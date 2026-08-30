@@ -9,9 +9,28 @@ import type { PoStatus } from "../constants";
 import { getDb } from "../firebase/client";
 import type { Actor, LineItem, PurchaseOrder } from "../types";
 import { logActivitySafe } from "./activity";
-import { computeLineTotals } from "./quotations";
 
 export const PURCHASE_ORDERS = "purchaseOrders";
+
+/** Per-line GST (from each item's own gstPercent), then split by the PO's GST type. */
+export function computePoTotals(items: Omit<LineItem, "amount" | "srNo">[], gstType: "IGST" | "CGST_SGST" = "IGST") {
+  const withAmounts: LineItem[] = items.map((it, i) => ({
+    srNo: i + 1,
+    description: it.description,
+    unit: it.unit,
+    qty: Number(it.qty) || 0,
+    rate: Number(it.rate) || 0,
+    amount: (Number(it.qty) || 0) * (Number(it.rate) || 0),
+    hsnCode: it.hsnCode,
+    gstPercent: Number(it.gstPercent) || 0,
+  }));
+  const subtotal = withAmounts.reduce((s, it) => s + it.amount, 0);
+  const totalGst = withAmounts.reduce((s, it) => s + it.amount * ((it.gstPercent ?? 0) / 100), 0);
+  const igstAmount = gstType === "IGST" ? totalGst : 0;
+  const cgstAmount = gstType === "CGST_SGST" ? totalGst / 2 : 0;
+  const sgstAmount = gstType === "CGST_SGST" ? totalGst / 2 : 0;
+  return { items: withAmounts, subtotal, taxAmount: totalGst, igstAmount, cgstAmount, sgstAmount, total: subtotal + totalGst };
+}
 
 function mapPo(id: string, data: Record<string, unknown>): PurchaseOrder {
   return { id, ...(data as Omit<PurchaseOrder, "id">) };
@@ -65,14 +84,16 @@ export interface PoDraft {
   deliveryDate?: Date | null;
   status?: PoStatus;
   items: Omit<LineItem, "amount" | "srNo">[];
-  taxAmount?: number;
+  gstType?: "IGST" | "CGST_SGST";
+  shipToDifferent?: boolean;
+  shipToAddress?: string;
   terms?: string;
   notes?: string;
 }
 
 export async function createPurchaseOrder(draft: PoDraft, actor?: Actor): Promise<PurchaseOrder> {
-  const { items, subtotal } = computeLineTotals(draft.items);
-  const taxAmount = draft.taxAmount ?? 0;
+  const gstType = draft.gstType ?? "IGST";
+  const { items, subtotal, taxAmount, igstAmount, cgstAmount, sgstAmount, total } = computePoTotals(draft.items, gstType);
   const ref = doc(collection(getDb(), PURCHASE_ORDERS));
   const payload = {
     poNo: draft.poNo,
@@ -86,7 +107,13 @@ export async function createPurchaseOrder(draft: PoDraft, actor?: Actor): Promis
     items,
     subtotal,
     taxAmount,
-    totalAmount: subtotal + taxAmount,
+    gstType,
+    igstAmount,
+    cgstAmount,
+    sgstAmount,
+    shipToDifferent: draft.shipToDifferent ?? false,
+    shipToAddress: draft.shipToAddress ?? "",
+    totalAmount: total,
     paidAmount: 0,
     terms: draft.terms ?? "",
     notes: draft.notes ?? "",
@@ -119,22 +146,25 @@ export type PoPatch = Partial<Omit<PoDraft, "projectId" | "projectName" | "vendo
 
 export async function updatePurchaseOrder(po: PurchaseOrder, patch: PoPatch, actor: Actor): Promise<void> {
   const update: Record<string, unknown> = { updatedAt: serverTimestamp() };
-  if (patch.items) {
-    const { items, subtotal } = computeLineTotals(patch.items);
-    const taxAmount = patch.taxAmount ?? po.taxAmount;
+  if (patch.items || patch.gstType) {
+    const gstType = patch.gstType ?? po.gstType ?? "IGST";
+    const { items, subtotal, taxAmount, igstAmount, cgstAmount, sgstAmount, total } = computePoTotals(patch.items ?? po.items, gstType);
     update.items = items;
     update.subtotal = subtotal;
     update.taxAmount = taxAmount;
-    update.totalAmount = subtotal + taxAmount;
-  } else if (patch.taxAmount !== undefined) {
-    update.taxAmount = patch.taxAmount;
-    update.totalAmount = po.subtotal + patch.taxAmount;
+    update.gstType = gstType;
+    update.igstAmount = igstAmount;
+    update.cgstAmount = cgstAmount;
+    update.sgstAmount = sgstAmount;
+    update.totalAmount = total;
   }
   if (patch.poNo !== undefined) update.poNo = patch.poNo;
   if (patch.vendorId !== undefined) update.vendorId = patch.vendorId;
   if (patch.vendorName !== undefined) update.vendorName = patch.vendorName;
   if (patch.terms !== undefined) update.terms = patch.terms;
   if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.shipToDifferent !== undefined) update.shipToDifferent = patch.shipToDifferent;
+  if (patch.shipToAddress !== undefined) update.shipToAddress = patch.shipToAddress;
   if (patch.poDate !== undefined) update.poDate = patch.poDate ? Timestamp.fromDate(patch.poDate) : null;
   if (patch.deliveryDate !== undefined) update.deliveryDate = patch.deliveryDate ? Timestamp.fromDate(patch.deliveryDate) : null;
   await updateDoc(doc(getDb(), PURCHASE_ORDERS, po.id), update);

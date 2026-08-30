@@ -6,7 +6,7 @@ import { Plus, Search, Star, Truck } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
 import {
-  Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, useAsyncAction,
+  Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, Textarea, useAsyncAction,
 } from "@/components/ui";
 import { VENDOR_CATEGORIES, type VendorCategory } from "@/lib/constants";
 import { createVendor, subscribeVendors } from "@/lib/db/vendors";
@@ -14,7 +14,7 @@ import type { Vendor } from "@/lib/types";
 
 const EMPTY = {
   name: "", category: "OTHER" as VendorCategory, contactName: "", contactEmail: "", contactPhone: "",
-  gstin: "", bankAccountNo: "", bankIfsc: "", bankName: "",
+  gstin: "", paymentTerms: "", address: "", bankAccountNo: "", bankIfsc: "", bankName: "",
 };
 
 export default function VendorsPage() {
@@ -111,7 +111,9 @@ export default function VendorsPage() {
           <Field label="GSTIN"><Input value={form.gstin} onChange={(e) => setForm((f) => ({ ...f, gstin: e.target.value }))} /></Field>
           <Field label="Contact Name"><Input value={form.contactName} onChange={(e) => setForm((f) => ({ ...f, contactName: e.target.value }))} /></Field>
           <Field label="Contact Email"><Input type="email" value={form.contactEmail} onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))} /></Field>
-          <Field label="Phone" className="col-span-2"><Input value={form.contactPhone} onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))} /></Field>
+          <Field label="Phone"><Input value={form.contactPhone} onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))} /></Field>
+          <Field label="Payment Terms"><Input value={form.paymentTerms} placeholder="e.g. Net 30, 50% advance" onChange={(e) => setForm((f) => ({ ...f, paymentTerms: e.target.value }))} /></Field>
+          <Field label="Address" className="col-span-2"><Textarea value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} /></Field>
           <Field label="Bank Account No."><Input value={form.bankAccountNo} onChange={(e) => setForm((f) => ({ ...f, bankAccountNo: e.target.value }))} /></Field>
           <Field label="IFSC"><Input value={form.bankIfsc} onChange={(e) => setForm((f) => ({ ...f, bankIfsc: e.target.value }))} /></Field>
           <Field label="Bank Name" className="col-span-2"><Input value={form.bankName} onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))} /></Field>

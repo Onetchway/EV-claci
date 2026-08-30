@@ -91,9 +91,11 @@ export default function PurchaseOrderDetailPage() {
                 <thead>
                   <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
                     <th className="pb-2">Description</th>
+                    <th className="pb-2">HSN/SAC</th>
                     <th className="pb-2">Unit</th>
                     <th className="pb-2 text-right">Qty</th>
                     <th className="pb-2 text-right">Unit price</th>
+                    <th className="pb-2 text-right">GST %</th>
                     <th className="pb-2 text-right">Amount</th>
                   </tr>
                 </thead>
@@ -101,9 +103,11 @@ export default function PurchaseOrderDetailPage() {
                   {po.items.map((line) => (
                     <tr key={line.srNo} className="border-b border-ink-100">
                       <td className="py-2">{line.description}</td>
+                      <td className="py-2 text-ink-500">{line.hsnCode || "—"}</td>
                       <td className="py-2 text-ink-500">{line.unit || "—"}</td>
                       <td className="py-2 text-right tabular-nums">{line.qty}</td>
                       <td className="py-2 text-right tabular-nums">{formatINR(line.rate)}</td>
+                      <td className="py-2 text-right tabular-nums">{line.gstPercent ?? 0}%</td>
                       <td className="py-2 text-right tabular-nums">{formatINR(line.amount)}</td>
                     </tr>
                   ))}
@@ -113,11 +117,24 @@ export default function PurchaseOrderDetailPage() {
             <div className="mt-4 flex justify-end">
               <dl className="w-56 space-y-1.5 text-sm">
                 <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(po.subtotal)}</dd></div>
-                <div className="flex justify-between"><dt className="text-ink-600">Tax</dt><dd className="tabular-nums">{formatINR(po.taxAmount)}</dd></div>
+                {po.gstType === "CGST_SGST" ? (
+                  <>
+                    <div className="flex justify-between"><dt className="text-ink-600">CGST</dt><dd className="tabular-nums">{formatINR(po.cgstAmount ?? 0)}</dd></div>
+                    <div className="flex justify-between"><dt className="text-ink-600">SGST</dt><dd className="tabular-nums">{formatINR(po.sgstAmount ?? 0)}</dd></div>
+                  </>
+                ) : (
+                  <div className="flex justify-between"><dt className="text-ink-600">IGST</dt><dd className="tabular-nums">{formatINR(po.igstAmount ?? po.taxAmount)}</dd></div>
+                )}
                 <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(po.totalAmount)}</dd></div>
               </dl>
             </div>
           </Card>
+
+          {po.shipToDifferent && po.shipToAddress && (
+            <Card title="Ship to">
+              <p className="whitespace-pre-line text-sm text-ink-700">{po.shipToAddress}</p>
+            </Card>
+          )}
 
           {po.terms && (
             <Card title="Terms &amp; conditions">
