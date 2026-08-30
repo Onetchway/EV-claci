@@ -162,9 +162,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onClick={() => setSearchOpen(true)}
           className="flex w-full items-center gap-2 rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-500 hover:bg-ink-100"
         >
-          <Search className="h-3.5 w-3.5" />
-          <span className="flex-1 text-left">Search everywhere…</span>
-          <kbd className="rounded border border-ink-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-ink-500">⌘K</kbd>
+          <Search className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-left">Search…</span>
+          <kbd className="shrink-0 rounded border border-ink-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-ink-500">⌘K</kbd>
         </button>
       </div>
 
