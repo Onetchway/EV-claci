@@ -255,6 +255,8 @@ export interface Quotation {
   terms?: string;
   notes?: string;
   sourceBoqId?: string | null;
+  /** A typed-name sign-off, not a cryptographic signature -- lightweight internal approval, matching the record's own status flow. */
+  approval?: { approvedBy: Actor; approvedAt: TS; signatureName: string; note?: string } | null;
   createdAt: TS;
   updatedAt: TS;
 }

@@ -147,6 +147,26 @@ export async function updateQuotationStatus(id: string, status: QuotationStatus,
   }
 }
 
+/**
+ * Sign-off: requires the approver to type their own name as confirmation
+ * (a lightweight internal e-sign, not a cryptographic signature), records
+ * who/when/what they typed, and moves status to APPROVED in the same write.
+ */
+export async function approveQuotation(quotation: Quotation, signatureName: string, note: string | undefined, actor: Actor): Promise<void> {
+  if (signatureName.trim().toLowerCase() !== actor.name.trim().toLowerCase()) {
+    throw new Error("Type your name exactly as shown to confirm approval.");
+  }
+  await updateDoc(doc(getDb(), QUOTATIONS, quotation.id), {
+    status: "APPROVED",
+    approval: { approvedBy: actor, approvedAt: serverTimestamp(), signatureName: signatureName.trim(), note: note ?? "" },
+    updatedAt: serverTimestamp(),
+  });
+  logActivitySafe({
+    entityType: "QUOTATION", entityId: quotation.id, entityLabel: quotation.quotationNo, action: "STATUS_CHANGE",
+    message: `${actor.name} approved quotation ${quotation.quotationNo}`, actor, projectId: quotation.projectId,
+  });
+}
+
 export type QuotationPatch = Partial<Omit<QuotationDraft, "projectId" | "projectName" | "clientId" | "version" | "items" | "taxPercent">> & {
   items?: Omit<LineItem, "amount" | "srNo">[];
   taxPercent?: number;
