@@ -12,6 +12,7 @@ import {
 
 import { useAuth } from "@/components/auth-provider";
 import { GlobalSearchModal } from "@/components/global-search-modal";
+import { NotificationsBell } from "@/components/notifications-bell";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/constants";
 import { isAdmin } from "@/lib/permissions";
@@ -180,6 +181,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <p className="truncate text-sm font-medium text-navy-900">{profile?.name}</p>
             <p className="truncate text-[11px] text-ink-500">{role ? ROLE_LABEL[role] : ""}</p>
           </div>
+          <NotificationsBell />
           <button
             onClick={() => void signOut().then(() => router.replace("/login"))}
             className="rounded-lg p-1.5 text-ink-500 hover:bg-ink-100 hover:text-navy-900"

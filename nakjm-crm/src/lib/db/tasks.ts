@@ -23,6 +23,15 @@ export function subscribeTasksForProject(projectId: string, cb: (rows: ProjectTa
   );
 }
 
+/** Org-wide — used by the notifications bell to surface overdue tasks across every project. */
+export function subscribeAllTasks(cb: (rows: ProjectTask[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), TASKS)),
+    (snap) => cb(snap.docs.map((d) => mapTask(d.id, d.data()))),
+    (err) => onError?.(err as Error),
+  );
+}
+
 export interface TaskDraft {
   projectId: string;
   stageId: string;
