@@ -301,5 +301,10 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isAdmin();
     }
+
+    match /projectTemplates/{projectType} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
   }
 }

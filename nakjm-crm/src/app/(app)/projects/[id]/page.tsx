@@ -35,6 +35,7 @@ import { createInspection, createNcr, subscribeInspectionsForProject, subscribeN
 import { createRfi, respondToRfi, subscribeRfisForProject, updateRfiStatus } from "@/lib/db/rfis";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
 import { createProformaInvoice, deleteProformaInvoice, subscribePisForProject, updateProformaInvoice } from "@/lib/db/proforma-invoices";
+import { subscribeProjectTemplates } from "@/lib/db/project-templates";
 import { assignTeamMember, subscribeProject, subscribeSubprojects, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
 import { canManageIssues, canManageStages, canManageTasks, canTrash } from "@/lib/permissions";
 import { createPurchaseOrder, deletePurchaseOrder, subscribePosForProject, updatePurchaseOrder } from "@/lib/db/purchase-orders";
@@ -956,6 +957,7 @@ function StagesTasksTab({ project }: { project: Project }) {
   const [stages, setStages] = useState<ProjectStage[] | null>(null);
   const [tasks, setTasks] = useState<ProjectTask[] | null>(null);
   const [boqs, setBoqs] = useState<Boq[]>([]);
+  const [templates, setTemplates] = useState<Record<ProjectType, string[]> | null>(null);
   const [showStageForm, setShowStageForm] = useState(false);
   const [stageForm, setStageForm] = useState({ name: "", plannedStart: "", plannedEnd: "" });
   const [taskForm, setTaskForm] = useState<Record<string, { title: string; assigneeId: string; dueDate: string }>>({});
@@ -966,6 +968,7 @@ function StagesTasksTab({ project }: { project: Project }) {
   useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
   useEffect(() => subscribeTasksForProject(project.id, setTasks), [project.id]);
   useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
+  useEffect(() => subscribeProjectTemplates(setTemplates), []);
 
   async function onAddStage() {
     if (!stageForm.name.trim()) return;
@@ -991,7 +994,8 @@ function StagesTasksTab({ project }: { project: Project }) {
   }
 
   function onGenerateFromTemplate() {
-    void onGenerateFromNames(STAGE_TEMPLATES[project.projectType], `Generated ${STAGE_TEMPLATES[project.projectType].length} stages from the ${project.projectType.replace(/_/g, " ")} template.`);
+    const names = templates?.[project.projectType] ?? STAGE_TEMPLATES[project.projectType];
+    void onGenerateFromNames(names, `Generated ${names.length} stages from the ${project.projectType.replace(/_/g, " ")} template.`);
   }
 
   function onGenerateFromBoq() {
