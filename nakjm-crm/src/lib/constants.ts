@@ -121,6 +121,10 @@ export type BoqStatus = (typeof BOQ_STATUSES)[number];
 export const BOQ_CATEGORIES = ["HT", "LT", "CIVIL", "MEP", "CHARGER", "OTHER"] as const;
 export type BoqCategory = (typeof BOQ_CATEGORIES)[number];
 
+export const BOQ_CATEGORY_LABEL: Record<BoqCategory, string> = {
+  HT: "HT Works", LT: "LT Works", CIVIL: "Civil Work", MEP: "MEP", CHARGER: "Charger Installation", OTHER: "Other Works",
+};
+
 export const PO_STATUSES = ["DRAFT", "ISSUED", "ACKNOWLEDGED", "PARTIALLY_DELIVERED", "COMPLETED", "CANCELLED"] as const;
 export type PoStatus = (typeof PO_STATUSES)[number];
 
@@ -146,6 +150,21 @@ export const STAGE_STATUS_META: Record<StageStatus, { label: string; className: 
   DELAYED: { label: "Delayed", className: "bg-amber-50 text-amber-700 ring-amber-200" },
   BLOCKED: { label: "Blocked", className: "bg-rose-50 text-rose-700 ring-rose-200" },
   COMPLETED: { label: "Completed", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+};
+
+/**
+ * Default stage sequence per project type — used to bulk-generate a
+ * project's Stages instead of adding them one at a time. Not user-editable
+ * yet (a full admin-configurable template system is a larger follow-up);
+ * for now this lives in code, mirroring the brief's example templates.
+ */
+export const STAGE_TEMPLATES: Record<ProjectType, string[]> = {
+  EV_CHARGING_STATION: ["Site Survey", "Design / Planning", "Civil Work", "Electrical Work", "Charger Installation", "Testing", "Commissioning", "Handover"],
+  SOLAR: ["Site Survey", "Design", "Approval", "Civil Work", "Structure Installation", "Module Installation", "Electrical Installation", "Testing", "Commissioning", "Handover"],
+  HT_CONNECTION: ["Site Survey", "Design", "HT Line Work", "Substation Work", "Testing", "Commissioning", "Handover"],
+  SUBSTATION: ["Site Survey", "Design", "Civil Work", "Equipment Installation", "Testing", "Commissioning", "Handover"],
+  BATTERY_SWAP: ["Site Survey", "Civil Work", "Electrical Work", "Installation", "Testing", "Commissioning", "Handover"],
+  OTHER: ["Site Survey", "Design", "Execution", "Testing", "Handover"],
 };
 
 export const TASK_STATUSES = ["OPEN", "IN_PROGRESS", "DONE", "BLOCKED"] as const;

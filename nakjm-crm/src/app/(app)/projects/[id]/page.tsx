@@ -11,8 +11,8 @@ import {
   Select, StatCard, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
-  BOQ_CATEGORIES, ISSUE_PRIORITIES, ISSUE_STATUSES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES,
-  SITE_REPORT_TYPES, STAGE_STATUSES, TASK_STATUSES, statusMeta,
+  BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, ISSUE_PRIORITIES, ISSUE_STATUSES, PAYMENT_MODES, PROJECT_STATUSES,
+  PROJECT_TYPES, SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES, statusMeta,
   type BoqCategory, type IssuePriority, type IssueStatus, type PaymentMode, type ProjectStatus, type ProjectType,
   type SiteReportType, type StageStatus, type TaskStatus,
 } from "@/lib/constants";
@@ -951,6 +951,7 @@ function StagesTasksTab({ project }: { project: Project }) {
   const viewer = useViewer();
   const [stages, setStages] = useState<ProjectStage[] | null>(null);
   const [tasks, setTasks] = useState<ProjectTask[] | null>(null);
+  const [boqs, setBoqs] = useState<Boq[]>([]);
   const [showStageForm, setShowStageForm] = useState(false);
   const [stageForm, setStageForm] = useState({ name: "", plannedStart: "", plannedEnd: "" });
   const [taskForm, setTaskForm] = useState<Record<string, { title: string; assigneeId: string; dueDate: string }>>({});
@@ -960,6 +961,7 @@ function StagesTasksTab({ project }: { project: Project }) {
 
   useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
   useEffect(() => subscribeTasksForProject(project.id, setTasks), [project.id]);
+  useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
 
   async function onAddStage() {
     if (!stageForm.name.trim()) return;
@@ -971,6 +973,29 @@ function StagesTasksTab({ project }: { project: Project }) {
       }, actor);
       setShowStageForm(false); setStageForm({ name: "", plannedStart: "", plannedEnd: "" });
     }, "Stage added.");
+  }
+
+  async function onGenerateFromNames(names: string[], successMsg: string) {
+    if (names.length === 0) return;
+    await run(async () => {
+      let seq = (stages?.length ?? 0) + 1;
+      for (const name of names) {
+        // eslint-disable-next-line no-await-in-loop -- sequence must stay in order
+        await createStage({ projectId: project.id, name, sequence: seq++ }, actor);
+      }
+    }, successMsg);
+  }
+
+  function onGenerateFromTemplate() {
+    void onGenerateFromNames(STAGE_TEMPLATES[project.projectType], `Generated ${STAGE_TEMPLATES[project.projectType].length} stages from the ${project.projectType.replace(/_/g, " ")} template.`);
+  }
+
+  function onGenerateFromBoq() {
+    const boq = boqs.find((b) => b.status === "APPROVED") ?? boqs[0];
+    if (!boq) return;
+    const categories = Array.from(new Set(boq.items.map((it) => it.category))).filter(Boolean) as BoqCategory[];
+    const names = categories.map((c) => BOQ_CATEGORY_LABEL[c] ?? c);
+    void onGenerateFromNames(names.length ? [...names, "Testing", "Commissioning", "Handover"] : [], `Generated ${names.length + 3} stages from ${boq.boqNo}.`);
   }
 
   async function onAddTask(stage: ProjectStage) {
@@ -991,10 +1016,20 @@ function StagesTasksTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      {canStage && <div className="flex justify-end"><Button onClick={() => setShowStageForm(true)}><Plus className="h-4 w-4" /> Add Stage</Button></div>}
+      {canStage && (
+        <div className="flex flex-wrap justify-end gap-2">
+          {stages && stages.length === 0 && (
+            <>
+              <Button variant="secondary" onClick={onGenerateFromTemplate}>Generate from {project.projectType.replace(/_/g, " ")} template</Button>
+              {boqs.length > 0 && <Button variant="secondary" onClick={onGenerateFromBoq}>Generate from BOQ</Button>}
+            </>
+          )}
+          <Button onClick={() => setShowStageForm(true)}><Plus className="h-4 w-4" /> Add Stage</Button>
+        </div>
+      )}
 
       {!stages ? <p className="text-sm text-ink-400">Loading…</p> : stages.length === 0 ? (
-        <EmptyState title="No stages yet" description="Break the project into delivery stages — Survey, Civil, Electrical, Installation, Testing, Commissioning — then track tasks under each." />
+        <EmptyState title="No stages yet" description="Create stages manually, generate them from the project type's default template, or from the BOQ's categories — then track tasks under each." />
       ) : (
         <div className="space-y-3">
           {stages.map((stage) => (
