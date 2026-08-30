@@ -11,8 +11,8 @@ import {
   Select, StatCard, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
-  BOQ_CATEGORIES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, SITE_REPORT_TYPES, statusMeta,
-  type BoqCategory, type PaymentMode, type ProjectStatus, type ProjectType, type SiteReportType,
+  BOQ_CATEGORIES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, SITE_REPORT_TYPES, STAGE_STATUSES, TASK_STATUSES, statusMeta,
+  type BoqCategory, type PaymentMode, type ProjectStatus, type ProjectType, type SiteReportType, type StageStatus, type TaskStatus,
 } from "@/lib/constants";
 import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { parseBoqFile } from "@/lib/boq-parser";
@@ -22,18 +22,20 @@ import { uploadDocument } from "@/lib/db/documents";
 import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subscribeVendorPayments } from "@/lib/db/payments";
 import { createProformaInvoice, deleteProformaInvoice, subscribePisForProject, updateProformaInvoice } from "@/lib/db/proforma-invoices";
 import { assignTeamMember, subscribeProject, subscribeSubprojects, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
-import { canTrash } from "@/lib/permissions";
+import { canManageStages, canManageTasks, canTrash } from "@/lib/permissions";
 import { createPurchaseOrder, deletePurchaseOrder, subscribePosForProject, updatePurchaseOrder } from "@/lib/db/purchase-orders";
 import { createQuotation, deleteQuotation, nextQuotationVersion, subscribeQuotationsForProject, updateQuotation } from "@/lib/db/quotations";
 import { createSiteReport, subscribeSiteReportsForProject } from "@/lib/db/site-reports";
+import { createStage, deleteStage, subscribeStagesForProject, updateStage } from "@/lib/db/stages";
+import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/lib/db/tasks";
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
-  Boq, BoqLineItem, Client, Project, ProformaInvoice, PurchaseOrder, Quotation, SiteReport, TeamMember, Vendor,
+  Boq, BoqLineItem, Client, Project, ProformaInvoice, ProjectStage, ProjectTask, PurchaseOrder, Quotation, SiteReport, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
 
-const TABS = ["Overview", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -186,6 +188,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {tab === "Overview" && <OverviewTab project={project} />}
+      {tab === "Stages & Tasks" && <StagesTasksTab project={project} />}
       {tab === "Quotations" && <QuotationsTab project={project} />}
       {tab === "BOQ" && <BoqTab project={project} />}
       {tab === "Purchase Orders" && <PoTab project={project} />}
@@ -878,6 +881,152 @@ function PaymentsTab({ project }: { project: Project }) {
           <Field label="Amount (₹)" required><Input type="number" value={vendorForm.amount} onChange={(e) => setVendorForm((f) => ({ ...f, amount: e.target.value }))} /></Field>
           <Field label="Mode"><Select value={vendorForm.mode} options={PAYMENT_MODES.map((m) => ({ value: m, label: m.replace(/_/g, " ") }))} onChange={(e) => setVendorForm((f) => ({ ...f, mode: e.target.value as PaymentMode }))} /></Field>
           <Field label="Reference No." className="col-span-2"><Input value={vendorForm.referenceNo} onChange={(e) => setVendorForm((f) => ({ ...f, referenceNo: e.target.value }))} /></Field>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Stages & Tasks ─────────────────────────────────────────────────────
+function StagesTasksTab({ project }: { project: Project }) {
+  const actor = useActor();
+  const viewer = useViewer();
+  const [stages, setStages] = useState<ProjectStage[] | null>(null);
+  const [tasks, setTasks] = useState<ProjectTask[] | null>(null);
+  const [showStageForm, setShowStageForm] = useState(false);
+  const [stageForm, setStageForm] = useState({ name: "", plannedStart: "", plannedEnd: "" });
+  const [taskForm, setTaskForm] = useState<Record<string, { title: string; assigneeId: string; dueDate: string }>>({});
+  const { busy, run } = useAsyncAction();
+  const canStage = canManageStages(viewer);
+  const canTask = canManageTasks(viewer);
+
+  useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
+  useEffect(() => subscribeTasksForProject(project.id, setTasks), [project.id]);
+
+  async function onAddStage() {
+    if (!stageForm.name.trim()) return;
+    await run(async () => {
+      await createStage({
+        projectId: project.id, name: stageForm.name, sequence: (stages?.length ?? 0) + 1,
+        plannedStart: stageForm.plannedStart ? new Date(stageForm.plannedStart) : null,
+        plannedEnd: stageForm.plannedEnd ? new Date(stageForm.plannedEnd) : null,
+      }, actor);
+      setShowStageForm(false); setStageForm({ name: "", plannedStart: "", plannedEnd: "" });
+    }, "Stage added.");
+  }
+
+  async function onAddTask(stage: ProjectStage) {
+    const f = taskForm[stage.id];
+    if (!f?.title.trim()) return;
+    await run(async () => {
+      const member = project.team.find((m) => m.teamMemberId === f.assigneeId);
+      await createTask({
+        projectId: project.id, stageId: stage.id, stageName: stage.name, title: f.title,
+        assigneeId: member?.teamMemberId ?? null, assigneeName: member?.name,
+        dueDate: f.dueDate ? new Date(f.dueDate) : null,
+      }, actor);
+      setTaskForm((s) => ({ ...s, [stage.id]: { title: "", assigneeId: "", dueDate: "" } }));
+    }, "Task added.");
+  }
+
+  const stageTasks = (stageId: string) => (tasks ?? []).filter((t) => t.stageId === stageId);
+
+  return (
+    <div className="space-y-4">
+      {canStage && <div className="flex justify-end"><Button onClick={() => setShowStageForm(true)}><Plus className="h-4 w-4" /> Add Stage</Button></div>}
+
+      {!stages ? <p className="text-sm text-ink-400">Loading…</p> : stages.length === 0 ? (
+        <EmptyState title="No stages yet" description="Break the project into delivery stages — Survey, Civil, Electrical, Installation, Testing, Commissioning — then track tasks under each." />
+      ) : (
+        <div className="space-y-3">
+          {stages.map((stage) => (
+            <Card key={stage.id}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-navy-900">{stage.sequence}. {stage.name}</p>
+                  <p className="text-xs text-ink-500">
+                    {stage.plannedStart ? formatDate(stage.plannedStart) : "—"} → {stage.plannedEnd ? formatDate(stage.plannedEnd) : "—"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {canStage ? (
+                    <Select value={stage.status} className="w-auto" options={STAGE_STATUSES.map((s) => ({ value: s, label: s.replace("_", " ") }))} onChange={(e) => void run(() => updateStage(stage, { status: e.target.value as StageStatus }, actor), "Updated.")} />
+                  ) : (
+                    <Badge>{stage.status.replace("_", " ")}</Badge>
+                  )}
+                  {canStage && (
+                    <button onClick={() => void run(async () => { await deleteStage(stage, actor); }, "Stage deleted.")} disabled={busy}>
+                      <Trash2 className="h-4 w-4 text-rose-500" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center gap-3">
+                <ProgressBar pct={stage.progressPct} className="flex-1" />
+                <span className="text-xs tabular-nums text-ink-500">{stage.progressPct}%</span>
+                {canStage && (
+                  <Input
+                    type="number" min={0} max={100} className="w-20"
+                    defaultValue={stage.progressPct}
+                    onBlur={(e) => {
+                      const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                      if (v !== stage.progressPct) void run(() => updateStage(stage, { progressPct: v }, actor), "Progress updated.");
+                    }}
+                  />
+                )}
+              </div>
+
+              <div className="mt-3 space-y-1.5 border-t border-ink-100 pt-3">
+                {stageTasks(stage.id).length === 0 ? (
+                  <p className="text-xs text-ink-400">No tasks yet.</p>
+                ) : stageTasks(stage.id).map((t) => (
+                  <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-ink-50 px-2.5 py-1.5 text-sm">
+                    <span className="flex-1 min-w-[120px]">{t.title}</span>
+                    <span className="text-xs text-ink-500">{t.assigneeName || "Unassigned"}</span>
+                    {t.dueDate && <span className="text-xs text-ink-400">Due {formatDate(t.dueDate)}</span>}
+                    {canTask ? (
+                      <Select value={t.status} className="w-auto" options={TASK_STATUSES.map((s) => ({ value: s, label: s.replace("_", " ") }))} onChange={(e) => void run(() => updateTask(t, { status: e.target.value as TaskStatus }, actor), "Updated.")} />
+                    ) : (
+                      <Badge>{t.status.replace("_", " ")}</Badge>
+                    )}
+                    {canTask && (
+                      <button onClick={() => void run(async () => { await deleteTask(t, actor); }, "Task deleted.")} disabled={busy}>
+                        <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {canTask && (
+                <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-ink-100 pt-3">
+                  <Field label="New task" className="min-w-[160px] flex-1">
+                    <Input value={taskForm[stage.id]?.title ?? ""} onChange={(e) => setTaskForm((s) => ({ ...s, [stage.id]: { ...(s[stage.id] ?? { assigneeId: "", dueDate: "" }), title: e.target.value } }))} />
+                  </Field>
+                  <Field label="Assignee" className="w-40">
+                    <Select
+                      value={taskForm[stage.id]?.assigneeId ?? ""} placeholder="Unassigned"
+                      options={project.team.map((m) => ({ value: m.teamMemberId, label: m.name }))}
+                      onChange={(e) => setTaskForm((s) => ({ ...s, [stage.id]: { ...(s[stage.id] ?? { title: "", dueDate: "" }), assigneeId: e.target.value } }))}
+                    />
+                  </Field>
+                  <Field label="Due" className="w-36">
+                    <Input type="date" value={taskForm[stage.id]?.dueDate ?? ""} onChange={(e) => setTaskForm((s) => ({ ...s, [stage.id]: { ...(s[stage.id] ?? { title: "", assigneeId: "" }), dueDate: e.target.value } }))} />
+                  </Field>
+                  <Button onClick={() => void onAddTask(stage)} loading={busy}><Plus className="h-4 w-4" /> Add</Button>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal open={showStageForm} onClose={() => setShowStageForm(false)} title="Add Stage" footer={<><Button variant="secondary" onClick={() => setShowStageForm(false)}>Cancel</Button><Button onClick={() => void onAddStage()} loading={busy}>Add</Button></>}>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Stage Name" required className="col-span-2"><Input value={stageForm.name} onChange={(e) => setStageForm((f) => ({ ...f, name: e.target.value }))} /></Field>
+          <Field label="Planned Start"><Input type="date" value={stageForm.plannedStart} onChange={(e) => setStageForm((f) => ({ ...f, plannedStart: e.target.value }))} /></Field>
+          <Field label="Planned End"><Input type="date" value={stageForm.plannedEnd} onChange={(e) => setStageForm((f) => ({ ...f, plannedEnd: e.target.value }))} /></Field>
         </div>
       </Modal>
     </div>

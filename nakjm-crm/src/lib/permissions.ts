@@ -43,6 +43,12 @@ export const canManageTenders = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROL
 export const canManageTeam = (viewer: Viewer) => hasRole(viewer, "SUPER_ADMIN", "ADMIN", "PROJECT_MANAGER");
 export const canManageProjects = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES);
 
+/** Stages are a project-planning decision; site engineers execute tasks but don't define the workstream. */
+export const canManageStages = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES);
+
+/** Site engineers update task status/progress day to day, not just office roles. */
+export const canManageTasks = (viewer: Viewer) => hasRole(viewer, ...WRITE_ROLES, "SITE_ENGINEER");
+
 /** Drafting quotations/BOQ/POs/PIs is a pricing decision. */
 export const canManageProcurement = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "PROJECT_MANAGER", "OPERATIONS");

@@ -181,6 +181,20 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ------------------------------------------------------------- execution
+
+    match /stages/{stageId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if signedIn();
+      allow create, update: if canManageMasterData() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
     // ------------------------------------------------------------- site reports
 
     match /siteReports/{reportId} {
