@@ -50,7 +50,7 @@ import type {
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Measurements", "Issues", "RFI", "Quality", "Drawings", "Handover", "Reports", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Timeline", "Measurements", "Issues", "RFI", "Quality", "Drawings", "Handover", "Reports", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -204,6 +204,7 @@ export default function ProjectDetailPage() {
 
       {tab === "Overview" && <OverviewTab project={project} />}
       {tab === "Stages & Tasks" && <StagesTasksTab project={project} />}
+      {tab === "Timeline" && <TimelineTab project={project} />}
       {tab === "Measurements" && <MeasurementsTab project={project} />}
       {tab === "Issues" && <IssuesTab project={project} />}
       {tab === "RFI" && <RfiTab project={project} />}
@@ -1125,6 +1126,65 @@ function StagesTasksTab({ project }: { project: Project }) {
           <Field label="Planned End"><Input type="date" value={stageForm.plannedEnd} onChange={(e) => setStageForm((f) => ({ ...f, plannedEnd: e.target.value }))} /></Field>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ── Timeline (Gantt) ──────────────────────────────────────────────────
+/** Simple CSS Gantt — planned bar (light) with an actual-progress overlay, scaled to the stages' own date range. */
+function TimelineTab({ project }: { project: Project }) {
+  const [stages, setStages] = useState<ProjectStage[] | null>(null);
+
+  useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
+
+  if (!stages) return <p className="text-sm text-ink-400">Loading…</p>;
+
+  const withDates = stages.filter((s) => s.plannedStart && s.plannedEnd);
+  if (withDates.length === 0) {
+    return <EmptyState title="No planned dates yet" description="Set planned start/end dates on stages (edit a stage's status card fields) to see the timeline." />;
+  }
+
+  const starts = withDates.map((s) => toDate(s.plannedStart)!.getTime());
+  const ends = withDates.map((s) => toDate(s.plannedEnd)!.getTime());
+  const rangeStart = Math.min(...starts);
+  const rangeEnd = Math.max(...ends);
+  const rangeSpan = Math.max(rangeEnd - rangeStart, 86400000);
+
+  return (
+    <div className="space-y-4">
+      <Card title="Stage Timeline" subtitle={`${formatDate(new Date(rangeStart))} — ${formatDate(new Date(rangeEnd))}`}>
+        <div className="space-y-3">
+          {stages.map((s) => {
+            if (!s.plannedStart || !s.plannedEnd) {
+              return (
+                <div key={s.id} className="flex items-center gap-3 text-sm">
+                  <span className="w-40 shrink-0 truncate text-ink-700">{s.name}</span>
+                  <span className="text-xs text-ink-400">No planned dates</span>
+                </div>
+              );
+            }
+            const start = toDate(s.plannedStart)!.getTime();
+            const end = toDate(s.plannedEnd)!.getTime();
+            const leftPct = ((start - rangeStart) / rangeSpan) * 100;
+            const widthPct = Math.max(((end - start) / rangeSpan) * 100, 1);
+            const isDelayed = s.status === "DELAYED" || s.status === "BLOCKED";
+            return (
+              <div key={s.id} className="flex items-center gap-3 text-sm">
+                <span className="w-40 shrink-0 truncate text-ink-700">{s.name}</span>
+                <div className="relative h-6 flex-1 rounded bg-ink-50">
+                  <div className="absolute inset-y-0 rounded bg-ink-200" style={{ left: `${leftPct}%`, width: `${widthPct}%` }} />
+                  <div
+                    className={`absolute inset-y-0 rounded ${isDelayed ? "bg-rose-400" : s.status === "COMPLETED" ? "bg-emerald-500" : "bg-brand-500"}`}
+                    style={{ left: `${leftPct}%`, width: `${Math.max((widthPct * s.progressPct) / 100, s.progressPct > 0 ? 1 : 0)}%` }}
+                  />
+                </div>
+                <span className="w-10 shrink-0 text-right text-xs tabular-nums text-ink-500">{s.progressPct}%</span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-4 text-xs text-ink-400">Today: {formatDate(new Date())}. Light bar = planned duration; colored bar = progress within it.</p>
+      </Card>
     </div>
   );
 }
