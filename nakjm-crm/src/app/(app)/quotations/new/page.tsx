@@ -11,7 +11,7 @@ import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/
 import { COMPANY_INFO, gstTypeForCounterparty, type GstType } from "@/lib/constants";
 import { getBoq } from "@/lib/db/boq";
 import { uploadDocument } from "@/lib/db/documents";
-import { createQuotation, computeLineTotals, nextQuotationVersion } from "@/lib/db/quotations";
+import { createQuotation, computeLineTotals, nextQuotationNo, nextQuotationVersion } from "@/lib/db/quotations";
 import { parseLineItemFile } from "@/lib/lineitem-parser";
 import { subscribeProjects } from "@/lib/db/projects";
 import type { Project } from "@/lib/types";
@@ -46,8 +46,15 @@ function NewQuotationForm() {
   const [sourceBoqId, setSourceBoqId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
+
+  useEffect(() => {
+    if (params.get("sourceBoqId")) return; // that flow names the quotation after the source BOQ instead
+    void nextQuotationNo().then((no) => setQuotationNo((n) => n || no));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
 
   async function onFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -104,6 +111,9 @@ function NewQuotationForm() {
       if (sourceFile) {
         await uploadDocument({ file: sourceFile, projectId, linkedEntityType: "QUOTATION", linkedEntityId: q.id, docType: "QUOTATION_UPLOAD", notes: "Original uploaded quotation file", actor });
       }
+      if (attachedFile) {
+        await uploadDocument({ file: attachedFile, projectId, linkedEntityType: "QUOTATION", linkedEntityId: q.id, docType: "QUOTATION_UPLOAD", notes: "Attached source document", actor });
+      }
       router.push(`/quotations/${q.id}`);
     }, "Quotation created.");
   }
@@ -134,6 +144,12 @@ function NewQuotationForm() {
               <ShipToField enabled={shipToDifferent} onEnabledChange={setShipToDifferent} address={shipToAddress} onAddressChange={setShipToAddress} className="col-span-2" />
               <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+              <Field label="Attach source document" className="col-span-2" hint="Optional — a client's RFQ or original quotation file, kept on record even if it can't be auto-imported above.">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-ink-300 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50">
+                  <Upload className="h-4 w-4" /> {attachedFile ? attachedFile.name : "Choose a file…"}
+                  <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.doc,.docx,image/*" onChange={(e) => setAttachedFile(e.target.files?.[0] ?? null)} />
+                </label>
+              </Field>
             </div>
           </Card>
 

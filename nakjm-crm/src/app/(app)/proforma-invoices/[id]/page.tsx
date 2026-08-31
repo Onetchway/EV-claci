@@ -166,6 +166,7 @@ export default function ProformaInvoiceDetailPage() {
             </dl>
             {pi.dueDate && <p className="mt-3 border-t border-ink-100 pt-3 text-xs text-ink-500">Due date: {formatDate(pi.dueDate)}</p>}
             {pi.milestone && <p className="mt-1 text-xs text-ink-500">Milestone: {pi.milestone}</p>}
+            {pi.clientPoNumber && <p className="mt-1 text-xs text-ink-500">Client PO: {pi.clientPoNumber}</p>}
             <p className="mt-1 text-xs text-ink-500"><Link href={`/projects/${pi.projectId}`} className="text-brand-700 hover:underline">{pi.projectName}</Link></p>
           </Card>
 

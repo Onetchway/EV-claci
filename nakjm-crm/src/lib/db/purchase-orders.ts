@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, deleteDoc, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc,
+  collection, deleteDoc, doc, getDoc, onSnapshot, query, runTransaction, serverTimestamp, setDoc,
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
@@ -11,6 +11,20 @@ import type { Actor, LineItem, PurchaseOrder } from "../types";
 import { logActivitySafe } from "./activity";
 
 export const PURCHASE_ORDERS = "purchaseOrders";
+
+/** NKJM-PO-000142, allocated transactionally so two office staff can't collide. */
+export async function nextPoNo(): Promise<string> {
+  const db = getDb();
+  const ref = doc(db, "counters", "purchaseOrders");
+  const seq = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const current = (snap.exists() ? (snap.data().seq as number | undefined) : undefined) ?? 0;
+    const next = current + 1;
+    tx.set(ref, { seq: next }, { merge: true });
+    return next;
+  });
+  return `NKJM-PO-${String(seq).padStart(5, "0")}`;
+}
 
 /** Per-line GST (from each item's own gstPercent), then split by the PO's GST type. */
 export function computePoTotals(items: Omit<LineItem, "amount" | "srNo">[], gstType: "IGST" | "CGST_SGST" = "IGST") {

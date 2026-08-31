@@ -334,6 +334,7 @@ export interface ProformaInvoice {
   projectName: string;
   clientId: string;
   quotationId?: string | null;
+  clientPoNumber?: string;
   piDate: TS;
   dueDate?: TS;
   status: PiStatus;

@@ -2,7 +2,7 @@
 
 import {
   collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query,
-  serverTimestamp, setDoc, updateDoc, where, Timestamp,
+  runTransaction, serverTimestamp, setDoc, updateDoc, where, Timestamp,
 } from "firebase/firestore";
 
 import type { QuotationStatus } from "../constants";
@@ -76,6 +76,20 @@ export function subscribeQuotation(id: string, cb: (q: Quotation | null) => void
 export async function nextQuotationVersion(projectId: string): Promise<number> {
   const snap = await getDocs(query(collection(getDb(), QUOTATIONS), where("projectId", "==", projectId)));
   return snap.docs.reduce((max, d) => Math.max(max, (d.data().version as number) || 0), 0) + 1;
+}
+
+/** NKJM-QT-000142, allocated transactionally so two office staff can't collide. */
+export async function nextQuotationNo(): Promise<string> {
+  const db = getDb();
+  const ref = doc(db, "counters", "quotations");
+  const seq = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const current = (snap.exists() ? (snap.data().seq as number | undefined) : undefined) ?? 0;
+    const next = current + 1;
+    tx.set(ref, { seq: next }, { merge: true });
+    return next;
+  });
+  return `NKJM-QT-${String(seq).padStart(5, "0")}`;
 }
 
 export interface QuotationDraft {

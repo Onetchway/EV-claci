@@ -61,6 +61,7 @@ export interface PiDraft {
   projectName: string;
   clientId: string;
   quotationId?: string | null;
+  clientPoNumber?: string;
   piDate?: Date | null;
   dueDate?: Date | null;
   status?: PiStatus;
@@ -94,6 +95,7 @@ export async function createProformaInvoice(draft: PiDraft, actor?: Actor): Prom
     projectName: draft.projectName,
     clientId: draft.clientId,
     quotationId: draft.quotationId ?? null,
+    clientPoNumber: draft.clientPoNumber ?? "",
     piDate: draft.piDate ? Timestamp.fromDate(draft.piDate) : Timestamp.now(),
     dueDate: draft.dueDate ? Timestamp.fromDate(draft.dueDate) : null,
     status: draft.status ?? "DRAFT",

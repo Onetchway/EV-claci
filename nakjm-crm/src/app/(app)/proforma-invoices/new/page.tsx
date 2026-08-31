@@ -42,6 +42,7 @@ function NewProformaInvoiceForm() {
   const [notes, setNotes] = useState("");
   const [shipToDifferent, setShipToDifferent] = useState(false);
   const [shipToAddress, setShipToAddress] = useState("");
+  const [clientPoNumber, setClientPoNumber] = useState("");
   const [poFile, setPoFile] = useState<File | null>(null);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [sourceQuotationId, setSourceQuotationId] = useState<string | null>(null);
@@ -68,6 +69,10 @@ function NewProformaInvoiceForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount from the URL param
   }, []);
 
+  function onClientPoNumberBlur() {
+    if (clientPoNumber.trim()) setPiNo((n) => n || `${clientPoNumber.trim()}-PI`);
+  }
+
   const { subtotal } = computeLineTotals(items);
   const tax = Number(taxAmount) || 0;
   const igst = gstType === "IGST" ? tax : 0;
@@ -93,7 +98,7 @@ function NewProformaInvoiceForm() {
       const pi = await createProformaInvoice({
         piNo, projectId, projectName: project.name, clientId: project.clientId, quotationId: sourceQuotationId,
         dueDate: dueDate ? new Date(dueDate) : null, milestone, items,
-        taxAmount: tax, gstType, terms, notes, sourceDocumentId,
+        taxAmount: tax, gstType, terms, notes, sourceDocumentId, clientPoNumber,
         shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "",
       }, actor);
       router.push(`/proforma-invoices/${pi.id}`);
@@ -114,6 +119,7 @@ function NewProformaInvoiceForm() {
         <div className="space-y-4 lg:col-span-2">
           <Card title="PI details">
             <div className="grid grid-cols-2 gap-3">
+              <Field label="Client PO Number" hint="The client's own PO/order number — PI No. below is derived from it."><Input value={clientPoNumber} onChange={(e) => setClientPoNumber(e.target.value)} onBlur={onClientPoNumberBlur} /></Field>
               <Field label="PI No." required><Input value={piNo} onChange={(e) => setPiNo(e.target.value)} /></Field>
               <Field label="Project" required>
                 <Select value={projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setProjectId(e.target.value)} />

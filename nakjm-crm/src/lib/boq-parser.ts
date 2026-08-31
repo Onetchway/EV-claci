@@ -51,11 +51,21 @@ function mapColumns(headerRow: unknown[]): Partial<Record<keyof typeof HEADER_PA
   return map;
 }
 
-/** Parses a BOQ-style spreadsheet (NAKJM's standard formats) into line items, in the browser. */
-export async function parseBoqFile(file: File): Promise<BoqLineItem[]> {
+export interface BoqSheetGroup {
+  sheetName: string;
+  items: BoqLineItem[];
+}
+
+/**
+ * Parses a BOQ-style spreadsheet (NAKJM's standard formats) into line items, in the browser.
+ * Returns one group per sheet that actually contains a BOQ table -- a workbook with multiple
+ * sheets commonly represents multiple sites/stations sharing one file (e.g. "Station 1",
+ * "Station 2"), so the caller decides whether to import them as one combined BOQ or one per site.
+ */
+export async function parseBoqFile(file: File): Promise<BoqSheetGroup[]> {
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: "array" });
-  const items: BoqLineItem[] = [];
+  const groups: BoqSheetGroup[] = [];
 
   for (const sheetName of wb.SheetNames) {
     const sheet = wb.Sheets[sheetName]!;
@@ -66,6 +76,7 @@ export async function parseBoqFile(file: File): Promise<BoqLineItem[]> {
     const cols = mapColumns(rows[headerIdx]!);
     if (cols.description === undefined) continue;
 
+    const items: BoqLineItem[] = [];
     let currentSection: string | undefined;
     let autoSr = 1;
 
@@ -121,7 +132,9 @@ export async function parseBoqFile(file: File): Promise<BoqLineItem[]> {
         remarks: cols.remarks !== undefined ? normalize(row[cols.remarks]) || undefined : undefined,
       });
     }
+
+    if (items.length) groups.push({ sheetName, items });
   }
 
-  return items;
+  return groups;
 }

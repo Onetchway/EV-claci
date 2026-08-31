@@ -10,7 +10,7 @@ import { ItemsTable, PO_ITEM_FIELDS, type DraftItem } from "@/components/line-it
 import { COMPANY_INFO, gstTypeForCounterparty } from "@/lib/constants";
 import { getBoq } from "@/lib/db/boq";
 import { uploadDocument } from "@/lib/db/documents";
-import { computePoTotals, createPurchaseOrder } from "@/lib/db/purchase-orders";
+import { computePoTotals, createPurchaseOrder, nextPoNo } from "@/lib/db/purchase-orders";
 import { parseLineItemFile } from "@/lib/lineitem-parser";
 import { subscribeProjects } from "@/lib/db/projects";
 import { listActiveVendors } from "@/lib/db/vendors";
@@ -47,9 +47,16 @@ function NewPurchaseOrderForm() {
   const [sourceBoqNo, setSourceBoqNo] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
   useEffect(() => { void listActiveVendors().then(setVendors); }, []);
+
+  useEffect(() => {
+    if (params.get("sourceBoqId")) return; // that flow names the PO after the source BOQ instead
+    void nextPoNo().then((no) => setPoNo((n) => n || no));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
 
   async function onFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -106,6 +113,9 @@ function NewPurchaseOrderForm() {
       if (sourceFile) {
         await uploadDocument({ file: sourceFile, projectId, linkedEntityType: "PURCHASE_ORDER", linkedEntityId: po.id, docType: "PO_UPLOAD", notes: "Original uploaded PO file", actor });
       }
+      if (attachedFile) {
+        await uploadDocument({ file: attachedFile, projectId, linkedEntityType: "PURCHASE_ORDER", linkedEntityId: po.id, docType: "PO_UPLOAD", notes: "Attached source document", actor });
+      }
       router.push(`/purchase-orders/${po.id}`);
     }, "Purchase order created.");
   }
@@ -146,6 +156,15 @@ function NewPurchaseOrderForm() {
               {shipToDifferent && (
                 <div className="mt-2"><Textarea value={shipToAddress} onChange={(e) => setShipToAddress(e.target.value)} placeholder="Delivery address" /></div>
               )}
+            </div>
+
+            <div className="mt-4">
+              <Field label="Attach source document" hint="Optional — the vendor's original quote or a signed PO, kept on record even if it can't be auto-imported below.">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-ink-300 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50">
+                  <Upload className="h-4 w-4" /> {attachedFile ? attachedFile.name : "Choose a file…"}
+                  <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.doc,.docx,image/*" onChange={(e) => setAttachedFile(e.target.files?.[0] ?? null)} />
+                </label>
+              </Field>
             </div>
           </Card>
 

@@ -209,8 +209,19 @@ export const STAGE_STATUS_META: Record<StageStatus, { label: string; className: 
  * yet (a full admin-configurable template system is a larger follow-up);
  * for now this lives in code, mirroring the brief's example templates.
  */
+/**
+ * EV_CHARGING_STATION's sequence follows V-Green's Setup Playbook (v1.2) section-by-section --
+ * each stage name maps to one of its numbered sections, so stage progress lines up with the
+ * playbook's own document checklist and payment-milestone structure (30% Appendix Signing / 10%
+ * Civil / 30% Construction Handover / 25% Go-Live / 5% Warranty).
+ */
 export const STAGE_TEMPLATES: Record<ProjectType, string[]> = {
-  EV_CHARGING_STATION: ["Site Survey", "Design / Planning", "Civil Work", "Electrical Work", "Charger Installation", "Testing", "Commissioning", "Handover"],
+  EV_CHARGING_STATION: [
+    "Site Survey", "Appendix Signing & BOQ Approval", "DISCOM Application",
+    "Site Layout & Electrical Drawing Approval", "Civil Work", "ACDB Installation & Electrical Work",
+    "EVCS Delivery & Installation", "Electrical Testing & Pre-Energization",
+    "Final Energization & Commissioning (Go-Live)", "HOTO & Final Handover",
+  ],
   SOLAR: ["Site Survey", "Design", "Approval", "Civil Work", "Structure Installation", "Module Installation", "Electrical Installation", "Testing", "Commissioning", "Handover"],
   HT_CONNECTION: ["Site Survey", "Design", "HT Line Work", "Substation Work", "Testing", "Commissioning", "Handover"],
   SUBSTATION: ["Site Survey", "Design", "Civil Work", "Equipment Installation", "Testing", "Commissioning", "Handover"],
@@ -237,7 +248,7 @@ export const TASK_STATUS_META: Record<TaskStatus, { label: string; className: st
 
 export const DOCUMENT_CATEGORIES = [
   "CLIENT_PO", "WORK_ORDER", "TENDER", "BOQ_UPLOAD", "QUOTATION_UPLOAD", "PO_UPLOAD", "DRAWING", "TECHNICAL",
-  "APPROVAL", "DPR", "MEASUREMENT", "PHOTO", "INSPECTION", "COMPLETION", "OTHER",
+  "APPROVAL", "DPR", "MEASUREMENT", "PHOTO", "INSPECTION", "SITE_SURVEY", "TEST_REPORT", "HOTO", "COMPLETION", "OTHER",
 ] as const;
 export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
 
@@ -245,6 +256,7 @@ export const DOCUMENT_CATEGORY_LABEL: Record<DocumentCategory, string> = {
   CLIENT_PO: "Client PO", WORK_ORDER: "Work Order", TENDER: "Tender Document", BOQ_UPLOAD: "BOQ",
   QUOTATION_UPLOAD: "Quotation", PO_UPLOAD: "Purchase Order", DRAWING: "Drawing", TECHNICAL: "Technical Document", APPROVAL: "Approval",
   DPR: "DPR", MEASUREMENT: "Measurement", PHOTO: "Photo", INSPECTION: "Inspection Report",
+  SITE_SURVEY: "Site Survey Report", TEST_REPORT: "Test Report (Earthing/Voltage/IR/Continuity)", HOTO: "HOTO Checklist/Photos",
   COMPLETION: "Completion Document", OTHER: "Other",
 };
 
