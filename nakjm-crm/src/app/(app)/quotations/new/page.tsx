@@ -176,8 +176,8 @@ function NewQuotationForm() {
             title="Line items"
             actions={
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-800 hover:bg-ink-50">
-                <Upload className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import from Excel"}
-                <input type="file" accept=".xlsx,.xls" className="hidden" disabled={importing} onChange={(e) => void onFileSelect(e)} />
+                <Upload className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import from Excel/PDF"}
+                <input type="file" accept=".xlsx,.xls,.pdf" className="hidden" disabled={importing} onChange={(e) => void onFileSelect(e)} />
               </label>
             }
           >

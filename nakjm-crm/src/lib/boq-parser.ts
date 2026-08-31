@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 
 import type { BoqCategory } from "./constants";
+import { extractPdfRows } from "./pdf-table-extract";
 import type { BoqLineItem } from "./types";
 
 const HEADER_PATTERNS: Record<string, RegExp> = {
@@ -56,25 +57,13 @@ export interface BoqSheetGroup {
   items: BoqLineItem[];
 }
 
-/**
- * Parses a BOQ-style spreadsheet (NAKJM's standard formats) into line items, in the browser.
- * Returns one group per sheet that actually contains a BOQ table -- a workbook with multiple
- * sheets commonly represents multiple sites/stations sharing one file (e.g. "Station 1",
- * "Station 2"), so the caller decides whether to import them as one combined BOQ or one per site.
- */
-export async function parseBoqFile(file: File): Promise<BoqSheetGroup[]> {
-  const buffer = await file.arrayBuffer();
-  const wb = XLSX.read(buffer, { type: "array" });
-  const groups: BoqSheetGroup[] = [];
-
-  for (const sheetName of wb.SheetNames) {
-    const sheet = wb.Sheets[sheetName]!;
-    const rows: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true });
+/** Shared by the Excel and PDF import paths -- both reduce to the same unknown[][] row shape. */
+function extractBoqItemsFromRows(rows: unknown[][]): BoqLineItem[] {
     const headerIdx = detectHeaderRow(rows);
-    if (headerIdx === -1) continue;
+    if (headerIdx === -1) return [];
 
     const cols = mapColumns(rows[headerIdx]!);
-    if (cols.description === undefined) continue;
+    if (cols.description === undefined) return [];
 
     const items: BoqLineItem[] = [];
     let currentSection: string | undefined;
@@ -133,6 +122,32 @@ export async function parseBoqFile(file: File): Promise<BoqSheetGroup[]> {
       });
     }
 
+  return items;
+}
+
+/**
+ * Parses a BOQ-style spreadsheet or text-based PDF (NAKJM's standard formats) into line items,
+ * in the browser. Returns one group per sheet that actually contains a BOQ table -- a workbook
+ * with multiple sheets commonly represents multiple sites/stations sharing one file (e.g.
+ * "Station 1", "Station 2"), so the caller decides whether to import them as one combined BOQ or
+ * one per site. A PDF has only one "sheet" (there's no sheet concept in a PDF).
+ */
+export async function parseBoqFile(file: File): Promise<BoqSheetGroup[]> {
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  if (isPdf) {
+    const rows = await extractPdfRows(file);
+    const items = extractBoqItemsFromRows(rows);
+    return items.length ? [{ sheetName: file.name.replace(/\.[^.]+$/, ""), items }] : [];
+  }
+
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: "array" });
+  const groups: BoqSheetGroup[] = [];
+
+  for (const sheetName of wb.SheetNames) {
+    const sheet = wb.Sheets[sheetName]!;
+    const rows: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true });
+    const items = extractBoqItemsFromRows(rows);
     if (items.length) groups.push({ sheetName, items });
   }
 

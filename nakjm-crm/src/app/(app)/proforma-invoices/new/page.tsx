@@ -12,6 +12,7 @@ import { COMPANY_INFO, gstTypeForCounterparty, type GstType } from "@/lib/consta
 import { createProformaInvoice } from "@/lib/db/proforma-invoices";
 import { computeLineTotals, getQuotation } from "@/lib/db/quotations";
 import { uploadDocument } from "@/lib/db/documents";
+import { parseLineItemFile } from "@/lib/lineitem-parser";
 import { subscribeProjects } from "@/lib/db/projects";
 import type { Project } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -47,8 +48,27 @@ function NewProformaInvoiceForm() {
   const [items, setItems] = useState<DraftItem[]>([]);
   const [sourceQuotationId, setSourceQuotationId] = useState<string | null>(null);
   const [sourceQuotationNo, setSourceQuotationNo] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
+
+  async function onFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    try {
+      const parsed = await parseLineItemFile(file);
+      if (!parsed.length) throw new Error("Could not detect a line-item table in this file.");
+      setItems(parsed);
+      setPiNo((n) => n || file.name.replace(/\.[^.]+$/, ""));
+      push(`Imported ${parsed.length} line items — review before saving.`, "success");
+    } catch (err) {
+      push((err as Error).message, "error");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   useEffect(() => {
     const quotationId = params.get("sourceQuotationId");
@@ -109,7 +129,7 @@ function NewProformaInvoiceForm() {
     <div>
       <div className="mb-5">
         <h1 className="text-lg font-semibold text-navy-900">New Proforma Invoice</h1>
-        <p className="text-sm text-ink-500">Raise a pre-sale bill against a project so the client can arrange payment.</p>
+        <p className="text-sm text-ink-500">Raise a pre-sale bill against a project so the client can arrange payment, or import one from Excel/PDF below.</p>
         {sourceQuotationNo && (
           <p className="mt-2 rounded-lg bg-brand-50 px-3 py-1.5 text-xs text-brand-800">Prefilled from Quotation {sourceQuotationNo} — review before creating.</p>
         )}
@@ -145,7 +165,15 @@ function NewProformaInvoiceForm() {
             </div>
           </Card>
 
-          <Card title="Line items">
+          <Card
+            title="Line items"
+            actions={
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-800 hover:bg-ink-50">
+                <Upload className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import from Excel/PDF"}
+                <input type="file" accept=".xlsx,.xls,.pdf" className="hidden" disabled={importing} onChange={(e) => void onFileSelect(e)} />
+              </label>
+            }
+          >
             <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
           </Card>
         </div>
