@@ -9,7 +9,7 @@ import { EntityActivityLog } from "@/components/entity-activity-log";
 import { GstRegistrationsField } from "@/components/gst-fields";
 import { Badge, Button, Field, Input, Modal, Select, StatCard, useAsyncAction } from "@/components/ui";
 import { updateClient, subscribeClient } from "@/lib/db/clients";
-import { listProjectsForClient } from "@/lib/db/projects";
+import { subscribeProjects } from "@/lib/db/projects";
 import { subscribeBoqs } from "@/lib/db/boq";
 import { subscribeDocuments } from "@/lib/db/documents";
 import { subscribeClientPayments } from "@/lib/db/payments";
@@ -44,7 +44,7 @@ export default function ClientDetailPage() {
   const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribeClient(id, setClient), [id]);
-  useEffect(() => { void listProjectsForClient(id).then(setProjects); }, [id]);
+  useEffect(() => subscribeProjects({ clientId: id, status: "ALL", max: 500 }, setProjects), [id]);
   useEffect(() => subscribeTendersForClient(id, setTenders), [id]);
   useEffect(() => subscribeClientPayments({ clientId: id }, setPayments), [id]);
   useEffect(() => subscribeQuotationsForClient(id, setQuotations), [id]);
