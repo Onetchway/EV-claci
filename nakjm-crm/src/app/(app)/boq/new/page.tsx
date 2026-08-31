@@ -10,6 +10,7 @@ import { ItemsTable, BOQ_FIELDS, type DraftBoqItem } from "@/components/line-ite
 import { BOQ_CATEGORIES, type BoqCategory } from "@/lib/constants";
 import { parseBoqFile } from "@/lib/boq-parser";
 import { createBoq } from "@/lib/db/boq";
+import { uploadDocument } from "@/lib/db/documents";
 import { subscribeProjects } from "@/lib/db/projects";
 import type { BoqLineItem, Project } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -36,6 +37,7 @@ function NewBoqForm() {
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<DraftBoqItem[]>([]);
   const [importing, setImporting] = useState(false);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
 
@@ -51,6 +53,7 @@ function NewBoqForm() {
       const parsed = await parseBoqFile(file);
       if (!parsed.length) throw new Error("Could not detect a BOQ table in this file.");
       setItems(parsed);
+      setSourceFile(file);
       setBoqNo((n) => n || file.name.replace(/\.[^.]+$/, ""));
       push(`Imported ${parsed.length} line items — review before saving.`, "success");
     } catch (err) {
@@ -68,6 +71,9 @@ function NewBoqForm() {
     await run(async () => {
       const cleanItems = items.map((it) => ({ ...it, category: (it.category as BoqCategory) || "OTHER" })) as BoqLineItem[];
       const boq = await createBoq({ boqNo, projectId, projectName: project.name, siteName, items: cleanItems, notes }, actor);
+      if (sourceFile) {
+        await uploadDocument({ file: sourceFile, projectId, linkedEntityType: "BOQ", linkedEntityId: boq.id, docType: "BOQ_UPLOAD", notes: "Original uploaded BOQ file", actor });
+      }
       router.push(`/boq/${boq.id}`);
     }, "BOQ created.");
   }

@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { Upload } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
@@ -9,7 +10,9 @@ import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { COMPANY_INFO, gstTypeForCounterparty, type GstType } from "@/lib/constants";
 import { getBoq } from "@/lib/db/boq";
+import { uploadDocument } from "@/lib/db/documents";
 import { createQuotation, computeLineTotals, nextQuotationVersion } from "@/lib/db/quotations";
+import { parseLineItemFile } from "@/lib/lineitem-parser";
 import { subscribeProjects } from "@/lib/db/projects";
 import type { Project } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -41,8 +44,29 @@ function NewQuotationForm() {
   const [shipToAddress, setShipToAddress] = useState("");
   const [items, setItems] = useState<DraftItem[]>([]);
   const [sourceBoqId, setSourceBoqId] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
+
+  async function onFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    try {
+      const parsed = await parseLineItemFile(file);
+      if (!parsed.length) throw new Error("Could not detect a line-item table in this file.");
+      setItems(parsed);
+      setSourceFile(file);
+      setQuotationNo((n) => n || file.name.replace(/\.[^.]+$/, ""));
+      push(`Imported ${parsed.length} line items — review before saving.`, "success");
+    } catch (err) {
+      push((err as Error).message, "error");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   useEffect(() => {
     const boqId = params.get("sourceBoqId");
@@ -77,6 +101,9 @@ function NewQuotationForm() {
         items, taxPercent: Number(taxPercent) || 0, gstType, terms, notes, sourceBoqId,
         shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "",
       }, actor);
+      if (sourceFile) {
+        await uploadDocument({ file: sourceFile, projectId, linkedEntityType: "QUOTATION", linkedEntityId: q.id, docType: "QUOTATION_UPLOAD", notes: "Original uploaded quotation file", actor });
+      }
       router.push(`/quotations/${q.id}`);
     }, "Quotation created.");
   }
@@ -85,7 +112,7 @@ function NewQuotationForm() {
     <div>
       <div className="mb-5">
         <h1 className="text-lg font-semibold text-navy-900">New Quotation</h1>
-        <p className="text-sm text-ink-500">Prepare a priced quotation against a project's BOQ or scope.</p>
+        <p className="text-sm text-ink-500">Prepare a priced quotation against a project's BOQ or scope, or import one from Excel below.</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -110,7 +137,15 @@ function NewQuotationForm() {
             </div>
           </Card>
 
-          <Card title="Line items">
+          <Card
+            title="Line items"
+            actions={
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-800 hover:bg-ink-50">
+                <Upload className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import from Excel"}
+                <input type="file" accept=".xlsx,.xls" className="hidden" disabled={importing} onChange={(e) => void onFileSelect(e)} />
+              </label>
+            }
+          >
             <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
           </Card>
         </div>
