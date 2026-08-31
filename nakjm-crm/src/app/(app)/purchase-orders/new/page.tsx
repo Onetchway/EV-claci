@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { ItemsTable, PO_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
+import { COMPANY_INFO, gstTypeForCounterparty } from "@/lib/constants";
 import { computePoTotals, createPurchaseOrder } from "@/lib/db/purchase-orders";
 import { subscribeProjects } from "@/lib/db/projects";
 import { listActiveVendors } from "@/lib/db/vendors";
@@ -43,6 +44,11 @@ function NewPurchaseOrderForm() {
   useEffect(() => { void listActiveVendors().then(setVendors); }, []);
 
   const totals = computePoTotals(items, gstType);
+  const vendor = vendors.find((v) => v.id === vendorId);
+
+  useEffect(() => {
+    if (vendor?.gstin) setGstType(gstTypeForCounterparty(COMPANY_INFO.gstin, vendor.gstin));
+  }, [vendor?.gstin]);
 
   async function onCreate() {
     if (!poNo.trim() || !projectId || !vendorId) {
@@ -51,7 +57,6 @@ function NewPurchaseOrderForm() {
     }
     await run(async () => {
       const project = projects.find((p) => p.id === projectId);
-      const vendor = vendors.find((v) => v.id === vendorId);
       const po = await createPurchaseOrder({
         poNo, projectId, projectName: project?.name ?? "", vendorId, vendorName: vendor?.name ?? "",
         deliveryDate: deliveryDate ? new Date(deliveryDate) : null, items, gstType,
@@ -85,6 +90,9 @@ function NewPurchaseOrderForm() {
                 <label className="flex items-center gap-1.5"><input type="radio" checked={gstType === "IGST"} onChange={() => setGstType("IGST")} /> IGST</label>
                 <label className="flex items-center gap-1.5"><input type="radio" checked={gstType === "CGST_SGST"} onChange={() => setGstType("CGST_SGST")} /> CGST &amp; SGST</label>
               </div>
+              {vendor?.gstin && (
+                <p className="mt-1 text-xs text-ink-500">Vendor GSTIN: {vendor.gstin} — GST type auto-set from this, override above if needed.</p>
+              )}
               <label className="mt-3 flex items-center gap-2 text-sm text-ink-700">
                 <input type="checkbox" checked={shipToDifferent} onChange={(e) => setShipToDifferent(e.target.checked)} /> Ship to a different address
               </label>

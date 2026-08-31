@@ -8,7 +8,7 @@ import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
-import type { GstType } from "@/lib/constants";
+import { COMPANY_INFO, gstTypeForCounterparty, type GstType } from "@/lib/constants";
 import { createProformaInvoice } from "@/lib/db/proforma-invoices";
 import { computeLineTotals } from "@/lib/db/quotations";
 import { uploadDocument } from "@/lib/db/documents";
@@ -54,6 +54,10 @@ function NewProformaInvoiceForm() {
   const sgst = gstType === "CGST_SGST" ? tax / 2 : 0;
   const project = projects.find((p) => p.id === projectId);
 
+  useEffect(() => {
+    if (project?.billingGstin) setGstType(gstTypeForCounterparty(COMPANY_INFO.gstin, project.billingGstin));
+  }, [project?.billingGstin]);
+
   async function onCreate() {
     if (!piNo.trim() || !projectId || !project) {
       push("PI number and project are required.", "error");
@@ -94,6 +98,11 @@ function NewProformaInvoiceForm() {
               <Field label="Milestone"><Input value={milestone} onChange={(e) => setMilestone(e.target.value)} /></Field>
               <Field label="Tax Amount (₹)"><Input type="number" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} /></Field>
               <GstTypeField value={gstType} onChange={setGstType} />
+              {project?.billingGstin && (
+                <p className="col-span-2 -mt-2 text-xs text-ink-500">
+                  Billing GSTIN: {project.billingGstin}{project.billingState ? ` (${project.billingState})` : ""} — GST type auto-set from this, override above if needed.
+                </p>
+              )}
               <ShipToField enabled={shipToDifferent} onEnabledChange={setShipToDifferent} address={shipToAddress} onAddressChange={setShipToAddress} className="col-span-2" />
               <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>

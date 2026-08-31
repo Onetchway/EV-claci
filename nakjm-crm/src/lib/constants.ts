@@ -153,6 +153,30 @@ export const GST_TYPES = ["IGST", "CGST_SGST"] as const;
 export type GstType = (typeof GST_TYPES)[number];
 export const GST_TYPE_LABEL: Record<GstType, string> = { IGST: "IGST", CGST_SGST: "CGST & SGST" };
 
+/** Standard GST state codes -- the first two digits of every Indian GSTIN. */
+export const GST_STATE_CODES: Record<string, string> = {
+  "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh",
+  "05": "Uttarakhand", "06": "Haryana", "07": "Delhi", "08": "Rajasthan", "09": "Uttar Pradesh",
+  "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh", "13": "Nagaland", "14": "Manipur",
+  "15": "Mizoram", "16": "Tripura", "17": "Meghalaya", "18": "Assam", "19": "West Bengal",
+  "20": "Jharkhand", "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh", "24": "Gujarat",
+  "25": "Daman & Diu", "26": "Dadra & Nagar Haveli", "27": "Maharashtra", "28": "Andhra Pradesh (Old)",
+  "29": "Karnataka", "30": "Goa", "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu",
+  "34": "Puducherry", "35": "Andaman & Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh",
+  "38": "Ladakh",
+};
+
+/** Reads the state straight off a GSTIN's first two digits, the authoritative source -- never a free-text field that can drift from it. */
+export function gstStateFromGstin(gstin: string): string {
+  return GST_STATE_CODES[gstin.trim().slice(0, 2)] ?? "";
+}
+
+/** IGST if the two GSTINs' state codes differ, CGST+SGST if they match -- the actual place-of-supply rule, not a manual guess. */
+export function gstTypeForCounterparty(homeGstin: string, counterpartyGstin: string | null | undefined): GstType {
+  if (!counterpartyGstin) return "IGST";
+  return homeGstin.trim().slice(0, 2) === counterpartyGstin.trim().slice(0, 2) ? "CGST_SGST" : "IGST";
+}
+
 export const PAYMENT_MODES = ["BANK_TRANSFER", "CHEQUE", "UPI", "CASH", "OTHER"] as const;
 export type PaymentMode = (typeof PAYMENT_MODES)[number];
 

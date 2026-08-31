@@ -57,6 +57,11 @@ export interface AppUser {
 // Clients & vendors
 // ---------------------------------------------------------------------------
 
+export interface ClientGstRegistration {
+  gstin: string;
+  state: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -68,6 +73,8 @@ export interface Client {
   city?: string;
   state?: string;
   gstin?: string;
+  /** One entry per state the client is GST-registered in. gstin/state above stay in sync with the first entry for anything reading the old singular fields. */
+  gstRegistrations?: ClientGstRegistration[];
   active: boolean;
   notes?: string;
   search: string[];
@@ -193,6 +200,9 @@ export interface Project {
   pocEmail?: string;
   notes?: string;
   clientRequirements?: string;
+  /** Which of the client's (possibly several, state-wise) GST registrations this project bills under -- PO/PI/Quotation created for it inherit this. */
+  billingGstin?: string | null;
+  billingState?: string | null;
   team: ProjectTeamAssignment[];
   sourceDocumentId?: string | null;
   tenderId?: string | null;

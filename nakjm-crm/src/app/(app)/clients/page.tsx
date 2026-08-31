@@ -9,11 +9,12 @@ import {
   Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, useAsyncAction,
 } from "@/components/ui";
 import { ExportButton } from "@/components/export-button";
+import { GstRegistrationsField } from "@/components/gst-fields";
 import { CLIENT_TYPES, type ClientType } from "@/lib/constants";
 import { createClient, subscribeClients } from "@/lib/db/clients";
-import type { Client } from "@/lib/types";
+import type { Client, ClientGstRegistration } from "@/lib/types";
 
-const EMPTY = { name: "", clientType: "PRIVATE" as ClientType, contactName: "", contactEmail: "", contactPhone: "", city: "", state: "", gstin: "" };
+const EMPTY = { name: "", clientType: "PRIVATE" as ClientType, contactName: "", contactEmail: "", contactPhone: "", city: "", state: "" };
 
 export default function ClientsPage() {
   const actor = useActor();
@@ -21,6 +22,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY);
+  const [gstRegistrations, setGstRegistrations] = useState<ClientGstRegistration[]>([]);
   const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribeClients({}, setRows), []);
@@ -35,9 +37,13 @@ export default function ClientsPage() {
   async function onCreate() {
     if (!form.name.trim()) return;
     await run(async () => {
-      await createClient(form, actor);
+      const clean = gstRegistrations.filter((r) => r.gstin.trim());
+      await createClient({
+        ...form, gstRegistrations: clean, gstin: clean[0]?.gstin ?? "", state: clean[0]?.state || form.state,
+      }, actor);
       setShowForm(false);
       setForm(EMPTY);
+      setGstRegistrations([]);
     }, "Client added.");
   }
 
@@ -119,12 +125,11 @@ export default function ClientsPage() {
               onChange={(e) => setForm((f) => ({ ...f, clientType: e.target.value as ClientType }))}
             />
           </Field>
-          <Field label="GSTIN"><Input value={form.gstin} onChange={(e) => setForm((f) => ({ ...f, gstin: e.target.value }))} /></Field>
           <Field label="Contact Name"><Input value={form.contactName} onChange={(e) => setForm((f) => ({ ...f, contactName: e.target.value }))} /></Field>
           <Field label="Contact Email"><Input type="email" value={form.contactEmail} onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))} /></Field>
           <Field label="Phone"><Input value={form.contactPhone} onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))} /></Field>
           <Field label="City"><Input value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} /></Field>
-          <Field label="State" className="col-span-2"><Input value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} /></Field>
+          <GstRegistrationsField value={gstRegistrations} onChange={setGstRegistrations} className="col-span-2" />
         </div>
       </Modal>
     </div>
