@@ -146,7 +146,11 @@ export default function ClientDetailPage() {
       )}
 
       {tab === "Projects" && (
-        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Link href={`/projects/new?clientId=${id}`}><Button size="sm"><Plus className="h-3.5 w-3.5" /> New Project</Button></Link>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
           <table className="w-full">
             <thead><tr><th className="th">Code</th><th className="th">Name</th><th className="th">Status</th><th className="th">Contract Value</th><th className="th">Start</th><th className="th">Target End</th></tr></thead>
             <tbody>
@@ -167,6 +171,7 @@ export default function ClientDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
