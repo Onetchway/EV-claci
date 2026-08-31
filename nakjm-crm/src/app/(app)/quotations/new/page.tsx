@@ -54,12 +54,6 @@ function NewQuotationForm() {
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
 
   useEffect(() => {
-    if (params.get("sourceBoqId")) return; // that flow names the quotation after the source BOQ instead
-    void nextQuotationNo().then((no) => setQuotationNo((n) => n || no));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
-  }, []);
-
-  useEffect(() => {
     const rfqId = params.get("rfqId");
     if (!rfqId) return;
     setSourceRfqId(rfqId);
@@ -111,14 +105,17 @@ function NewQuotationForm() {
   }, [project?.billingGstin]);
 
   async function onCreate() {
-    if (!quotationNo.trim() || !projectId || !project) {
-      push("Quotation number and project are required.", "error");
+    if (!projectId || !project) {
+      push("Project is required.", "error");
       return;
     }
     await run(async () => {
+      // Allocated here, at actual creation, not on page load -- so opening this page repeatedly
+      // without creating anything never burns a sequence number.
+      const finalQuotationNo = quotationNo.trim() || (await nextQuotationNo());
       const version = await nextQuotationVersion(projectId);
       const q = await createQuotation({
-        quotationNo, projectId, projectName: project.name, clientId: project.clientId, version,
+        quotationNo: finalQuotationNo, projectId, projectName: project.name, clientId: project.clientId, version,
         quotationDate: new Date(), validUntil: validUntil ? new Date(validUntil) : null,
         items, taxPercent: Number(taxPercent) || 0, gstType, terms, notes, sourceBoqId,
         shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "",
@@ -151,7 +148,7 @@ function NewQuotationForm() {
         <div className="space-y-4 lg:col-span-2">
           <Card title="Quotation details">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Quotation No." required><Input value={quotationNo} onChange={(e) => setQuotationNo(e.target.value)} /></Field>
+              <Field label="Quotation No." hint="Leave blank to auto-generate a sequential number on save."><Input value={quotationNo} onChange={(e) => setQuotationNo(e.target.value)} placeholder="Auto-generated if left blank" /></Field>
               <Field label="Project" required>
                 <Select value={projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setProjectId(e.target.value)} />
               </Field>

@@ -52,12 +52,6 @@ function NewPurchaseOrderForm() {
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
   useEffect(() => { void listActiveVendors().then(setVendors); }, []);
 
-  useEffect(() => {
-    if (params.get("sourceBoqId")) return; // that flow names the PO after the source BOQ instead
-    void nextPoNo().then((no) => setPoNo((n) => n || no));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
-  }, []);
-
   async function onFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -99,14 +93,17 @@ function NewPurchaseOrderForm() {
   }, [vendor?.gstin]);
 
   async function onCreate() {
-    if (!poNo.trim() || !projectId || !vendorId) {
-      push("PO number, project and vendor are required.", "error");
+    if (!projectId || !vendorId) {
+      push("Project and vendor are required.", "error");
       return;
     }
     await run(async () => {
+      // Allocated here, at actual creation, not on page load -- so opening this page repeatedly
+      // without creating anything never burns a sequence number.
+      const finalPoNo = poNo.trim() || (await nextPoNo());
       const project = projects.find((p) => p.id === projectId);
       const po = await createPurchaseOrder({
-        poNo, projectId, projectName: project?.name ?? "", vendorId, vendorName: vendor?.name ?? "",
+        poNo: finalPoNo, projectId, projectName: project?.name ?? "", vendorId, vendorName: vendor?.name ?? "",
         deliveryDate: deliveryDate ? new Date(deliveryDate) : null, items, gstType, sourceBoqId,
         shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "", notes,
       }, actor);
@@ -134,7 +131,7 @@ function NewPurchaseOrderForm() {
         <div className="space-y-4 lg:col-span-2">
           <Card title="Vendor & delivery">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="PO Number" required><Input value={poNo} onChange={(e) => setPoNo(e.target.value)} /></Field>
+              <Field label="PO Number" hint="Leave blank to auto-generate a sequential number on save."><Input value={poNo} onChange={(e) => setPoNo(e.target.value)} placeholder="Auto-generated if left blank" /></Field>
               <Field label="Vendor" required><Select value={vendorId} placeholder="Select a vendor…" options={vendors.map((v) => ({ value: v.id, label: v.name }))} onChange={(e) => setVendorId(e.target.value)} /></Field>
               <Field label="Link to Project" required><Select value={projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setProjectId(e.target.value)} /></Field>
               <Field label="Expected Delivery"><Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></Field>
