@@ -242,6 +242,8 @@ function OverviewTab({ project }: { project: Project }) {
   const [reports, setReports] = useState<SiteReport[] | null>(null);
   const [subprojects, setSubprojects] = useState<Project[]>([]);
   const [stages, setStages] = useState<ProjectStage[] | null>(null);
+  const [boqs, setBoqs] = useState<Boq[]>([]);
+  const [tasks, setTasks] = useState<ProjectTask[]>([]);
 
   useEffect(() => subscribePosForProject(project.id, setPos), [project.id]);
   useEffect(() => subscribePisForProject(project.id, setPis), [project.id]);
@@ -249,6 +251,8 @@ function OverviewTab({ project }: { project: Project }) {
   useEffect(() => subscribeSiteReportsForProject(project.id, setReports), [project.id]);
   useEffect(() => subscribeSubprojects(project.id, setSubprojects), [project.id]);
   useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
+  useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
+  useEffect(() => subscribeTasksForProject(project.id, setTasks), [project.id]);
 
   const health = computeProjectHealth(project, stages ?? []);
 
@@ -260,6 +264,19 @@ function OverviewTab({ project }: { project: Project }) {
   const collectionPct = project.contractValue > 0 ? Math.round((collected / project.contractValue) * 100) : 0;
   const budgetPct = project.budgetAmount > 0 ? Math.round((paidToVendors / project.budgetAmount) * 100) : 0;
 
+  // Planned cost baseline: the latest version of every distinct BOQ lineage on this project (a project can carry more than one BOQ, e.g. per site).
+  const latestBoqPerLineage = new Map<string, Boq>();
+  for (const b of boqs) {
+    const key = b.rootBoqId ?? b.id;
+    const existing = latestBoqPerLineage.get(key);
+    if (!existing || b.version > existing.version) latestBoqPerLineage.set(key, b);
+  }
+  const plannedCost = [...latestBoqPerLineage.values()].reduce((s, b) => s + b.totalAmount, 0);
+  const costVariance = plannedCost - committed;
+
+  const now = Date.now();
+  const overdueTasks = tasks.filter((t) => t.status !== "DONE" && t.dueDate?.seconds && t.dueDate.seconds * 1000 < now);
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -267,6 +284,21 @@ function OverviewTab({ project }: { project: Project }) {
         <StatCard label="Budget" value={formatCompactINR(project.budgetAmount)} />
         <StatCard label="Estimated Margin" value={formatCompactINR(project.contractValue - committed)} tone="positive" />
         <StatCard label="Site Progress" value={`${latestProgress}%`} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard label="Planned Cost (BOQ)" value={formatCompactINR(plannedCost)} />
+        <StatCard label="Committed (POs)" value={formatCompactINR(committed)} />
+        <StatCard
+          label="Cost Variance"
+          value={formatCompactINR(costVariance)}
+          tone={plannedCost === 0 ? undefined : costVariance < 0 ? "negative" : "positive"}
+        />
+        <StatCard
+          label="Tasks Overdue"
+          value={String(overdueTasks.length)}
+          tone={overdueTasks.length > 0 ? "negative" : "positive"}
+        />
       </div>
 
       <Card title="Project Health">
@@ -301,14 +333,24 @@ function OverviewTab({ project }: { project: Project }) {
         </Card>
         <Card title="Vendor Spend">
           <div className="space-y-2 text-sm">
-            <Row label="Committed (POs)" value={formatINR(committed)} />
+            <Row label="Planned (BOQ)" value={plannedCost > 0 ? formatINR(plannedCost) : "—"} />
+            <Row label="Committed (POs)" value={formatINR(committed)} tone={plannedCost > 0 && committed > plannedCost ? "negative" : undefined} />
             <Row label="Paid" value={formatINR(paidToVendors)} tone="positive" />
             <Row label="Outstanding" value={formatINR(Math.max(committed - paidToVendors, 0))} tone="negative" />
             <ProgressBar pct={budgetPct} className="mt-2" />
             <p className="text-xs text-ink-500">{budgetPct}% of budget utilized</p>
+            {plannedCost > 0 && committed > plannedCost && (
+              <p className="text-xs font-medium text-rose-600">POs exceed the BOQ estimate by {formatINR(committed - plannedCost)}.</p>
+            )}
           </div>
         </Card>
       </div>
+
+      {overdueTasks.length > 0 && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-800">
+          {overdueTasks.length} task{overdueTasks.length === 1 ? "" : "s"} overdue — see Stages &amp; Tasks.
+        </div>
+      )}
 
       <Card>
         <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
@@ -1063,6 +1105,8 @@ function StagesTasksTab({ project }: { project: Project }) {
 
   const stageTasks = (stageId: string) => (tasks ?? []).filter((t) => t.stageId === stageId);
   const stagePhotos = (stageId: string) => photos.filter((p) => p.stageId === stageId);
+  const isOverdue = (t: ProjectTask) => t.status !== "DONE" && !!t.dueDate?.seconds && t.dueDate.seconds * 1000 < Date.now();
+  const overdueCount = (tasks ?? []).filter(isOverdue).length;
 
   function openPhotoForm(stage: ProjectStage) {
     setPhotoForm({ title: "", details: "", file: null });
@@ -1082,6 +1126,11 @@ function StagesTasksTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
+      {overdueCount > 0 && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-800">
+          {overdueCount} task{overdueCount === 1 ? "" : "s"} overdue
+        </div>
+      )}
       {canStage && (
         <div className="flex flex-wrap justify-end gap-2">
           {stages && stages.length === 0 && (
@@ -1140,10 +1189,10 @@ function StagesTasksTab({ project }: { project: Project }) {
                 {stageTasks(stage.id).length === 0 ? (
                   <p className="text-xs text-ink-400">No tasks yet.</p>
                 ) : stageTasks(stage.id).map((t) => (
-                  <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-ink-50 px-2.5 py-1.5 text-sm">
+                  <div key={t.id} className={`flex flex-wrap items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${isOverdue(t) ? "bg-rose-50 ring-1 ring-inset ring-rose-200" : "bg-ink-50"}`}>
                     <span className="flex-1 min-w-[120px]">{t.title}</span>
                     <span className="text-xs text-ink-500">{t.assigneeName || "Unassigned"}</span>
-                    {t.dueDate && <span className="text-xs text-ink-400">Due {formatDate(t.dueDate)}</span>}
+                    {t.dueDate && <span className={`text-xs ${isOverdue(t) ? "font-semibold text-rose-600" : "text-ink-400"}`}>{isOverdue(t) ? "Overdue" : "Due"} {formatDate(t.dueDate)}</span>}
                     {canTask ? (
                       <Select value={t.status} className="w-auto" options={TASK_STATUSES.map((s) => ({ value: s, label: s.replace("_", " ") }))} onChange={(e) => void run(() => updateTask(t, { status: e.target.value as TaskStatus }, actor), "Updated.")} />
                     ) : (
@@ -1230,7 +1279,10 @@ function StagesTasksTab({ project }: { project: Project }) {
         footer={<><Button variant="secondary" onClick={() => setPhotoStage(null)}>Cancel</Button><Button onClick={() => void onAddPhoto()} loading={busy}>Upload</Button></>}
       >
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Photo" required className="col-span-2"><input type="file" accept="image/*" onChange={(e) => setPhotoForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))} className="w-full text-sm" /></Field>
+          <Field label="Photo" required className="col-span-2">
+            <input type="file" accept="image/*" capture="environment" onChange={(e) => setPhotoForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))} className="w-full text-sm" />
+            <p className="mt-1 text-xs text-ink-400">On a phone this opens the camera directly; on desktop it opens a normal file picker.</p>
+          </Field>
           <Field label="Name" required className="col-span-2"><Input value={photoForm.title} onChange={(e) => setPhotoForm((f) => ({ ...f, title: e.target.value }))} /></Field>
           <Field label="Details" className="col-span-2"><Textarea value={photoForm.details} onChange={(e) => setPhotoForm((f) => ({ ...f, details: e.target.value }))} /></Field>
         </div>
