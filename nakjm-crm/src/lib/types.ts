@@ -318,6 +318,7 @@ export interface PurchaseOrder {
   paidAmount: number;
   terms?: string;
   notes?: string;
+  sourceBoqId?: string | null;
   /** A typed-name sign-off, not a cryptographic signature -- required before a PO moves from DRAFT to ISSUED. */
   approval?: { approvedBy: Actor; approvedAt: TS; signatureName: string; note?: string } | null;
   createdAt: TS;

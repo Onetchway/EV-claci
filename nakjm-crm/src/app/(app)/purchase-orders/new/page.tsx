@@ -7,6 +7,7 @@ import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { ItemsTable, PO_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { COMPANY_INFO, gstTypeForCounterparty } from "@/lib/constants";
+import { getBoq } from "@/lib/db/boq";
 import { computePoTotals, createPurchaseOrder } from "@/lib/db/purchase-orders";
 import { subscribeProjects } from "@/lib/db/projects";
 import { listActiveVendors } from "@/lib/db/vendors";
@@ -39,9 +40,25 @@ function NewPurchaseOrderForm() {
   const [shipToDifferent, setShipToDifferent] = useState(false);
   const [shipToAddress, setShipToAddress] = useState("");
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [sourceBoqId, setSourceBoqId] = useState<string | null>(null);
+  const [sourceBoqNo, setSourceBoqNo] = useState<string | null>(null);
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
   useEffect(() => { void listActiveVendors().then(setVendors); }, []);
+
+  useEffect(() => {
+    const boqId = params.get("sourceBoqId");
+    if (!boqId) return;
+    setSourceBoqId(boqId);
+    void getBoq(boqId).then((boq) => {
+      if (!boq) return;
+      setSourceBoqNo(boq.boqNo);
+      setItems(boq.items.map((it) => ({ description: [it.section, it.description].filter(Boolean).join(" — "), unit: it.unit, qty: it.qty, rate: it.rate })));
+      setPoNo((n) => n || `${boq.boqNo}-PO`);
+      setNotes((n) => n || `Generated from BOQ ${boq.boqNo} (v${boq.version})`);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount from the URL param
+  }, []);
 
   const totals = computePoTotals(items, gstType);
   const vendor = vendors.find((v) => v.id === vendorId);
@@ -59,7 +76,7 @@ function NewPurchaseOrderForm() {
       const project = projects.find((p) => p.id === projectId);
       const po = await createPurchaseOrder({
         poNo, projectId, projectName: project?.name ?? "", vendorId, vendorName: vendor?.name ?? "",
-        deliveryDate: deliveryDate ? new Date(deliveryDate) : null, items, gstType,
+        deliveryDate: deliveryDate ? new Date(deliveryDate) : null, items, gstType, sourceBoqId,
         shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "", notes,
       }, actor);
       router.push(`/purchase-orders/${po.id}`);
@@ -71,6 +88,9 @@ function NewPurchaseOrderForm() {
       <div className="mb-5">
         <h1 className="text-lg font-semibold text-navy-900">New Purchase Order</h1>
         <p className="text-sm text-ink-500">Raise an order against a vendor for a project's equipment, civil work or EPC scope.</p>
+        {sourceBoqNo && (
+          <p className="mt-2 rounded-lg bg-brand-50 px-3 py-1.5 text-xs text-brand-800">Prefilled from BOQ {sourceBoqNo} — review before creating.</p>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

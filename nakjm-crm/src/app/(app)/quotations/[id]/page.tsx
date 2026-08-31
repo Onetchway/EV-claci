@@ -96,6 +96,11 @@ export default function QuotationDetailPage() {
             {canManageProcurement(viewer) && q.status !== "APPROVED" && (
               <Button variant="primary" onClick={() => setApproveOpen(true)}><ShieldCheck className="h-4 w-4" /> Approve</Button>
             )}
+            {canManageProcurement(viewer) && q.status === "APPROVED" && (
+              <Link href={`/proforma-invoices/new?projectId=${q.projectId}&sourceQuotationId=${q.id}`}>
+                <Button variant="primary">Generate PI</Button>
+              </Link>
+            )}
             <Link href={`/projects/${q.projectId}/quotations/${q.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
             </Link>

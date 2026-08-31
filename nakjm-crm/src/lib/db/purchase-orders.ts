@@ -89,6 +89,7 @@ export interface PoDraft {
   shipToAddress?: string;
   terms?: string;
   notes?: string;
+  sourceBoqId?: string | null;
 }
 
 export async function createPurchaseOrder(draft: PoDraft, actor?: Actor): Promise<PurchaseOrder> {
@@ -117,6 +118,7 @@ export async function createPurchaseOrder(draft: PoDraft, actor?: Actor): Promis
     paidAmount: 0,
     terms: draft.terms ?? "",
     notes: draft.notes ?? "",
+    sourceBoqId: draft.sourceBoqId ?? null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };

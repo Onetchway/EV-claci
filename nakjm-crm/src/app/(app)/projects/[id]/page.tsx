@@ -635,10 +635,12 @@ function BoqTab({ project }: { project: Project }) {
 
 // ── Purchase Orders ─────────────────────────────────────────────────────
 function PoTab({ project }: { project: Project }) {
+  const router = useRouter();
   const actor = useActor();
   const viewer = useViewer();
   const [rows, setRows] = useState<PurchaseOrder[] | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [boqs, setBoqs] = useState<Boq[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<PurchaseOrder | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PurchaseOrder | null>(null);
@@ -648,6 +650,7 @@ function PoTab({ project }: { project: Project }) {
 
   useEffect(() => subscribePosForProject(project.id, setRows), [project.id]);
   useEffect(() => { void listActiveVendors().then(setVendors); }, []);
+  useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
 
   function openEdit(po: PurchaseOrder) {
     setEditing(po);
@@ -681,7 +684,18 @@ function PoTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Link href={`/purchase-orders/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PO</Button></Link></div>
+      <div className="flex flex-wrap justify-end gap-2">
+        {boqs.length > 0 && (
+          <Select
+            defaultValue=""
+            className="w-56"
+            options={boqs.map((b) => ({ value: b.id, label: `${b.boqNo} (v${b.version})` }))}
+            placeholder="Generate from BOQ…"
+            onChange={(e) => { if (e.target.value) router.push(`/purchase-orders/new?projectId=${project.id}&sourceBoqId=${e.target.value}`); }}
+          />
+        )}
+        <Link href={`/purchase-orders/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PO</Button></Link>
+      </div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No purchase orders yet" />
       ) : (
@@ -744,9 +758,11 @@ function PoTab({ project }: { project: Project }) {
 
 // ── Proforma Invoices ───────────────────────────────────────────────────
 function PiTab({ project }: { project: Project }) {
+  const router = useRouter();
   const actor = useActor();
   const viewer = useViewer();
   const [rows, setRows] = useState<ProformaInvoice[] | null>(null);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProformaInvoice | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProformaInvoice | null>(null);
@@ -756,6 +772,7 @@ function PiTab({ project }: { project: Project }) {
   const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribePisForProject(project.id, setRows), [project.id]);
+  useEffect(() => subscribeQuotationsForProject(project.id, setQuotations), [project.id]);
 
   function openEdit(pi: ProformaInvoice) {
     setEditing(pi);
@@ -794,7 +811,18 @@ function PiTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Link href={`/proforma-invoices/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PI</Button></Link></div>
+      <div className="flex flex-wrap justify-end gap-2">
+        {quotations.length > 0 && (
+          <Select
+            defaultValue=""
+            className="w-56"
+            options={quotations.map((q) => ({ value: q.id, label: `${q.quotationNo} (v${q.version}) — ${q.status.replace(/_/g, " ")}` }))}
+            placeholder="Generate from Quotation…"
+            onChange={(e) => { if (e.target.value) router.push(`/proforma-invoices/new?projectId=${project.id}&sourceQuotationId=${e.target.value}`); }}
+          />
+        )}
+        <Link href={`/proforma-invoices/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PI</Button></Link>
+      </div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No proforma invoices yet" />
       ) : (
