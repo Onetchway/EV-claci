@@ -19,6 +19,9 @@ const HEADER_PATTERNS: Record<string, RegExp> = {
 
 const CATEGORY_VALUES: BoqCategory[] = ["HT", "LT", "CIVIL", "MEP", "CHARGER", "OTHER"];
 
+/** A repeated column-header row, or a "Subtotal"/"Total" rollup row -- never a real line item. */
+const SKIP_ROW_PATTERN = /^(sub\s*)?total\b|^grand\s*total\b|^description$/i;
+
 const normalize = (v: unknown): string => (v === null || v === undefined ? "" : String(v).replace(/\s+/g, " ").trim());
 const toNumber = (v: unknown): number => {
   if (v === null || v === undefined || v === "") return 0;
@@ -69,7 +72,25 @@ export async function parseBoqFile(file: File): Promise<BoqLineItem[]> {
     for (let r = headerIdx + 1; r < rows.length; r++) {
       const row = rows[r] ?? [];
       const description = normalize(row[cols.description]);
-      if (!description) continue;
+      if (!description) {
+        // A section label sometimes sits outside the mapped Description column (merged cells
+        // commonly land in column A while items start in column B) -- capture the row's first
+        // non-blank cell as the section name instead of silently dropping it.
+        const firstCell = row.find((v) => normalize(v));
+        if (firstCell !== undefined) {
+          const label = normalize(firstCell);
+          if (!SKIP_ROW_PATTERN.test(label)) currentSection = label;
+        }
+        continue;
+      }
+
+      // A repeated header row (same sheet, later section) or a "Subtotal"/"Total" rollup row is
+      // neither a real item nor a section label -- skip it outright so it doesn't double-count
+      // a section's total or overwrite the current section name with the word "Description".
+      if (SKIP_ROW_PATTERN.test(description)) continue;
+
+      const srNoCell = cols.srNo !== undefined ? row[cols.srNo] : undefined;
+      const hasSrNo = srNoCell !== null && srNoCell !== undefined && srNoCell !== "" && toNumber(srNoCell) > 0;
 
       const qty = cols.qty !== undefined ? toNumber(row[cols.qty]) : 0;
       const amount = cols.amount !== undefined ? toNumber(row[cols.amount]) : 0;
@@ -77,8 +98,10 @@ export async function parseBoqFile(file: File): Promise<BoqLineItem[]> {
       const installationRate = cols.installationRate !== undefined ? toNumber(row[cols.installationRate]) : 0;
       const unitRate = cols.unitRate !== undefined ? toNumber(row[cols.unitRate]) : 0;
 
+      // A numbered row is a real line item even with blank qty/rate (rates not finalized yet) --
+      // only an un-numbered, all-blank row is actually a section label.
       const hasNumbers = qty || amount || supplyRate || installationRate || unitRate;
-      if (!hasNumbers) { currentSection = description; continue; }
+      if (!hasNumbers && !hasSrNo) { currentSection = description; continue; }
 
       const rawCategory = cols.category !== undefined ? normalize(row[cols.category]).toUpperCase() : "";
       const category = (CATEGORY_VALUES as string[]).includes(rawCategory) ? (rawCategory as BoqCategory) : "OTHER";

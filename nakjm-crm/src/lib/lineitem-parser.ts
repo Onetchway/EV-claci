@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import type { DraftItem } from "@/components/line-items-table";
 
 const HEADER_PATTERNS: Record<string, RegExp> = {
+  srNo: /^(sr\.?\s*no\.?|s\.?\s*no\.?|#)$/i,
   description: /description|particular|item.*work|scope/i,
   hsnCode: /hsn|sac/i,
   unit: /^unit$/i,
@@ -11,6 +12,9 @@ const HEADER_PATTERNS: Record<string, RegExp> = {
   gstPercent: /gst\s*%|gst\s*rate|tax\s*%/i,
   amount: /amount|total/i,
 };
+
+/** A repeated column-header row, or a "Subtotal"/"Total" rollup row -- never a real line item. */
+const SKIP_ROW_PATTERN = /^(sub\s*)?total\b|^grand\s*total\b|^description$/i;
 
 const normalize = (v: unknown): string => (v === null || v === undefined ? "" : String(v).replace(/\s+/g, " ").trim());
 const toNumber = (v: unknown): number => {
@@ -60,11 +64,15 @@ export async function parseLineItemFile(file: File): Promise<DraftItem[]> {
       const row = rows[r] ?? [];
       const description = normalize(row[cols.description]);
       if (!description) continue;
+      if (SKIP_ROW_PATTERN.test(description)) continue;
+
+      const srNoCell = cols.srNo !== undefined ? row[cols.srNo] : undefined;
+      const hasSrNo = srNoCell !== null && srNoCell !== undefined && srNoCell !== "" && toNumber(srNoCell) > 0;
 
       const qty = cols.qty !== undefined ? toNumber(row[cols.qty]) : 0;
       const amount = cols.amount !== undefined ? toNumber(row[cols.amount]) : 0;
       const rate = cols.rate !== undefined ? toNumber(row[cols.rate]) : (qty ? amount / qty : 0);
-      if (!qty && !amount && !rate) continue;
+      if (!qty && !amount && !rate && !hasSrNo) continue;
 
       items.push({
         description,
