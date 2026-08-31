@@ -6,7 +6,7 @@ import { Sparkles, Upload } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
 import { Badge, Button, Card, Field, Input, PageHeader, Select, Textarea, useAsyncAction, useToast } from "@/components/ui";
-import { PROJECT_STATUSES, PROJECT_TYPES, statusMeta, type ProjectStatus, type ProjectType } from "@/lib/constants";
+import { INDIAN_STATES, PROJECT_STATUSES, PROJECT_TYPES, statusMeta, type ProjectStatus, type ProjectType } from "@/lib/constants";
 import { listActiveClients } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
 import { createProject, getProject } from "@/lib/db/projects";
@@ -212,7 +212,9 @@ function NewProjectForm() {
             />
           </Field>
           <Field label="City"><Input value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} /></Field>
-          <Field label="State"><Input value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} /></Field>
+          <Field label="State">
+            <Select placeholder="Select state…" value={form.state} options={INDIAN_STATES.map((s) => ({ value: s, label: s }))} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} />
+          </Field>
           <Field label="Capacity (kW)"><Input type="number" value={form.capacityKw} onChange={(e) => setForm((f) => ({ ...f, capacityKw: e.target.value }))} /></Field>
           <Field label="Status">
             <Select

@@ -177,6 +177,11 @@ export function gstTypeForCounterparty(homeGstin: string, counterpartyGstin: str
   return homeGstin.trim().slice(0, 2) === counterpartyGstin.trim().slice(0, 2) ? "CGST_SGST" : "IGST";
 }
 
+/** Every Indian state/UT name, alphabetical, for a "State" dropdown -- the same list GST registration is drawn from, minus the old pre-bifurcation Andhra Pradesh code. */
+export const INDIAN_STATES = Object.values(GST_STATE_CODES)
+  .filter((s) => s !== "Andhra Pradesh (Old)")
+  .sort((a, b) => a.localeCompare(b));
+
 export const PAYMENT_MODES = ["BANK_TRANSFER", "CHEQUE", "UPI", "CASH", "OTHER"] as const;
 export type PaymentMode = (typeof PAYMENT_MODES)[number];
 

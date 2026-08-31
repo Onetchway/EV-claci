@@ -12,7 +12,7 @@ import {
 } from "@/components/ui";
 import {
   BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABEL, DRAWING_DISCIPLINES,
-  DRAWING_STATUSES, HANDOVER_STAGES, HANDOVER_STAGE_LABEL, INSPECTION_RESULTS, ISSUE_PRIORITIES, ISSUE_STATUSES,
+  DRAWING_STATUSES, HANDOVER_STAGES, HANDOVER_STAGE_LABEL, INDIAN_STATES, INSPECTION_RESULTS, ISSUE_PRIORITIES, ISSUE_STATUSES,
   NCR_STATUSES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, PUNCH_ITEM_STATUSES, RFI_STATUSES,
   SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES, statusMeta,
   type BoqCategory, type DocumentCategory, type DrawingDiscipline, type DrawingStatus, type HandoverStage,
@@ -176,7 +176,9 @@ export default function ProjectDetailPage() {
               <Select value={form.status} options={PROJECT_STATUSES.map((s) => ({ value: s, label: statusMeta(s).label }))} onChange={(e) => setForm((f) => f && { ...f, status: e.target.value as ProjectStatus })} />
             </Field>
             <Field label="City"><Input value={form.city} onChange={(e) => setForm((f) => f && { ...f, city: e.target.value })} /></Field>
-            <Field label="State"><Input value={form.state} onChange={(e) => setForm((f) => f && { ...f, state: e.target.value })} /></Field>
+            <Field label="State">
+              <Select placeholder="Select state…" value={form.state} options={INDIAN_STATES.map((s) => ({ value: s, label: s }))} onChange={(e) => setForm((f) => f && { ...f, state: e.target.value })} />
+            </Field>
             <Field label="Capacity (kW)"><Input type="number" value={form.capacityKw} onChange={(e) => setForm((f) => f && { ...f, capacityKw: e.target.value })} /></Field>
             <Field label="Project Manager">
               <Select placeholder="Unassigned" value={form.projectManagerId} options={team.map((t) => ({ value: t.id, label: t.name }))} onChange={(e) => setForm((f) => f && { ...f, projectManagerId: e.target.value })} />
