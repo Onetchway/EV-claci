@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, deleteDoc, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc,
+  collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc,
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
@@ -106,6 +106,54 @@ export async function updateBoqStatus(boq: Boq, status: BoqStatus, actor: Actor)
     entityType: "BOQ", entityId: boq.id, entityLabel: boq.boqNo, action: "STATUS_CHANGE",
     message: `Marked BOQ ${boq.boqNo} ${status}`, actor, projectId: boq.projectId,
   });
+}
+
+/** Every version sharing one lineage -- the root (v1) plus every BOQ revised from it, directly or transitively. */
+export function subscribeBoqLineage(rootBoqId: string, cb: (rows: Boq[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), BOQS), where("rootBoqId", "==", rootBoqId)),
+    (snap) => {
+      const revisions = snap.docs.map((d) => mapBoq(d.id, d.data()));
+      void getDoc(doc(getDb(), BOQS, rootBoqId)).then((rootSnap) => {
+        const root = rootSnap.exists() ? [mapBoq(rootSnap.id, rootSnap.data())] : [];
+        cb([...root, ...revisions].sort((a, b) => a.version - b.version));
+      });
+    },
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Creates a new DRAFT version carrying the same content forward -- the only way to get a fresh version of an existing BOQ, so version history stays a real lineage instead of an always-1 placeholder. */
+export async function reviseBoq(boq: Boq, actor: Actor): Promise<Boq> {
+  const rootId = boq.rootBoqId ?? boq.id;
+  const siblingsSnap = await getDocs(query(collection(getDb(), BOQS), where("rootBoqId", "==", rootId)));
+  const maxSiblingVersion = siblingsSnap.docs.reduce((max, d) => Math.max(max, (d.data().version as number) || 0), boq.version);
+
+  const ref = doc(collection(getDb(), BOQS));
+  const payload = {
+    boqNo: boq.boqNo,
+    projectId: boq.projectId,
+    projectName: boq.projectName,
+    quotationId: boq.quotationId ?? null,
+    siteName: boq.siteName ?? "",
+    version: maxSiblingVersion + 1,
+    status: "DRAFT" as BoqStatus,
+    boqDate: Timestamp.now(),
+    items: boq.items,
+    totalAmount: boq.totalAmount,
+    notes: boq.notes ?? "",
+    sourceDocumentId: boq.sourceDocumentId ?? null,
+    rootBoqId: rootId,
+    revisedFrom: boq.id,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  await setDoc(ref, payload);
+  logActivitySafe({
+    entityType: "BOQ", entityId: ref.id, entityLabel: boq.boqNo, action: "CREATE",
+    message: `${actor.name} created v${payload.version} of BOQ ${boq.boqNo}, revised from v${boq.version}`, actor, projectId: boq.projectId,
+  });
+  return { id: ref.id, ...(payload as unknown as Omit<Boq, "id">) };
 }
 
 export interface BoqPatch {
