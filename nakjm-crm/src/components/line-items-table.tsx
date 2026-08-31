@@ -21,21 +21,21 @@ export function ItemsTable<T extends Record<string, unknown>>({
     <div className="space-y-2">
       <div className="overflow-x-auto rounded-xl border border-ink-200">
         <table className="w-full">
-          <thead><tr>{fields.map((f) => <th key={String(f.key)} className="th">{f.label}</th>)}<th className="th" /></tr></thead>
+          <thead><tr>{fields.map((f) => <th key={String(f.key)} className="th py-3 text-sm">{f.label}</th>)}<th className="th" /></tr></thead>
           <tbody>
             {items.map((it, i) => (
               <tr key={i} className="border-t border-ink-100">
                 {fields.map((f) => (
-                  <td key={String(f.key)} className="td">
+                  <td key={String(f.key)} className="td p-2">
                     <input
-                      className="input py-1"
+                      className="input py-2.5 text-base"
                       type={f.type ?? "text"}
                       value={(it[f.key] as string | number) ?? ""}
                       onChange={(e) => update(i, f.key, e.target.value)}
                     />
                   </td>
                 ))}
-                <td className="td"><button type="button" onClick={() => remove(i)}><Trash2 className="h-4 w-4 text-rose-500" /></button></td>
+                <td className="td p-2"><button type="button" onClick={() => remove(i)}><Trash2 className="h-4 w-4 text-rose-500" /></button></td>
               </tr>
             ))}
             {items.length === 0 && <tr><td colSpan={fields.length + 1} className="td text-center text-ink-400">No line items yet.</td></tr>}

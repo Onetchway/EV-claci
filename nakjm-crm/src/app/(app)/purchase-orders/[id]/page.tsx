@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Plus, Printer, ShieldCheck, Trash2 } from "lucide-react";
+import { Pencil, Plus, Printer, ShieldCheck, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
@@ -11,9 +11,10 @@ import { EntityDocuments } from "@/components/entity-documents";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
+import { ItemsTable, PO_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { PAYMENT_MODES, PO_STATUSES, type PaymentMode, type PoStatus } from "@/lib/constants";
 import { recordVendorPayment, subscribeVendorPayments } from "@/lib/db/payments";
-import { approvePurchaseOrder, deletePurchaseOrder, subscribePurchaseOrder, updatePoStatus } from "@/lib/db/purchase-orders";
+import { approvePurchaseOrder, deletePurchaseOrder, subscribePurchaseOrder, updatePoStatus, updatePurchaseOrder } from "@/lib/db/purchase-orders";
 import { getVendor } from "@/lib/db/vendors";
 import { canManageProcurement, canTrash } from "@/lib/permissions";
 import type { PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
@@ -34,9 +35,12 @@ export default function PurchaseOrderDetailPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [signatureName, setSignatureName] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
   const [payForm, setPayForm] = useState({ amount: "", mode: "BANK_TRANSFER" as PaymentMode, referenceNo: "", notes: "" });
+  const [editForm, setEditForm] = useState({ poNo: "", deliveryDate: "", notes: "" });
+  const [editItems, setEditItems] = useState<DraftItem[]>([]);
 
   useEffect(() => subscribePurchaseOrder(id, setPo), [id]);
   useEffect(() => { if (po?.vendorId) void getVendor(po.vendorId).then(setVendor); }, [po?.vendorId]);
@@ -58,6 +62,23 @@ export default function PurchaseOrderDetailPage() {
       setSignatureName("");
       setApprovalNote("");
     }, "PO approved and issued.");
+  }
+
+  function openEdit() {
+    setEditForm({ poNo: po!.poNo, deliveryDate: po!.deliveryDate ? po!.deliveryDate.toDate().toISOString().slice(0, 10) : "", notes: po!.notes ?? "" });
+    setEditItems(po!.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode, gstPercent: it.gstPercent })));
+    setEditOpen(true);
+  }
+
+  async function onSaveEdit() {
+    if (!editForm.poNo.trim()) return;
+    await run(async () => {
+      await updatePurchaseOrder(po!, {
+        poNo: editForm.poNo, notes: editForm.notes, items: editItems,
+        deliveryDate: editForm.deliveryDate ? new Date(editForm.deliveryDate) : null,
+      }, actor);
+      setEditOpen(false);
+    }, "Purchase order updated.");
   }
 
   async function onRecordPayment() {
@@ -91,6 +112,9 @@ export default function PurchaseOrderDetailPage() {
             )}
             {canManageProcurement(viewer) && po.status === "DRAFT" && (
               <Button variant="primary" onClick={() => setApproveOpen(true)}><ShieldCheck className="h-4 w-4" /> Approve &amp; Issue</Button>
+            )}
+            {canManageProcurement(viewer) && po.status === "DRAFT" && (
+              <Button onClick={openEdit}><Pencil className="h-4 w-4" /> Edit</Button>
             )}
             <Link href={`/projects/${po.projectId}/purchase-orders/${po.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
@@ -230,6 +254,21 @@ export default function PurchaseOrderDetailPage() {
           <EntityActivityLog entityType="PURCHASE_ORDER" entityId={po.id} />
         </div>
       </div>
+
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit purchase order"
+        wide
+        footer={<><Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={() => void onSaveEdit()} loading={busy}>Save</Button></>}
+      >
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <Field label="PO Number" required><Input value={editForm.poNo} onChange={(e) => setEditForm((f) => ({ ...f, poNo: e.target.value }))} /></Field>
+          <Field label="Expected Delivery"><Input type="date" value={editForm.deliveryDate} onChange={(e) => setEditForm((f) => ({ ...f, deliveryDate: e.target.value }))} /></Field>
+          <Field label="Notes" className="col-span-2"><Textarea value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} /></Field>
+        </div>
+        <ItemsTable items={editItems} setItems={setEditItems} fields={PO_ITEM_FIELDS} />
+      </Modal>
 
       <Modal
         open={payOpen}

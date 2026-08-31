@@ -113,7 +113,9 @@ export default function BoqDetailPage() {
             <Link href={`/projects/${boq.projectId}/boq/${boq.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
             </Link>
-            {canManageProcurement(viewer) && <Button onClick={openEdit}><Pencil className="h-4 w-4" /> Edit</Button>}
+            {canManageProcurement(viewer) && boq.status !== "APPROVED" && (
+              <Button onClick={openEdit}><Pencil className="h-4 w-4" /> Edit</Button>
+            )}
             {canManageProcurement(viewer) && <Button onClick={() => void onRevise()} loading={busy}><Copy className="h-4 w-4" /> New Version</Button>}
             {lineage.length > 1 && <Button variant="secondary" onClick={openCompare}>Compare Versions</Button>}
             {canTrash(viewer) && (

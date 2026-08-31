@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Plus, Printer, Trash2 } from "lucide-react";
+import { Pencil, Plus, Printer, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
 import { EntityDocuments } from "@/components/entity-documents";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
+import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { PAYMENT_MODES, PI_STATUSES, type PaymentMode, type PiStatus } from "@/lib/constants";
 import { getClient } from "@/lib/db/clients";
 import { recordClientPayment, subscribeClientPayments } from "@/lib/db/payments";
@@ -31,7 +32,10 @@ export default function ProformaInvoiceDetailPage() {
   const [payments, setPayments] = useState<ClientPayment[] | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [payForm, setPayForm] = useState({ amount: "", mode: "BANK_TRANSFER" as PaymentMode, referenceNo: "", milestone: "" });
+  const [editForm, setEditForm] = useState({ piNo: "", dueDate: "", milestone: "" });
+  const [editItems, setEditItems] = useState<DraftItem[]>([]);
 
   useEffect(() => subscribeProformaInvoice(id, setPi), [id]);
   useEffect(() => { if (pi?.clientId) void getClient(pi.clientId).then(setClient); }, [pi?.clientId]);
@@ -45,6 +49,23 @@ export default function ProformaInvoiceDetailPage() {
 
   async function onStatusChange(status: PiStatus) {
     await run(() => updateProformaInvoice(pi!, { status }, actor), `Marked ${status}.`);
+  }
+
+  function openEdit() {
+    setEditForm({ piNo: pi!.piNo, dueDate: pi!.dueDate ? pi!.dueDate.toDate().toISOString().slice(0, 10) : "", milestone: pi!.milestone ?? "" });
+    setEditItems(pi!.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode, gstPercent: it.gstPercent })));
+    setEditOpen(true);
+  }
+
+  async function onSaveEdit() {
+    if (!editForm.piNo.trim()) return;
+    await run(async () => {
+      await updateProformaInvoice(pi!, {
+        piNo: editForm.piNo, milestone: editForm.milestone, items: editItems,
+        dueDate: editForm.dueDate ? new Date(editForm.dueDate) : null,
+      }, actor);
+      setEditOpen(false);
+    }, "Proforma invoice updated.");
   }
 
   async function onRecordPayment() {
@@ -73,6 +94,9 @@ export default function ProformaInvoiceDetailPage() {
             <Link href={`/projects/${pi.projectId}/proforma-invoices/${pi.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
             </Link>
+            {canManageProcurement(viewer) && pi.status === "DRAFT" && (
+              <Button onClick={openEdit}><Pencil className="h-4 w-4" /> Edit</Button>
+            )}
             {canManageProcurement(viewer) && due > 0 && (
               <Button variant="primary" onClick={() => setPayOpen(true)}><Plus className="h-4 w-4" /> Record payment</Button>
             )}
@@ -188,6 +212,21 @@ export default function ProformaInvoiceDetailPage() {
           <Field label="Reference No."><Input value={payForm.referenceNo} onChange={(e) => setPayForm((f) => ({ ...f, referenceNo: e.target.value }))} /></Field>
           <Field label="Milestone"><Input value={payForm.milestone} onChange={(e) => setPayForm((f) => ({ ...f, milestone: e.target.value }))} /></Field>
         </div>
+      </Modal>
+
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit proforma invoice"
+        wide
+        footer={<><Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={() => void onSaveEdit()} loading={busy}>Save</Button></>}
+      >
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <Field label="PI No." required><Input value={editForm.piNo} onChange={(e) => setEditForm((f) => ({ ...f, piNo: e.target.value }))} /></Field>
+          <Field label="Due Date"><Input type="date" value={editForm.dueDate} onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
+          <Field label="Milestone" className="col-span-2"><Input value={editForm.milestone} onChange={(e) => setEditForm((f) => ({ ...f, milestone: e.target.value }))} /></Field>
+        </div>
+        <ItemsTable items={editItems} setItems={setEditItems} fields={QUOTATION_ITEM_FIELDS} />
       </Modal>
 
       <Modal

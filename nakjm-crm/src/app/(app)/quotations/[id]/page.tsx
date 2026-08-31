@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Copy, Printer, ShieldCheck, Trash2 } from "lucide-react";
+import { Copy, Pencil, Printer, ShieldCheck, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
 import { EntityDocuments } from "@/components/entity-documents";
 import { QuotationDiff } from "@/components/quotation-diff";
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, Textarea, useAsyncAction } from "@/components/ui";
+import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { QUOTATION_STATUSES, type QuotationStatus } from "@/lib/constants";
 import { getClient } from "@/lib/db/clients";
 import {
-  approveQuotation, deleteQuotation, reviseQuotation, subscribeQuotation, subscribeQuotationLineage, updateQuotationStatus,
+  approveQuotation, deleteQuotation, reviseQuotation, subscribeQuotation, subscribeQuotationLineage, updateQuotation, updateQuotationStatus,
 } from "@/lib/db/quotations";
 import { canManageProcurement, canTrash } from "@/lib/permissions";
 import type { Client, Quotation } from "@/lib/types";
@@ -32,8 +33,11 @@ export default function QuotationDetailPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [signatureName, setSignatureName] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
+  const [editForm, setEditForm] = useState({ quotationNo: "", validUntil: "", notes: "" });
+  const [editItems, setEditItems] = useState<DraftItem[]>([]);
   const [lineage, setLineage] = useState<Quotation[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareFromId, setCompareFromId] = useState("");
@@ -77,6 +81,23 @@ export default function QuotationDetailPage() {
     }, "Quotation approved.");
   }
 
+  function openEdit() {
+    setEditForm({ quotationNo: q!.quotationNo, validUntil: q!.validUntil ? q!.validUntil.toDate().toISOString().slice(0, 10) : "", notes: q!.notes ?? "" });
+    setEditItems(q!.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode, gstPercent: it.gstPercent })));
+    setEditOpen(true);
+  }
+
+  async function onSaveEdit() {
+    if (!editForm.quotationNo.trim()) return;
+    await run(async () => {
+      await updateQuotation(q!, {
+        quotationNo: editForm.quotationNo, notes: editForm.notes, items: editItems,
+        validUntil: editForm.validUntil ? new Date(editForm.validUntil) : null,
+      }, actor);
+      setEditOpen(false);
+    }, "Quotation updated.");
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -104,6 +125,9 @@ export default function QuotationDetailPage() {
             <Link href={`/projects/${q.projectId}/quotations/${q.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
             </Link>
+            {canManageProcurement(viewer) && q.status !== "APPROVED" && (
+              <Button onClick={openEdit}><Pencil className="h-4 w-4" /> Edit</Button>
+            )}
             {canManageProcurement(viewer) && <Button onClick={() => void onRevise()} loading={busy}><Copy className="h-4 w-4" /> New Version</Button>}
             {lineage.length > 1 && <Button variant="secondary" onClick={openCompare}>Compare Versions</Button>}
             {canTrash(viewer) && (
@@ -212,6 +236,21 @@ export default function QuotationDetailPage() {
           <EntityActivityLog entityType="QUOTATION" entityId={q.id} />
         </div>
       </div>
+
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit quotation"
+        wide
+        footer={<><Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={() => void onSaveEdit()} loading={busy}>Save</Button></>}
+      >
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <Field label="Quotation No." required><Input value={editForm.quotationNo} onChange={(e) => setEditForm((f) => ({ ...f, quotationNo: e.target.value }))} /></Field>
+          <Field label="Valid Until"><Input type="date" value={editForm.validUntil} onChange={(e) => setEditForm((f) => ({ ...f, validUntil: e.target.value }))} /></Field>
+          <Field label="Notes" className="col-span-2"><Textarea value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} /></Field>
+        </div>
+        <ItemsTable items={editItems} setItems={setEditItems} fields={QUOTATION_ITEM_FIELDS} />
+      </Modal>
 
       <Modal
         open={deleteOpen}
