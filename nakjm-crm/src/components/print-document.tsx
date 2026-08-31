@@ -3,30 +3,40 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Printer } from "lucide-react";
 
-import { COMPANY_INFO } from "@/lib/constants";
-import type { BankDetails } from "@/lib/db/settings";
+import type { AppSettings, BankDetails } from "@/lib/db/settings";
+import { defaultSettings, subscribeSettings } from "@/lib/db/settings";
 import { Button } from "@/components/ui";
 
 /**
  * Shared letterhead for every printed document — Quotation, Purchase
  * Order, Proforma Invoice and BOQ all print as a simple bordered page
- * carrying the NAKJM logo + GSTIN/CIN at the top and the registered/office
- * address in the footer, matching the company letterhead.
+ * carrying the company logo + GSTIN/CIN at the top and the registered/office
+ * address in the footer, matching the company letterhead. Reads live from
+ * Settings → Company profile (falls back to the deploy-time default while
+ * that first snapshot loads, so there's no flash of blank content).
  */
+function useCompanyInfo() {
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings());
+  useEffect(() => subscribeSettings(setSettings), []);
+  return settings.company;
+}
+
 export function PrintHeader({ docLabel, docNumber, meta }: {
   docLabel: string;
   docNumber: string;
   meta?: ReactNode;
 }) {
+  const company = useCompanyInfo();
   return (
     <div className="mb-4 border-b-2 border-brand-600 pb-3">
       <div className="flex items-start justify-between gap-4">
-        <Image src="/logo.png" alt={COMPANY_INFO.name} width={180} height={58} priority className="h-12 w-auto" />
+        <Image src={company.logoUrl || "/logo.png"} alt={company.name} width={180} height={58} priority className="h-12 w-auto" unoptimized={company.logoUrl.startsWith("http")} />
         <div className="text-right text-[11px] leading-tight text-ink-500">
-          <p>GSTIN: {COMPANY_INFO.gstin}</p>
-          <p>CIN: {COMPANY_INFO.cin}</p>
+          <p>GSTIN: {company.gstin}</p>
+          <p>CIN: {company.cin}</p>
         </div>
       </div>
       <div className="mt-3 flex items-end justify-between gap-4">
@@ -41,13 +51,14 @@ export function PrintHeader({ docLabel, docNumber, meta }: {
 }
 
 export function PrintFooter() {
+  const company = useCompanyInfo();
   return (
     <footer className="mt-6 border-t-2 border-brand-600 pt-2 text-center text-[10px] leading-tight text-ink-400">
-      <p className="font-semibold text-ink-600">{COMPANY_INFO.name}</p>
-      <p>{COMPANY_INFO.email} &nbsp;|&nbsp; {COMPANY_INFO.website}</p>
+      <p className="font-semibold text-ink-600">{company.name}</p>
+      <p>{company.email} &nbsp;|&nbsp; {company.website}</p>
       <div className="mt-1 grid grid-cols-2 gap-4 text-left">
-        <p><span className="font-medium text-ink-500">Registered address: </span>{COMPANY_INFO.registeredAddress}</p>
-        <p><span className="font-medium text-ink-500">Office address: </span>{COMPANY_INFO.officeAddress}</p>
+        <p><span className="font-medium text-ink-500">Registered address: </span>{company.registeredAddress}</p>
+        <p><span className="font-medium text-ink-500">Office address: </span>{company.officeAddress}</p>
       </div>
     </footer>
   );
