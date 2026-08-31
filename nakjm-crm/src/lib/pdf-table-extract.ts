@@ -23,9 +23,9 @@ export async function extractPdfRows(file: File): Promise<unknown[][]> {
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p);
     const content = await page.getTextContent();
-    const items = (content.items as { str?: string; transform: number[] }[])
+    const items = (content.items as { str?: string; transform: number[]; width?: number }[])
       .filter((it) => typeof it.str === "string" && it.str.trim().length > 0)
-      .map((it) => ({ str: it.str as string, x: it.transform[4]!, y: it.transform[5]! }));
+      .map((it) => ({ str: it.str as string, x: it.transform[4]!, y: it.transform[5]!, width: it.width ?? it.str!.length * 5 }));
     items.sort((a, b) => b.y - a.y || a.x - b.x);
 
     let currentY: number | null = null;
@@ -35,13 +35,18 @@ export async function extractPdfRows(file: File): Promise<unknown[][]> {
       rowItems.sort((a, b) => a.x - b.x);
       const cells: string[] = [];
       let cellText = rowItems[0]!.str;
-      let lastX = rowItems[0]!.x + rowItems[0]!.str.length * 5;
+      let lastX = rowItems[0]!.x + rowItems[0]!.width;
+      // A real glyph-width-based gap: >4pt of empty space between runs is a column boundary,
+      // not a word space -- using the actual PDF.js-reported width (rather than a crude
+      // characters-times-average-width guess) is what makes this reliable on tightly packed
+      // invoice tables, where several numeric sub-columns (rate/qty/tax %/amount) sit close
+      // together and a rough estimate would glue them into one cell.
       for (let i = 1; i < rowItems.length; i++) {
         const it = rowItems[i]!;
         const gap = it.x - lastX;
-        if (gap > 12) { cells.push(cellText.trim()); cellText = it.str; }
-        else { cellText += ` ${it.str}`; }
-        lastX = it.x + it.str.length * 5;
+        if (gap > 4) { cells.push(cellText.trim()); cellText = it.str; }
+        else { cellText += (gap > 0.5 ? " " : "") + it.str; }
+        lastX = it.x + it.width;
       }
       cells.push(cellText.trim());
       rows.push(cells);
