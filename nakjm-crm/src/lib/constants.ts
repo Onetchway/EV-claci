@@ -236,14 +236,14 @@ export const TASK_STATUS_META: Record<TaskStatus, { label: string; className: st
 // ---------------------------------------------------------------------------
 
 export const DOCUMENT_CATEGORIES = [
-  "CLIENT_PO", "WORK_ORDER", "TENDER", "BOQ_UPLOAD", "QUOTATION_UPLOAD", "DRAWING", "TECHNICAL",
+  "CLIENT_PO", "WORK_ORDER", "TENDER", "BOQ_UPLOAD", "QUOTATION_UPLOAD", "PO_UPLOAD", "DRAWING", "TECHNICAL",
   "APPROVAL", "DPR", "MEASUREMENT", "PHOTO", "INSPECTION", "COMPLETION", "OTHER",
 ] as const;
 export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
 
 export const DOCUMENT_CATEGORY_LABEL: Record<DocumentCategory, string> = {
   CLIENT_PO: "Client PO", WORK_ORDER: "Work Order", TENDER: "Tender Document", BOQ_UPLOAD: "BOQ",
-  QUOTATION_UPLOAD: "Quotation", DRAWING: "Drawing", TECHNICAL: "Technical Document", APPROVAL: "Approval",
+  QUOTATION_UPLOAD: "Quotation", PO_UPLOAD: "Purchase Order", DRAWING: "Drawing", TECHNICAL: "Technical Document", APPROVAL: "Approval",
   DPR: "DPR", MEASUREMENT: "Measurement", PHOTO: "Photo", INSPECTION: "Inspection Report",
   COMPLETION: "Completion Document", OTHER: "Other",
 };
