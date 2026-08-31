@@ -3,20 +3,23 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Plus, Printer, Trash2 } from "lucide-react";
+import { Plus, Printer, ShieldCheck, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
+import { EntityDocuments } from "@/components/entity-documents";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, Textarea, useAsyncAction,
 } from "@/components/ui";
 import { PAYMENT_MODES, PO_STATUSES, type PaymentMode, type PoStatus } from "@/lib/constants";
 import { recordVendorPayment, subscribeVendorPayments } from "@/lib/db/payments";
-import { deletePurchaseOrder, subscribePurchaseOrder, updatePoStatus } from "@/lib/db/purchase-orders";
+import { approvePurchaseOrder, deletePurchaseOrder, subscribePurchaseOrder, updatePoStatus } from "@/lib/db/purchase-orders";
 import { getVendor } from "@/lib/db/vendors";
 import { canManageProcurement, canTrash } from "@/lib/permissions";
 import type { PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
+
+const NON_ISSUED_STATUSES = PO_STATUSES.filter((s) => s !== "ISSUED");
 
 export default function PurchaseOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +33,9 @@ export default function PurchaseOrderDetailPage() {
   const [payments, setPayments] = useState<VendorPayment[] | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [signatureName, setSignatureName] = useState("");
+  const [approvalNote, setApprovalNote] = useState("");
   const [payForm, setPayForm] = useState({ amount: "", mode: "BANK_TRANSFER" as PaymentMode, referenceNo: "", notes: "" });
 
   useEffect(() => subscribePurchaseOrder(id, setPo), [id]);
@@ -43,6 +49,15 @@ export default function PurchaseOrderDetailPage() {
 
   async function onStatusChange(status: PoStatus) {
     await run(() => updatePoStatus(po!, status, actor), `Marked ${status}.`);
+  }
+
+  async function onApprove() {
+    await run(async () => {
+      await approvePurchaseOrder(po!, signatureName, approvalNote, actor);
+      setApproveOpen(false);
+      setSignatureName("");
+      setApprovalNote("");
+    }, "PO approved and issued.");
   }
 
   async function onRecordPayment() {
@@ -66,9 +81,16 @@ export default function PurchaseOrderDetailPage() {
         actions={
           <>
             {canManageProcurement(viewer) ? (
-              <Select value={po.status} options={PO_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))} onChange={(e) => void onStatusChange(e.target.value as PoStatus)} />
+              <Select
+                value={po.status}
+                options={(po.status === "DRAFT" ? NON_ISSUED_STATUSES : PO_STATUSES).map((s) => ({ value: s, label: s.replace(/_/g, " ") }))}
+                onChange={(e) => void onStatusChange(e.target.value as PoStatus)}
+              />
             ) : (
               <Badge>{po.status.replace(/_/g, " ")}</Badge>
+            )}
+            {canManageProcurement(viewer) && po.status === "DRAFT" && (
+              <Button variant="primary" onClick={() => setApproveOpen(true)}><ShieldCheck className="h-4 w-4" /> Approve &amp; Issue</Button>
             )}
             <Link href={`/projects/${po.projectId}/purchase-orders/${po.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
@@ -192,6 +214,19 @@ export default function PurchaseOrderDetailPage() {
             </Card>
           )}
 
+          {po.approval && (
+            <Card title="Approval">
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between"><dt className="text-ink-500">Approved by</dt><dd>{po.approval.approvedBy.name}</dd></div>
+                <div className="flex justify-between"><dt className="text-ink-500">Signed</dt><dd>{po.approval.signatureName}</dd></div>
+                <div className="flex justify-between"><dt className="text-ink-500">Date</dt><dd>{formatDateTime(po.approval.approvedAt)}</dd></div>
+              </dl>
+              {po.approval.note && <p className="mt-2 border-t border-ink-100 pt-2 text-sm text-ink-700">{po.approval.note}</p>}
+            </Card>
+          )}
+
+          <EntityDocuments projectId={po.projectId} entityType="PURCHASE_ORDER" entityId={po.id} defaultDocType="WORK_ORDER" title="PO Documents" />
+
           <EntityActivityLog entityType="PURCHASE_ORDER" entityId={po.id} />
         </div>
       </div>
@@ -217,6 +252,21 @@ export default function PurchaseOrderDetailPage() {
         footer={<><Button variant="secondary" onClick={() => setDeleteOpen(false)}>Cancel</Button><Button variant="danger" loading={busy} onClick={() => void run(async () => { await deletePurchaseOrder(po!, actor); router.push("/purchase-orders"); }, "Purchase order deleted.")}><Trash2 className="h-4 w-4" /> Delete</Button></>}
       >
         <p className="text-sm text-ink-700">{po.poNo} — {po.vendorName}</p>
+      </Modal>
+
+      <Modal
+        open={approveOpen}
+        onClose={() => setApproveOpen(false)}
+        title="Approve &amp; issue this PO"
+        description={`Type your name exactly as shown ("${actor.name}") to confirm approval — this is recorded as your sign-off before the PO is issued to the vendor.`}
+        footer={<><Button variant="secondary" onClick={() => setApproveOpen(false)}>Cancel</Button><Button variant="primary" loading={busy} onClick={() => void onApprove()}><ShieldCheck className="h-4 w-4" /> Confirm Approval</Button></>}
+      >
+        <div className="space-y-3">
+          <Field label="Your name" required hint={`Type: ${actor.name}`}>
+            <Input value={signatureName} onChange={(e) => setSignatureName(e.target.value)} />
+          </Field>
+          <Field label="Note (optional)"><Textarea value={approvalNote} onChange={(e) => setApprovalNote(e.target.value)} /></Field>
+        </div>
       </Modal>
     </div>
   );

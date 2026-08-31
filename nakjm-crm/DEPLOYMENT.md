@@ -228,6 +228,32 @@ everything else — including creating projects manually — works normally.
 
 ---
 
+## Optional — email notifications
+
+Leave requests email admins when one is submitted, and email the requester
+back when it's decided. This uses plain SMTP (not tied to any one vendor),
+so it works with Gmail/Workspace, Office365, Amazon SES, SendGrid's SMTP
+relay, or anything else that speaks SMTP. Without these env vars, the app
+just logs and skips sending — nothing else is affected.
+
+1. Pick a provider and get SMTP credentials — host, port, username,
+   password. For Google Workspace: `smtp.gmail.com`, port `587`, and an
+   [app password](https://myaccount.google.com/apppasswords) (not your
+   normal login password) for the sending account.
+2. Store the password in Secret Manager:
+   ```bash
+   echo -n "your-app-password" | gcloud secrets create nakjm-crm-smtp-pass --data-file=-
+   ```
+3. Grant your App Hosting backend access to it:
+   ```bash
+   firebase apphosting:secrets:grantaccess nakjm-crm-smtp-pass --backend=nakjm-crm --project=nakjmdash
+   ```
+4. Uncomment the `SMTP_*` block in `nakjm-crm/apphosting.yaml`, fill in
+   `SMTP_HOST`/`SMTP_USER`/`SMTP_FROM` for your provider, push, and let it
+   redeploy.
+
+---
+
 ## Custom domain — `app.nakjminfra.com`
 
 1. **App Hosting → your backend → Custom domains → Add domain** →

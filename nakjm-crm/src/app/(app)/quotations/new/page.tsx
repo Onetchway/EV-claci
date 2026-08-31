@@ -7,7 +7,7 @@ import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
-import type { GstType } from "@/lib/constants";
+import { COMPANY_INFO, gstTypeForCounterparty, type GstType } from "@/lib/constants";
 import { getBoq } from "@/lib/db/boq";
 import { createQuotation, computeLineTotals, nextQuotationVersion } from "@/lib/db/quotations";
 import { subscribeProjects } from "@/lib/db/projects";
@@ -60,6 +60,10 @@ function NewQuotationForm() {
   const totals = computeLineTotals(items, Number(taxPercent) || 0, gstType);
   const project = projects.find((p) => p.id === projectId);
 
+  useEffect(() => {
+    if (project?.billingGstin) setGstType(gstTypeForCounterparty(COMPANY_INFO.gstin, project.billingGstin));
+  }, [project?.billingGstin]);
+
   async function onCreate() {
     if (!quotationNo.trim() || !projectId || !project) {
       push("Quotation number and project are required.", "error");
@@ -95,6 +99,11 @@ function NewQuotationForm() {
               <Field label="Valid Until"><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
               <Field label="Tax %"><Input type="number" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} /></Field>
               <GstTypeField value={gstType} onChange={setGstType} className="col-span-2" />
+              {project?.billingGstin && (
+                <p className="col-span-2 -mt-2 text-xs text-ink-500">
+                  Billing GSTIN: {project.billingGstin}{project.billingState ? ` (${project.billingState})` : ""} — GST type auto-set from this, override above if needed.
+                </p>
+              )}
               <ShipToField enabled={shipToDifferent} onEnabledChange={setShipToDifferent} address={shipToAddress} onAddressChange={setShipToAddress} className="col-span-2" />
               <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>

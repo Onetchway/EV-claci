@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Printer, Trash2, Upload } from "lucide-react";
+import { Image as ImageIcon, Pencil, Plus, Printer, Trash2, Upload } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui";
 import {
   BOQ_CATEGORIES, BOQ_CATEGORY_LABEL, DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABEL, DRAWING_DISCIPLINES,
-  DRAWING_STATUSES, HANDOVER_STAGES, HANDOVER_STAGE_LABEL, INSPECTION_RESULTS, ISSUE_PRIORITIES, ISSUE_STATUSES,
+  DRAWING_STATUSES, HANDOVER_STAGES, HANDOVER_STAGE_LABEL, INDIAN_STATES, INSPECTION_RESULTS, ISSUE_PRIORITIES, ISSUE_STATUSES,
   NCR_STATUSES, PAYMENT_MODES, PROJECT_STATUSES, PROJECT_TYPES, PUNCH_ITEM_STATUSES, RFI_STATUSES,
   SITE_REPORT_TYPES, STAGE_STATUSES, STAGE_TEMPLATES, TASK_STATUSES, statusMeta,
   type BoqCategory, type DocumentCategory, type DrawingDiscipline, type DrawingStatus, type HandoverStage,
@@ -42,12 +42,13 @@ import { createPurchaseOrder, deletePurchaseOrder, subscribePosForProject, updat
 import { createQuotation, deleteQuotation, nextQuotationVersion, subscribeQuotationsForProject, updateQuotation } from "@/lib/db/quotations";
 import { createSiteReport, subscribeSiteReportsForProject } from "@/lib/db/site-reports";
 import { createStage, deleteStage, subscribeStagesForProject, updateStage } from "@/lib/db/stages";
+import { deleteStagePhoto, subscribeStagePhotosForProject, uploadStagePhoto } from "@/lib/db/stage-photos";
 import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/lib/db/tasks";
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
   Boq, BoqLineItem, Client, Drawing, Handover, Inspection, Issue, Measurement, NakjmDocument, Ncr, Project,
-  ProformaInvoice, ProjectStage, ProjectTask, PunchItem, PurchaseOrder, Quotation, Rfi, SiteReport, TeamMember, Vendor,
+  ProformaInvoice, ProjectStage, ProjectTask, PunchItem, PurchaseOrder, Quotation, Rfi, SiteReport, StageProgressPhoto, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
@@ -176,7 +177,9 @@ export default function ProjectDetailPage() {
               <Select value={form.status} options={PROJECT_STATUSES.map((s) => ({ value: s, label: statusMeta(s).label }))} onChange={(e) => setForm((f) => f && { ...f, status: e.target.value as ProjectStatus })} />
             </Field>
             <Field label="City"><Input value={form.city} onChange={(e) => setForm((f) => f && { ...f, city: e.target.value })} /></Field>
-            <Field label="State"><Input value={form.state} onChange={(e) => setForm((f) => f && { ...f, state: e.target.value })} /></Field>
+            <Field label="State">
+              <Select placeholder="Select state…" value={form.state} options={INDIAN_STATES.map((s) => ({ value: s, label: s }))} onChange={(e) => setForm((f) => f && { ...f, state: e.target.value })} />
+            </Field>
             <Field label="Capacity (kW)"><Input type="number" value={form.capacityKw} onChange={(e) => setForm((f) => f && { ...f, capacityKw: e.target.value })} /></Field>
             <Field label="Project Manager">
               <Select placeholder="Unassigned" value={form.projectManagerId} options={team.map((t) => ({ value: t.id, label: t.name }))} onChange={(e) => setForm((f) => f && { ...f, projectManagerId: e.target.value })} />
@@ -239,6 +242,8 @@ function OverviewTab({ project }: { project: Project }) {
   const [reports, setReports] = useState<SiteReport[] | null>(null);
   const [subprojects, setSubprojects] = useState<Project[]>([]);
   const [stages, setStages] = useState<ProjectStage[] | null>(null);
+  const [boqs, setBoqs] = useState<Boq[]>([]);
+  const [tasks, setTasks] = useState<ProjectTask[]>([]);
 
   useEffect(() => subscribePosForProject(project.id, setPos), [project.id]);
   useEffect(() => subscribePisForProject(project.id, setPis), [project.id]);
@@ -246,6 +251,8 @@ function OverviewTab({ project }: { project: Project }) {
   useEffect(() => subscribeSiteReportsForProject(project.id, setReports), [project.id]);
   useEffect(() => subscribeSubprojects(project.id, setSubprojects), [project.id]);
   useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
+  useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
+  useEffect(() => subscribeTasksForProject(project.id, setTasks), [project.id]);
 
   const health = computeProjectHealth(project, stages ?? []);
 
@@ -257,6 +264,19 @@ function OverviewTab({ project }: { project: Project }) {
   const collectionPct = project.contractValue > 0 ? Math.round((collected / project.contractValue) * 100) : 0;
   const budgetPct = project.budgetAmount > 0 ? Math.round((paidToVendors / project.budgetAmount) * 100) : 0;
 
+  // Planned cost baseline: the latest version of every distinct BOQ lineage on this project (a project can carry more than one BOQ, e.g. per site).
+  const latestBoqPerLineage = new Map<string, Boq>();
+  for (const b of boqs) {
+    const key = b.rootBoqId ?? b.id;
+    const existing = latestBoqPerLineage.get(key);
+    if (!existing || b.version > existing.version) latestBoqPerLineage.set(key, b);
+  }
+  const plannedCost = [...latestBoqPerLineage.values()].reduce((s, b) => s + b.totalAmount, 0);
+  const costVariance = plannedCost - committed;
+
+  const now = Date.now();
+  const overdueTasks = tasks.filter((t) => t.status !== "DONE" && t.dueDate?.seconds && t.dueDate.seconds * 1000 < now);
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -264,6 +284,21 @@ function OverviewTab({ project }: { project: Project }) {
         <StatCard label="Budget" value={formatCompactINR(project.budgetAmount)} />
         <StatCard label="Estimated Margin" value={formatCompactINR(project.contractValue - committed)} tone="positive" />
         <StatCard label="Site Progress" value={`${latestProgress}%`} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard label="Planned Cost (BOQ)" value={formatCompactINR(plannedCost)} />
+        <StatCard label="Committed (POs)" value={formatCompactINR(committed)} />
+        <StatCard
+          label="Cost Variance"
+          value={formatCompactINR(costVariance)}
+          tone={plannedCost === 0 ? undefined : costVariance < 0 ? "negative" : "positive"}
+        />
+        <StatCard
+          label="Tasks Overdue"
+          value={String(overdueTasks.length)}
+          tone={overdueTasks.length > 0 ? "negative" : "positive"}
+        />
       </div>
 
       <Card title="Project Health">
@@ -298,14 +333,24 @@ function OverviewTab({ project }: { project: Project }) {
         </Card>
         <Card title="Vendor Spend">
           <div className="space-y-2 text-sm">
-            <Row label="Committed (POs)" value={formatINR(committed)} />
+            <Row label="Planned (BOQ)" value={plannedCost > 0 ? formatINR(plannedCost) : "—"} />
+            <Row label="Committed (POs)" value={formatINR(committed)} tone={plannedCost > 0 && committed > plannedCost ? "negative" : undefined} />
             <Row label="Paid" value={formatINR(paidToVendors)} tone="positive" />
             <Row label="Outstanding" value={formatINR(Math.max(committed - paidToVendors, 0))} tone="negative" />
             <ProgressBar pct={budgetPct} className="mt-2" />
             <p className="text-xs text-ink-500">{budgetPct}% of budget utilized</p>
+            {plannedCost > 0 && committed > plannedCost && (
+              <p className="text-xs font-medium text-rose-600">POs exceed the BOQ estimate by {formatINR(committed - plannedCost)}.</p>
+            )}
           </div>
         </Card>
       </div>
+
+      {overdueTasks.length > 0 && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-800">
+          {overdueTasks.length} task{overdueTasks.length === 1 ? "" : "s"} overdue — see Stages &amp; Tasks.
+        </div>
+      )}
 
       <Card>
         <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
@@ -635,10 +680,12 @@ function BoqTab({ project }: { project: Project }) {
 
 // ── Purchase Orders ─────────────────────────────────────────────────────
 function PoTab({ project }: { project: Project }) {
+  const router = useRouter();
   const actor = useActor();
   const viewer = useViewer();
   const [rows, setRows] = useState<PurchaseOrder[] | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [boqs, setBoqs] = useState<Boq[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<PurchaseOrder | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PurchaseOrder | null>(null);
@@ -648,6 +695,7 @@ function PoTab({ project }: { project: Project }) {
 
   useEffect(() => subscribePosForProject(project.id, setRows), [project.id]);
   useEffect(() => { void listActiveVendors().then(setVendors); }, []);
+  useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
 
   function openEdit(po: PurchaseOrder) {
     setEditing(po);
@@ -681,7 +729,18 @@ function PoTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Link href={`/purchase-orders/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PO</Button></Link></div>
+      <div className="flex flex-wrap justify-end gap-2">
+        {boqs.length > 0 && (
+          <Select
+            defaultValue=""
+            className="w-56"
+            options={boqs.map((b) => ({ value: b.id, label: `${b.boqNo} (v${b.version})` }))}
+            placeholder="Generate from BOQ…"
+            onChange={(e) => { if (e.target.value) router.push(`/purchase-orders/new?projectId=${project.id}&sourceBoqId=${e.target.value}`); }}
+          />
+        )}
+        <Link href={`/purchase-orders/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PO</Button></Link>
+      </div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No purchase orders yet" />
       ) : (
@@ -744,9 +803,11 @@ function PoTab({ project }: { project: Project }) {
 
 // ── Proforma Invoices ───────────────────────────────────────────────────
 function PiTab({ project }: { project: Project }) {
+  const router = useRouter();
   const actor = useActor();
   const viewer = useViewer();
   const [rows, setRows] = useState<ProformaInvoice[] | null>(null);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProformaInvoice | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProformaInvoice | null>(null);
@@ -756,6 +817,7 @@ function PiTab({ project }: { project: Project }) {
   const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribePisForProject(project.id, setRows), [project.id]);
+  useEffect(() => subscribeQuotationsForProject(project.id, setQuotations), [project.id]);
 
   function openEdit(pi: ProformaInvoice) {
     setEditing(pi);
@@ -794,7 +856,18 @@ function PiTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Link href={`/proforma-invoices/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PI</Button></Link></div>
+      <div className="flex flex-wrap justify-end gap-2">
+        {quotations.length > 0 && (
+          <Select
+            defaultValue=""
+            className="w-56"
+            options={quotations.map((q) => ({ value: q.id, label: `${q.quotationNo} (v${q.version}) — ${q.status.replace(/_/g, " ")}` }))}
+            placeholder="Generate from Quotation…"
+            onChange={(e) => { if (e.target.value) router.push(`/proforma-invoices/new?projectId=${project.id}&sourceQuotationId=${e.target.value}`); }}
+          />
+        )}
+        <Link href={`/proforma-invoices/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New PI</Button></Link>
+      </div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No proforma invoices yet" />
       ) : (
@@ -963,10 +1036,13 @@ function StagesTasksTab({ project }: { project: Project }) {
   const [stages, setStages] = useState<ProjectStage[] | null>(null);
   const [tasks, setTasks] = useState<ProjectTask[] | null>(null);
   const [boqs, setBoqs] = useState<Boq[]>([]);
+  const [photos, setPhotos] = useState<StageProgressPhoto[]>([]);
   const [templates, setTemplates] = useState<Record<ProjectType, string[]> | null>(null);
   const [showStageForm, setShowStageForm] = useState(false);
   const [stageForm, setStageForm] = useState({ name: "", plannedStart: "", plannedEnd: "" });
   const [taskForm, setTaskForm] = useState<Record<string, { title: string; assigneeId: string; dueDate: string }>>({});
+  const [photoStage, setPhotoStage] = useState<ProjectStage | null>(null);
+  const [photoForm, setPhotoForm] = useState<{ title: string; details: string; file: File | null }>({ title: "", details: "", file: null });
   const { busy, run } = useAsyncAction();
   const canStage = canManageStages(viewer);
   const canTask = canManageTasks(viewer);
@@ -974,6 +1050,7 @@ function StagesTasksTab({ project }: { project: Project }) {
   useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
   useEffect(() => subscribeTasksForProject(project.id, setTasks), [project.id]);
   useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
+  useEffect(() => subscribeStagePhotosForProject(project.id, setPhotos), [project.id]);
   useEffect(() => subscribeProjectTemplates(setTemplates), []);
 
   async function onAddStage() {
@@ -1027,9 +1104,33 @@ function StagesTasksTab({ project }: { project: Project }) {
   }
 
   const stageTasks = (stageId: string) => (tasks ?? []).filter((t) => t.stageId === stageId);
+  const stagePhotos = (stageId: string) => photos.filter((p) => p.stageId === stageId);
+  const isOverdue = (t: ProjectTask) => t.status !== "DONE" && !!t.dueDate?.seconds && t.dueDate.seconds * 1000 < Date.now();
+  const overdueCount = (tasks ?? []).filter(isOverdue).length;
+
+  function openPhotoForm(stage: ProjectStage) {
+    setPhotoForm({ title: "", details: "", file: null });
+    setPhotoStage(stage);
+  }
+
+  async function onAddPhoto() {
+    if (!photoStage || !photoForm.file || !photoForm.title.trim()) return;
+    await run(async () => {
+      await uploadStagePhoto({
+        file: photoForm.file!, projectId: project.id, projectName: project.name,
+        stageId: photoStage.id, stageName: photoStage.name, title: photoForm.title, details: photoForm.details, actor,
+      });
+      setPhotoStage(null);
+    }, "Photo uploaded.");
+  }
 
   return (
     <div className="space-y-4">
+      {overdueCount > 0 && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-800">
+          {overdueCount} task{overdueCount === 1 ? "" : "s"} overdue
+        </div>
+      )}
       {canStage && (
         <div className="flex flex-wrap justify-end gap-2">
           {stages && stages.length === 0 && (
@@ -1088,10 +1189,10 @@ function StagesTasksTab({ project }: { project: Project }) {
                 {stageTasks(stage.id).length === 0 ? (
                   <p className="text-xs text-ink-400">No tasks yet.</p>
                 ) : stageTasks(stage.id).map((t) => (
-                  <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-ink-50 px-2.5 py-1.5 text-sm">
+                  <div key={t.id} className={`flex flex-wrap items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${isOverdue(t) ? "bg-rose-50 ring-1 ring-inset ring-rose-200" : "bg-ink-50"}`}>
                     <span className="flex-1 min-w-[120px]">{t.title}</span>
                     <span className="text-xs text-ink-500">{t.assigneeName || "Unassigned"}</span>
-                    {t.dueDate && <span className="text-xs text-ink-400">Due {formatDate(t.dueDate)}</span>}
+                    {t.dueDate && <span className={`text-xs ${isOverdue(t) ? "font-semibold text-rose-600" : "text-ink-400"}`}>{isOverdue(t) ? "Overdue" : "Due"} {formatDate(t.dueDate)}</span>}
                     {canTask ? (
                       <Select value={t.status} className="w-auto" options={TASK_STATUSES.map((s) => ({ value: s, label: s.replace("_", " ") }))} onChange={(e) => void run(() => updateTask(t, { status: e.target.value as TaskStatus }, actor), "Updated.")} />
                     ) : (
@@ -1124,6 +1225,40 @@ function StagesTasksTab({ project }: { project: Project }) {
                   <Button onClick={() => void onAddTask(stage)} loading={busy}><Plus className="h-4 w-4" /> Add</Button>
                 </div>
               )}
+
+              <div className="mt-3 border-t border-ink-100 pt-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Photos</p>
+                  {canTask && <Button variant="secondary" onClick={() => openPhotoForm(stage)}><ImageIcon className="h-4 w-4" /> Add Photo</Button>}
+                </div>
+                {stagePhotos(stage.id).length === 0 ? (
+                  <p className="mt-2 text-xs text-ink-400">No photos yet.</p>
+                ) : (
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                    {stagePhotos(stage.id).map((p) => (
+                      <div key={p.id} className="group relative overflow-hidden rounded-lg border border-ink-100">
+                        <a href={p.photoUrl} target="_blank" rel="noreferrer">
+                          <img src={p.photoUrl} alt={p.title} className="h-24 w-full object-cover" />
+                        </a>
+                        <div className="p-1.5">
+                          <p className="truncate text-xs font-medium text-ink-900">{p.title}</p>
+                          {p.details && <p className="truncate text-[11px] text-ink-500">{p.details}</p>}
+                          <p className="text-[10px] text-ink-400">{formatDate(p.createdAt)}{p.uploadedBy?.name ? ` · ${p.uploadedBy.name}` : ""}</p>
+                        </div>
+                        {canStage && (
+                          <button
+                            className="absolute right-1 top-1 rounded-full bg-white/90 p-1 opacity-0 group-hover:opacity-100"
+                            onClick={() => void run(async () => { await deleteStagePhoto(p, actor); }, "Photo deleted.")}
+                            disabled={busy}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Card>
           ))}
         </div>
@@ -1134,6 +1269,22 @@ function StagesTasksTab({ project }: { project: Project }) {
           <Field label="Stage Name" required className="col-span-2"><Input value={stageForm.name} onChange={(e) => setStageForm((f) => ({ ...f, name: e.target.value }))} /></Field>
           <Field label="Planned Start"><Input type="date" value={stageForm.plannedStart} onChange={(e) => setStageForm((f) => ({ ...f, plannedStart: e.target.value }))} /></Field>
           <Field label="Planned End"><Input type="date" value={stageForm.plannedEnd} onChange={(e) => setStageForm((f) => ({ ...f, plannedEnd: e.target.value }))} /></Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!photoStage}
+        onClose={() => setPhotoStage(null)}
+        title={`Add Photo — ${photoStage?.name ?? ""}`}
+        footer={<><Button variant="secondary" onClick={() => setPhotoStage(null)}>Cancel</Button><Button onClick={() => void onAddPhoto()} loading={busy}>Upload</Button></>}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Photo" required className="col-span-2">
+            <input type="file" accept="image/*" capture="environment" onChange={(e) => setPhotoForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))} className="w-full text-sm" />
+            <p className="mt-1 text-xs text-ink-400">On a phone this opens the camera directly; on desktop it opens a normal file picker.</p>
+          </Field>
+          <Field label="Name" required className="col-span-2"><Input value={photoForm.title} onChange={(e) => setPhotoForm((f) => ({ ...f, title: e.target.value }))} /></Field>
+          <Field label="Details" className="col-span-2"><Textarea value={photoForm.details} onChange={(e) => setPhotoForm((f) => ({ ...f, details: e.target.value }))} /></Field>
         </div>
       </Modal>
     </div>

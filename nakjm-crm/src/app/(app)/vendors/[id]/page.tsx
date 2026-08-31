@@ -3,22 +3,30 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Star } from "lucide-react";
 
-import { Badge, Button, Field, Input, Modal, Select, StatCard, useAsyncAction } from "@/components/ui";
+import { useActor, useViewer } from "@/components/auth-provider";
+import { Badge, Button, Card, Field, Input, Modal, Select, StatCard, Textarea, useAsyncAction } from "@/components/ui";
 import { VENDOR_CATEGORIES, type VendorCategory } from "@/lib/constants";
 import { subscribeVendor, updateVendor } from "@/lib/db/vendors";
+import { rateVendor, subscribeVendorRatings } from "@/lib/db/vendor-ratings";
 import { subscribePosForVendor } from "@/lib/db/purchase-orders";
 import { subscribeVendorPayments } from "@/lib/db/payments";
-import type { PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
+import { canManageVendors } from "@/lib/permissions";
+import type { PurchaseOrder, Vendor, VendorPayment, VendorRating } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
 
 export default function VendorDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const actor = useActor();
+  const viewer = useViewer();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [pos, setPos] = useState<PurchaseOrder[] | null>(null);
   const [payments, setPayments] = useState<VendorPayment[] | null>(null);
+  const [ratings, setRatings] = useState<VendorRating[]>([]);
   const [editOpen, setEditOpen] = useState(false);
+  const [rateOpen, setRateOpen] = useState(false);
+  const [rateForm, setRateForm] = useState({ score: 5, projectId: "", notes: "" });
   const [form, setForm] = useState<{
     name: string; category: VendorCategory; contactName: string; contactEmail: string;
     contactPhone: string; gstin: string; bankAccountNo: string; bankIfsc: string; bankName: string; active: boolean;
@@ -28,11 +36,26 @@ export default function VendorDetailPage() {
   useEffect(() => subscribeVendor(id, setVendor), [id]);
   useEffect(() => subscribePosForVendor(id, setPos), [id]);
   useEffect(() => subscribeVendorPayments({ vendorId: id }, setPayments), [id]);
+  useEffect(() => subscribeVendorRatings(id, setRatings), [id]);
 
   if (!vendor) return <p className="text-sm text-ink-400">Loading…</p>;
 
   const totalPoValue = (pos ?? []).reduce((s, p) => s + p.totalAmount, 0);
   const totalPaid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
+  const projectOptions = Array.from(new Map((pos ?? []).map((p) => [p.projectId, p.projectName])).entries());
+  const avgRating = ratings.length ? Math.round((ratings.reduce((s, r) => s + r.score, 0) / ratings.length) * 10) / 10 : null;
+
+  async function onRate() {
+    await run(async () => {
+      const project = projectOptions.find(([pid]) => pid === rateForm.projectId);
+      await rateVendor({
+        vendorId: vendor!.id, vendorName: vendor!.name, projectId: project?.[0] ?? null, projectName: project?.[1] ?? null,
+        score: rateForm.score, notes: rateForm.notes, existingRatings: ratings,
+      }, actor);
+      setRateOpen(false);
+      setRateForm({ score: 5, projectId: "", notes: "" });
+    }, "Rating saved.");
+  }
 
   function openEdit() {
     setForm({
@@ -65,6 +88,7 @@ export default function VendorDetailPage() {
               {vendor.active ? "Active" : "Inactive"}
             </Badge>
             <Button size="sm" onClick={openEdit}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
+            {canManageVendors(viewer) && <Button size="sm" onClick={() => setRateOpen(true)}><Star className="h-3.5 w-3.5" /> Rate Vendor</Button>}
             <Link href={`/purchase-orders/new?vendorId=${vendor.id}`}><Button size="sm" variant="primary"><Plus className="h-3.5 w-3.5" /> New PO</Button></Link>
           </div>
         </div>
@@ -76,11 +100,35 @@ export default function VendorDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="PO Value" value={formatCompactINR(totalPoValue)} />
         <StatCard label="Paid" value={formatCompactINR(totalPaid)} tone="positive" />
         <StatCard label="Outstanding" value={formatCompactINR(Math.max(totalPoValue - totalPaid, 0))} tone="negative" />
+        <StatCard label="Rating" value={avgRating ? `${avgRating} / 5` : "Not rated"} />
       </div>
+
+      <Card title="Performance" subtitle={`${ratings.length} ${ratings.length === 1 ? "rating" : "ratings"} recorded`}>
+        {ratings.length === 0 ? (
+          <p className="text-sm text-ink-400">No ratings yet — rate this vendor after a project or PO to start a track record.</p>
+        ) : (
+          <ul className="space-y-3">
+            {ratings.map((r) => (
+              <li key={r.id} className="flex items-start justify-between gap-3 text-sm">
+                <div>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star key={i} className={`h-3.5 w-3.5 ${i < r.score ? "fill-amber-400 text-amber-400" : "text-ink-200"}`} />
+                    ))}
+                    {r.projectName && <span className="ml-2 text-xs text-ink-500">{r.projectName}</span>}
+                  </div>
+                  {r.notes && <p className="mt-1 text-ink-600">{r.notes}</p>}
+                  <p className="mt-0.5 text-xs text-ink-400">{r.ratedBy.name} · {formatDate(r.createdAt)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
         <table className="w-full">
@@ -146,6 +194,36 @@ export default function VendorDetailPage() {
             <Field label="IFSC" className="col-span-2"><Input value={form.bankIfsc} onChange={(e) => setForm((f) => f && { ...f, bankIfsc: e.target.value })} /></Field>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={rateOpen}
+        onClose={() => setRateOpen(false)}
+        title={`Rate ${vendor.name}`}
+        footer={<><Button variant="secondary" onClick={() => setRateOpen(false)}>Cancel</Button><Button onClick={() => void onRate()} loading={busy}>Save Rating</Button></>}
+      >
+        <div className="space-y-3">
+          <Field label="Score" required>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} type="button" onClick={() => setRateForm((f) => ({ ...f, score: n }))}>
+                  <Star className={`h-6 w-6 ${n <= rateForm.score ? "fill-amber-400 text-amber-400" : "text-ink-200"}`} />
+                </button>
+              ))}
+            </div>
+          </Field>
+          {projectOptions.length > 0 && (
+            <Field label="Project" hint="Optional — ties this rating to a specific job.">
+              <Select
+                placeholder="Not tied to a project"
+                value={rateForm.projectId}
+                options={projectOptions.map(([pid, pname]) => ({ value: pid, label: pname }))}
+                onChange={(e) => setRateForm((f) => ({ ...f, projectId: e.target.value }))}
+              />
+            </Field>
+          )}
+          <Field label="Notes"><Textarea value={rateForm.notes} onChange={(e) => setRateForm((f) => ({ ...f, notes: e.target.value }))} /></Field>
+        </div>
       </Modal>
     </div>
   );

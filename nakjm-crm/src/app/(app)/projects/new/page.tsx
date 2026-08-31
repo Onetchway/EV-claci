@@ -6,7 +6,7 @@ import { Sparkles, Upload } from "lucide-react";
 
 import { useActor } from "@/components/auth-provider";
 import { Badge, Button, Card, Field, Input, PageHeader, Select, Textarea, useAsyncAction, useToast } from "@/components/ui";
-import { PROJECT_STATUSES, PROJECT_TYPES, statusMeta, type ProjectStatus, type ProjectType } from "@/lib/constants";
+import { INDIAN_STATES, PROJECT_STATUSES, PROJECT_TYPES, statusMeta, type ProjectStatus, type ProjectType } from "@/lib/constants";
 import { listActiveClients } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
 import { createProject, getProject } from "@/lib/db/projects";
@@ -16,7 +16,7 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import type { Client, Project, TeamMember } from "@/lib/types";
 
 const EMPTY = {
-  name: "", clientId: "", projectType: "EV_CHARGING_STATION" as ProjectType, city: "", state: "", address: "",
+  name: "", clientId: "", billingGstin: "", projectType: "EV_CHARGING_STATION" as ProjectType, city: "", state: "", address: "",
   capacityKw: "", status: "LEAD" as ProjectStatus, budgetAmount: "0", contractValue: "0",
   startDate: "", targetEndDate: "", projectManagerId: "", clientRequirements: "",
 };
@@ -89,6 +89,8 @@ function NewProjectForm() {
           budgetAmount: Number(form.budgetAmount) || 0,
           contractValue: Number(form.contractValue) || 0,
           clientRequirements: form.clientRequirements,
+          billingGstin: form.billingGstin || null,
+          billingState: client?.gstRegistrations?.find((r) => r.gstin === form.billingGstin)?.state ?? null,
           sourceDocumentId,
           tenderId: tenderId || null,
           parentProjectId: parentProjectId || null,
@@ -141,6 +143,8 @@ function NewProjectForm() {
     }
   }
 
+  const selectedClient = clients.find((c) => c.id === form.clientId);
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
@@ -184,9 +188,22 @@ function NewProjectForm() {
               value={form.clientId}
               placeholder="Select client…"
               options={clients.map((c) => ({ value: c.id, label: c.name }))}
-              onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))}
+              onChange={(e) => {
+                const client = clients.find((c) => c.id === e.target.value);
+                setForm((f) => ({ ...f, clientId: e.target.value, billingGstin: client?.gstRegistrations?.length === 1 ? client.gstRegistrations[0].gstin : "" }));
+              }}
             />
           </Field>
+          {(selectedClient?.gstRegistrations?.length ?? 0) > 0 && (
+            <Field label="Billing GSTIN" required hint="Which of the client's state registrations this project bills under.">
+              <Select
+                value={form.billingGstin}
+                placeholder="Select registration…"
+                options={(selectedClient!.gstRegistrations ?? []).map((r) => ({ value: r.gstin, label: `${r.state} — ${r.gstin}` }))}
+                onChange={(e) => setForm((f) => ({ ...f, billingGstin: e.target.value }))}
+              />
+            </Field>
+          )}
           <Field label="Project Type">
             <Select
               value={form.projectType}
@@ -195,7 +212,9 @@ function NewProjectForm() {
             />
           </Field>
           <Field label="City"><Input value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} /></Field>
-          <Field label="State"><Input value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} /></Field>
+          <Field label="State">
+            <Select placeholder="Select state…" value={form.state} options={INDIAN_STATES.map((s) => ({ value: s, label: s }))} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} />
+          </Field>
           <Field label="Capacity (kW)"><Input type="number" value={form.capacityKw} onChange={(e) => setForm((f) => ({ ...f, capacityKw: e.target.value }))} /></Field>
           <Field label="Status">
             <Select

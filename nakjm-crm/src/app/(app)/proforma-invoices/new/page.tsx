@@ -8,9 +8,9 @@ import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
-import type { GstType } from "@/lib/constants";
+import { COMPANY_INFO, gstTypeForCounterparty, type GstType } from "@/lib/constants";
 import { createProformaInvoice } from "@/lib/db/proforma-invoices";
-import { computeLineTotals } from "@/lib/db/quotations";
+import { computeLineTotals, getQuotation } from "@/lib/db/quotations";
 import { uploadDocument } from "@/lib/db/documents";
 import { subscribeProjects } from "@/lib/db/projects";
 import type { Project } from "@/lib/types";
@@ -44,8 +44,29 @@ function NewProformaInvoiceForm() {
   const [shipToAddress, setShipToAddress] = useState("");
   const [poFile, setPoFile] = useState<File | null>(null);
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [sourceQuotationId, setSourceQuotationId] = useState<string | null>(null);
+  const [sourceQuotationNo, setSourceQuotationNo] = useState<string | null>(null);
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
+
+  useEffect(() => {
+    const quotationId = params.get("sourceQuotationId");
+    if (!quotationId) return;
+    setSourceQuotationId(quotationId);
+    void getQuotation(quotationId).then((q) => {
+      if (!q) return;
+      setSourceQuotationNo(q.quotationNo);
+      setProjectId((id) => id || q.projectId);
+      setItems(q.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode })));
+      setPiNo((n) => n || `${q.quotationNo}-PI`);
+      setTaxAmount(String(q.taxAmount));
+      setGstType(q.gstType ?? "IGST");
+      setTerms((t) => t || q.terms || "");
+      setNotes((n) => n || `Generated from Quotation ${q.quotationNo} (v${q.version})`);
+      if (q.shipToDifferent) { setShipToDifferent(true); setShipToAddress(q.shipToAddress ?? ""); }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount from the URL param
+  }, []);
 
   const { subtotal } = computeLineTotals(items);
   const tax = Number(taxAmount) || 0;
@@ -53,6 +74,10 @@ function NewProformaInvoiceForm() {
   const cgst = gstType === "CGST_SGST" ? tax / 2 : 0;
   const sgst = gstType === "CGST_SGST" ? tax / 2 : 0;
   const project = projects.find((p) => p.id === projectId);
+
+  useEffect(() => {
+    if (project?.billingGstin) setGstType(gstTypeForCounterparty(COMPANY_INFO.gstin, project.billingGstin));
+  }, [project?.billingGstin]);
 
   async function onCreate() {
     if (!piNo.trim() || !projectId || !project) {
@@ -66,7 +91,7 @@ function NewProformaInvoiceForm() {
         sourceDocumentId = doc.id;
       }
       const pi = await createProformaInvoice({
-        piNo, projectId, projectName: project.name, clientId: project.clientId,
+        piNo, projectId, projectName: project.name, clientId: project.clientId, quotationId: sourceQuotationId,
         dueDate: dueDate ? new Date(dueDate) : null, milestone, items,
         taxAmount: tax, gstType, terms, notes, sourceDocumentId,
         shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "",
@@ -80,6 +105,9 @@ function NewProformaInvoiceForm() {
       <div className="mb-5">
         <h1 className="text-lg font-semibold text-navy-900">New Proforma Invoice</h1>
         <p className="text-sm text-ink-500">Raise a pre-sale bill against a project so the client can arrange payment.</p>
+        {sourceQuotationNo && (
+          <p className="mt-2 rounded-lg bg-brand-50 px-3 py-1.5 text-xs text-brand-800">Prefilled from Quotation {sourceQuotationNo} — review before creating.</p>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -94,6 +122,11 @@ function NewProformaInvoiceForm() {
               <Field label="Milestone"><Input value={milestone} onChange={(e) => setMilestone(e.target.value)} /></Field>
               <Field label="Tax Amount (₹)"><Input type="number" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} /></Field>
               <GstTypeField value={gstType} onChange={setGstType} />
+              {project?.billingGstin && (
+                <p className="col-span-2 -mt-2 text-xs text-ink-500">
+                  Billing GSTIN: {project.billingGstin}{project.billingState ? ` (${project.billingState})` : ""} — GST type auto-set from this, override above if needed.
+                </p>
+              )}
               <ShipToField enabled={shipToDifferent} onEnabledChange={setShipToDifferent} address={shipToAddress} onAddressChange={setShipToAddress} className="col-span-2" />
               <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>

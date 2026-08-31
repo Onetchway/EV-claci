@@ -63,6 +63,23 @@ export const DEPARTMENT_LABEL: Record<Department, string> = {
   ADMIN: "Admin",
 };
 
+export const EMPLOYMENT_TYPES = ["FULL_TIME", "PART_TIME", "TEMPORARY"] as const;
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
+
+export const EMPLOYMENT_TYPE_LABEL: Record<EmploymentType, string> = {
+  FULL_TIME: "Full-time",
+  PART_TIME: "Part-time",
+  TEMPORARY: "Temporary",
+};
+
+export const ROLL_STATUSES = ["ON_ROLL", "OFF_ROLL"] as const;
+export type RollStatus = (typeof ROLL_STATUSES)[number];
+
+export const ROLL_STATUS_LABEL: Record<RollStatus, string> = {
+  ON_ROLL: "On roll",
+  OFF_ROLL: "Off roll",
+};
+
 // ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
@@ -135,6 +152,35 @@ export type PiStatus = (typeof PI_STATUSES)[number];
 export const GST_TYPES = ["IGST", "CGST_SGST"] as const;
 export type GstType = (typeof GST_TYPES)[number];
 export const GST_TYPE_LABEL: Record<GstType, string> = { IGST: "IGST", CGST_SGST: "CGST & SGST" };
+
+/** Standard GST state codes -- the first two digits of every Indian GSTIN. */
+export const GST_STATE_CODES: Record<string, string> = {
+  "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh",
+  "05": "Uttarakhand", "06": "Haryana", "07": "Delhi", "08": "Rajasthan", "09": "Uttar Pradesh",
+  "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh", "13": "Nagaland", "14": "Manipur",
+  "15": "Mizoram", "16": "Tripura", "17": "Meghalaya", "18": "Assam", "19": "West Bengal",
+  "20": "Jharkhand", "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh", "24": "Gujarat",
+  "25": "Daman & Diu", "26": "Dadra & Nagar Haveli", "27": "Maharashtra", "28": "Andhra Pradesh (Old)",
+  "29": "Karnataka", "30": "Goa", "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu",
+  "34": "Puducherry", "35": "Andaman & Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh",
+  "38": "Ladakh",
+};
+
+/** Reads the state straight off a GSTIN's first two digits, the authoritative source -- never a free-text field that can drift from it. */
+export function gstStateFromGstin(gstin: string): string {
+  return GST_STATE_CODES[gstin.trim().slice(0, 2)] ?? "";
+}
+
+/** IGST if the two GSTINs' state codes differ, CGST+SGST if they match -- the actual place-of-supply rule, not a manual guess. */
+export function gstTypeForCounterparty(homeGstin: string, counterpartyGstin: string | null | undefined): GstType {
+  if (!counterpartyGstin) return "IGST";
+  return homeGstin.trim().slice(0, 2) === counterpartyGstin.trim().slice(0, 2) ? "CGST_SGST" : "IGST";
+}
+
+/** Every Indian state/UT name, alphabetical, for a "State" dropdown -- the same list GST registration is drawn from, minus the old pre-bifurcation Andhra Pradesh code. */
+export const INDIAN_STATES = Object.values(GST_STATE_CODES)
+  .filter((s) => s !== "Andhra Pradesh (Old)")
+  .sort((a, b) => a.localeCompare(b));
 
 export const PAYMENT_MODES = ["BANK_TRANSFER", "CHEQUE", "UPI", "CASH", "OTHER"] as const;
 export type PaymentMode = (typeof PAYMENT_MODES)[number];
@@ -315,7 +361,7 @@ export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
   "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
-  "PUNCH_ITEM", "HANDOVER",
+  "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -345,6 +391,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   DRAWING: "Drawing",
   PUNCH_ITEM: "Punch Item",
   HANDOVER: "Handover",
+  LEAVE_REQUEST: "Leave Request",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;
@@ -421,6 +468,26 @@ export const ATTENDANCE_STATUS_COLOR: Record<AttendanceStatus, string> = {
   ON_LEAVE: "bg-violet-50 text-violet-700 ring-violet-200",
   WEEK_OFF: "bg-ink-100 text-ink-600 ring-ink-200",
   HOLIDAY: "bg-sky-50 text-sky-700 ring-sky-200",
+};
+
+export const LEAVE_TYPES = ["CASUAL", "SICK", "EARNED", "UNPAID"] as const;
+export type LeaveType = (typeof LEAVE_TYPES)[number];
+
+export const LEAVE_TYPE_LABEL: Record<LeaveType, string> = {
+  CASUAL: "Casual leave",
+  SICK: "Sick leave",
+  EARNED: "Earned leave",
+  UNPAID: "Unpaid leave",
+};
+
+export const LEAVE_REQUEST_STATUSES = ["PENDING", "APPROVED", "REJECTED", "CANCELLED"] as const;
+export type LeaveRequestStatus = (typeof LEAVE_REQUEST_STATUSES)[number];
+
+export const LEAVE_REQUEST_STATUS_META: Record<LeaveRequestStatus, { label: string; className: string }> = {
+  PENDING: { label: "Pending", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  APPROVED: { label: "Approved", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  REJECTED: { label: "Rejected", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+  CANCELLED: { label: "Cancelled", className: "bg-ink-100 text-ink-600 ring-ink-200" },
 };
 
 // ---------------------------------------------------------------------------

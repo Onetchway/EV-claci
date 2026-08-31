@@ -3,23 +3,25 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 
 import { EntityActivityLog } from "@/components/entity-activity-log";
+import { GstRegistrationsField } from "@/components/gst-fields";
 import { Badge, Button, Field, Input, Modal, Select, StatCard, useAsyncAction } from "@/components/ui";
 import { updateClient, subscribeClient } from "@/lib/db/clients";
-import { listProjectsForClient } from "@/lib/db/projects";
+import { subscribeProjects } from "@/lib/db/projects";
 import { subscribeBoqs } from "@/lib/db/boq";
 import { subscribeDocuments } from "@/lib/db/documents";
 import { subscribeClientPayments } from "@/lib/db/payments";
+import { subscribePurchaseOrders } from "@/lib/db/purchase-orders";
 import { subscribePisForClient } from "@/lib/db/proforma-invoices";
 import { subscribeQuotationsForClient } from "@/lib/db/quotations";
 import { subscribeTendersForClient } from "@/lib/db/tenders";
 import { CLIENT_TYPES, DOCUMENT_CATEGORY_LABEL, statusMeta, TENDER_STATUS_META, type ClientType } from "@/lib/constants";
-import type { Boq, Client, ClientPayment, NakjmDocument, Project, ProformaInvoice, Quotation, Tender } from "@/lib/types";
+import type { Boq, Client, ClientGstRegistration, ClientPayment, NakjmDocument, Project, ProformaInvoice, PurchaseOrder, Quotation, Tender } from "@/lib/types";
 import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
 
-const TABS = ["Overview", "Projects", "Tenders", "Quotations", "Proforma Invoices", "BOQs", "Documents", "Activity"] as const;
+const TABS = ["Overview", "Projects", "Tenders", "Quotations", "Purchase Orders", "Proforma Invoices", "BOQs", "Documents", "Activity"] as const;
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -31,30 +33,36 @@ export default function ClientDetailPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [pis, setPis] = useState<ProformaInvoice[]>([]);
   const [allBoqs, setAllBoqs] = useState<Boq[]>([]);
+  const [allPos, setAllPos] = useState<PurchaseOrder[]>([]);
   const [allDocuments, setAllDocuments] = useState<NakjmDocument[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<{
     name: string; clientType: ClientType; contactName: string; contactEmail: string;
     contactPhone: string; city: string; state: string; gstin: string; active: boolean;
   } | null>(null);
+  const [gstRegistrations, setGstRegistrations] = useState<ClientGstRegistration[]>([]);
   const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribeClient(id, setClient), [id]);
-  useEffect(() => { void listProjectsForClient(id).then(setProjects); }, [id]);
+  useEffect(() => subscribeProjects({ clientId: id, status: "ALL", max: 500 }, setProjects), [id]);
   useEffect(() => subscribeTendersForClient(id, setTenders), [id]);
   useEffect(() => subscribeClientPayments({ clientId: id }, setPayments), [id]);
   useEffect(() => subscribeQuotationsForClient(id, setQuotations), [id]);
   useEffect(() => subscribePisForClient(id, setPis), [id]);
   useEffect(() => subscribeBoqs(setAllBoqs), []);
+  useEffect(() => subscribePurchaseOrders(setAllPos), []);
   useEffect(() => subscribeDocuments(setAllDocuments), []);
 
   const projectIds = useMemo(() => new Set(projects.map((p) => p.id)), [projects]);
   const boqs = useMemo(() => allBoqs.filter((b) => projectIds.has(b.projectId)), [allBoqs, projectIds]);
+  const purchaseOrders = useMemo(() => allPos.filter((po) => projectIds.has(po.projectId)), [allPos, projectIds]);
   const documents = useMemo(() => allDocuments.filter((d) => d.projectId && projectIds.has(d.projectId)), [allDocuments, projectIds]);
 
   if (!client) return <p className="text-sm text-ink-400">Loading…</p>;
 
   const totalCollected = (payments ?? []).reduce((s, p) => s + p.amount, 0);
+  // Prefills the "New …" links below when the client has exactly one project; otherwise the creation page's own project picker is used.
+  const soleProjectId = projects.length === 1 ? projects[0].id : "";
 
   function openEdit() {
     setForm({
@@ -62,13 +70,22 @@ export default function ClientDetailPage() {
       contactEmail: client!.contactEmail ?? "", contactPhone: client!.contactPhone ?? "",
       city: client!.city ?? "", state: client!.state ?? "", gstin: client!.gstin ?? "", active: client!.active,
     });
+    setGstRegistrations(
+      client!.gstRegistrations?.length ? client!.gstRegistrations : client!.gstin ? [{ gstin: client!.gstin, state: client!.state ?? "" }] : [],
+    );
     setEditOpen(true);
   }
 
   async function onSave() {
     if (!form || !form.name.trim()) return;
     await run(async () => {
-      await updateClient(id, form);
+      const clean = gstRegistrations.filter((r) => r.gstin.trim());
+      await updateClient(id, {
+        ...form,
+        gstRegistrations: clean,
+        gstin: clean[0]?.gstin ?? "",
+        state: clean[0]?.state || form.state,
+      });
       setEditOpen(false);
     }, "Client updated.");
   }
@@ -93,7 +110,18 @@ export default function ClientDetailPage() {
           <div><p className="text-ink-400">Contact</p><p className="font-medium">{client.contactName || "—"}</p></div>
           <div><p className="text-ink-400">Email</p><p className="font-medium">{client.contactEmail || "—"}</p></div>
           <div><p className="text-ink-400">Phone</p><p className="font-medium">{client.contactPhone || "—"}</p></div>
-          <div><p className="text-ink-400">GSTIN</p><p className="font-medium">{client.gstin || "—"}</p></div>
+          <div>
+            <p className="text-ink-400">GSTIN{(client.gstRegistrations?.length ?? 0) > 1 ? "s" : ""}</p>
+            {client.gstRegistrations?.length ? (
+              <div className="space-y-0.5">
+                {client.gstRegistrations.map((r) => (
+                  <p key={r.gstin} className="font-medium">{r.gstin} <span className="font-normal text-ink-400">({r.state})</span></p>
+                ))}
+              </div>
+            ) : (
+              <p className="font-medium">{client.gstin || "—"}</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -164,64 +192,105 @@ export default function ClientDetailPage() {
       )}
 
       {tab === "Quotations" && (
-        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
-          <table className="w-full">
-            <thead><tr><th className="th">No.</th><th className="th">Project</th><th className="th">Version</th><th className="th">Status</th><th className="th">Total</th></tr></thead>
-            <tbody>
-              {quotations.length === 0 ? (
-                <tr><td colSpan={5} className="td text-center text-ink-400">No quotations yet.</td></tr>
-              ) : quotations.map((q) => (
-                <tr key={q.id} className="border-t border-ink-100">
-                  <td className="td"><Link href={`/quotations/${q.id}`} className="font-medium text-brand-700">{q.quotationNo}</Link></td>
-                  <td className="td"><Link href={`/projects/${q.projectId}`} className="text-ink-600 hover:underline">{q.projectName}</Link></td>
-                  <td className="td">v{q.version}</td>
-                  <td className="td"><Badge>{q.status.replace(/_/g, " ")}</Badge></td>
-                  <td className="td">{formatINR(q.totalAmount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Link href={`/quotations/new${soleProjectId ? `?projectId=${soleProjectId}` : ""}`}><Button size="sm"><Plus className="h-3.5 w-3.5" /> New Quotation</Button></Link>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+            <table className="w-full">
+              <thead><tr><th className="th">No.</th><th className="th">Project</th><th className="th">Version</th><th className="th">Status</th><th className="th">Total</th></tr></thead>
+              <tbody>
+                {quotations.length === 0 ? (
+                  <tr><td colSpan={5} className="td text-center text-ink-400">No quotations yet.</td></tr>
+                ) : quotations.map((q) => (
+                  <tr key={q.id} className="border-t border-ink-100">
+                    <td className="td"><Link href={`/quotations/${q.id}`} className="font-medium text-brand-700">{q.quotationNo}</Link></td>
+                    <td className="td"><Link href={`/projects/${q.projectId}`} className="text-ink-600 hover:underline">{q.projectName}</Link></td>
+                    <td className="td">v{q.version}</td>
+                    <td className="td"><Badge>{q.status.replace(/_/g, " ")}</Badge></td>
+                    <td className="td">{formatINR(q.totalAmount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === "Purchase Orders" && (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Link href={`/purchase-orders/new${soleProjectId ? `?projectId=${soleProjectId}` : ""}`}><Button size="sm"><Plus className="h-3.5 w-3.5" /> New Purchase Order</Button></Link>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+            <table className="w-full">
+              <thead><tr><th className="th">No.</th><th className="th">Project</th><th className="th">Vendor</th><th className="th">Status</th><th className="th">Total</th></tr></thead>
+              <tbody>
+                {purchaseOrders.length === 0 ? (
+                  <tr><td colSpan={5} className="td text-center text-ink-400">No purchase orders yet.</td></tr>
+                ) : purchaseOrders.map((po) => (
+                  <tr key={po.id} className="border-t border-ink-100">
+                    <td className="td"><Link href={`/purchase-orders/${po.id}`} className="font-medium text-brand-700">{po.poNo}</Link></td>
+                    <td className="td"><Link href={`/projects/${po.projectId}`} className="text-ink-600 hover:underline">{po.projectName}</Link></td>
+                    <td className="td">{po.vendorName}</td>
+                    <td className="td"><Badge>{po.status.replace(/_/g, " ")}</Badge></td>
+                    <td className="td">{formatINR(po.totalAmount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {tab === "Proforma Invoices" && (
-        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
-          <table className="w-full">
-            <thead><tr><th className="th">No.</th><th className="th">Project</th><th className="th">Status</th><th className="th">Total</th><th className="th">Paid</th></tr></thead>
-            <tbody>
-              {pis.length === 0 ? (
-                <tr><td colSpan={5} className="td text-center text-ink-400">No proforma invoices yet.</td></tr>
-              ) : pis.map((pi) => (
-                <tr key={pi.id} className="border-t border-ink-100">
-                  <td className="td"><Link href={`/proforma-invoices/${pi.id}`} className="font-medium text-brand-700">{pi.piNo}</Link></td>
-                  <td className="td"><Link href={`/projects/${pi.projectId}`} className="text-ink-600 hover:underline">{pi.projectName}</Link></td>
-                  <td className="td"><Badge>{pi.status.replace(/_/g, " ")}</Badge></td>
-                  <td className="td">{formatINR(pi.totalAmount)}</td>
-                  <td className="td text-emerald-600">{formatINR(pi.paidAmount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Link href={`/proforma-invoices/new${soleProjectId ? `?projectId=${soleProjectId}` : ""}`}><Button size="sm"><Plus className="h-3.5 w-3.5" /> New Proforma Invoice</Button></Link>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+            <table className="w-full">
+              <thead><tr><th className="th">No.</th><th className="th">Project</th><th className="th">Status</th><th className="th">Total</th><th className="th">Paid</th></tr></thead>
+              <tbody>
+                {pis.length === 0 ? (
+                  <tr><td colSpan={5} className="td text-center text-ink-400">No proforma invoices yet.</td></tr>
+                ) : pis.map((pi) => (
+                  <tr key={pi.id} className="border-t border-ink-100">
+                    <td className="td"><Link href={`/proforma-invoices/${pi.id}`} className="font-medium text-brand-700">{pi.piNo}</Link></td>
+                    <td className="td"><Link href={`/projects/${pi.projectId}`} className="text-ink-600 hover:underline">{pi.projectName}</Link></td>
+                    <td className="td"><Badge>{pi.status.replace(/_/g, " ")}</Badge></td>
+                    <td className="td">{formatINR(pi.totalAmount)}</td>
+                    <td className="td text-emerald-600">{formatINR(pi.paidAmount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {tab === "BOQs" && (
-        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
-          <table className="w-full">
-            <thead><tr><th className="th">No.</th><th className="th">Project</th><th className="th">Status</th><th className="th">Total</th></tr></thead>
-            <tbody>
-              {boqs.length === 0 ? (
-                <tr><td colSpan={4} className="td text-center text-ink-400">No BOQs yet.</td></tr>
-              ) : boqs.map((b) => (
-                <tr key={b.id} className="border-t border-ink-100">
-                  <td className="td"><Link href={`/boq/${b.id}`} className="font-medium text-brand-700">{b.boqNo}</Link></td>
-                  <td className="td"><Link href={`/projects/${b.projectId}`} className="text-ink-600 hover:underline">{b.projectName}</Link></td>
-                  <td className="td"><Badge>{b.status}</Badge></td>
-                  <td className="td">{formatINR(b.totalAmount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Link href={`/boq/new${soleProjectId ? `?projectId=${soleProjectId}` : ""}`}><Button size="sm"><Plus className="h-3.5 w-3.5" /> New BOQ</Button></Link>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+            <table className="w-full">
+              <thead><tr><th className="th">No.</th><th className="th">Project</th><th className="th">Status</th><th className="th">Total</th></tr></thead>
+              <tbody>
+                {boqs.length === 0 ? (
+                  <tr><td colSpan={4} className="td text-center text-ink-400">No BOQs yet.</td></tr>
+                ) : boqs.map((b) => (
+                  <tr key={b.id} className="border-t border-ink-100">
+                    <td className="td"><Link href={`/boq/${b.id}`} className="font-medium text-brand-700">{b.boqNo}</Link></td>
+                    <td className="td"><Link href={`/projects/${b.projectId}`} className="text-ink-600 hover:underline">{b.projectName}</Link></td>
+                    <td className="td"><Badge>{b.status}</Badge></td>
+                    <td className="td">{formatINR(b.totalAmount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -264,12 +333,11 @@ export default function ClientDetailPage() {
             <Field label="Status">
               <Select value={form.active ? "1" : "0"} options={[{ value: "1", label: "Active" }, { value: "0", label: "Inactive" }]} onChange={(e) => setForm((f) => f && { ...f, active: e.target.value === "1" })} />
             </Field>
-            <Field label="GSTIN"><Input value={form.gstin} onChange={(e) => setForm((f) => f && { ...f, gstin: e.target.value })} /></Field>
             <Field label="Contact Name"><Input value={form.contactName} onChange={(e) => setForm((f) => f && { ...f, contactName: e.target.value })} /></Field>
             <Field label="Contact Email"><Input type="email" value={form.contactEmail} onChange={(e) => setForm((f) => f && { ...f, contactEmail: e.target.value })} /></Field>
             <Field label="Phone"><Input value={form.contactPhone} onChange={(e) => setForm((f) => f && { ...f, contactPhone: e.target.value })} /></Field>
             <Field label="City"><Input value={form.city} onChange={(e) => setForm((f) => f && { ...f, city: e.target.value })} /></Field>
-            <Field label="State" className="col-span-2"><Input value={form.state} onChange={(e) => setForm((f) => f && { ...f, state: e.target.value })} /></Field>
+            <GstRegistrationsField value={gstRegistrations} onChange={setGstRegistrations} className="col-span-2" />
           </div>
         )}
       </Modal>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ROLES, ROLE_RANK, type Role } from "@/lib/constants";
+import { EMPLOYMENT_TYPES, ROLES, ROLE_RANK, ROLL_STATUSES, type Role } from "@/lib/constants";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { ApiError, errorResponse, highestRole, requireCaller } from "../../_lib/guard";
 
@@ -33,6 +33,8 @@ const PatchUser = z.object({
   officeLocation: z.string().max(120).optional(),
   managerId: z.string().max(128).nullable().optional(),
   managerName: z.string().max(80).nullable().optional(),
+  employmentType: z.enum(EMPLOYMENT_TYPES).nullable().optional(),
+  rollStatus: z.enum(ROLL_STATUSES).nullable().optional(),
   payroll: Payroll.optional(),
 });
 
@@ -79,7 +81,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "active", "designation", "department", "officeLocation", "managerId", "managerName", "payroll"] as const) {
+    for (const key of ["name", "phone", "active", "designation", "department", "officeLocation", "managerId", "managerName", "employmentType", "rollStatus", "payroll"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

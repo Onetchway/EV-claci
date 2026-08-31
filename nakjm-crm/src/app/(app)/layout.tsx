@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import {
   AlertTriangle, Boxes, Briefcase, Building2, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Cog,
   FileSignature, FileSpreadsheet, FileText, Gavel, History, LayoutDashboard, Layers, LogOut, Menu, Search,
-  ShieldCheck, Trash2, Truck, Users, Users2, Wallet, X,
+  ShieldCheck, Trash2, Truck, Users, Users2, X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -53,10 +53,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/proforma-invoices", label: "Proforma Invoices", icon: FileSpreadsheet },
       { href: "/quotations", label: "Quotations", icon: FileSignature },
       { href: "/boq", label: "BOQ", icon: Layers },
-      { href: "/payments", label: "Payments", icon: Wallet },
       { href: "/assets", label: "Asset Register", icon: Boxes },
       { href: "/team", label: "Team Assignments", icon: ClipboardList },
-      { href: "/documents", label: "Documents", icon: FileText },
       { href: "/issues", label: "Issues", icon: AlertTriangle },
     ],
   },
@@ -164,9 +162,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onClick={() => setSearchOpen(true)}
           className="flex w-full items-center gap-2 rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-500 hover:bg-ink-100"
         >
-          <Search className="h-3.5 w-3.5" />
-          <span className="flex-1 text-left">Search everywhere…</span>
-          <kbd className="rounded border border-ink-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-ink-500">⌘K</kbd>
+          <Search className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-left">Search…</span>
+          <kbd className="shrink-0 rounded border border-ink-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-ink-500">⌘K</kbd>
         </button>
       </div>
 

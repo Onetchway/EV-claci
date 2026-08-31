@@ -7,7 +7,7 @@ import {
 
 import type { ClientType } from "../constants";
 import { getDb } from "../firebase/client";
-import type { Actor, Client } from "../types";
+import type { Actor, Client, ClientGstRegistration } from "../types";
 import { buildSearchTokens } from "../utils";
 import { logActivitySafe } from "./activity";
 
@@ -74,6 +74,7 @@ export interface ClientDraft {
   city?: string;
   state?: string;
   gstin?: string;
+  gstRegistrations?: ClientGstRegistration[];
   notes?: string;
 }
 

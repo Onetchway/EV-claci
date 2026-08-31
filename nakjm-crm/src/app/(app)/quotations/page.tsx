@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FileSignature, Plus } from "lucide-react";
 
 import { Badge, Button, EmptyState, PageHeader, Select, StatCard } from "@/components/ui";
+import { ExportButton } from "@/components/export-button";
 import { QUOTATION_STATUSES, type QuotationStatus } from "@/lib/constants";
 import { subscribeQuotations } from "@/lib/db/quotations";
 import type { Quotation } from "@/lib/types";
@@ -38,6 +39,14 @@ export default function QuotationsPage() {
         actions={
           <>
             <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...QUOTATION_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))]} onChange={(e) => setStatus(e.target.value as QuotationStatus | "ALL")} />
+            <ExportButton
+              filename="quotations"
+              sheetName="Quotations"
+              rows={filtered.map((q) => ({
+                "Quotation No.": q.quotationNo, Project: q.projectName, Version: q.version, Status: q.status.replace(/_/g, " "),
+                Total: q.totalAmount, Date: formatDate(q.quotationDate),
+              }))}
+            />
             <Link href="/quotations/new"><Button variant="primary"><Plus className="h-4 w-4" /> New Quotation</Button></Link>
           </>
         }

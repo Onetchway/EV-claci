@@ -8,6 +8,7 @@ import { useActor } from "@/components/auth-provider";
 import {
   Badge, Button, EmptyState, Field, Input, Modal, PageHeader, Select, Textarea, useAsyncAction,
 } from "@/components/ui";
+import { ExportButton } from "@/components/export-button";
 import { VENDOR_CATEGORIES, type VendorCategory } from "@/lib/constants";
 import { createVendor, subscribeVendors } from "@/lib/db/vendors";
 import type { Vendor } from "@/lib/types";
@@ -48,7 +49,19 @@ export default function VendorsPage() {
       <PageHeader
         title="Vendors"
         description="Contractors and suppliers NAKJM pays to execute a project."
-        actions={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> Add Vendor</Button>}
+        actions={
+          <>
+            <ExportButton
+              filename="vendors"
+              sheetName="Vendors"
+              rows={filtered.map((v) => ({
+                Name: v.name, Category: v.category, Contact: v.contactName ?? "", Email: v.contactEmail ?? "",
+                Phone: v.contactPhone ?? "", GSTIN: v.gstin ?? "", Rating: v.rating ?? "", Status: v.active ? "Active" : "Inactive",
+              }))}
+            />
+            <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> Add Vendor</Button>
+          </>
+        }
       />
 
       <div className="relative mb-4 max-w-sm">

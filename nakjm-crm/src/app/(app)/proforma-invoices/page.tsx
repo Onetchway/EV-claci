@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, Plus } from "lucide-react";
 
 import { Badge, Button, EmptyState, PageHeader, Select, StatCard } from "@/components/ui";
+import { ExportButton } from "@/components/export-button";
 import { PI_STATUSES, type PiStatus } from "@/lib/constants";
 import { subscribeProformaInvoices } from "@/lib/db/proforma-invoices";
 import type { ProformaInvoice } from "@/lib/types";
@@ -36,6 +37,14 @@ export default function ProformaInvoicesPage() {
         actions={
           <>
             <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...PI_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))]} onChange={(e) => setStatus(e.target.value as PiStatus | "ALL")} />
+            <ExportButton
+              filename="proforma-invoices"
+              sheetName="Proforma Invoices"
+              rows={filtered.map((pi) => ({
+                "PI No.": pi.piNo, Project: pi.projectName, Milestone: pi.milestone ?? "", Status: pi.status.replace(/_/g, " "),
+                Total: pi.totalAmount, Paid: pi.paidAmount,
+              }))}
+            />
             <Link href="/proforma-invoices/new"><Button variant="primary"><Plus className="h-4 w-4" /> New PI</Button></Link>
           </>
         }

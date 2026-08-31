@@ -2,10 +2,10 @@ import type { Timestamp } from "firebase/firestore";
 
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
-  ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, HandoverStage,
-  InspectionResult, IssuePriority, IssueStatus, NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus,
-  ProjectType, PunchItemStatus, QuotationStatus, RfiStatus, Role, SiteReportType, StageStatus, TaskStatus,
-  TenderStatus, VendorCategory,
+  ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, EmploymentType,
+  HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus, LeaveType, NcrStatus,
+  PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus,
+  Role, RollStatus, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -45,6 +45,8 @@ export interface AppUser {
   officeLocation?: string;
   managerId?: string | null;
   managerName?: string | null;
+  employmentType?: EmploymentType | null;
+  rollStatus?: RollStatus | null;
   payroll?: Payroll;
   createdAt: TS;
   updatedAt: TS;
@@ -54,6 +56,11 @@ export interface AppUser {
 // ---------------------------------------------------------------------------
 // Clients & vendors
 // ---------------------------------------------------------------------------
+
+export interface ClientGstRegistration {
+  gstin: string;
+  state: string;
+}
 
 export interface Client {
   id: string;
@@ -66,6 +73,8 @@ export interface Client {
   city?: string;
   state?: string;
   gstin?: string;
+  /** One entry per state the client is GST-registered in. gstin/state above stay in sync with the first entry for anything reading the old singular fields. */
+  gstRegistrations?: ClientGstRegistration[];
   active: boolean;
   notes?: string;
   search: string[];
@@ -93,6 +102,18 @@ export interface Vendor {
   search: string[];
   createdAt: TS;
   updatedAt: TS;
+}
+
+export interface VendorRating {
+  id: string;
+  vendorId: string;
+  vendorName: string;
+  projectId?: string | null;
+  projectName?: string | null;
+  score: number;
+  notes?: string;
+  ratedBy: Actor;
+  createdAt: TS;
 }
 
 export interface TeamMember {
@@ -179,6 +200,9 @@ export interface Project {
   pocEmail?: string;
   notes?: string;
   clientRequirements?: string;
+  /** Which of the client's (possibly several, state-wise) GST registrations this project bills under -- PO/PI/Quotation created for it inherit this. */
+  billingGstin?: string | null;
+  billingState?: string | null;
   team: ProjectTeamAssignment[];
   sourceDocumentId?: string | null;
   tenderId?: string | null;
@@ -241,6 +265,11 @@ export interface Quotation {
   terms?: string;
   notes?: string;
   sourceBoqId?: string | null;
+  /** A typed-name sign-off, not a cryptographic signature -- lightweight internal approval, matching the record's own status flow. */
+  approval?: { approvedBy: Actor; approvedAt: TS; signatureName: string; note?: string } | null;
+  /** Revision lineage: rootQuotationId is the same across every version of one quotation (the first version's own id); revisedFrom is the immediate prior version's id. Absent on quotations created before this existed. */
+  rootQuotationId?: string | null;
+  revisedFrom?: string | null;
   createdAt: TS;
   updatedAt: TS;
 }
@@ -259,6 +288,11 @@ export interface Boq {
   totalAmount: number;
   notes?: string;
   sourceDocumentId?: string | null;
+  /** Revision lineage: rootBoqId is the same across every version of one BOQ (the first version's own id); revisedFrom is the immediate prior version's id. Absent on BOQs created before this existed. */
+  rootBoqId?: string | null;
+  revisedFrom?: string | null;
+  /** A typed-name sign-off, not a cryptographic signature -- required before a BOQ moves to APPROVED. */
+  approval?: { approvedBy: Actor; approvedAt: TS; signatureName: string; note?: string } | null;
   createdAt: TS;
   updatedAt: TS;
 }
@@ -286,6 +320,9 @@ export interface PurchaseOrder {
   paidAmount: number;
   terms?: string;
   notes?: string;
+  sourceBoqId?: string | null;
+  /** A typed-name sign-off, not a cryptographic signature -- required before a PO moves from DRAFT to ISSUED. */
+  approval?: { approvedBy: Actor; approvedAt: TS; signatureName: string; note?: string } | null;
   createdAt: TS;
   updatedAt: TS;
 }
@@ -364,6 +401,22 @@ export interface ProjectStage {
   notes?: string;
   createdAt: TS;
   updatedAt: TS;
+}
+
+/** A dated site photo filed against one stage — a name/caption and details, alongside the image itself. */
+export interface StageProgressPhoto {
+  id: string;
+  projectId: string;
+  projectName: string;
+  stageId: string;
+  stageName: string;
+  title: string;
+  details?: string;
+  photoUrl: string;
+  storagePath: string;
+  mimeType: string;
+  uploadedBy: Actor;
+  createdAt: TS;
 }
 
 export interface ProjectTask {
@@ -569,6 +622,9 @@ export interface Activity {
 export interface NakjmDocument {
   id: string;
   projectId?: string | null;
+  /** When set, this document is filed against a specific BOQ/PO/Quotation/PI rather than just the project. */
+  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | null;
+  linkedEntityId?: string | null;
   docType: DocumentCategory;
   fileName: string;
   storagePath: string;
@@ -636,6 +692,21 @@ export interface AttendanceRecord {
   createdAt: TS;
   updatedAt: TS;
   updatedBy?: Actor;
+}
+
+export interface LeaveRequest {
+  id: string;
+  uid: string;
+  userName: string;
+  leaveType: LeaveType;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: LeaveRequestStatus;
+  requestedAt: TS;
+  decidedBy?: Actor | null;
+  decidedAt?: TS | null;
+  decisionNote?: string;
 }
 
 

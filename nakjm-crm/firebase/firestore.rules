@@ -119,6 +119,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /vendorRatings/{ratingId} {
+      allow read: if signedIn();
+      allow create: if canManageMasterData();
+      allow update, delete: if false;
+    }
+
     match /teamMembers/{memberId} {
       allow read: if signedIn();
       allow create, update: if role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER'];
@@ -259,6 +265,15 @@ service cloud.firestore {
       allow delete: if canManageMasterData() || isAdmin();
     }
 
+    // Stage progress photos — a name/details pair attached to an image,
+    // filed against one project stage. Anyone who can execute site work can
+    // add one; deleting requires the same authority as managing the stage.
+    match /stagePhotos/{photoId} {
+      allow read: if signedIn();
+      allow create: if canSubmitSiteReports();
+      allow update, delete: if canManageMasterData() || isAdmin();
+    }
+
     // ------------------------------------------------------------- audit log
 
     // Every create/update across the app appends one activity entry (see
@@ -286,6 +301,18 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.uid == uid();
       allow update: if signedIn() && (resource.data.uid == uid() || canManageHrms());
+      allow delete: if false;
+    }
+
+    match /leaveRequests/{requestId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == uid() && request.resource.data.status == 'PENDING';
+      // The requester may only cancel their own still-pending request; approving/rejecting is HR/admin only.
+      allow update: if signedIn()
+                    && (
+                      (resource.data.uid == uid() && resource.data.status == 'PENDING' && request.resource.data.status == 'CANCELLED')
+                      || canManageHrms()
+                    );
       allow delete: if false;
     }
 

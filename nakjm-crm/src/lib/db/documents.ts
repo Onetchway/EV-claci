@@ -42,6 +42,8 @@ export async function deleteDocument(document: NakjmDocument, actor: Actor): Pro
 export async function uploadDocument(params: {
   file: File;
   projectId?: string | null;
+  linkedEntityType?: NakjmDocument["linkedEntityType"];
+  linkedEntityId?: string | null;
   docType: NakjmDocument["docType"];
   notes?: string;
   actor: Actor;
@@ -54,6 +56,8 @@ export async function uploadDocument(params: {
   const ref = doc(collection(getDb(), DOCUMENTS));
   const payload = {
     projectId: params.projectId ?? null,
+    linkedEntityType: params.linkedEntityType ?? null,
+    linkedEntityId: params.linkedEntityId ?? null,
     docType: params.docType,
     fileName: params.file.name,
     storagePath: path,

@@ -137,6 +137,65 @@ export async function createQuotation(draft: QuotationDraft, actor?: Actor): Pro
   return { id: ref.id, ...(payload as unknown as Omit<Quotation, "id">) };
 }
 
+/** Every version sharing one lineage -- the root (v1) plus every quotation revised from it, directly or transitively. */
+export function subscribeQuotationLineage(rootQuotationId: string, cb: (rows: Quotation[]) => void, onError?: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(getDb(), QUOTATIONS), where("rootQuotationId", "==", rootQuotationId)),
+    (snap) => {
+      const revisions = snap.docs.map((d) => mapQuotation(d.id, d.data()));
+      void getDoc(doc(getDb(), QUOTATIONS, rootQuotationId)).then((rootSnap) => {
+        const root = rootSnap.exists() ? [mapQuotation(rootSnap.id, rootSnap.data())] : [];
+        cb([...root, ...revisions].sort((a, b) => a.version - b.version));
+      });
+    },
+    (err) => onError?.(err as Error),
+  );
+}
+
+/** Creates a new DRAFT version carrying the same content forward -- the only way to get a fresh version of an existing quotation, so version history stays a real lineage instead of an unrelated per-project counter. */
+export async function reviseQuotation(quotation: Quotation, actor: Actor): Promise<Quotation> {
+  const rootId = quotation.rootQuotationId ?? quotation.id;
+  const siblingsSnap = await getDocs(query(collection(getDb(), QUOTATIONS), where("rootQuotationId", "==", rootId)));
+  const maxSiblingVersion = siblingsSnap.docs.reduce((max, d) => Math.max(max, (d.data().version as number) || 0), quotation.version);
+
+  const ref = doc(collection(getDb(), QUOTATIONS));
+  const payload = {
+    quotationNo: quotation.quotationNo,
+    projectId: quotation.projectId,
+    projectName: quotation.projectName,
+    clientId: quotation.clientId,
+    version: maxSiblingVersion + 1,
+    status: "DRAFT" as QuotationStatus,
+    quotationDate: Timestamp.now(),
+    validUntil: quotation.validUntil ?? null,
+    items: quotation.items,
+    subtotal: quotation.subtotal,
+    taxPercent: quotation.taxPercent,
+    taxAmount: quotation.taxAmount,
+    gstType: quotation.gstType ?? "IGST",
+    igstAmount: quotation.igstAmount ?? 0,
+    cgstAmount: quotation.cgstAmount ?? 0,
+    sgstAmount: quotation.sgstAmount ?? 0,
+    totalAmount: quotation.totalAmount,
+    shipToDifferent: quotation.shipToDifferent ?? false,
+    shipToAddress: quotation.shipToAddress ?? "",
+    terms: quotation.terms ?? "",
+    notes: quotation.notes ?? "",
+    sourceBoqId: quotation.sourceBoqId ?? null,
+    rootQuotationId: rootId,
+    revisedFrom: quotation.id,
+    approval: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  await setDoc(ref, payload);
+  logActivitySafe({
+    entityType: "QUOTATION", entityId: ref.id, entityLabel: quotation.quotationNo, action: "CREATE",
+    message: `${actor.name} created v${payload.version} of quotation ${quotation.quotationNo}, revised from v${quotation.version}`, actor, projectId: quotation.projectId,
+  });
+  return { id: ref.id, ...(payload as unknown as Omit<Quotation, "id">) };
+}
+
 export async function updateQuotationStatus(id: string, status: QuotationStatus, actor?: Actor, context?: { quotationNo: string; projectId: string }): Promise<void> {
   await updateDoc(doc(getDb(), QUOTATIONS, id), { status, updatedAt: serverTimestamp() });
   if (actor && context) {
@@ -145,6 +204,26 @@ export async function updateQuotationStatus(id: string, status: QuotationStatus,
       message: `Marked quotation ${context.quotationNo} ${status}`, actor, projectId: context.projectId,
     });
   }
+}
+
+/**
+ * Sign-off: requires the approver to type their own name as confirmation
+ * (a lightweight internal e-sign, not a cryptographic signature), records
+ * who/when/what they typed, and moves status to APPROVED in the same write.
+ */
+export async function approveQuotation(quotation: Quotation, signatureName: string, note: string | undefined, actor: Actor): Promise<void> {
+  if (signatureName.trim().toLowerCase() !== actor.name.trim().toLowerCase()) {
+    throw new Error("Type your name exactly as shown to confirm approval.");
+  }
+  await updateDoc(doc(getDb(), QUOTATIONS, quotation.id), {
+    status: "APPROVED",
+    approval: { approvedBy: actor, approvedAt: serverTimestamp(), signatureName: signatureName.trim(), note: note ?? "" },
+    updatedAt: serverTimestamp(),
+  });
+  logActivitySafe({
+    entityType: "QUOTATION", entityId: quotation.id, entityLabel: quotation.quotationNo, action: "STATUS_CHANGE",
+    message: `${actor.name} approved quotation ${quotation.quotationNo}`, actor, projectId: quotation.projectId,
+  });
 }
 
 export type QuotationPatch = Partial<Omit<QuotationDraft, "projectId" | "projectName" | "clientId" | "version" | "items" | "taxPercent">> & {
