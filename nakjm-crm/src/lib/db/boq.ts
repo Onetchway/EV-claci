@@ -108,6 +108,26 @@ export async function updateBoqStatus(boq: Boq, status: BoqStatus, actor: Actor)
   });
 }
 
+/**
+ * Sign-off: requires the approver to type their own name as confirmation
+ * (a lightweight internal e-sign, not a cryptographic signature), records
+ * who/when/what they typed, and moves status to APPROVED in the same write.
+ */
+export async function approveBoq(boq: Boq, signatureName: string, note: string | undefined, actor: Actor): Promise<void> {
+  if (signatureName.trim().toLowerCase() !== actor.name.trim().toLowerCase()) {
+    throw new Error("Type your name exactly as shown to confirm approval.");
+  }
+  await updateDoc(doc(getDb(), BOQS, boq.id), {
+    status: "APPROVED",
+    approval: { approvedBy: actor, approvedAt: serverTimestamp(), signatureName: signatureName.trim(), note: note ?? "" },
+    updatedAt: serverTimestamp(),
+  });
+  logActivitySafe({
+    entityType: "BOQ", entityId: boq.id, entityLabel: boq.boqNo, action: "STATUS_CHANGE",
+    message: `${actor.name} approved BOQ ${boq.boqNo}`, actor, projectId: boq.projectId,
+  });
+}
+
 /** Every version sharing one lineage -- the root (v1) plus every BOQ revised from it, directly or transitively. */
 export function subscribeBoqLineage(rootBoqId: string, cb: (rows: Boq[]) => void, onError?: (e: Error) => void): () => void {
   return onSnapshot(
