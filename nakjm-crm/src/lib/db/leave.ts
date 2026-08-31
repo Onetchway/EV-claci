@@ -22,7 +22,7 @@ export async function createLeaveRequest(params: {
   startDate: string;
   endDate: string;
   reason: string;
-}, actor: Actor): Promise<void> {
+}, actor: Actor): Promise<string> {
   if (params.endDate < params.startDate) throw new Error("End date can't be before start date.");
   const ref = doc(collection(getDb(), LEAVE_REQUESTS));
   await setDoc(ref, {
@@ -39,6 +39,7 @@ export async function createLeaveRequest(params: {
     entityType: "LEAVE_REQUEST", entityId: ref.id, entityLabel: `${actor.name} — ${params.startDate} to ${params.endDate}`,
     action: "CREATE", message: `${actor.name} requested leave (${params.startDate} to ${params.endDate})`, actor,
   });
+  return ref.id;
 }
 
 export function subscribeMyLeaveRequests(uid: string, cb: (rows: LeaveRequest[]) => void, onError?: (e: Error) => void): () => void {

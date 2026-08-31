@@ -49,6 +49,27 @@ env:
     secret: nakjm-crm-anthropic-key
     availability: [RUNTIME]
 
+  # Optional — email notifications (currently: leave requests). Without
+  # these, the app just logs and skips sending; nothing else is affected.
+  # Uncomment once SMTP credentials exist in Secret Manager (see
+  # DEPLOYMENT.md "Optional — email notifications"):
+  #
+  # - variable: SMTP_HOST
+  #   value: smtp.gmail.com
+  #   availability: [RUNTIME]
+  # - variable: SMTP_PORT
+  #   value: "587"
+  #   availability: [RUNTIME]
+  # - variable: SMTP_USER
+  #   value: notifications@nakjminfra.com
+  #   availability: [RUNTIME]
+  # - variable: SMTP_PASS
+  #   secret: nakjm-crm-smtp-pass
+  #   availability: [RUNTIME]
+  # - variable: SMTP_FROM
+  #   value: "NAKJM CRM <notifications@nakjminfra.com>"
+  #   availability: [RUNTIME]
+
 # If you ever need to run this somewhere without Application Default
 # Credentials, store the service-account JSON in Cloud Secret Manager and
 # reference it here instead of pasting the key inline:

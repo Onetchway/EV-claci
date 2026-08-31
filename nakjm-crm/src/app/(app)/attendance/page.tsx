@@ -15,9 +15,26 @@ import { checkIn, checkOut, subscribeAttendanceRange, subscribeMyAttendanceMonth
 import { cancelLeaveRequest, createLeaveRequest, decideLeaveRequest, subscribeAllLeaveRequests, subscribeMyLeaveRequests } from "@/lib/db/leave";
 import { monthRange, ymd } from "@/lib/dates";
 import { subscribeActiveUsers } from "@/lib/db/users";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { canSeeAllHrms } from "@/lib/permissions";
 import type { AppUser, AttendanceRecord, LeaveRequest } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/utils";
+
+/** Best-effort — email notifications never block or fail the leave-request action itself. */
+async function notifyLeaveRequest(requestId: string, type: "submitted" | "decided") {
+  try {
+    const current = getFirebaseAuth().currentUser;
+    if (!current) return;
+    const token = await current.getIdToken();
+    await fetch("/api/notify/leave-request", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ requestId, type }),
+    });
+  } catch {
+    // Notification email is a nice-to-have; the leave request itself already succeeded.
+  }
+}
 
 function getCoords(): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
@@ -75,14 +92,18 @@ export default function AttendancePage() {
   async function onRequestLeave() {
     if (!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason.trim()) return;
     await run(async () => {
-      await createLeaveRequest(leaveForm, actor);
+      const requestId = await createLeaveRequest(leaveForm, actor);
       setLeaveFormOpen(false);
       setLeaveForm(BLANK_LEAVE_FORM);
+      void notifyLeaveRequest(requestId, "submitted");
     }, "Leave requested.");
   }
 
   async function onDecide(request: LeaveRequest, approve: boolean) {
-    await run(() => decideLeaveRequest(request, approve, actor), approve ? "Leave approved." : "Leave rejected.");
+    await run(async () => {
+      await decideLeaveRequest(request, approve, actor);
+      void notifyLeaveRequest(request.id, "decided");
+    }, approve ? "Leave approved." : "Leave rejected.");
   }
 
   async function onCancel(request: LeaveRequest) {
