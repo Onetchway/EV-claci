@@ -5,7 +5,7 @@ import type {
   ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, EmploymentType,
   HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus, LeaveType, NcrStatus,
   PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus,
-  Role, RollStatus, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
+  RfqStatus, Role, RollStatus, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -155,6 +155,31 @@ export interface Tender {
   deletedAt?: TS;
   deletedBy?: Actor | null;
   search: string[];
+  createdAt: TS;
+  updatedAt: TS;
+  createdBy?: Actor;
+}
+
+// ---------------------------------------------------------------------------
+// RFQs — a client's Request for Quotation, upstream of the priced Quotation
+// itself. Distinct from a Tender (a public/institutional bid process): an
+// RFQ is a direct ask from an existing or prospective client.
+// ---------------------------------------------------------------------------
+
+export interface Rfq {
+  id: string;
+  rfqNo: string;
+  clientId: string;
+  clientName: string;
+  projectId?: string | null;
+  projectName?: string;
+  subject: string;
+  receivedDate?: TS;
+  dueDate?: TS;
+  status: RfqStatus;
+  notes?: string;
+  sourceDocumentId?: string | null;
+  convertedQuotationId?: string | null;
   createdAt: TS;
   updatedAt: TS;
   createdBy?: Actor;
@@ -624,7 +649,7 @@ export interface NakjmDocument {
   id: string;
   projectId?: string | null;
   /** When set, this document is filed against a specific BOQ/PO/Quotation/PI rather than just the project. */
-  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | null;
+  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | "RFQ" | null;
   linkedEntityId?: string | null;
   docType: DocumentCategory;
   fileName: string;

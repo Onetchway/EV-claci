@@ -126,6 +126,22 @@ export const TENDER_STATUS_META: Record<TenderStatus, { label: string; className
 };
 
 // ---------------------------------------------------------------------------
+// RFQs — a client's direct Request for Quotation, upstream of the priced
+// Quotation itself (distinct from a Tender, which is a public/institutional
+// bid process).
+// ---------------------------------------------------------------------------
+
+export const RFQ_STATUSES = ["OPEN", "QUOTED", "CLOSED", "LOST"] as const;
+export type RfqStatus = (typeof RFQ_STATUSES)[number];
+
+export const RFQ_STATUS_META: Record<RfqStatus, { label: string; className: string }> = {
+  OPEN: { label: "Open", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  QUOTED: { label: "Quoted", className: "bg-violet-50 text-violet-700 ring-violet-200" },
+  CLOSED: { label: "Closed", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  LOST: { label: "Lost", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Quotations / BOQ / PO / PI
 // ---------------------------------------------------------------------------
 
@@ -370,7 +386,7 @@ export const HANDOVER_STAGE_LABEL: Record<HandoverStage, string> = {
 // ---------------------------------------------------------------------------
 
 export const ACTIVITY_ENTITY_TYPES = [
-  "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
+  "CLIENT", "VENDOR", "PROJECT", "TENDER", "RFQ", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
   "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
   "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST",
@@ -382,6 +398,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   VENDOR: "Vendor",
   PROJECT: "Project",
   TENDER: "Tender",
+  RFQ: "RFQ",
   QUOTATION: "Quotation",
   BOQ: "BOQ",
   PURCHASE_ORDER: "Purchase Order",

@@ -14,6 +14,7 @@ import { uploadDocument } from "@/lib/db/documents";
 import { createQuotation, computeLineTotals, nextQuotationNo, nextQuotationVersion } from "@/lib/db/quotations";
 import { parseLineItemFile } from "@/lib/lineitem-parser";
 import { subscribeProjects } from "@/lib/db/projects";
+import { getRfq, markRfqConverted } from "@/lib/db/rfqs";
 import type { Project } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -47,6 +48,8 @@ function NewQuotationForm() {
   const [importing, setImporting] = useState(false);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [sourceRfqId, setSourceRfqId] = useState<string | null>(null);
+  const [sourceRfqNo, setSourceRfqNo] = useState<string | null>(null);
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
 
@@ -54,6 +57,18 @@ function NewQuotationForm() {
     if (params.get("sourceBoqId")) return; // that flow names the quotation after the source BOQ instead
     void nextQuotationNo().then((no) => setQuotationNo((n) => n || no));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
+  useEffect(() => {
+    const rfqId = params.get("rfqId");
+    if (!rfqId) return;
+    setSourceRfqId(rfqId);
+    void getRfq(rfqId).then((rfq) => {
+      if (!rfq) return;
+      setSourceRfqNo(rfq.rfqNo);
+      setNotes((n) => n || `Generated from RFQ ${rfq.rfqNo} — ${rfq.subject}`);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount from the URL param
   }, []);
 
   async function onFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -114,6 +129,10 @@ function NewQuotationForm() {
       if (attachedFile) {
         await uploadDocument({ file: attachedFile, projectId, linkedEntityType: "QUOTATION", linkedEntityId: q.id, docType: "QUOTATION_UPLOAD", notes: "Attached source document", actor });
       }
+      if (sourceRfqId) {
+        const rfq = await getRfq(sourceRfqId);
+        if (rfq) await markRfqConverted(rfq, q.id, actor);
+      }
       router.push(`/quotations/${q.id}`);
     }, "Quotation created.");
   }
@@ -123,6 +142,9 @@ function NewQuotationForm() {
       <div className="mb-5">
         <h1 className="text-lg font-semibold text-navy-900">New Quotation</h1>
         <p className="text-sm text-ink-500">Prepare a priced quotation against a project's BOQ or scope, or import one from Excel below.</p>
+        {sourceRfqNo && (
+          <p className="mt-2 rounded-lg bg-brand-50 px-3 py-1.5 text-xs text-brand-800">Converting RFQ {sourceRfqNo} — this will mark it Quoted once created.</p>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
