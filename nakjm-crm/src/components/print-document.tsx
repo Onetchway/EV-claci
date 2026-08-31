@@ -33,7 +33,10 @@ export function PrintHeader({ docLabel, docNumber, meta }: {
   return (
     <div className="mb-4 border-b-2 border-brand-600 pb-3">
       <div className="flex items-start justify-between gap-4">
-        <Image src={company.logoUrl || "/logo.png"} alt={company.name} width={180} height={58} priority className="h-12 w-auto" unoptimized={company.logoUrl.startsWith("http")} />
+        <div className="flex items-center gap-3">
+          <Image src={company.logoUrl || "/logo.png"} alt={company.name} width={180} height={58} priority className="h-12 w-auto" unoptimized={company.logoUrl.startsWith("http")} />
+          <p className="text-base font-bold text-navy-900">{company.name}</p>
+        </div>
         <div className="text-right text-[11px] leading-tight text-ink-500">
           <p>GSTIN: {company.gstin}</p>
           <p>CIN: {company.cin}</p>

@@ -40,8 +40,10 @@ export default function QuotationPrintPage() {
           <div>
             <p className="text-xs text-ink-500">Quoted to</p>
             <p className="font-medium text-ink-900">{client?.name ?? "—"}</p>
+            {client?.address && <p className="whitespace-pre-line text-ink-600">{client.address}</p>}
             {client?.contactName && <p className="text-ink-600">{client.contactName}</p>}
             {client?.contactPhone && <p className="text-ink-600">{client.contactPhone}</p>}
+            {client?.contactEmail && <p className="text-ink-600">{client.contactEmail}</p>}
             {client?.gstin && <p className="text-ink-600">GSTIN: {client.gstin}</p>}
           </div>
           <div className="text-right">

@@ -43,8 +43,10 @@ export default function PurchaseOrderPrintPage() {
           <div>
             <p className="text-xs text-ink-500">Vendor</p>
             <p className="font-medium text-ink-900">{vendor?.name ?? "—"}</p>
+            {vendor?.address && <p className="whitespace-pre-line text-ink-600">{vendor.address}</p>}
             {vendor?.contactName && <p className="text-ink-600">{vendor.contactName}</p>}
             {vendor?.contactPhone && <p className="text-ink-600">{vendor.contactPhone}</p>}
+            {vendor?.contactEmail && <p className="text-ink-600">{vendor.contactEmail}</p>}
             {vendor?.gstin && <p className="text-ink-600">GSTIN: {vendor.gstin}</p>}
           </div>
           <div className="text-right">

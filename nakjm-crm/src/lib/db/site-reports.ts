@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, onSnapshot, query, serverTimestamp, setDoc, Timestamp, where,
+  collection, deleteDoc, doc, onSnapshot, query, serverTimestamp, setDoc, Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import type { SiteReportType } from "../constants";
@@ -69,4 +69,31 @@ export async function createSiteReport(draft: SiteReportDraft, actor?: Actor): P
       message: `Submitted a ${draft.reportType.toLowerCase()} site report for ${draft.projectName}`, actor, projectId: draft.projectId,
     });
   }
+}
+
+export type SiteReportPatch = Partial<Omit<SiteReportDraft, "projectId" | "projectName" | "reportedById" | "reportedByName">>;
+
+export async function updateSiteReport(report: SiteReport, patch: SiteReportPatch, actor: Actor): Promise<void> {
+  const update: Record<string, unknown> = {};
+  if (patch.reportType !== undefined) update.reportType = patch.reportType;
+  if (patch.progressPct !== undefined) update.progressPct = patch.progressPct;
+  if (patch.workDone !== undefined) update.workDone = patch.workDone;
+  if (patch.issues !== undefined) update.issues = patch.issues;
+  if (patch.manpowerCount !== undefined) update.manpowerCount = patch.manpowerCount;
+  if (patch.weather !== undefined) update.weather = patch.weather;
+  if (patch.visibleToClient !== undefined) update.visibleToClient = patch.visibleToClient;
+  if (patch.reportDate !== undefined) update.reportDate = patch.reportDate ? Timestamp.fromDate(patch.reportDate) : null;
+  await updateDoc(doc(getDb(), SITE_REPORTS, report.id), update);
+  logActivitySafe({
+    entityType: "SITE_REPORT", entityId: report.id, entityLabel: report.projectName, action: "UPDATE",
+    message: `Edited a ${report.reportType.toLowerCase()} site report for ${report.projectName}`, actor, projectId: report.projectId,
+  });
+}
+
+export async function deleteSiteReport(report: SiteReport, actor: Actor): Promise<void> {
+  await deleteDoc(doc(getDb(), SITE_REPORTS, report.id));
+  logActivitySafe({
+    entityType: "SITE_REPORT", entityId: report.id, entityLabel: report.projectName, action: "DELETE",
+    message: `Deleted a ${report.reportType.toLowerCase()} site report for ${report.projectName}`, actor, projectId: report.projectId,
+  });
 }

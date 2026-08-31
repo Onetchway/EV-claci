@@ -40,7 +40,7 @@ import { assignTeamMember, subscribeProject, subscribeSubprojects, trashProject,
 import { canManageIssues, canManageStages, canManageTasks, canTrash } from "@/lib/permissions";
 import { createPurchaseOrder, deletePurchaseOrder, subscribePosForProject, updatePurchaseOrder } from "@/lib/db/purchase-orders";
 import { createQuotation, deleteQuotation, nextQuotationVersion, subscribeQuotationsForProject, updateQuotation } from "@/lib/db/quotations";
-import { createSiteReport, subscribeSiteReportsForProject } from "@/lib/db/site-reports";
+import { createSiteReport, deleteSiteReport, subscribeSiteReportsForProject, updateSiteReport } from "@/lib/db/site-reports";
 import { createStage, deleteStage, subscribeStagesForProject, updateStage } from "@/lib/db/stages";
 import { deleteStagePhoto, subscribeStagePhotosForProject, uploadStagePhoto } from "@/lib/db/stage-photos";
 import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/lib/db/tasks";
@@ -2148,28 +2148,53 @@ function TeamTab({ project }: { project: Project }) {
 // ── Site Reports ────────────────────────────────────────────────────────
 function SiteReportsTab({ project }: { project: Project }) {
   const actor = useActor();
+  const viewer = useViewer();
   const [rows, setRows] = useState<SiteReport[] | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<SiteReport | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SiteReport | null>(null);
   const [form, setForm] = useState({ reportType: "DAILY" as SiteReportType, progressPct: "", workDone: "", issues: "", manpowerCount: "", visibleToClient: false });
   const { busy, run } = useAsyncAction();
 
   useEffect(() => subscribeSiteReportsForProject(project.id, setRows), [project.id]);
 
-  async function onCreate() {
+  function openNew() {
+    setEditing(null);
+    setForm({ reportType: "DAILY", progressPct: "", workDone: "", issues: "", manpowerCount: "", visibleToClient: false });
+    setShowForm(true);
+  }
+
+  function openEdit(r: SiteReport) {
+    setEditing(r);
+    setForm({
+      reportType: r.reportType, progressPct: String(r.progressPct ?? ""), workDone: r.workDone ?? "",
+      issues: r.issues ?? "", manpowerCount: String(r.manpowerCount ?? ""), visibleToClient: r.visibleToClient ?? false,
+    });
+    setShowForm(true);
+  }
+
+  async function onSave() {
     await run(async () => {
-      await createSiteReport({
-        projectId: project.id, projectName: project.name, reportedById: actor.uid, reportedByName: actor.name,
-        reportType: form.reportType, progressPct: Number(form.progressPct) || 0, workDone: form.workDone, issues: form.issues,
-        manpowerCount: Number(form.manpowerCount) || 0, visibleToClient: form.visibleToClient,
-      }, actor);
+      if (editing) {
+        await updateSiteReport(editing, {
+          reportType: form.reportType, progressPct: Number(form.progressPct) || 0, workDone: form.workDone, issues: form.issues,
+          manpowerCount: Number(form.manpowerCount) || 0, visibleToClient: form.visibleToClient,
+        }, actor);
+      } else {
+        await createSiteReport({
+          projectId: project.id, projectName: project.name, reportedById: actor.uid, reportedByName: actor.name,
+          reportType: form.reportType, progressPct: Number(form.progressPct) || 0, workDone: form.workDone, issues: form.issues,
+          manpowerCount: Number(form.manpowerCount) || 0, visibleToClient: form.visibleToClient,
+        }, actor);
+      }
       setShowForm(false);
-      setForm({ reportType: "DAILY", progressPct: "", workDone: "", issues: "", manpowerCount: "", visibleToClient: false });
-    }, "Report submitted.");
+      setEditing(null);
+    }, editing ? "Report updated." : "Report submitted.");
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New Report</Button></div>
+      <div className="flex justify-end"><Button onClick={openNew}><Plus className="h-4 w-4" /> New Report</Button></div>
       {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
         <EmptyState title="No site reports yet" />
       ) : (
@@ -2178,7 +2203,11 @@ function SiteReportsTab({ project }: { project: Project }) {
             <Card key={r.id}>
               <div className="flex items-center justify-between">
                 <span className="font-medium capitalize">{r.reportType.toLowerCase()} report — {formatDate(r.reportDate)}</span>
-                <span className="text-sm font-semibold">{r.progressPct}% complete</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold">{r.progressPct}% complete</span>
+                  <button onClick={() => openEdit(r)} className="inline-flex items-center gap-1 text-xs text-ink-600 hover:underline"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                  {canTrash(viewer) && <button onClick={() => setDeleteTarget(r)} className="inline-flex items-center gap-1 text-xs text-rose-600 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
+                </div>
               </div>
               {r.workDone && <p className="mt-1 text-sm text-ink-600">{r.workDone}</p>}
               {r.issues && <p className="mt-1 text-sm text-rose-600">⚠ {r.issues}</p>}
@@ -2187,7 +2216,7 @@ function SiteReportsTab({ project }: { project: Project }) {
         </div>
       )}
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="New Site Report" footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onCreate()} loading={busy}>Submit</Button></>}>
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={editing ? "Edit Site Report" : "New Site Report"} footer={<><Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button><Button onClick={() => void onSave()} loading={busy}>{editing ? "Save" : "Submit"}</Button></>}>
         <div className="grid grid-cols-3 gap-3">
           <Field label="Type"><Select value={form.reportType} options={SITE_REPORT_TYPES.map((t) => ({ value: t, label: t }))} onChange={(e) => setForm((f) => ({ ...f, reportType: e.target.value as SiteReportType }))} /></Field>
           <Field label="Progress %"><Input type="number" min={0} max={100} value={form.progressPct} onChange={(e) => setForm((f) => ({ ...f, progressPct: e.target.value }))} /></Field>
@@ -2195,6 +2224,16 @@ function SiteReportsTab({ project }: { project: Project }) {
           <Field label="Work Done" className="col-span-3"><Textarea value={form.workDone} onChange={(e) => setForm((f) => ({ ...f, workDone: e.target.value }))} /></Field>
           <Field label="Issues" className="col-span-3"><Textarea value={form.issues} onChange={(e) => setForm((f) => ({ ...f, issues: e.target.value }))} /></Field>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete this site report?"
+        description="This cannot be undone."
+        footer={<><Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button><Button variant="danger" loading={busy} onClick={() => void run(async () => { if (deleteTarget) await deleteSiteReport(deleteTarget, actor); setDeleteTarget(null); }, "Site report deleted.")}><Trash2 className="h-4 w-4" /> Delete</Button></>}
+      >
+        <p className="text-sm text-ink-700">{deleteTarget?.reportType.toLowerCase()} report — {deleteTarget ? formatDate(deleteTarget.reportDate) : ""}</p>
       </Modal>
     </div>
   );
