@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Printer, Trash2, Upload } from "lucide-react";
+import { Image as ImageIcon, Pencil, Plus, Printer, Trash2, Upload } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import {
@@ -42,12 +42,13 @@ import { createPurchaseOrder, deletePurchaseOrder, subscribePosForProject, updat
 import { createQuotation, deleteQuotation, nextQuotationVersion, subscribeQuotationsForProject, updateQuotation } from "@/lib/db/quotations";
 import { createSiteReport, subscribeSiteReportsForProject } from "@/lib/db/site-reports";
 import { createStage, deleteStage, subscribeStagesForProject, updateStage } from "@/lib/db/stages";
+import { deleteStagePhoto, subscribeStagePhotosForProject, uploadStagePhoto } from "@/lib/db/stage-photos";
 import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/lib/db/tasks";
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
   Boq, BoqLineItem, Client, Drawing, Handover, Inspection, Issue, Measurement, NakjmDocument, Ncr, Project,
-  ProformaInvoice, ProjectStage, ProjectTask, PunchItem, PurchaseOrder, Quotation, Rfi, SiteReport, TeamMember, Vendor,
+  ProformaInvoice, ProjectStage, ProjectTask, PunchItem, PurchaseOrder, Quotation, Rfi, SiteReport, StageProgressPhoto, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
@@ -993,10 +994,13 @@ function StagesTasksTab({ project }: { project: Project }) {
   const [stages, setStages] = useState<ProjectStage[] | null>(null);
   const [tasks, setTasks] = useState<ProjectTask[] | null>(null);
   const [boqs, setBoqs] = useState<Boq[]>([]);
+  const [photos, setPhotos] = useState<StageProgressPhoto[]>([]);
   const [templates, setTemplates] = useState<Record<ProjectType, string[]> | null>(null);
   const [showStageForm, setShowStageForm] = useState(false);
   const [stageForm, setStageForm] = useState({ name: "", plannedStart: "", plannedEnd: "" });
   const [taskForm, setTaskForm] = useState<Record<string, { title: string; assigneeId: string; dueDate: string }>>({});
+  const [photoStage, setPhotoStage] = useState<ProjectStage | null>(null);
+  const [photoForm, setPhotoForm] = useState<{ title: string; details: string; file: File | null }>({ title: "", details: "", file: null });
   const { busy, run } = useAsyncAction();
   const canStage = canManageStages(viewer);
   const canTask = canManageTasks(viewer);
@@ -1004,6 +1008,7 @@ function StagesTasksTab({ project }: { project: Project }) {
   useEffect(() => subscribeStagesForProject(project.id, setStages), [project.id]);
   useEffect(() => subscribeTasksForProject(project.id, setTasks), [project.id]);
   useEffect(() => subscribeBoqsForProject(project.id, setBoqs), [project.id]);
+  useEffect(() => subscribeStagePhotosForProject(project.id, setPhotos), [project.id]);
   useEffect(() => subscribeProjectTemplates(setTemplates), []);
 
   async function onAddStage() {
@@ -1057,6 +1062,23 @@ function StagesTasksTab({ project }: { project: Project }) {
   }
 
   const stageTasks = (stageId: string) => (tasks ?? []).filter((t) => t.stageId === stageId);
+  const stagePhotos = (stageId: string) => photos.filter((p) => p.stageId === stageId);
+
+  function openPhotoForm(stage: ProjectStage) {
+    setPhotoForm({ title: "", details: "", file: null });
+    setPhotoStage(stage);
+  }
+
+  async function onAddPhoto() {
+    if (!photoStage || !photoForm.file || !photoForm.title.trim()) return;
+    await run(async () => {
+      await uploadStagePhoto({
+        file: photoForm.file!, projectId: project.id, projectName: project.name,
+        stageId: photoStage.id, stageName: photoStage.name, title: photoForm.title, details: photoForm.details, actor,
+      });
+      setPhotoStage(null);
+    }, "Photo uploaded.");
+  }
 
   return (
     <div className="space-y-4">
@@ -1154,6 +1176,40 @@ function StagesTasksTab({ project }: { project: Project }) {
                   <Button onClick={() => void onAddTask(stage)} loading={busy}><Plus className="h-4 w-4" /> Add</Button>
                 </div>
               )}
+
+              <div className="mt-3 border-t border-ink-100 pt-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Photos</p>
+                  {canTask && <Button variant="secondary" onClick={() => openPhotoForm(stage)}><ImageIcon className="h-4 w-4" /> Add Photo</Button>}
+                </div>
+                {stagePhotos(stage.id).length === 0 ? (
+                  <p className="mt-2 text-xs text-ink-400">No photos yet.</p>
+                ) : (
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                    {stagePhotos(stage.id).map((p) => (
+                      <div key={p.id} className="group relative overflow-hidden rounded-lg border border-ink-100">
+                        <a href={p.photoUrl} target="_blank" rel="noreferrer">
+                          <img src={p.photoUrl} alt={p.title} className="h-24 w-full object-cover" />
+                        </a>
+                        <div className="p-1.5">
+                          <p className="truncate text-xs font-medium text-ink-900">{p.title}</p>
+                          {p.details && <p className="truncate text-[11px] text-ink-500">{p.details}</p>}
+                          <p className="text-[10px] text-ink-400">{formatDate(p.createdAt)}{p.uploadedBy?.name ? ` · ${p.uploadedBy.name}` : ""}</p>
+                        </div>
+                        {canStage && (
+                          <button
+                            className="absolute right-1 top-1 rounded-full bg-white/90 p-1 opacity-0 group-hover:opacity-100"
+                            onClick={() => void run(async () => { await deleteStagePhoto(p, actor); }, "Photo deleted.")}
+                            disabled={busy}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Card>
           ))}
         </div>
@@ -1164,6 +1220,19 @@ function StagesTasksTab({ project }: { project: Project }) {
           <Field label="Stage Name" required className="col-span-2"><Input value={stageForm.name} onChange={(e) => setStageForm((f) => ({ ...f, name: e.target.value }))} /></Field>
           <Field label="Planned Start"><Input type="date" value={stageForm.plannedStart} onChange={(e) => setStageForm((f) => ({ ...f, plannedStart: e.target.value }))} /></Field>
           <Field label="Planned End"><Input type="date" value={stageForm.plannedEnd} onChange={(e) => setStageForm((f) => ({ ...f, plannedEnd: e.target.value }))} /></Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!photoStage}
+        onClose={() => setPhotoStage(null)}
+        title={`Add Photo — ${photoStage?.name ?? ""}`}
+        footer={<><Button variant="secondary" onClick={() => setPhotoStage(null)}>Cancel</Button><Button onClick={() => void onAddPhoto()} loading={busy}>Upload</Button></>}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Photo" required className="col-span-2"><input type="file" accept="image/*" onChange={(e) => setPhotoForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))} className="w-full text-sm" /></Field>
+          <Field label="Name" required className="col-span-2"><Input value={photoForm.title} onChange={(e) => setPhotoForm((f) => ({ ...f, title: e.target.value }))} /></Field>
+          <Field label="Details" className="col-span-2"><Textarea value={photoForm.details} onChange={(e) => setPhotoForm((f) => ({ ...f, details: e.target.value }))} /></Field>
         </div>
       </Modal>
     </div>

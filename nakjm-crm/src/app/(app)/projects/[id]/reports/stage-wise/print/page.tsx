@@ -7,9 +7,10 @@ import { PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components
 import { EmptyState, Spinner } from "@/components/ui";
 import { subscribeIssuesForProject } from "@/lib/db/issues";
 import { getProject } from "@/lib/db/projects";
+import { subscribeStagePhotosForProject } from "@/lib/db/stage-photos";
 import { subscribeStagesForProject } from "@/lib/db/stages";
 import { subscribeTasksForProject } from "@/lib/db/tasks";
-import type { Issue, Project, ProjectStage, ProjectTask } from "@/lib/types";
+import type { Issue, Project, ProjectStage, ProjectTask, StageProgressPhoto } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
 export default function StageWiseClientReportPrintPage() {
@@ -18,11 +19,13 @@ export default function StageWiseClientReportPrintPage() {
   const [stages, setStages] = useState<ProjectStage[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [photos, setPhotos] = useState<StageProgressPhoto[]>([]);
 
   useEffect(() => { void getProject(id).then(setProject); }, [id]);
   useEffect(() => subscribeStagesForProject(id, setStages), [id]);
   useEffect(() => subscribeTasksForProject(id, setTasks), [id]);
   useEffect(() => subscribeIssuesForProject(id, setIssues), [id]);
+  useEffect(() => subscribeStagePhotosForProject(id, setPhotos), [id]);
 
   if (project === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (project === null) return <EmptyState title="Project not found" />;
@@ -59,6 +62,7 @@ export default function StageWiseClientReportPrintPage() {
           ) : stages.map((s) => {
             const stageTasks = tasks.filter((t) => t.stageId === s.id);
             const stageIssues = issues.filter((i) => i.stageId === s.id);
+            const stagePhotos = photos.filter((p) => p.stageId === s.id);
             return (
               <div key={s.id} className="break-inside-avoid border-t border-ink-200 pt-3">
                 <div className="flex items-baseline justify-between">
@@ -87,6 +91,21 @@ export default function StageWiseClientReportPrintPage() {
 
                 {stageTasks.length === 0 && stageIssues.length === 0 && (
                   <p className="mt-2 text-xs text-ink-400">No tasks or issues logged against this stage.</p>
+                )}
+
+                {stagePhotos.length > 0 && (
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {stagePhotos.map((p) => (
+                      <div key={p.id} className="break-inside-avoid overflow-hidden rounded-lg border border-ink-100">
+                        <img src={p.photoUrl} alt={p.title} className="h-28 w-full object-cover" />
+                        <div className="p-1.5">
+                          <p className="truncate text-[11px] font-medium text-ink-900">{p.title}</p>
+                          {p.details && <p className="text-[10px] text-ink-500">{p.details}</p>}
+                          <p className="text-[10px] text-ink-400">{formatDate(p.createdAt)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             );

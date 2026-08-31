@@ -403,6 +403,22 @@ export interface ProjectStage {
   updatedAt: TS;
 }
 
+/** A dated site photo filed against one stage — a name/caption and details, alongside the image itself. */
+export interface StageProgressPhoto {
+  id: string;
+  projectId: string;
+  projectName: string;
+  stageId: string;
+  stageName: string;
+  title: string;
+  details?: string;
+  photoUrl: string;
+  storagePath: string;
+  mimeType: string;
+  uploadedBy: Actor;
+  createdAt: TS;
+}
+
 export interface ProjectTask {
   id: string;
   projectId: string;

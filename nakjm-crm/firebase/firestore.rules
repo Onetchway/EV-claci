@@ -265,6 +265,15 @@ service cloud.firestore {
       allow delete: if canManageMasterData() || isAdmin();
     }
 
+    // Stage progress photos — a name/details pair attached to an image,
+    // filed against one project stage. Anyone who can execute site work can
+    // add one; deleting requires the same authority as managing the stage.
+    match /stagePhotos/{photoId} {
+      allow read: if signedIn();
+      allow create: if canSubmitSiteReports();
+      allow update, delete: if canManageMasterData() || isAdmin();
+    }
+
     // ------------------------------------------------------------- audit log
 
     // Every create/update across the app appends one activity entry (see

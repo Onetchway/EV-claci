@@ -24,6 +24,12 @@ service firebase.storage {
       return role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER', 'OPERATIONS', 'FINANCE'];
     }
 
+    // Site engineers execute stage work day to day, so they can add progress
+    // photos too, not just office roles.
+    function canUploadSitePhotos() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER', 'OPERATIONS', 'SITE_ENGINEER'];
+    }
+
     function acceptableFile() {
       return request.resource.size < 20 * 1024 * 1024
              && (request.resource.contentType.matches('image/.*')
@@ -32,6 +38,13 @@ service firebase.storage {
                  || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                  || request.resource.contentType == 'application/msword'
                  || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+
+    match /nakjm/{projectId}/stage-photos/{fileName} {
+      allow read: if signedIn();
+      allow create: if canUploadSitePhotos() && acceptableFile();
+      allow update: if false;
+      allow delete: if canManage();
     }
 
     match /nakjm/{scope}/{fileName} {
