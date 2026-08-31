@@ -257,6 +257,9 @@ export interface Quotation {
   sourceBoqId?: string | null;
   /** A typed-name sign-off, not a cryptographic signature -- lightweight internal approval, matching the record's own status flow. */
   approval?: { approvedBy: Actor; approvedAt: TS; signatureName: string; note?: string } | null;
+  /** Revision lineage: rootQuotationId is the same across every version of one quotation (the first version's own id); revisedFrom is the immediate prior version's id. Absent on quotations created before this existed. */
+  rootQuotationId?: string | null;
+  revisedFrom?: string | null;
   createdAt: TS;
   updatedAt: TS;
 }
