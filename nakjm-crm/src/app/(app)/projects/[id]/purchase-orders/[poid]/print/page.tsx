@@ -103,6 +103,14 @@ export default function PurchaseOrderPrintPage() {
           <div className="mt-4 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{po.notes}</div>
         )}
 
+        {po.approval && (
+          <div className="mt-8 border-t border-ink-200 pt-4 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Approved</p>
+            <p className="mt-1 text-ink-900">{po.approval.signatureName}</p>
+            <p className="text-xs text-ink-500">{formatDate(po.approval.approvedAt)}</p>
+          </div>
+        )}
+
         <PrintFooter />
       </PrintSheet>
     </div>

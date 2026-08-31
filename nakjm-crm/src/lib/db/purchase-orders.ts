@@ -138,6 +138,27 @@ export async function updatePoStatus(po: PurchaseOrder, status: PoStatus, actor:
   });
 }
 
+/**
+ * Sign-off before a PO is issued to the vendor: requires the approver to
+ * type their own name as confirmation (a lightweight internal e-sign, not a
+ * cryptographic signature), records who/when/what they typed, and moves
+ * status to ISSUED in the same write.
+ */
+export async function approvePurchaseOrder(po: PurchaseOrder, signatureName: string, note: string | undefined, actor: Actor): Promise<void> {
+  if (signatureName.trim().toLowerCase() !== actor.name.trim().toLowerCase()) {
+    throw new Error("Type your name exactly as shown to confirm approval.");
+  }
+  await updateDoc(doc(getDb(), PURCHASE_ORDERS, po.id), {
+    status: "ISSUED",
+    approval: { approvedBy: actor, approvedAt: serverTimestamp(), signatureName: signatureName.trim(), note: note ?? "" },
+    updatedAt: serverTimestamp(),
+  });
+  logActivitySafe({
+    entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNo, action: "STATUS_CHANGE",
+    message: `${actor.name} approved and issued PO ${po.poNo}`, actor, projectId: po.projectId,
+  });
+}
+
 export type PoPatch = Partial<Omit<PoDraft, "projectId" | "projectName" | "vendorId" | "vendorName" | "items">> & {
   items?: Omit<LineItem, "amount" | "srNo">[];
   vendorId?: string;
