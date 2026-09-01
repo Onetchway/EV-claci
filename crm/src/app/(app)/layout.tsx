@@ -47,37 +47,6 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "CMS",
-    items: [
-      { href: "/cms-dashboard", label: "CMS Dashboard", icon: LayoutDashboard },
-      { href: "/chargers", label: "Charger Management", icon: Zap },
-      { href: "/rfid", label: "RFID Tokens", icon: IdCard },
-      { href: "/register-charger", label: "Register My Charger", icon: Plug },
-      { href: "/stations", label: "Station Management", icon: Building2 },
-      { href: "/sessions", label: "Sessions", icon: Battery },
-      { href: "/tickets", label: "Ticket Management", icon: Ticket },
-      { href: "/complaints", label: "Complaints", icon: MessageSquareWarning },
-      { href: "/tariffs", label: "Tariffs & Pricing", icon: IndianRupee },
-      { href: "/zones", label: "Zones & Load Balancing", icon: MapPin },
-      { href: "/earnings", label: "Earnings & Statistics", icon: TrendingUp },
-      { href: "/insights", label: "Business Insights", icon: Gauge },
-      { href: "/emsp-users", label: "User Management", icon: UserCircle },
-      { href: "/payments", label: "Payment Transactions", icon: Receipt },
-      { href: "/fleets", label: "Fleet Management", icon: Truck },
-      { href: "/depot-charging", label: "Depot / Scheduled Charging", icon: CalendarClock },
-      { href: "/invoices", label: "Invoicing", icon: FileText },
-      { href: "/settlements", label: "Settlements", icon: IndianRupee },
-      { href: "/reconciliation", label: "Razorpay Reconciliation", icon: Scale },
-      { href: "/coupons", label: "Coupons", icon: Percent },
-      { href: "/campaigns", label: "Campaigns", icon: Mail },
-      { href: "/subscriptions", label: "Subscriptions", icon: Repeat },
-      { href: "/ocpi", label: "OCPI Roaming", icon: Globe, adminOnly: true },
-      { href: "/roaming", label: "CPO Roaming (Outbound)", icon: Globe, adminOnly: true },
-      { href: "/organizations", label: "White label CMS", icon: Building2, adminOnly: true },
-      { href: "/reports", label: "Reports", icon: FileSpreadsheet },
-    ],
-  },
-  {
     label: "Sales",
     items: [
       { href: "/leads", label: "All Leads", icon: Users2 },
@@ -118,6 +87,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
       { href: "/developer", label: "Developer (API & Webhooks)", icon: Terminal, adminOnly: true },
       { href: "/trash", label: "Trash", icon: Trash2, adminOnly: true },
+      { href: "/organizations", label: "Tenants (White Label)", icon: Building2, adminOnly: true },
     ],
   },
 ];
@@ -159,9 +129,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const [org, setOrg] = useState<Organization | null>(null);
   const [rolePolicy, setRolePolicy] = useState<Record<string, Role[]> | null>(null);
+  // null = every category enabled (not onboarded onto the platform, or no
+  // key set for this org — see api/platform-features/categories/route.ts).
+  const [enabledCategories, setEnabledCategories] = useState<string[] | null>(null);
   const { settings } = useSettings();
 
   useEffect(() => subscribeRoleAccessPolicy(setRolePolicy), []);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    user.getIdToken().then((token) =>
+      fetch("/api/platform-features/categories", { headers: { authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : { categories: null }))
+        .then((data) => { if (!cancelled) setEnabledCategories(data.categories); })
+        .catch(() => { if (!cancelled) setEnabledCategories(null); }),
+    );
+    return () => { cancelled = true; };
+  }, [user]);
 
   // Keeps the pricing engine's custom-charger registry in sync app-wide, not
   // just while the Catalogue page happens to be mounted.
@@ -217,7 +202,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const groups = NAV_GROUPS.map((g) => ({
+  // NAV_GROUPS labels -> platform/database/schema.sql's feature_catalog.
+  // category — a group with no entry (Dashboard) is always shown; a group
+  // whose category isn't in enabledCategories (super admin turned it off
+  // for this tenant's plan) is hidden entirely, not just its items.
+  const groupCategory: Partial<Record<string, string>> = {
+    Sales: "sales", Operations: "operations", HRMS: "hr", Settings: "settings",
+  };
+
+  const groups = NAV_GROUPS.filter((g) => {
+    const category = groupCategory[g.label];
+    return !category || enabledCategories === null || enabledCategories.includes(category);
+  }).map((g) => ({
     ...g,
     items: g.items.filter((n) => (!n.adminOnly || (role && isAdmin(role)))
       && hasPageAccess(n.href, roles, { policyOverrides: rolePolicy, userOverrides: profile?.pageAccessOverrides })),

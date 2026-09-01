@@ -73,6 +73,14 @@ export interface AppUser {
 export interface Organization {
   id: string;
   name: string;
+  /**
+   * URL-safe identifier for path-based tenant routing (app.alpha.com/{slug}
+   * — see src/middleware.ts and src/lib/tenant.ts) and for matching this
+   * org back to the Alpha platform's own tenant record (platform/database/
+   * schema.sql's tenants.slug) when this deploy is onboarded there. Unique;
+   * unset for the default (Livanto's own) organisation.
+   */
+  slug?: string;
   logoUrl?: string;
   primaryColorHex?: string;
   /** Stored for future DNS/routing setup — not yet actively used to route traffic. */

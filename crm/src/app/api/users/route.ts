@@ -21,6 +21,14 @@ const CreateUser = z.object({
   departmentId: z.string().max(128).optional().nullable(),
   officeLocationId: z.string().max(128).optional().nullable(),
   password: z.string().min(8).max(72).optional(),
+  /**
+   * Which white-label org (lib/db/organizations.ts) this user belongs to.
+   * Only meaningful when the caller has no orgId of their own (Livanto's
+   * own team, onboarding a new tenant's first users) — an org admin can
+   * only ever create users in their own org, so this is ignored (forced
+   * to caller.orgId) whenever the caller has one. See assertOrgId below.
+   */
+  orgId: z.string().max(128).optional().nullable(),
 });
 
 /** Only a super admin may grant admin or above. Rank-based (not a literal "ADMIN" check) so PLATFORM_ADMIN/CPO_ADMIN — same rank as ADMIN, just a clearer label — grant exactly what an ADMIN could. */
@@ -55,6 +63,10 @@ export async function POST(req: Request) {
     const roles = [...new Set(body.roles)];
     for (const r of roles) assertCanAssign(caller.role, r);
     const primary = highestRole(roles);
+    // An org admin can only ever create users in their own org; only a
+    // caller with no orgId (Livanto's own team) can target another one,
+    // for onboarding a new tenant's first users.
+    const orgId = caller.orgId ?? body.orgId ?? null;
 
     const auth = adminAuth();
     const db = adminDb();
@@ -79,7 +91,7 @@ export async function POST(req: Request) {
     // to its underlying role here, since that's the only value Firestore's
     // security rules actually recognize — the Firestore user doc below
     // still stores the real, specific role for display and app-side checks.
-    await auth.setCustomUserClaims(created.uid, { role: ROLE_ENFORCEMENT[primary] ?? primary, roles });
+    await auth.setCustomUserClaims(created.uid, { role: ROLE_ENFORCEMENT[primary] ?? primary, roles, orgId });
 
     await db.collection("users").doc(created.uid).set({
       uid: created.uid,
@@ -88,6 +100,7 @@ export async function POST(req: Request) {
       phone: body.phone ?? "",
       role: primary,
       roles,
+      orgId,
       region: body.region ?? null,
       managerId: body.managerId ?? null,
       designation: body.designation ?? "",

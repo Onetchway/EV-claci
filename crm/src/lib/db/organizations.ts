@@ -6,7 +6,7 @@
  */
 
 import {
-  addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
+  addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -42,7 +42,16 @@ export function subscribeOrganizations(
   );
 }
 
-export type OrganizationDraft = Pick<Organization, "name" | "logoUrl" | "primaryColorHex" | "customDomain" | "acLicenseTotal" | "dcLicenseTotal" | "razorpayKeyId">;
+export type OrganizationDraft = Pick<Organization, "name" | "slug" | "logoUrl" | "primaryColorHex" | "customDomain" | "acLicenseTotal" | "dcLicenseTotal" | "razorpayKeyId">;
+
+// Path-based tenant resolution (app.alpha.com/{slug} — see
+// src/middleware.ts) — reads the org whose slug matches the current URL's
+// tenant segment, so the app can validate the slug and, for a user
+// creation flow, scope the new account's orgId claim to it.
+export async function getOrganizationBySlug(slug: string): Promise<Organization | null> {
+  const snap = await getDocs(query(collection(getDb(), ORGANIZATIONS), where("slug", "==", slug)));
+  return snap.empty ? null : mapOrg(snap.docs[0].id, snap.docs[0].data());
+}
 
 export async function createOrganization(draft: OrganizationDraft, actor: Actor): Promise<string> {
   const ref = await addDoc(collection(getDb(), ORGANIZATIONS), {

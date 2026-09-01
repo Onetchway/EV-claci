@@ -15,7 +15,7 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isSuperAdmin } from "@/lib/permissions";
 import type { Organization } from "@/lib/types";
 
-const blankDraft: OrganizationDraft = { name: "", logoUrl: "", primaryColorHex: "", customDomain: "", acLicenseTotal: undefined, dcLicenseTotal: undefined, razorpayKeyId: "" };
+const blankDraft: OrganizationDraft = { name: "", slug: "", logoUrl: "", primaryColorHex: "", customDomain: "", acLicenseTotal: undefined, dcLicenseTotal: undefined, razorpayKeyId: "" };
 
 export default function OrganizationsPage() {
   const { actor } = useAuth();
@@ -29,6 +29,8 @@ export default function OrganizationsPage() {
   const [editing, setEditing] = useState<Organization | null>(null);
   const [draft, setDraft] = useState<OrganizationDraft>(blankDraft);
   const [keySecretInput, setKeySecretInput] = useState("");
+  const [platformKeyInput, setPlatformKeyInput] = useState("");
+  const [platformKeyBusy, setPlatformKeyBusy] = useState(false);
   const [secretBusy, setSecretBusy] = useState(false);
 
   useEffect(() => subscribeOrganizations(setOrgs), []);
@@ -43,7 +45,7 @@ export default function OrganizationsPage() {
   function openEdit(o: Organization) {
     setEditing(o);
     setDraft({
-      name: o.name, logoUrl: o.logoUrl ?? "", primaryColorHex: o.primaryColorHex ?? "", customDomain: o.customDomain ?? "",
+      name: o.name, slug: o.slug ?? "", logoUrl: o.logoUrl ?? "", primaryColorHex: o.primaryColorHex ?? "", customDomain: o.customDomain ?? "",
       acLicenseTotal: o.acLicenseTotal, dcLicenseTotal: o.dcLicenseTotal, razorpayKeyId: o.razorpayKeyId ?? "",
     });
     setKeySecretInput("");
@@ -54,6 +56,7 @@ export default function OrganizationsPage() {
     if (!actor || !draft.name.trim()) return;
     const clean: OrganizationDraft = {
       name: draft.name.trim(),
+      slug: draft.slug?.trim().toLowerCase() || undefined,
       logoUrl: draft.logoUrl?.trim() || undefined,
       primaryColorHex: draft.primaryColorHex?.trim() || undefined,
       customDomain: draft.customDomain?.trim() || undefined,
@@ -91,6 +94,29 @@ export default function OrganizationsPage() {
     }
   }
 
+  async function submitPlatformKey() {
+    if (!editing) return;
+    setPlatformKeyBusy(true);
+    try {
+      const current = getFirebaseAuth().currentUser;
+      if (!current) throw new Error("Your session expired. Sign in again.");
+      const token = await current.getIdToken();
+      const res = await fetch(`/api/organizations/${editing.id}/platform-key`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ tenantApiKey: platformKeyInput.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status}).`);
+      setPlatformKeyInput("");
+      push(platformKeyInput.trim() ? "Platform key saved." : "Platform key cleared — every feature is enabled for this tenant again.", "success");
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setPlatformKeyBusy(false);
+    }
+  }
+
   if (!canManage) {
     return <EmptyState title="Super admins only" description="Organisation (white-label) management is restricted to super admins." />;
   }
@@ -98,8 +124,8 @@ export default function OrganizationsPage() {
   return (
     <>
       <PageHeader
-        title="Organisations (White Label)"
-        description="Tenant registry for white-labelling this CRM. Foundation only, by design: branding (logo/colour/domain) is stored per organisation and applied to the sidebar for team members assigned to one, but no other data (leads, chargers, sessions, etc.) is isolated between organisations yet — that's a separate, larger migration."
+        title="Tenants (White Label)"
+        description="Tenant registry — branding, licenses, and payment/platform keys per organisation. Leads (Sales) are fully isolated between organisations; the rest of the app (Operations, HRMS, chargers, sessions, etc.) is not yet — that scoping is applied module by module, following the same pattern as leads.ts and firestore.rules."
         actions={<Button variant="primary" onClick={openNew}><Plus className="h-4 w-4" /> New organisation</Button>}
       />
 
@@ -171,6 +197,9 @@ export default function OrganizationsPage() {
           <Field label="Name" required>
             <Input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="e.g. Acme EV Charging" />
           </Field>
+          <Field label="Slug" hint="URL segment for this tenant's own CRM, e.g. app.alpha.com/xpulse. Also what matches this org to its Alpha platform tenant record.">
+            <Input value={draft.slug ?? ""} onChange={(e) => setDraft((d) => ({ ...d, slug: e.target.value }))} placeholder="xpulse" />
+          </Field>
           <Field label="Logo URL" hint="Shown in the sidebar in place of the Livanto logo for this org's team members.">
             <Input value={draft.logoUrl ?? ""} onChange={(e) => setDraft((d) => ({ ...d, logoUrl: e.target.value }))} placeholder="https://…" />
           </Field>
@@ -217,6 +246,25 @@ export default function OrganizationsPage() {
             )}
             {!editing && (
               <p className="mt-2 text-xs text-ink-400">Save this organisation first, then set its key secret.</p>
+            )}
+          </div>
+
+          <div className="border-t border-ink-100 pt-4">
+            <p className="label">Alpha platform tenant key</p>
+            <p className="mt-1 text-xs text-ink-500">
+              The API key the Alpha super admin (see ../../platform/) issued when onboarding this org as a
+              tenant — scopes this org's team to whatever features its plan enables. Leave unset to enable
+              everything (a standalone deploy, or an org not yet onboarded onto the platform).
+            </p>
+            {editing ? (
+              <Field label="Tenant API key" className="mt-3" hint="Write-only — never shown back once saved. Leave blank and save to clear it.">
+                <div className="flex gap-2">
+                  <Input type="password" value={platformKeyInput} onChange={(e) => setPlatformKeyInput(e.target.value)} placeholder="tk_…" className="flex-1" />
+                  <Button loading={platformKeyBusy} onClick={() => void submitPlatformKey()}>Save key</Button>
+                </div>
+              </Field>
+            ) : (
+              <p className="mt-2 text-xs text-ink-400">Save this organisation first, then set its platform key.</p>
             )}
           </div>
         </div>

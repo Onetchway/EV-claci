@@ -1,53 +1,68 @@
 import "server-only";
 
 /**
- * Asks the Alpha platform (see ../../platform/) which features are enabled
- * for this tenant, via the tenant-authenticated GET /api/features/me (see
- * platform/backend/src/routes/features.routes.js). Mirrors the fail-open,
- * cached pattern in backend/src/utils/resolveTenant.js.
+ * Asks the Alpha platform (see ../../platform/) which feature categories
+ * are enabled for a given org (see lib/db/organizations.ts), via the
+ * tenant-authenticated GET /api/features/me (platform/backend/src/routes/
+ * features.routes.js). Mirrors the fail-open, cached pattern in
+ * backend/src/utils/resolveTenant.js.
  *
- * No-ops (returns null) when PLATFORM_API_URL/PLATFORM_TENANT_API_KEY aren't
- * set, so a standalone deploy of this CRM pays no cost and every feature
- * gate below defaults to "on" — this only restricts anything once a tenant
- * is actually onboarded onto the platform.
+ * Unlike backend/+frontend/ (one deployed instance = one tenant, so a
+ * single env-var API key worked), this app is genuinely multi-tenant —
+ * many orgs share one deployment — so the platform API key is per-org,
+ * stored server-only in the organizationPlatformKeys collection (see
+ * firestore.rules; never readable by the client SDK, same pattern as
+ * organizationPaymentSecrets) and set via /api/organizations/[id]/
+ * platform-key. An org with no key configured (including the default,
+ * non-white-label Livanto org, and any standalone deploy) sees every
+ * category enabled — this only restricts anything once an org is
+ * actually onboarded onto the platform.
  */
 
-type FeatureRow = { key: string; enabled: boolean };
+import { adminDb } from "./firebase/admin";
+
+type FeatureRow = { key: string; category: string; enabled: boolean };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
-let cache: { features: Set<string>; expiresAt: number } | null = null;
+const cache = new Map<string, { categories: Set<string>; expiresAt: number }>();
 
-async function fetchEnabledFeatures(): Promise<Set<string> | null> {
+async function getOrgPlatformKey(orgId: string | null): Promise<string | null> {
+  if (!orgId) return null;
+  const snap = await adminDb().collection("organizationPlatformKeys").doc(orgId).get();
+  return (snap.data()?.tenantApiKey as string | undefined) ?? null;
+}
+
+/**
+ * Every feature category (platform/database/schema.sql's feature_catalog.
+ * category — general/sales/operations/finance/hr/settings) that has at
+ * least one enabled feature for this org. `null` means "not onboarded
+ * onto the platform, or the platform is unreachable" — every category is
+ * implicitly enabled in that case, same fail-open rule as isFeatureEnabled
+ * used to apply per-key.
+ */
+export async function getEnabledCategories(orgId: string | null): Promise<Set<string> | null> {
   const apiUrl = process.env.PLATFORM_API_URL;
-  const apiKey = process.env.PLATFORM_TENANT_API_KEY;
-  if (!apiUrl || !apiKey) return null;
+  const cacheKey = orgId ?? "__default__";
+  const cached = cache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.categories;
 
-  if (cache && cache.expiresAt > Date.now()) return cache.features;
+  if (!apiUrl) return null;
+  const apiKey = await getOrgPlatformKey(orgId);
+  if (!apiKey) return null;
 
   try {
     const response = await fetch(`${apiUrl}/features/me`, {
       headers: { "X-Tenant-Api-Key": apiKey },
       cache: "no-store",
     });
-    if (!response.ok) return cache?.features ?? null;
+    if (!response.ok) return cached?.categories ?? null;
     const { data } = (await response.json()) as { data: FeatureRow[] };
-    const features = new Set(data.filter((f) => f.enabled).map((f) => f.key));
-    cache = { features, expiresAt: Date.now() + CACHE_TTL_MS };
-    return features;
+    const categories = new Set(data.filter((f) => f.enabled).map((f) => f.category));
+    cache.set(cacheKey, { categories, expiresAt: Date.now() + CACHE_TTL_MS });
+    return categories;
   } catch (err) {
     console.error("[platform-features] Platform lookup failed:", (err as Error).message);
-    // Fail open — never block this tenant's CRM on a platform outage.
-    return cache?.features ?? null;
+    // Fail open — never block this org's CRM on a platform outage.
+    return cached?.categories ?? null;
   }
-}
-
-/**
- * True when this tenant is not onboarded onto the platform (standalone
- * deploy), or when the platform is unreachable, or when the platform says
- * the feature is on. False only when the platform explicitly says off.
- */
-export async function isFeatureEnabled(key: string): Promise<boolean> {
-  const features = await fetchEnabledFeatures();
-  if (features === null) return true;
-  return features.has(key);
 }

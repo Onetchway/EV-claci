@@ -142,12 +142,38 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/leads/$(leadId)).data.ownerId;
     }
 
+    function leadOrgId(leadId) {
+      return get(/databases/$(database)/documents/leads/$(leadId)).data.orgId;
+    }
+
+    // Multi-tenant isolation (see types.ts's Organization doc comment and
+    // src/lib/tenant.ts) — null for the default (Livanto's own)
+    // organisation, matching a lead/user with no orgId field at all.
+    function orgId() {
+      return signedIn() ? request.auth.token.orgId : null;
+    }
+
+    function sameOrgExisting() {
+      return resource.data.orgId == orgId();
+    }
+
+    function sameOrgIncoming() {
+      return request.resource.data.orgId == orgId();
+    }
+
+    // A role that "sees everything" only ever means everything *in its own
+    // org* — seesAllLeads()/isAdmin() alone say nothing about which
+    // tenant's data this is, so every call site below pairs it with an
+    // org check instead of trusting role alone the way pre-multi-tenant
+    // code here used to.
     function canTouchLead(leadId) {
-      return seesAllLeads() || leadOwnerId(leadId) == uid();
+      return (seesAllLeads() && leadOrgId(leadId) == orgId()) || leadOwnerId(leadId) == uid();
     }
 
     function canEditLead(leadId) {
-      return canWriteLeads() && (isAdmin() || role() == 'SALES_MANAGER' || leadOwnerId(leadId) == uid());
+      return canWriteLeads()
+        && ((isAdmin() || role() == 'SALES_MANAGER') && leadOrgId(leadId) == orgId()
+            || leadOwnerId(leadId) == uid());
     }
 
     // ------------------------------------------------------------- organizations
@@ -169,29 +195,43 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // This org's Alpha platform tenant API key (see src/lib/platform-
+    // features.ts) — same never-client-readable treatment as the payment
+    // secret above. Set via /api/organizations/[id]/platform-key.
+    match /organizationPlatformKeys/{orgId} {
+      allow read, write: if false;
+    }
+
     // ------------------------------------------------------------------ users
 
     match /users/{userId} {
-      // Everyone signed in can read the directory: lead lists show owner names
-      // and the reassign picker needs the roster.
-      allow read: if signedIn();
+      // Everyone signed in can read their own org's directory: lead lists
+      // show owner names and the reassign picker needs the roster — but
+      // never another tenant's team (name/email/role would otherwise leak
+      // across orgs to anyone signed in, regardless of role).
+      allow read: if signedIn() && resource.data.orgId == orgId();
 
       // Profiles are created by the /api/users route with the Admin SDK, which
       // bypasses these rules. The one exception is first-run bootstrap: the
-      // very first account may create its own profile.
+      // very first account may create its own profile — always into the
+      // default (Livanto's own) org, since fromWorkspace() only admits
+      // @livantogreen.com; every other tenant's users are created via the
+      // API, never self-bootstrapped.
       allow create: if fromWorkspace()
                     && userId == uid()
                     && request.resource.data.uid == uid()
                     && request.resource.data.role == 'AGENT'
-                    && request.resource.data.active == true;
+                    && request.resource.data.active == true
+                    && request.resource.data.orgId == null;
 
-      // A user may edit their own contact details, never their own role or
-      // active flag — that would be a self-promotion.
+      // A user may edit their own contact details, never their own role,
+      // org, or active flag — that would be a self-promotion.
       allow update: if signedIn()
                     && userId == uid()
                     && request.resource.data.role == resource.data.role
                     && request.resource.data.active == resource.data.active
-                    && request.resource.data.uid == resource.data.uid;
+                    && request.resource.data.uid == resource.data.uid
+                    && request.resource.data.orgId == resource.data.orgId;
 
       allow delete: if false;
     }
@@ -205,16 +245,24 @@ service cloud.firestore {
     // ------------------------------------------------------------------ leads
 
     match /leads/{leadId} {
-      allow read: if seesAllLeads() || ownsExisting() || ownsLeadDirectlyAsInvestor();
+      // seesAllLeads() only ever means "everything in this account's own
+      // org" — see sameOrgExisting() above. ownsExisting() (an agent's own
+      // lead) needs no separate org check: a lead's ownerId can only ever
+      // be an agent who was in that lead's org at creation/assignment time
+      // (both gated below), so this can't cross a tenant boundary on its own.
+      allow read: if (seesAllLeads() && sameOrgExisting()) || ownsExisting() || ownsLeadDirectlyAsInvestor();
 
-      // A new lead must be attributed to the creator. Admins may assign to
-      // anyone; agents may only create leads for themselves.
+      // A new lead must be attributed to the creator, in the creator's own
+      // org. Admins may assign to anyone; agents may only create leads for
+      // themselves.
       allow create: if canWriteLeads()
                     && actorIsSelf('createdBy')
                     && (isAdmin() || role() == 'SALES_MANAGER' || ownsIncoming())
-                    && request.resource.data.status == 'ACTIVE';
+                    && request.resource.data.status == 'ACTIVE'
+                    && sameOrgIncoming();
 
       allow update: if canWriteLeads()
+                    && sameOrgExisting() && sameOrgIncoming()
                     && (isAdmin() || role() == 'SALES_MANAGER'
                         || (ownsExisting() && resource.data.status != 'REJECTED'))
                     // Only a manager or admin may hand a lead to another agent.
@@ -225,7 +273,7 @@ service cloud.firestore {
                         || resource.data.status != 'REJECTED')
                     && actorIsSelf('updatedBy');
 
-      allow delete: if isSuperAdmin();
+      allow delete: if isSuperAdmin() && sameOrgExisting();
 
       // ------------------------------------------------------------- payments
 

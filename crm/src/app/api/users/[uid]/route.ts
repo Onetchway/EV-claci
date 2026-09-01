@@ -50,7 +50,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     const snap = await ref.get();
     if (!snap.exists) throw new ApiError("User not found.", 404);
 
-    const current = snap.data() as { role: Role; roles?: Role[] };
+    const current = snap.data() as { role: Role; roles?: Role[]; orgId?: string | null };
     const currentRoles = current.roles?.length ? current.roles : [current.role];
 
     // Changing an admin's record — or promoting anyone into an admin role —
@@ -95,16 +95,24 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     if (Object.keys(update).length) await ref.update(update);
 
     const auth = adminAuth();
-    if (nextRoles && nextPrimary) {
+    // orgId, like role, is read from the ID token's custom claim by
+    // Firestore security rules — a plain Firestore field update here isn't
+    // enough, or a moved user would keep their old org's data access until
+    // some unrelated role change happened to also touch the claims.
+    if ((nextRoles && nextPrimary) || body.orgId !== undefined) {
+      const currentOrgId = (current as { orgId?: string | null }).orgId ?? null;
+      const orgId = body.orgId !== undefined ? body.orgId : currentOrgId;
+      const role = nextPrimary ?? current.role;
+      const roles = nextRoles ?? currentRoles;
       // See users/route.ts's setCustomUserClaims call — same normalization
       // of a specialization role to its Firestore-rules-recognized value.
-      await auth.setCustomUserClaims(uid, { role: ROLE_ENFORCEMENT[nextPrimary] ?? nextPrimary, roles: nextRoles });
+      await auth.setCustomUserClaims(uid, { role: ROLE_ENFORCEMENT[role] ?? role, roles, orgId });
     }
     if (body.active !== undefined) await auth.updateUser(uid, { disabled: !body.active });
     if (body.name) await auth.updateUser(uid, { displayName: body.name });
     if (body.password) await auth.updateUser(uid, { password: body.password });
-    // Force the next request to re-mint a token so a revoked role stops working.
-    if (nextRoles || body.active === false) await auth.revokeRefreshTokens(uid);
+    // Force the next request to re-mint a token so a revoked role/org stops working.
+    if (nextRoles || body.orgId !== undefined || body.active === false) await auth.revokeRefreshTokens(uid);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

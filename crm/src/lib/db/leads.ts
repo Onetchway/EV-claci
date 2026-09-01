@@ -17,6 +17,7 @@ import { getDb } from "../firebase/client";
 import {
   buildQuote, describeCapacity, normaliseConfig, normaliseExtras, type ConfigItem, type ExtraItem,
 } from "../pricing";
+import { getCurrentTenantId } from "../tenant";
 import type {
   Actor, AgreementDoc, AgreementVersion, ClientInfo, EoiDoc, EoiVersion, FinancingInfo, Lead,
   MergedLeadRef, SiteInfo,
@@ -149,18 +150,31 @@ export function subscribeLeads(
   onError?: (e: Error) => void,
 ): () => void {
   const db = getDb();
-  const constraints: QueryConstraint[] = [];
+  let unsubscribe = () => {};
+  let cancelled = false;
 
-  if (filters.ownerId) constraints.push(where("ownerId", "==", filters.ownerId));
-  if (filters.type && filters.type !== "ALL") constraints.push(where("type", "==", filters.type));
-  if (filters.status && filters.status !== "ALL") constraints.push(where("status", "==", filters.status));
-  constraints.push(orderBy("updatedAt", "desc"), fsLimit(filters.max ?? 500));
+  // getCurrentTenantId() is async (reads the ID token), so the actual
+  // subscription starts once it resolves — the org filter is required for
+  // Firestore to prove this list query safe under firestore.rules's
+  // sameOrgExisting() (an unscoped list query is denied outright, not
+  // silently filtered), same reason every other list query below needs it.
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    const constraints: QueryConstraint[] = [where("orgId", "==", orgId)];
 
-  return onSnapshot(
-    query(collection(db, LEADS), ...constraints),
-    (snap) => cb(applyClientFilters(snap.docs.map((d) => mapLead(d.id, d.data())), filters)),
-    (err) => onError?.(err as Error),
-  );
+    if (filters.ownerId) constraints.push(where("ownerId", "==", filters.ownerId));
+    if (filters.type && filters.type !== "ALL") constraints.push(where("type", "==", filters.type));
+    if (filters.status && filters.status !== "ALL") constraints.push(where("status", "==", filters.status));
+    constraints.push(orderBy("updatedAt", "desc"), fsLimit(filters.max ?? 500));
+
+    unsubscribe = onSnapshot(
+      query(collection(db, LEADS), ...constraints),
+      (snap) => cb(applyClientFilters(snap.docs.map((d) => mapLead(d.id, d.data())), filters)),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribeLead(
@@ -198,8 +212,9 @@ export async function getLead(id: string): Promise<Lead | null> {
 export async function findLeadsByPhone(phone: string): Promise<Lead[]> {
   const clean = normalisePhone(phone);
   if (clean.length < 10) return [];
+  const orgId = await getCurrentTenantId();
   const snap = await getDocs(
-    query(collection(getDb(), LEADS), where("client.phone", "==", clean), fsLimit(5)),
+    query(collection(getDb(), LEADS), where("orgId", "==", orgId), where("client.phone", "==", clean), fsLimit(5)),
   );
   return snap.docs.map((d) => mapLead(d.id, d.data()));
 }
@@ -290,6 +305,10 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
   const db = getDb();
   const code = await nextLeadCode(draft.type);
   const ref = doc(collection(db, LEADS));
+  // Multi-tenant isolation (see firestore.rules's sameOrgIncoming) — every
+  // lead is stamped with its creator's own org, null for the default
+  // (Livanto's own) organisation.
+  const orgId = await getCurrentTenantId();
 
   const config = normaliseConfig(draft.config ?? []);
   const extras = normaliseExtras(draft.extras ?? []);
@@ -299,6 +318,7 @@ export async function createLead(draft: LeadDraft, actor: Actor): Promise<Lead> 
 
   const payload = {
     code,
+    orgId,
     type: draft.type,
     stage: draft.stage ?? ("NEW" as Stage),
     status: "ACTIVE" as LeadStatus,
@@ -913,10 +933,11 @@ export async function findDuplicateLeads(candidate: {
   if (needles.length === 0) return [];
 
   const db = getDb();
+  const orgId = await getCurrentTenantId();
   const found = new Map<string, Lead>();
   for (const needle of needles) {
     const snap = await getDocs(
-      query(collection(db, LEADS), where("search", "array-contains", needle), fsLimit(10)),
+      query(collection(db, LEADS), where("orgId", "==", orgId), where("search", "array-contains", needle), fsLimit(10)),
     );
     for (const d of snap.docs) {
       if (d.id === candidate.excludeId) continue;
@@ -934,8 +955,9 @@ export async function findDuplicateLeads(candidate: {
 /** Candidates for pairing: the opposite lead type, still in play. */
 export async function findLinkCandidates(lead: Lead, search: string): Promise<Lead[]> {
   const wanted: LeadType = lead.type === "SITE" ? "FRANCHISE" : "SITE";
+  const orgId = await getCurrentTenantId();
   const snap = await getDocs(
-    query(collection(getDb(), LEADS), where("type", "==", wanted), fsLimit(200)),
+    query(collection(getDb(), LEADS), where("orgId", "==", orgId), where("type", "==", wanted), fsLimit(200)),
   );
   const needle = search.trim().toLowerCase();
 
@@ -961,7 +983,8 @@ export async function findLinkCandidates(lead: Lead, search: string): Promise<Le
  * a second lead for the same address doesn't need everything retyped.
  */
 export async function findSiteCandidates(search: string, excludeLeadId?: string): Promise<Lead[]> {
-  const snap = await getDocs(query(collection(getDb(), LEADS), fsLimit(500)));
+  const orgId = await getCurrentTenantId();
+  const snap = await getDocs(query(collection(getDb(), LEADS), where("orgId", "==", orgId), fsLimit(500)));
   const needle = search.trim().toLowerCase();
 
   return snap.docs
@@ -983,8 +1006,9 @@ export async function findSiteCandidates(search: string, excludeLeadId?: string)
  * Franchise. Backs the "start from an existing lead" picker on New Project.
  */
 export async function findConvertibleLeads(search: string): Promise<Lead[]> {
+  const orgId = await getCurrentTenantId();
   const snap = await getDocs(
-    query(collection(getDb(), LEADS), where("status", "==", "WON"), fsLimit(300)),
+    query(collection(getDb(), LEADS), where("orgId", "==", orgId), where("status", "==", "WON"), fsLimit(300)),
   );
   const needle = search.trim().toLowerCase();
 

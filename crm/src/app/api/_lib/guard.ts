@@ -15,6 +15,8 @@ export interface Caller {
   /** Every role held. */
   roles: Role[];
   name: string;
+  /** Which white-label org (see lib/db/organizations.ts) this caller belongs to — null for the default (Livanto's own) org. */
+  orgId: string | null;
 }
 
 /**
@@ -67,7 +69,7 @@ export async function requireCaller(req: Request, minRole: Role = "ADMIN"): Prom
   const snap = await adminDb().collection("users").doc(decoded.uid).get();
   if (!snap.exists) throw new ApiError("No CRM profile exists for this account.", 403);
 
-  const data = snap.data() as { role?: Role; roles?: Role[]; active?: boolean; name?: string };
+  const data = snap.data() as { role?: Role; roles?: Role[]; active?: boolean; name?: string; orgId?: string | null };
   if (data.active === false) throw new ApiError("This account is deactivated.", 403);
 
   const roles = (data.roles?.length ? data.roles : [data.role ?? "AGENT"]) as Role[];
@@ -82,6 +84,7 @@ export async function requireCaller(req: Request, minRole: Role = "ADMIN"): Prom
     role,
     roles,
     name: data.name ?? decoded.email ?? "User",
+    orgId: data.orgId ?? null,
   };
 }
 
