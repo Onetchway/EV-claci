@@ -102,23 +102,25 @@ const remove = async (id, req) => {
   if (!res.rows[0]) { const e = new Error('Franchise not found'); e.status = 404; throw e; }
 };
 
-// NOTE: deliberately not tenant-scoped (unlike list/getOne/create/update/
-// remove above, and unlike the other dashboard.service.js files, which
-// are). Franchise-level P&L aggregation across assets/settlements/revenues
-// needs a closer look before trusting it in "shared" mode — id, not
-// tenant_id, is the only thing guarding which franchise's numbers come
-// back. Safe today because dedicated/isolated tenants have tenant_id
-// NULL throughout, so there's nothing to leak.
-const franchiseDashboard = async (id) => {
-  const frRes = await query('SELECT * FROM franchises WHERE id = $1', [id]);
+// Was flagged unscoped in an earlier pass; fixed to match dashboard.service.js's
+// franchiseDashboard (GET /api/dashboard/franchise/:franchiseId) — this is a
+// second, separately-routed dashboard for the same data (GET /api/franchises/:id/dashboard),
+// so it needed the identical tenant-scoping treatment, not just a pointer to the other one.
+const franchiseDashboard = async (id, req) => {
+  const frTenant = tenantWhere(req, 2);
+  const frRes = await query(
+    `SELECT * FROM franchises WHERE id = $1${frTenant.clause ? ' AND ' + frTenant.clause : ''}`,
+    [id, ...frTenant.params]
+  );
   if (!frRes.rows[0]) { const e = new Error('Franchise not found'); e.status = 404; throw e; }
   const franchise = frRes.rows[0];
 
+  const assetsTenant = tenantWhere(req, 2);
   const assetsRes = await query(
     `SELECT a.*, s.name AS station_name, s.city
      FROM assets a LEFT JOIN stations s ON s.id = a.station_id
-     WHERE a.franchise_id = $1`,
-    [id]
+     WHERE a.franchise_id = $1${assetsTenant.clause ? ' AND ' + assetsTenant.clause.replace('tenant_id', 'a.tenant_id') : ''}`,
+    [id, ...assetsTenant.params]
   );
   const assets = assetsRes.rows;
   const stationIds = [...new Set(assets.map(a => a.station_id).filter(Boolean))];
@@ -126,16 +128,18 @@ const franchiseDashboard = async (id) => {
   let totalRevenue = 0;
   if (stationIds.length > 0) {
     const placeholders = stationIds.map((_, i) => `$${i + 1}`).join(',');
+    const revTenant = tenantWhere(req, stationIds.length + 1);
     const revRes = await query(
-      `SELECT COALESCE(SUM(total_revenue),0) AS total FROM revenues WHERE station_id IN (${placeholders})`,
-      stationIds
+      `SELECT COALESCE(SUM(total_revenue),0) AS total FROM revenues WHERE station_id IN (${placeholders})${revTenant.clause ? ' AND ' + revTenant.clause : ''}`,
+      [...stationIds, ...revTenant.params]
     );
     totalRevenue = parseFloat(revRes.rows[0].total);
   }
 
+  const settlementsTenant = tenantWhere(req, 2);
   const settlementsRes = await query(
-    `SELECT * FROM settlements WHERE franchise_id = $1 ORDER BY created_at DESC`,
-    [id]
+    `SELECT * FROM settlements WHERE franchise_id = $1${settlementsTenant.clause ? ' AND ' + settlementsTenant.clause : ''} ORDER BY created_at DESC`,
+    [id, ...settlementsTenant.params]
   );
   const settlements = settlementsRes.rows;
   const totalEarned = settlements

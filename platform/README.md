@@ -58,13 +58,12 @@ service in `backend/src/services/` (the EV CRM's `assets`, `bss`,
 `settlements`, `stations`, `users`, and all 12 files under
 `services/nakjm/`) now applies it: list/getOne scoped, create stamps
 `tenant_id`, update/remove AND-append the tenant condition, and every
-controller passes `req` through. Two cross-table dashboard aggregations
-(`dashboard.service.js` and `nakjm/dashboard.service.js`) got the same
-treatment rather than being left as a gap — an admin overview silently
-blending another tenant's numbers would be a real leak, not just a
-missing nicety. The one deliberate exception is `franchiseDashboard()`
-in `franchise.service.js`, still unscoped and flagged in its own code —
-worth a closer look before relying on it in `shared` mode.
+controller passes `req` through. Every cross-table dashboard aggregation
+(`dashboard.service.js`, `nakjm/dashboard.service.js`, and
+`franchise.service.js`'s own `franchiseDashboard()` — a second, separately
+routed dashboard for the same franchise data) got the same treatment
+rather than being left as a gap — an admin overview silently blending
+another tenant's numbers would be a real leak, not just a missing nicety.
 
 A `shared`-mode tenant can now safely share an instance with others.
 
@@ -197,8 +196,6 @@ and no-ops if SMTP isn't configured.
 
 ## Not built yet (next steps)
 
-- `franchise.service.js`'s `franchiseDashboard()` is the one function left
-  unscoped by the `tenant_id` retrofit above — see its own code comment.
 - Automated tenant provisioning for `dedicated`/`isolated` mode (spinning
   up a new database/deploy on tenant creation) — today `deployment_mode`
   is just recorded; the actual infra step is manual.
