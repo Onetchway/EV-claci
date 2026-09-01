@@ -102,6 +102,13 @@ const remove = async (id, req) => {
   if (!res.rows[0]) { const e = new Error('Franchise not found'); e.status = 404; throw e; }
 };
 
+// NOTE: deliberately not tenant-scoped (unlike list/getOne/create/update/
+// remove above, and unlike the other dashboard.service.js files, which
+// are). Franchise-level P&L aggregation across assets/settlements/revenues
+// needs a closer look before trusting it in "shared" mode — id, not
+// tenant_id, is the only thing guarding which franchise's numbers come
+// back. Safe today because dedicated/isolated tenants have tenant_id
+// NULL throughout, so there's nothing to leak.
 const franchiseDashboard = async (id) => {
   const frRes = await query('SELECT * FROM franchises WHERE id = $1', [id]);
   if (!frRes.rows[0]) { const e = new Error('Franchise not found'); e.status = 404; throw e; }

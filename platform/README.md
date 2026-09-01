@@ -45,27 +45,28 @@ additionally requires adding `tenant_id` to every table in
 `database/schema.sql` and a middleware that scopes every query to
 `req.user.tenant_id`.
 
-**Status: infrastructure done, retrofit in progress.** Every table across
-`database/schema.sql`, `database/nakjm_schema.sql` and
-`database/nakjm_documents_schema.sql` now has a nullable `tenant_id`
-column (`database/migrations/001_add_tenant_id.sql` for existing
-deployments; new installs get it straight from the schema files). It's
-NULL for every row in `dedicated`/`isolated`/standalone deploys, so
-nothing changes for them. `backend/src/middleware/tenantScope.js` has the
-two helpers every service uses — `tenantWhere(req, paramIndex)` to scope
-a read, `tenantIdForInsert(req)` to stamp a write — and
-`users.service.js` + `franchise.service.js` are retrofitted as the
-reference implementation (see their diffs for the exact pattern:
-add `tenant.clause`/`tenant.params` from `tenantWhere` into the
-conditions array, pass `req` through from the controller).
+**Status: done.** Every table across `database/schema.sql`,
+`database/nakjm_schema.sql` and `database/nakjm_documents_schema.sql` has
+a nullable `tenant_id` column (`database/migrations/001_add_tenant_id.sql`
+for existing deployments; new installs get it straight from the schema
+files). It's NULL for every row in `dedicated`/`isolated`/standalone
+deploys, so nothing changes for them. `backend/src/middleware/tenantScope.js`
+has the two helpers every service uses — `tenantWhere(req, paramIndex)`
+to scope a read, `tenantIdForInsert(req)` to stamp a write — and every
+service in `backend/src/services/` (the EV CRM's `assets`, `bss`,
+`chargers`, `dashboard`, `franchise`, `revenue`, `sessions`,
+`settlements`, `stations`, `users`, and all 12 files under
+`services/nakjm/`) now applies it: list/getOne scoped, create stamps
+`tenant_id`, update/remove AND-append the tenant condition, and every
+controller passes `req` through. Two cross-table dashboard aggregations
+(`dashboard.service.js` and `nakjm/dashboard.service.js`) got the same
+treatment rather than being left as a gap — an admin overview silently
+blending another tenant's numbers would be a real leak, not just a
+missing nicety. The one deliberate exception is `franchiseDashboard()`
+in `franchise.service.js`, still unscoped and flagged in its own code —
+worth a closer look before relying on it in `shared` mode.
 
-The same mechanical change still needs applying to the rest of
-`backend/src/services/*.service.js` (`assets`, `bss`, `chargers`,
-`dashboard`, `revenue`, `sessions`, `settlements`, `stations`, and all
-11 files under `services/nakjm/`) before a `shared`-mode tenant can
-safely share an instance with others — until then, only onboard
-`shared`-mode tenants one at a time behind a `dedicated`/`isolated`
-deploy, or finish the retrofit first.
+A `shared`-mode tenant can now safely share an instance with others.
 
 ## Domain routing (subdomain + custom domain, both super-admin managed)
 
@@ -196,8 +197,8 @@ and no-ops if SMTP isn't configured.
 
 ## Not built yet (next steps)
 
-- The `tenant_id`-scoping retrofit across the remaining `backend/src/services/*.service.js`
-  files (see the "Status: infrastructure done, retrofit in progress" section above).
+- `franchise.service.js`'s `franchiseDashboard()` is the one function left
+  unscoped by the `tenant_id` retrofit above — see its own code comment.
 - Automated tenant provisioning for `dedicated`/`isolated` mode (spinning
   up a new database/deploy on tenant creation) — today `deployment_mode`
   is just recorded; the actual infra step is manual.
