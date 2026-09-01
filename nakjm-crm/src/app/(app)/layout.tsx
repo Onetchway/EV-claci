@@ -232,7 +232,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Grouped, collapsible, searchable sidebar nav — mirrors Livanto's NavList. */
+/** Grouped, collapsible, searchable sidebar nav — mirrors Alpha's NavList. */
 function NavList({ groups, pathname }: { groups: NavGroup[]; pathname: string }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 

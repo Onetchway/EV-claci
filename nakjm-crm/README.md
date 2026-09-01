@@ -5,8 +5,7 @@ business — clients → projects → quotations/BOQ → purchase orders/proform
 invoices → payments, plus team assignment and site progress reporting.
 
 Built as a Next.js + Firebase app (Firestore, Auth, Storage), the same
-stack and deploy story as this repo's other CRM (`crm/`, for Livanto
-Green's EV charging franchise business) — see [DEPLOYMENT.md](./DEPLOYMENT.md)
+stack and deploy story as this repo's other CRM (`crm/`, for Alpha Green's EV charging franchise business) — see [DEPLOYMENT.md](./DEPLOYMENT.md)
 for the full first-time setup (Firebase project, security rules, App
 Hosting, custom domain).
 

@@ -1,6 +1,6 @@
 # Deploying the NAKJM EPC CRM to Firebase — project `nakjm`
 
-Step by step, start to finish, the same playbook used for the Livanto Green
+Step by step, start to finish, the same playbook used for the Alpha Green
 CRM (`crm/`), adapted for NAKJM. Budget about 45 minutes the first time.
 
 ---
