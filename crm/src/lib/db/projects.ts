@@ -13,6 +13,7 @@ import {
 } from "../constants";
 import { getDb } from "../firebase/client";
 import { buildQuote, normaliseConfig, normaliseExtras } from "../pricing";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, Lead, Project, ProjectWorkstream } from "../types";
 import { buildSearchTokens, toDate } from "../utils";
 import { logActivitySafe } from "./activity";
@@ -133,18 +134,24 @@ export function subscribeProjects(
   onError?: (e: Error) => void,
 ): () => void {
   const db = getDb();
-  const constraints: QueryConstraint[] = [];
-  if (filters.ownership && filters.ownership !== "ALL") {
-    constraints.push(where("ownership", "==", filters.ownership));
-  }
-  if (filters.status && filters.status !== "ALL") constraints.push(where("status", "==", filters.status));
-  constraints.push(orderBy("updatedAt", "desc"), fsLimit(filters.max ?? 300));
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    const constraints: QueryConstraint[] = [where("orgId", "==", orgId)];
+    if (filters.ownership && filters.ownership !== "ALL") {
+      constraints.push(where("ownership", "==", filters.ownership));
+    }
+    if (filters.status && filters.status !== "ALL") constraints.push(where("status", "==", filters.status));
+    constraints.push(orderBy("updatedAt", "desc"), fsLimit(filters.max ?? 300));
 
-  return onSnapshot(
-    query(collection(db, PROJECTS), ...constraints),
-    (snap) => cb(applyProjectFilters(snap.docs.map((d) => mapProject(d.id, d.data())), filters)),
-    (err) => onError?.(err as Error),
-  );
+    unsubscribe = onSnapshot(
+      query(collection(db, PROJECTS), ...constraints),
+      (snap) => cb(applyProjectFilters(snap.docs.map((d) => mapProject(d.id, d.data())), filters)),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribeProject(
@@ -166,8 +173,9 @@ export async function getProject(id: string): Promise<Project | null> {
 
 /** Has this lead already been converted? Prevents duplicate projects. */
 export async function findProjectForLead(leadId: string): Promise<Project | null> {
+  const orgId = await getCurrentTenantId();
   const snap = await getDocs(
-    query(collection(getDb(), PROJECTS), where("sourceLeadId", "==", leadId), fsLimit(1)),
+    query(collection(getDb(), PROJECTS), where("orgId", "==", orgId), where("sourceLeadId", "==", leadId), fsLimit(1)),
   );
   const first = snap.docs[0];
   return first ? mapProject(first.id, first.data()) : null;
@@ -210,6 +218,7 @@ function searchTokensForProject(d: {
 export async function createProject(draft: ProjectDraft, actor: Actor): Promise<Project> {
   const db = getDb();
   const code = await nextProjectCode(draft.ownership);
+  const orgId = await getCurrentTenantId();
   const ref = doc(collection(db, PROJECTS));
 
   const config = normaliseConfig(draft.config ?? []);
@@ -218,6 +227,7 @@ export async function createProject(draft: ProjectDraft, actor: Actor): Promise<
 
   const payload = {
     code,
+    orgId,
     ownership: draft.ownership,
     name: draft.name,
     stage: "PLANNING" as ProjectStage,

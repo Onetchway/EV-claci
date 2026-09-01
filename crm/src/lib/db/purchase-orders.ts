@@ -14,6 +14,7 @@ import {
 import { GST_RATE } from "../catalog";
 import type { GstType, PaymentMode, PoStatus } from "../constants";
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, PoItem, PurchaseOrder, ShipToInfo, VendorPayment } from "../types";
 import { logChangeSafe } from "./change-log";
 import { VENDORS } from "./vendors";
@@ -67,6 +68,7 @@ export interface PoDraft {
 export async function createPurchaseOrder(draft: PoDraft, actor: Actor): Promise<{ id: string; poNumber: string }> {
   const poNumber = await nextPoNumber();
   const money = totals(draft.items);
+  const orgId = await getCurrentTenantId();
   const ref = doc(collection(getDb(), PURCHASE_ORDERS));
 
   await runTransaction(getDb(), async (tx) => {
@@ -74,6 +76,7 @@ export async function createPurchaseOrder(draft: PoDraft, actor: Actor): Promise
     const vendorSnap = await tx.get(vendorRef);
     tx.set(ref, {
       poNumber,
+      orgId,
       vendorId: draft.vendorId,
       vendorName: draft.vendorName,
       status: "DRAFT" as PoStatus,
@@ -206,12 +209,18 @@ export function subscribePurchaseOrders(
   cb: (rows: PurchaseOrder[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  const constraints = filters.vendorId ? [where("vendorId", "==", filters.vendorId)] : [];
-  return onSnapshot(
-    query(collection(getDb(), PURCHASE_ORDERS), ...constraints, orderBy("createdAt", "desc"), fsLimit(filters.max ?? 500)),
-    (snap) => cb(snap.docs.map((d) => mapPo(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    const constraints = [where("orgId", "==", orgId), ...(filters.vendorId ? [where("vendorId", "==", filters.vendorId)] : [])];
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), PURCHASE_ORDERS), ...constraints, orderBy("createdAt", "desc"), fsLimit(filters.max ?? 500)),
+      (snap) => cb(snap.docs.map((d) => mapPo(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribePurchaseOrder(

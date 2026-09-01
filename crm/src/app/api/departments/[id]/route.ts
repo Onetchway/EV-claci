@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { adminDb } from "@/lib/firebase/admin";
-import { errorResponse, requireCaller } from "../../_lib/guard";
+import { ApiError, errorResponse, requireCaller } from "../../_lib/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,10 +11,18 @@ const RenameDepartment = z.object({
   name: z.string().min(1).max(80),
 });
 
+async function assertSameOrg(callerOrgId: string | null, deptId: string): Promise<void> {
+  const snap = await adminDb().collection("departments").doc(deptId).get();
+  if (snap.exists && (snap.data()?.orgId ?? null) !== callerOrgId) {
+    throw new ApiError("Department not found.", 404);
+  }
+}
+
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    await requireCaller(req, "ADMIN");
+    const caller = await requireCaller(req, "ADMIN");
     const body = RenameDepartment.parse(await req.json());
+    await assertSameOrg(caller.orgId, params.id);
     await adminDb().collection("departments").doc(params.id).update({ name: body.name.trim() });
     return NextResponse.json({ ok: true });
   } catch (err) {
@@ -27,7 +35,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    await requireCaller(req, "ADMIN");
+    const caller = await requireCaller(req, "ADMIN");
+    await assertSameOrg(caller.orgId, params.id);
     await adminDb().collection("departments").doc(params.id).delete();
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -10,11 +10,12 @@
  */
 
 import {
-  addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
+  addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import type { ChargerSpec } from "../catalog";
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor } from "../types";
 
 export const CHARGER_CATALOG = "chargerCatalog";
@@ -36,18 +37,26 @@ export function subscribeCustomCatalog(
   cb: (rows: CustomChargerDoc[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), CHARGER_CATALOG), orderBy("kw", "asc")),
-    (snap) => cb(snap.docs.map((d) => mapDoc(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), CHARGER_CATALOG), where("orgId", "==", orgId), orderBy("kw", "asc")),
+      (snap) => cb(snap.docs.map((d) => mapDoc(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export async function addCustomCharger(spec: Omit<ChargerSpec, "sku"> & { sku?: string }, actor: Actor): Promise<void> {
   const sku = spec.sku?.trim() || `CUSTOM-${spec.kw}KW-${Date.now().toString(36).toUpperCase()}`;
+  const orgId = await getCurrentTenantId();
   await addDoc(collection(getDb(), CHARGER_CATALOG), {
     ...spec,
     sku,
+    orgId,
     active: true,
     createdAt: serverTimestamp(),
     createdBy: actor,

@@ -396,15 +396,15 @@ service cloud.firestore {
       // Split from a single `allow read` so an investor's access stays a
       // single-document get() keyed off their own lead — never a list query
       // that could enumerate every project in the company.
-      allow get: if signedIn()
+      allow get: if (signedIn() && sameOrgExisting())
                  || (resource.data.sourceLeadId != null && ownsLeadAsInvestor(resource.data.sourceLeadId));
-      allow list: if signedIn();
+      allow list: if signedIn() && sameOrgExisting();
 
-      allow create: if canWriteLeads() && actorIsSelf('createdBy');
+      allow create: if canWriteLeads() && actorIsSelf('createdBy') && sameOrgIncoming();
 
-      allow update: if canWriteLeads() && actorIsSelf('updatedBy');
+      allow update: if canWriteLeads() && actorIsSelf('updatedBy') && sameOrgExisting() && sameOrgIncoming();
 
-      allow delete: if isSuperAdmin();
+      allow delete: if isSuperAdmin() && sameOrgExisting();
 
       match /documents/{documentId} {
         allow read: if signedIn();
@@ -434,23 +434,23 @@ service cloud.firestore {
     // (approve/pay) are a money decision, gated the same as verifying a
     // payment.
     match /partners/{partnerId} {
-      allow read: if signedIn();
-      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] && sameOrgIncoming();
       // Updates also come from commission accrual, which runs automatically
       // for whichever role recorded the triggering payment — so any signed-in
       // write is allowed here; the edit *form* itself is still gated to
       // admins/managers client-side.
-      allow update: if signedIn();
-      allow delete: if isSuperAdmin();
+      allow update: if signedIn() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if isSuperAdmin() && sameOrgExisting();
     }
 
     match /partnerCommissions/{commissionId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && sameOrgExisting();
       // Only accrued by the app's own commission logic (still client-side,
       // so any signed-in write is allowed) or by finance/admin status changes.
-      allow create: if signedIn();
-      allow update: if canVerifyMoney();
-      allow delete: if isSuperAdmin();
+      allow create: if signedIn() && sameOrgIncoming();
+      allow update: if canVerifyMoney() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if isSuperAdmin() && sameOrgExisting();
     }
 
     // --------------------------------------------------------------- settings
@@ -459,11 +459,17 @@ service cloud.firestore {
     // Readable by everyone signed in because the LOI generator needs it;
     // writable only by admins.
     match /settings/{docId} {
-      // Also readable by the investor portal — it needs the company name/logo
-      // for its own branding, and the bank details here are the same ones
-      // already printed on every EOI/invoice an investor legitimately sees.
-      allow read: if signedIn() || investorSignedIn();
-      allow write: if isAdmin();
+      // One doc per org (docId == that org's own orgId, 'app' for the
+      // default/Livanto org — see lib/db/settings.ts's settingsDocId) so
+      // each tenant's own company/bank/LOI details never leak into
+      // another's. Also readable by the investor portal — it needs the
+      // company name/logo for its own branding, and the bank details here
+      // are the same ones already printed on every EOI/invoice an investor
+      // legitimately sees; not org-restricted since a portal visitor has
+      // no orgId claim to check against (see /api/platform-features's
+      // slug-based resolution for the equivalent check on that route).
+      allow read: if (signedIn() && docId == (orgId() == null ? 'app' : orgId())) || investorSignedIn();
+      allow write: if isAdmin() && docId == (orgId() == null ? 'app' : orgId());
     }
 
     // ------------------------------------------------------------- catalog
@@ -473,8 +479,10 @@ service cloud.firestore {
     // custom skus for any lead), writable by the same bar as overriding a
     // price. Never hard-deleted — see archiveCustomCharger()'s comment.
     match /chargerCatalog/{chargerId} {
-      allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] && sameOrgIncoming();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] && sameOrgExisting();
     }
 
     // ----------------------------------------------------- vendors & procurement
@@ -482,111 +490,143 @@ service cloud.firestore {
     // Who Livanto pays to build a station — Operations/Finance manage this,
     // same bar as the app's canManageVendors().
     match /vendors/{vendorId} {
-      allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgIncoming();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting();
     }
 
     match /purchaseOrders/{poId} {
-      allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgIncoming();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting();
 
       match /payments/{paymentId} {
-        allow read: if signedIn();
-        allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+        allow read: if signedIn() && get(/databases/$(database)/documents/purchaseOrders/$(poId)).data.orgId == orgId();
+        allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE']
+                     && get(/databases/$(database)/documents/purchaseOrders/$(poId)).data.orgId == orgId();
       }
     }
 
     // Asset register — chargers/equipment tracked through their depreciable
     // life. Same bar as vendors/purchase orders.
     match /assets/{assetId} {
-      allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgIncoming();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting();
     }
 
     // Client-facing quotations (chargers and/or EPC services) — the mirror
     // image of purchaseOrders, but money coming IN. Same bar as making a
     // pricing decision (canManageCatalog / discount / price-override).
     match /quotations/{quotationId} {
-      allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] && sameOrgIncoming();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] && sameOrgExisting();
     }
 
     // Proforma Invoices — same shape as quotations, filed under Operations
     // now (Operations can manage it too, alongside Sales Manager).
     match /proformaInvoices/{piId} {
-      allow read: if signedIn();
-      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'];
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'] && sameOrgIncoming();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'] && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'] && sameOrgExisting();
     }
 
     // Site Partners — people/companies offering one or more locations for a
     // charging station. Same bar as leads: an agent's own book is
     // owner-scoped, everyone else sees the whole list.
     match /sitePartners/{partnerId} {
-      allow read: if seesAllLeads() || ownsExisting();
+      allow read: if (seesAllLeads() && sameOrgExisting()) || ownsExisting();
       allow create: if canWriteLeads() && actorIsSelf('createdBy')
-                    && (isAdmin() || role() == 'SALES_MANAGER' || ownsIncoming());
+                    && (isAdmin() || role() == 'SALES_MANAGER' || ownsIncoming())
+                    && sameOrgIncoming();
       allow update: if canWriteLeads()
                     && (isAdmin() || role() == 'SALES_MANAGER' || ownsExisting())
-                    && actorIsSelf('updatedBy');
-      allow delete: if isSuperAdmin();
+                    && actorIsSelf('updatedBy') && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if isSuperAdmin() && sameOrgExisting();
     }
 
     // ------------------------------------------------------------------ HRMS
 
     // Office/geofence config — org-wide policy, admin only.
     match /officeLocations/{officeId} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if isAdmin() && sameOrgIncoming();
+      allow update: if isAdmin() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if isAdmin() && sameOrgExisting();
     }
 
     match /departments/{departmentId} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if isAdmin() && sameOrgIncoming();
+      allow update: if isAdmin() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if isAdmin() && sameOrgExisting();
     }
 
     match /holidays/{holidayId} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if isAdmin() && sameOrgIncoming();
+      allow update: if isAdmin() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if isAdmin() && sameOrgExisting();
     }
 
     match /leaveTypes/{leaveTypeId} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if isAdmin() && sameOrgIncoming();
+      allow update: if isAdmin() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if isAdmin() && sameOrgExisting();
     }
 
     // One doc per employee per day (id `${uid}_${date}`). An employee writes
     // their own check-in/check-out; a manager/admin can mark any day by hand
     // (the "mark absent" correction), which is exactly what canManageHrms()
-    // gates in the UI.
+    // gates in the UI. The org boundary for the canManageHrms() branch comes
+    // from the target employee's own orgId (their own read/write of their own
+    // doc is trivially same-org, since an account only ever has one orgId).
+    // orgId is stamped directly on these documents (like every other
+    // collection — see lib/db/attendance.ts) rather than cross-referenced
+    // via get(users/$(uid)): a get()-based condition isn't provable for a
+    // manager's team-wide list query (no per-uid filter to match against),
+    // so subscribeAttendanceRange()/subscribeAllUsers-style team views would
+    // be denied outright even for a legitimate same-org manager.
     match /attendance/{attendanceId} {
-      allow read: if canManageHrms() || resource.data.uid == uid();
+      allow read: if (canManageHrms() && sameOrgExisting()) || resource.data.uid == uid();
       allow create: if signedIn()
+                    && sameOrgIncoming()
                     && (request.resource.data.uid == uid() || canManageHrms());
-      allow update: if canManageHrms()
-                    || (resource.data.uid == uid() && request.resource.data.uid == uid());
-      allow delete: if isAdmin();
+      allow update: if (canManageHrms() && sameOrgExisting() && sameOrgIncoming())
+                    || (resource.data.uid == uid() && request.resource.data.uid == uid() && sameOrgExisting() && sameOrgIncoming());
+      allow delete: if isAdmin() && sameOrgExisting();
     }
 
     // One doc per employee per Monday-starting week (id `${uid}_${weekStart}`).
     // Only managers/admins build it; everyone reads their own.
     match /rosters/{rosterId} {
-      allow read: if canManageHrms() || resource.data.uid == uid();
-      allow write: if canManageHrms();
+      allow read: if (canManageHrms() && sameOrgExisting()) || resource.data.uid == uid();
+      allow create: if canManageHrms() && sameOrgIncoming();
+      allow update: if canManageHrms() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if canManageHrms() && sameOrgExisting();
     }
 
     match /leaveRequests/{leaveRequestId} {
-      allow read: if canManageHrms() || resource.data.uid == uid();
+      allow read: if (canManageHrms() && sameOrgExisting()) || resource.data.uid == uid();
       // An employee applies for their own leave, starting PENDING.
       allow create: if signedIn()
                     && request.resource.data.uid == uid()
-                    && request.resource.data.status == 'PENDING';
+                    && request.resource.data.status == 'PENDING'
+                    && sameOrgIncoming();
       // A manager/admin approves or rejects; the employee themself may only
       // cancel their own still-pending request.
-      allow update: if (canManageHrms() && request.resource.data.uid == resource.data.uid)
+      allow update: if (canManageHrms() && request.resource.data.uid == resource.data.uid && sameOrgExisting() && sameOrgIncoming())
                     || (resource.data.uid == uid()
                         && resource.data.status == 'PENDING'
                         && request.resource.data.status == 'CANCELLED');
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() && sameOrgExisting();
     }
 
     // --------------------------------------------------------- OCPP / chargers

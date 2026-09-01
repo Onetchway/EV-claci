@@ -8,11 +8,12 @@
 
 import {
   collection, deleteDoc, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
-  setDoc, updateDoc,
+  setDoc, updateDoc, where,
 } from "firebase/firestore";
 
 import type { VendorCategory, VendorStatus } from "../constants";
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, Vendor } from "../types";
 
 export const VENDORS = "vendors";
@@ -51,9 +52,11 @@ export interface VendorDraft {
 
 export async function createVendor(draft: VendorDraft, actor: Actor): Promise<{ id: string; code: string }> {
   const code = await nextVendorCode();
+  const orgId = await getCurrentTenantId();
   const ref = doc(collection(getDb(), VENDORS));
   await setDoc(ref, {
     code,
+    orgId,
     name: draft.name,
     category: draft.category,
     contactName: draft.contactName ?? "",
@@ -119,14 +122,20 @@ export function subscribeVendors(
   onError?: (e: Error) => void,
   opts?: { includeTrashed?: boolean },
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), VENDORS), orderBy("name", "asc")),
-    (snap) => {
-      const rows = snap.docs.map((d) => mapVendor(d.id, d.data()));
-      cb(rows.filter((v) => (opts?.includeTrashed ? !!v.deletedAt : !v.deletedAt)));
-    },
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), VENDORS), where("orgId", "==", orgId), orderBy("name", "asc")),
+      (snap) => {
+        const rows = snap.docs.map((d) => mapVendor(d.id, d.data()));
+        cb(rows.filter((v) => (opts?.includeTrashed ? !!v.deletedAt : !v.deletedAt)));
+      },
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribeVendor(

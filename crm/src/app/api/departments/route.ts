@@ -27,6 +27,7 @@ export async function POST(req: Request) {
 
     const ref = await adminDb().collection("departments").add({
       name: body.name.trim(),
+      orgId: caller.orgId,
       active: true,
       createdAt: FieldValue.serverTimestamp(),
       createdBy: { uid: caller.uid, name: caller.name, role: caller.role },

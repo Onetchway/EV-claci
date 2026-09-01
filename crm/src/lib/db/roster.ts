@@ -7,6 +7,7 @@ import {
 import { WEEK_DAYS, type WeekDay } from "../constants";
 import { defaultWeekDays } from "../dates";
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, RosterWeek } from "../types";
 
 export const ROSTERS = "rosters";
@@ -33,10 +34,11 @@ export function blankRosterWeek(uid: string, userName: string, weekStart: string
 export async function saveRosterWeek(
   uid: string, userName: string, weekStart: string, days: Record<WeekDay, "WORKING" | "WEEK_OFF">, actor: Actor,
 ): Promise<void> {
+  const orgId = await getCurrentTenantId();
   await setDoc(
     doc(getDb(), ROSTERS, rosterId(uid, weekStart)),
     {
-      uid, userName, weekStart, days,
+      uid, userName, weekStart, days, orgId,
       createdAt: serverTimestamp(),
       createdBy: actor,
       updatedAt: serverTimestamp(),
@@ -64,17 +66,24 @@ export function subscribeRosterForWeek(
   cb: (rows: RosterWeek[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), ROSTERS), where("weekStart", "==", weekStart)),
-    (snap) => cb(snap.docs.map((d) => mapRoster(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), ROSTERS), where("orgId", "==", orgId), where("weekStart", "==", weekStart)),
+      (snap) => cb(snap.docs.map((d) => mapRoster(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 /** One-shot fetch across several weeks (a whole month's worth) for a CSV export — `in` supports up to 30 values, and a month never spans more than 6 Mondays. */
 export async function getRostersForWeeks(weekStarts: string[]): Promise<RosterWeek[]> {
   if (weekStarts.length === 0) return [];
-  const snap = await getDocs(query(collection(getDb(), ROSTERS), where("weekStart", "in", weekStarts)));
+  const orgId = await getCurrentTenantId();
+  const snap = await getDocs(query(collection(getDb(), ROSTERS), where("orgId", "==", orgId), where("weekStart", "in", weekStarts)));
   return snap.docs.map((d) => mapRoster(d.id, d.data()));
 }
 

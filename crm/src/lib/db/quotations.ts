@@ -17,6 +17,7 @@ import {
 import type { GstType, QuotationStatus } from "../constants";
 import { getDb } from "../firebase/client";
 import { buildQuote, type ConfigItem, type ExtraItem } from "../pricing";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, ClientInfo, Quotation, ShipToInfo } from "../types";
 import { logChangeSafe } from "./change-log";
 
@@ -67,10 +68,12 @@ function computeTotals(draft: Pick<QuotationDraft, "items" | "extras" | "discoun
 
 export async function createQuotation(draft: QuotationDraft, actor: Actor): Promise<{ id: string; quoteNumber: string }> {
   const quoteNumber = await nextQuoteNumber();
+  const orgId = await getCurrentTenantId();
   const ref = doc(collection(getDb(), QUOTATIONS));
   await runTransaction(getDb(), async (tx) => {
     tx.set(ref, {
       quoteNumber,
+      orgId,
       status: "DRAFT" as QuotationStatus,
       leadId: draft.leadId ?? null,
       leadCode: draft.leadCode ?? null,
@@ -153,12 +156,18 @@ export function subscribeQuotations(
   cb: (rows: Quotation[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  const constraints = filters.leadId ? [where("leadId", "==", filters.leadId)] : [];
-  return onSnapshot(
-    query(collection(getDb(), QUOTATIONS), ...constraints, orderBy("createdAt", "desc")),
-    (snap) => cb(snap.docs.map((d) => mapQuotation(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    const constraints = [where("orgId", "==", orgId), ...(filters.leadId ? [where("leadId", "==", filters.leadId)] : [])];
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), QUOTATIONS), ...constraints, orderBy("createdAt", "desc")),
+      (snap) => cb(snap.docs.map((d) => mapQuotation(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribeQuotation(

@@ -5,6 +5,7 @@ import {
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import { ymd } from "../dates";
 import type { NearestOffice } from "../geo";
 import type { Actor, AttendanceRecord, AttendanceStatus, AttendancePunch } from "../types";
@@ -36,10 +37,11 @@ export async function checkIn(
   if (existing.exists() && (existing.data().checkIn as AttendancePunch | undefined)?.at) {
     throw new Error("Already checked in today.");
   }
+  const orgId = await getCurrentTenantId();
   await setDoc(
     ref,
     {
-      uid, userName, date,
+      uid, userName, date, orgId,
       status: "PRESENT" satisfies AttendanceStatus,
       checkIn: { ...punchFrom(nearest), lat: coords?.lat ?? null, lng: coords?.lng ?? null, at: serverTimestamp() },
       createdAt: serverTimestamp(),
@@ -88,8 +90,9 @@ export async function markAttendance(
     withinGeofence: false,
   });
 
+  const orgId = await getCurrentTenantId();
   const payload: Record<string, unknown> = {
-    uid, userName, date, status,
+    uid, userName, date, status, orgId,
     note: note ?? "",
     markedBy: actor,
     createdAt: serverTimestamp(),
@@ -107,16 +110,23 @@ export function subscribeMyAttendanceMonth(
   cb: (rows: AttendanceRecord[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(
-      collection(getDb(), ATTENDANCE),
-      where("uid", "==", uid),
-      where("date", ">=", monthStart),
-      where("date", "<=", monthEnd),
-    ),
-    (snap) => cb(snap.docs.map((d) => mapAttendance(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(
+        collection(getDb(), ATTENDANCE),
+        where("orgId", "==", orgId),
+        where("uid", "==", uid),
+        where("date", ">=", monthStart),
+        where("date", "<=", monthEnd),
+      ),
+      (snap) => cb(snap.docs.map((d) => mapAttendance(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 /** For managers/admins — every employee's records for one calendar day (the "Team" tab) or a month (exports). */
@@ -125,9 +135,15 @@ export function subscribeAttendanceRange(
   cb: (rows: AttendanceRecord[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), ATTENDANCE), where("date", ">=", fromDate), where("date", "<=", toDate)),
-    (snap) => cb(snap.docs.map((d) => mapAttendance(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), ATTENDANCE), where("orgId", "==", orgId), where("date", ">=", fromDate), where("date", "<=", toDate)),
+      (snap) => cb(snap.docs.map((d) => mapAttendance(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }

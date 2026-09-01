@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, Lead, SiteLocation, SitePartner } from "../types";
 import type { Source } from "../constants";
 import { LEADS } from "./leads";
@@ -71,11 +72,13 @@ export interface SitePartnerDraft {
 
 export async function createSitePartner(draft: SitePartnerDraft, actor: Actor): Promise<{ id: string; code: string }> {
   const code = await nextSitePartnerCode();
+  const orgId = await getCurrentTenantId();
   const ref = doc(collection(getDb(), SITE_PARTNERS));
   const now = new Date();
   await runTransaction(getDb(), async (tx) => {
     tx.set(ref, {
       code,
+      orgId,
       contactName: draft.contactName,
       phone: draft.phone,
       email: draft.email ?? "",
@@ -176,12 +179,18 @@ export function subscribeSitePartners(
   cb: (rows: SitePartner[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  const constraints = filters.ownerId ? [where("ownerId", "==", filters.ownerId)] : [];
-  return onSnapshot(
-    query(collection(getDb(), SITE_PARTNERS), ...constraints, orderBy("createdAt", "desc"), fsLimit(filters.max ?? 2000)),
-    (snap) => cb(snap.docs.map((d) => mapSitePartner(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    const constraints = [where("orgId", "==", orgId), ...(filters.ownerId ? [where("ownerId", "==", filters.ownerId)] : [])];
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), SITE_PARTNERS), ...constraints, orderBy("createdAt", "desc"), fsLimit(filters.max ?? 2000)),
+      (snap) => cb(snap.docs.map((d) => mapSitePartner(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribeSitePartner(
@@ -210,7 +219,8 @@ export interface LocationSearchResult {
  * than a server-side text search.
  */
 export async function searchAvailableLocations(searchTerm: string): Promise<LocationSearchResult[]> {
-  const snap = await getDocs(query(collection(getDb(), SITE_PARTNERS), where("status", "==", "ACTIVE"), fsLimit(500)));
+  const orgId = await getCurrentTenantId();
+  const snap = await getDocs(query(collection(getDb(), SITE_PARTNERS), where("orgId", "==", orgId), where("status", "==", "ACTIVE"), fsLimit(500)));
   const needle = searchTerm.trim().toLowerCase();
   const results: LocationSearchResult[] = [];
   for (const d of snap.docs) {
@@ -258,7 +268,8 @@ export interface LegacySiteLeadImportResult {
  * with a single location, then flags the lead so a second run is a no-op.
  */
 export async function importLegacySiteLeads(actor: Actor): Promise<LegacySiteLeadImportResult> {
-  const snap = await getDocs(query(collection(getDb(), LEADS), where("type", "==", "SITE")));
+  const orgId = await getCurrentTenantId();
+  const snap = await getDocs(query(collection(getDb(), LEADS), where("orgId", "==", orgId), where("type", "==", "SITE")));
   let migrated = 0;
   for (const d of snap.docs) {
     const lead = { id: d.id, ...(d.data() as Omit<Lead, "id">) } as Lead;

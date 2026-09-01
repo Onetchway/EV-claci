@@ -5,11 +5,19 @@ import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { COMPANY, DEFAULT_PAYOUT_MONTHS, DEFAULT_SCOPE_ITEMS, DEFAULT_TENURE_YEARS } from "../constants";
 import { DEFAULT_CLOSING } from "../loi-template";
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, AppSettings } from "../types";
 import { logActivitySafe } from "./activity";
 
 export const SETTINGS = "settings";
+/** The default (Livanto's own) org's settings document — unchanged for backward compatibility with existing data. Every other org gets its own doc, keyed by orgId (see settingsDocId below). */
 export const SETTINGS_DOC = "app";
+
+/** Multi-tenant isolation: each org's company details/bank/LOI defaults are their own document, not shared. */
+async function settingsDocId(): Promise<string> {
+  const orgId = await getCurrentTenantId();
+  return orgId ?? SETTINGS_DOC;
+}
 
 /**
  * Falls back to the values compiled into the app, so a fresh project works
@@ -80,23 +88,30 @@ export function subscribeSettings(
   cb: (settings: AppSettings) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    doc(getDb(), SETTINGS, SETTINGS_DOC),
-    (snap) => cb(withDefaults(snap.exists() ? (snap.data() as AppSettings) : undefined)),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void settingsDocId().then((docId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      doc(getDb(), SETTINGS, docId),
+      (snap) => cb(withDefaults(snap.exists() ? (snap.data() as AppSettings) : undefined)),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export async function saveSettings(settings: AppSettings, actor: Actor): Promise<void> {
   const { updatedAt: _ignored, ...rest } = settings;
+  const docId = await settingsDocId();
   await setDoc(
-    doc(getDb(), SETTINGS, SETTINGS_DOC),
+    doc(getDb(), SETTINGS, docId),
     { ...rest, updatedAt: serverTimestamp(), updatedBy: actor },
     { merge: true },
   );
 
   logActivitySafe({
-    leadId: SETTINGS_DOC,
+    leadId: docId,
     ownerId: actor.uid,
     leadCode: "SETTINGS",
     leadName: "Application settings",

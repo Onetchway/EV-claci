@@ -15,6 +15,7 @@ import {
 
 import type { GstType, ProformaInvoiceStatus } from "../constants";
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import { buildQuote, type ConfigItem, type ExtraItem } from "../pricing";
 import type { Actor, ClientInfo, ProformaInvoice, ShipToInfo } from "../types";
 import { logChangeSafe } from "./change-log";
@@ -68,10 +69,12 @@ function computeTotals(draft: Pick<ProformaInvoiceDraft, "items" | "extras" | "d
 
 export async function createProformaInvoice(draft: ProformaInvoiceDraft, actor: Actor): Promise<{ id: string; piNumber: string }> {
   const piNumber = await nextPiNumber();
+  const orgId = await getCurrentTenantId();
   const ref = doc(collection(getDb(), PROFORMA_INVOICES));
   await runTransaction(getDb(), async (tx) => {
     tx.set(ref, {
       piNumber,
+      orgId,
       status: "DRAFT" as ProformaInvoiceStatus,
       leadId: draft.leadId ?? null,
       leadCode: draft.leadCode ?? null,
@@ -158,12 +161,18 @@ export function subscribeProformaInvoices(
   cb: (rows: ProformaInvoice[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  const constraints = filters.leadId ? [where("leadId", "==", filters.leadId)] : [];
-  return onSnapshot(
-    query(collection(getDb(), PROFORMA_INVOICES), ...constraints, orderBy("createdAt", "desc")),
-    (snap) => cb(snap.docs.map((d) => mapProformaInvoice(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    const constraints = [where("orgId", "==", orgId), ...(filters.leadId ? [where("leadId", "==", filters.leadId)] : [])];
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), PROFORMA_INVOICES), ...constraints, orderBy("createdAt", "desc")),
+      (snap) => cb(snap.docs.map((d) => mapProformaInvoice(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribeProformaInvoice(

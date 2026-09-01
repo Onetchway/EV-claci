@@ -9,11 +9,12 @@
 
 import {
   collection, deleteDoc, doc, onSnapshot, orderBy, query, runTransaction, serverTimestamp,
-  Timestamp, updateDoc,
+  Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import type { AssetCategory, AssetStatus, DepreciationMethod } from "../constants";
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, Asset } from "../types";
 
 export const ASSETS = "assets";
@@ -55,10 +56,12 @@ export interface AssetDraft {
 
 export async function createAsset(draft: AssetDraft, actor: Actor): Promise<{ id: string; assetTag: string }> {
   const assetTag = await nextAssetTag();
+  const orgId = await getCurrentTenantId();
   const ref = doc(collection(getDb(), ASSETS));
   await runTransaction(getDb(), async (tx) => {
     tx.set(ref, {
       assetTag,
+      orgId,
       name: draft.name,
       category: draft.category,
       serialNumber: draft.serialNumber ?? "",
@@ -128,14 +131,20 @@ export function subscribeAssets(
   onError?: (e: Error) => void,
   opts?: { includeTrashed?: boolean },
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), ASSETS), orderBy("createdAt", "desc")),
-    (snap) => {
-      const rows = snap.docs.map((d) => mapAsset(d.id, d.data()));
-      cb(rows.filter((a) => (opts?.includeTrashed ? !!a.deletedAt : !a.deletedAt)));
-    },
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), ASSETS), where("orgId", "==", orgId), orderBy("createdAt", "desc")),
+      (snap) => {
+        const rows = snap.docs.map((d) => mapAsset(d.id, d.data()));
+        cb(rows.filter((a) => (opts?.includeTrashed ? !!a.deletedAt : !a.deletedAt)));
+      },
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribeAsset(

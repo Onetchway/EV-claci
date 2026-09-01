@@ -5,6 +5,7 @@ import {
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import { parseYmd } from "../dates";
 import type { Actor, LeaveRequest, LeaveStatus, LeaveType } from "../types";
 
@@ -26,8 +27,10 @@ function mapLeaveRequest(id: string, data: Record<string, unknown>): LeaveReques
 export async function createLeaveType(
   draft: { code: string; label: string; annualQuota: number },
 ): Promise<void> {
+  const orgId = await getCurrentTenantId();
   await addDoc(collection(getDb(), LEAVE_TYPES), {
     ...draft,
+    orgId,
     active: true,
     createdAt: serverTimestamp(),
   });
@@ -41,11 +44,17 @@ export function subscribeLeaveTypes(
   cb: (rows: LeaveType[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), LEAVE_TYPES), orderBy("label")),
-    (snap) => cb(snap.docs.map((d) => mapLeaveType(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), LEAVE_TYPES), where("orgId", "==", orgId), orderBy("label")),
+      (snap) => cb(snap.docs.map((d) => mapLeaveType(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 // ---------------------------------------------------------------------------
@@ -69,8 +78,10 @@ export interface LeaveRequestDraft {
 }
 
 export async function applyForLeave(draft: LeaveRequestDraft, actor: Actor): Promise<void> {
+  const orgId = await getCurrentTenantId();
   await addDoc(collection(getDb(), LEAVE_REQUESTS), {
     ...draft,
+    orgId,
     reason: draft.reason ?? "",
     days: daysBetween(draft.fromDate, draft.toDate),
     status: "PENDING" satisfies LeaveStatus,
@@ -102,11 +113,17 @@ export function subscribeMyLeaveRequests(
   cb: (rows: LeaveRequest[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), LEAVE_REQUESTS), where("uid", "==", uid), orderBy("appliedAt", "desc")),
-    (snap) => cb(snap.docs.map((d) => mapLeaveRequest(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), LEAVE_REQUESTS), where("orgId", "==", orgId), where("uid", "==", uid), orderBy("appliedAt", "desc")),
+      (snap) => cb(snap.docs.map((d) => mapLeaveRequest(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 /** For managers/admins deciding requests — every request, newest first. */
@@ -114,9 +131,15 @@ export function subscribeAllLeaveRequests(
   cb: (rows: LeaveRequest[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), LEAVE_REQUESTS), orderBy("appliedAt", "desc")),
-    (snap) => cb(snap.docs.map((d) => mapLeaveRequest(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), LEAVE_REQUESTS), where("orgId", "==", orgId), orderBy("appliedAt", "desc")),
+      (snap) => cb(snap.docs.map((d) => mapLeaveRequest(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }

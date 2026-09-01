@@ -18,6 +18,7 @@ import {
   type PartnerTier,
 } from "../constants";
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, Partner, PartnerCommission } from "../types";
 import { LEADS } from "./leads";
 
@@ -61,9 +62,11 @@ export interface PartnerDraft {
 
 export async function createPartner(draft: PartnerDraft, actor: Actor): Promise<{ id: string; code: string }> {
   const code = await nextPartnerCode();
+  const orgId = await getCurrentTenantId();
   const ref = doc(collection(getDb(), PARTNERS));
   await setDoc(ref, {
     code,
+    orgId,
     name: draft.name,
     company: draft.company ?? "",
     phone: draft.phone,
@@ -124,14 +127,20 @@ export function subscribePartners(
   onError?: (e: Error) => void,
   opts?: { includeTrashed?: boolean },
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), PARTNERS), orderBy("name", "asc")),
-    (snap) => {
-      const rows = snap.docs.map((d) => mapPartner(d.id, d.data()));
-      cb(rows.filter((p) => (opts?.includeTrashed ? !!p.deletedAt : !p.deletedAt)));
-    },
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), PARTNERS), where("orgId", "==", orgId), orderBy("name", "asc")),
+      (snap) => {
+        const rows = snap.docs.map((d) => mapPartner(d.id, d.data()));
+        cb(rows.filter((p) => (opts?.includeTrashed ? !!p.deletedAt : !p.deletedAt)));
+      },
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribePartner(
@@ -151,22 +160,34 @@ export function subscribePartnerCommissions(
   cb: (rows: PartnerCommission[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), COMMISSIONS), where("partnerId", "==", partnerId), orderBy("accruedAt", "desc")),
-    (snap) => cb(snap.docs.map((d) => mapCommission(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), COMMISSIONS), where("orgId", "==", orgId), where("partnerId", "==", partnerId), orderBy("accruedAt", "desc")),
+      (snap) => cb(snap.docs.map((d) => mapCommission(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export function subscribeAllCommissions(
   cb: (rows: PartnerCommission[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), COMMISSIONS), orderBy("accruedAt", "desc"), fsLimit(500)),
-    (snap) => cb(snap.docs.map((d) => mapCommission(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), COMMISSIONS), where("orgId", "==", orgId), orderBy("accruedAt", "desc"), fsLimit(500)),
+      (snap) => cb(snap.docs.map((d) => mapCommission(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export async function setCommissionStatus(
@@ -202,6 +223,7 @@ export function accruePartnerCommissionSafe(leadId: string): void {
 
 async function accruePartnerCommission(leadId: string): Promise<void> {
   const db = getDb();
+  const orgId = await getCurrentTenantId();
   const leadSnap = await getDoc(doc(db, LEADS, leadId));
   if (!leadSnap.exists()) return;
   const lead = leadSnap.data() as {
@@ -216,7 +238,7 @@ async function accruePartnerCommission(leadId: string): Promise<void> {
 
   // Idempotent: a commission already accrued for this lead is never duplicated.
   const existing = await getDocs(
-    query(collection(db, COMMISSIONS), where("leadId", "==", leadId), fsLimit(1)),
+    query(collection(db, COMMISSIONS), where("orgId", "==", orgId), where("leadId", "==", leadId), fsLimit(1)),
   );
   if (!existing.empty) return;
 
@@ -231,6 +253,7 @@ async function accruePartnerCommission(leadId: string): Promise<void> {
   const amount = Math.round(value * (ratePct / 100));
 
   await setDoc(doc(collection(db, COMMISSIONS)), {
+    orgId,
     partnerId: partner.id,
     partnerName: partner.name,
     leadId,

@@ -1,8 +1,9 @@
 "use client";
 
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Department } from "../types";
 
 export const DEPARTMENTS = "departments";
@@ -20,9 +21,15 @@ export function subscribeDepartments(
   cb: (rows: Department[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), DEPARTMENTS), orderBy("name")),
-    (snap) => cb(snap.docs.map((d) => mapDepartment(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), DEPARTMENTS), where("orgId", "==", orgId), orderBy("name")),
+      (snap) => cb(snap.docs.map((d) => mapDepartment(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
