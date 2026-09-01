@@ -25,6 +25,17 @@ function CreateTenantModal({ plans, onClose, onCreated }) {
     try {
       const created = await tenantsApi.create({ ...form, billing_plan_id: form.billing_plan_id || null });
       toast.success(`Tenant "${created.name}" created. API key: ${created.api_key}`, { duration: 10000 });
+      // Only meaningful when CRM_PROVISION_URL/SECRET are configured — see
+      // platform/backend's tenants.service.js. A CRM login exists the
+      // moment the tenant does, not as a separate manual step.
+      if (created.crmProvisioning?.ok) {
+        toast.success(
+          `CRM login for ${created.name}: ${created.crmProvisioning.loginEmail} / ${created.crmProvisioning.temporaryPassword}`,
+          { duration: 15000 },
+        );
+      } else if (created.crmProvisioning?.configured) {
+        toast.error(`CRM provisioning failed for ${created.name} — check the platform backend logs. The tenant record was still created.`, { duration: 8000 });
+      }
       onCreated();
       onClose();
     } catch (err) {

@@ -95,10 +95,49 @@ const create = async (data, actor) => {
 
   await audit.log({ superAdminId: actor?.id, tenantId: tenant.id, action: 'tenant.created', details: { name: tenant.name } });
 
+  // Provisions this tenant's actual CRM login — see crm/src/app/api/
+  // platform/provision-tenant/route.ts. Best-effort: a provisioning
+  // failure (CRM_PROVISION_URL unset, that CRM instance unreachable, etc.)
+  // never fails tenant creation itself — the super admin can retry
+  // provisioning separately, the tenant row already exists either way.
+  // Only meaningful for a tenant onboarded onto the shared crm/ CRM (see
+  // README's deployment_mode table); a dedicated/isolated tenant running
+  // its own separate instance provisions itself some other way.
+  let crmProvisioning = { configured: Boolean(process.env.CRM_PROVISION_URL && process.env.CRM_PROVISION_SECRET) };
+  if (crmProvisioning.configured) {
+    try {
+      const response = await fetch(`${process.env.CRM_PROVISION_URL}/api/platform/provision-tenant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Provision-Secret': process.env.CRM_PROVISION_SECRET },
+        body: JSON.stringify({
+          slug: tenant.slug,
+          name: tenant.name,
+          adminEmail: tenant.contact_email,
+          adminName: tenant.contact_name,
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        crmProvisioning = {
+          configured: true, ok: true,
+          orgId: data.orgId, loginEmail: tenant.contact_email, temporaryPassword: data.temporaryPassword,
+        };
+        await audit.log({ superAdminId: actor?.id, tenantId: tenant.id, action: 'tenant.crm_provisioned', details: { orgId: data.orgId } });
+      } else {
+        console.error('[tenants] CRM provisioning failed:', response.status, await response.text().catch(() => ''));
+        crmProvisioning = { configured: true, ok: false };
+      }
+    } catch (err) {
+      console.error('[tenants] CRM provisioning request failed:', err.message);
+      crmProvisioning = { configured: true, ok: false };
+    }
+  }
+
   // Return the API key exactly once, at creation — the tenant's own
   // backend needs it to authenticate self-reported usage. It is never
-  // exposed again after this response.
-  return tenant;
+  // exposed again after this response. crmProvisioning.temporaryPassword
+  // is the same one-time deal, for the CRM login this just created.
+  return { ...tenant, crmProvisioning };
 };
 
 const ALLOWED_UPDATE_FIELDS = [
