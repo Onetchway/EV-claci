@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 // Auth-gated routes (see the old src/middleware.js this replaces, which
 // used next-auth/middleware directly). Checked against the path *after*
 // stripping any tenant prefix below, so this list stays app-relative.
-const PROTECTED = ['/dashboard', '/stations', '/chargers', '/franchise', '/revenue', '/settlements', '/users'];
+const PROTECTED = ['/dashboard', '/stations', '/chargers', '/franchise', '/revenue', '/settlements', '/users', '/portal'];
 
 const RESERVED = new Set(['api', '_next', 'favicon.ico']);
 
@@ -43,6 +43,17 @@ export async function middleware(req) {
       const loginUrl = req.nextUrl.clone();
       loginUrl.pathname = slug ? `/${slug}/login` : '/login';
       return NextResponse.redirect(loginUrl);
+    }
+    // A "franchise"-role user (see components/layout/Sidebar.jsx's
+    // FRANCHISE_NAV) never sees the admin-facing pages, even by typing the
+    // URL directly — this backs the Sidebar's UI-only restriction with an
+    // actual redirect. The API itself is separately scoped (see
+    // backend/src/controllers/franchise.controller.js's portalDashboard),
+    // this is just so they land somewhere useful instead of an empty page.
+    if (token.role === 'franchise' && appPath !== '/portal') {
+      const portalUrl = req.nextUrl.clone();
+      portalUrl.pathname = slug ? `/${slug}/portal` : '/portal';
+      return NextResponse.redirect(portalUrl);
     }
   }
 

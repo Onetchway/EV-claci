@@ -38,6 +38,11 @@ TENANT_ADMIN_EMAIL="${TENANT_ADMIN_EMAIL:-admin@xpulse.example}"
 TENANT_ADMIN_NAME="${TENANT_ADMIN_NAME:-Xpulse Admin}"
 TENANT_ADMIN_PASSWORD="${TENANT_ADMIN_PASSWORD:-Passw0rd!}"
 
+FRANCHISE_NAME="${FRANCHISE_NAME:-Xpulse Downtown Franchise}"
+FRANCHISE_PORTAL_EMAIL="${FRANCHISE_PORTAL_EMAIL:-franchise@xpulse.example}"
+FRANCHISE_PORTAL_NAME="${FRANCHISE_PORTAL_NAME:-Downtown Franchise Partner}"
+FRANCHISE_PORTAL_PASSWORD="${FRANCHISE_PORTAL_PASSWORD:-Passw0rd!}"
+
 export PGPASSWORD="$PGPASSWORD_VAL"
 PSQL="psql -h $PGHOST -p $PGPORT -U $PGUSER -v ON_ERROR_STOP=1"
 DB_URL_BASE="postgresql://${PGUSER}:${PGPASSWORD_VAL}@${PGHOST}:${PGPORT}"
@@ -142,18 +147,47 @@ echo "==> Seeding tenant admin user ($TENANT_ADMIN_EMAIL) and assigning to '$TEN
 (cd backend && npm run seed -- --email "$TENANT_ADMIN_EMAIL" --name "$TENANT_ADMIN_NAME" --password "$TENANT_ADMIN_PASSWORD" >/dev/null)
 $PSQL -d "$TENANT_DB" -c "UPDATE users SET tenant_id='$TENANT_ID' WHERE email='$(echo "$TENANT_ADMIN_EMAIL" | tr '[:upper:]' '[:lower:]')'" >/dev/null
 
-echo "==> Starting backend (:5000) and frontend apps (:3100, :3000)..."
+echo "==> Starting tenant CRM backend on :5000..."
 (cd backend && nohup npm run dev > /tmp/alpha-tenant-backend.log 2>&1 &)
+for i in $(seq 1 20); do curl -s -o /dev/null http://localhost:5000/api/auth/login && break; sleep 0.5; done
+
+echo "==> Creating a demo franchise ('$FRANCHISE_NAME') under '$TENANT_SLUG'..."
+TENANT_TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$TENANT_ADMIN_EMAIL\",\"password\":\"$TENANT_ADMIN_PASSWORD\",\"tenantSlug\":\"$TENANT_SLUG\"}" \
+  | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).data.token')
+
+EXISTING_FRANCHISE_ID=$(curl -s "http://localhost:5000/api/franchises?limit=100" -H "Authorization: Bearer $TENANT_TOKEN" \
+  | node -pe "const d=JSON.parse(require('fs').readFileSync(0,'utf8')).data||[]; const f=d.find(x=>x.name==='$FRANCHISE_NAME'); f?f.id:''")
+
+if [ -n "$EXISTING_FRANCHISE_ID" ]; then
+  FRANCHISE_ID="$EXISTING_FRANCHISE_ID"
+  echo "    franchise already exists ($FRANCHISE_ID), reusing it."
+else
+  FRANCHISE_ID=$(curl -s -X POST http://localhost:5000/api/franchises -H "Authorization: Bearer $TENANT_TOKEN" -H 'Content-Type: application/json' \
+    -d "{\"name\":\"$FRANCHISE_NAME\",\"contact_name\":\"$FRANCHISE_PORTAL_NAME\",\"contact_email\":\"$FRANCHISE_PORTAL_EMAIL\",\"type\":\"investor\",\"revenue_share_percent\":20,\"investment_amount\":500000}" \
+    | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).id')
+  echo "    created franchise $FRANCHISE_ID"
+fi
+
+echo "==> Seeding franchise portal login ($FRANCHISE_PORTAL_EMAIL)..."
+(cd backend && npm run seed -- --email "$FRANCHISE_PORTAL_EMAIL" --name "$FRANCHISE_PORTAL_NAME" --password "$FRANCHISE_PORTAL_PASSWORD" --role franchise --franchiseId "$FRANCHISE_ID" >/dev/null)
+$PSQL -d "$TENANT_DB" -c "UPDATE users SET tenant_id='$TENANT_ID' WHERE email='$(echo "$FRANCHISE_PORTAL_EMAIL" | tr '[:upper:]' '[:lower:]')'" >/dev/null
+
+echo "==> Starting frontend apps (:3100, :3000)..."
 (cd platform/frontend && nohup npm run dev > /tmp/alpha-platform-frontend.log 2>&1 &)
 (cd frontend && nohup npm run dev > /tmp/alpha-tenant-frontend.log 2>&1 &)
 
 echo ""
 echo "All set. Logs: /tmp/alpha-*.log"
 echo ""
-echo "  Super admin:     http://localhost:3100/login"
-echo "                    $SUPER_ADMIN_EMAIL / $SUPER_ADMIN_PASSWORD"
+echo "  Super admin:              http://localhost:3100/login"
+echo "                             $SUPER_ADMIN_EMAIL / $SUPER_ADMIN_PASSWORD"
 echo ""
-echo "  $TENANT_NAME tenant CRM:  http://localhost:3000/$TENANT_SLUG/login"
-echo "                    $TENANT_ADMIN_EMAIL / $TENANT_ADMIN_PASSWORD"
+echo "  $TENANT_NAME tenant CRM:         http://localhost:3000/$TENANT_SLUG/login"
+echo "                             $TENANT_ADMIN_EMAIL / $TENANT_ADMIN_PASSWORD"
+echo ""
+echo "  $TENANT_NAME franchise portal:   http://localhost:3000/$TENANT_SLUG/login"
+echo "                             $FRANCHISE_PORTAL_EMAIL / $FRANCHISE_PORTAL_PASSWORD"
+echo "                             (same login page — this account lands on /portal instead of /dashboard)"
 echo ""
 echo "Give the frontends a few seconds to finish starting before opening them."

@@ -1,5 +1,5 @@
 'use client';
-import { signIn, useSession } from 'next-auth/react';
+import { getSession, signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Zap } from 'lucide-react';
@@ -25,7 +25,11 @@ function LoginForm() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
 
-  useEffect(() => { if (session) router.replace(tenantHref('/dashboard', tenant)); }, [session, router, tenant]);
+  // A "franchise"-role user lands on their own portal, not the admin
+  // dashboard — see components/layout/Sidebar.jsx's FRANCHISE_NAV.
+  const landingPath = (role) => tenantHref(role === 'franchise' ? '/portal' : '/dashboard', tenant);
+
+  useEffect(() => { if (session) router.replace(landingPath(session.user?.role)); }, [session, router, tenant]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -34,12 +38,14 @@ function LoginForm() {
     // tenantSlug: which tenant's login page this is (see middleware.js) —
     // the backend rejects a login whose tenant doesn't match the user's own.
     const res = await signIn('credentials', { email, password, tenantSlug: tenant || '', redirect: false });
-    setBusy(false);
     if (res?.error) {
+      setBusy(false);
       setFormError('Invalid email or password.');
-    } else {
-      router.push(tenantHref('/dashboard', tenant));
+      return;
     }
+    const fresh = await getSession();
+    setBusy(false);
+    router.push(landingPath(fresh?.user?.role));
   }
 
   return (

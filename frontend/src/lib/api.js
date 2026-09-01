@@ -40,6 +40,8 @@ export const bssApi = { ...resource('/bss') };
 export const franchisesApi = {
   ...resource('/franchises'),
   dashboard: (id) => client.get(`/franchises/${id}/dashboard`),
+  // The logged-in franchise partner's own dashboard (role "franchise") — no id needed.
+  portalDashboard: () => client.get('/franchises/portal/dashboard'),
 };
 export const sessionsApi = { ...resource('/sessions') };
 export const revenueApi = {
