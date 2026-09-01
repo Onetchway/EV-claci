@@ -65,7 +65,7 @@ export default function QuotationDetailPage() {
   }
 
   async function onStatusChange(status: QuotationStatus) {
-    await run(() => updateQuotationStatus(q!.id, status, actor, { quotationNo: q!.quotationNo, projectId: q!.projectId }), `Marked ${status}.`);
+    await run(() => updateQuotationStatus(q!.id, status, actor, { quotationNo: q!.quotationNo, projectId: q!.projectId, fromStatus: q!.status }), `Marked ${status}.`);
   }
 
   async function onApprove() {

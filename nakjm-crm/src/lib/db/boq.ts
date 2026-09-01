@@ -106,7 +106,7 @@ export async function updateBoqStatus(boq: Boq, status: BoqStatus, actor: Actor)
   await updateDoc(doc(getDb(), BOQS, boq.id), { status, updatedAt: serverTimestamp() });
   logActivitySafe({
     entityType: "BOQ", entityId: boq.id, entityLabel: boq.boqNo, action: "STATUS_CHANGE",
-    message: `Marked BOQ ${boq.boqNo} ${status}`, actor, projectId: boq.projectId,
+    message: `status: ${boq.status} → ${status}`, actor, projectId: boq.projectId,
   });
 }
 
@@ -126,7 +126,7 @@ export async function approveBoq(boq: Boq, signatureName: string, note: string |
   });
   logActivitySafe({
     entityType: "BOQ", entityId: boq.id, entityLabel: boq.boqNo, action: "STATUS_CHANGE",
-    message: `${actor.name} approved BOQ ${boq.boqNo}`, actor, projectId: boq.projectId,
+    message: `status: ${boq.status} → APPROVED`, actor, projectId: boq.projectId,
   });
 }
 

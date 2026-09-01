@@ -150,7 +150,7 @@ export async function updatePoStatus(po: PurchaseOrder, status: PoStatus, actor:
   await updateDoc(doc(getDb(), PURCHASE_ORDERS, po.id), { status, updatedAt: serverTimestamp() });
   logActivitySafe({
     entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNo, action: "STATUS_CHANGE",
-    message: `Marked PO ${po.poNo} ${status}`, actor, projectId: po.projectId,
+    message: `status: ${po.status} → ${status}`, actor, projectId: po.projectId,
   });
 }
 
@@ -171,7 +171,7 @@ export async function approvePurchaseOrder(po: PurchaseOrder, signatureName: str
   });
   logActivitySafe({
     entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNo, action: "STATUS_CHANGE",
-    message: `${actor.name} approved and issued PO ${po.poNo}`, actor, projectId: po.projectId,
+    message: `status: ${po.status} → ISSUED`, actor, projectId: po.projectId,
   });
 }
 

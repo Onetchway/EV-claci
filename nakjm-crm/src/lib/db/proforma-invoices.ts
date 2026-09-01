@@ -161,7 +161,7 @@ export async function updateProformaInvoice(pi: ProformaInvoice, patch: PiPatch,
   logActivitySafe({
     entityType: "PROFORMA_INVOICE", entityId: pi.id, entityLabel: pi.piNo,
     action: patch.status && patch.status !== pi.status ? "STATUS_CHANGE" : "UPDATE",
-    message: patch.status && patch.status !== pi.status ? `Marked PI ${pi.piNo} ${patch.status}` : `Edited PI ${pi.piNo}`,
+    message: patch.status && patch.status !== pi.status ? `status: ${pi.status} → ${patch.status}` : `Edited PI ${pi.piNo}`,
     actor, projectId: pi.projectId,
   });
 }

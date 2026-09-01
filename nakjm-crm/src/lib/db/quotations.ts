@@ -210,12 +210,12 @@ export async function reviseQuotation(quotation: Quotation, actor: Actor): Promi
   return { id: ref.id, ...(payload as unknown as Omit<Quotation, "id">) };
 }
 
-export async function updateQuotationStatus(id: string, status: QuotationStatus, actor?: Actor, context?: { quotationNo: string; projectId: string }): Promise<void> {
+export async function updateQuotationStatus(id: string, status: QuotationStatus, actor?: Actor, context?: { quotationNo: string; projectId: string; fromStatus?: QuotationStatus }): Promise<void> {
   await updateDoc(doc(getDb(), QUOTATIONS, id), { status, updatedAt: serverTimestamp() });
   if (actor && context) {
     logActivitySafe({
       entityType: "QUOTATION", entityId: id, entityLabel: context.quotationNo, action: "STATUS_CHANGE",
-      message: `Marked quotation ${context.quotationNo} ${status}`, actor, projectId: context.projectId,
+      message: `status: ${context.fromStatus ?? "—"} → ${status}`, actor, projectId: context.projectId,
     });
   }
 }
@@ -236,7 +236,7 @@ export async function approveQuotation(quotation: Quotation, signatureName: stri
   });
   logActivitySafe({
     entityType: "QUOTATION", entityId: quotation.id, entityLabel: quotation.quotationNo, action: "STATUS_CHANGE",
-    message: `${actor.name} approved quotation ${quotation.quotationNo}`, actor, projectId: quotation.projectId,
+    message: `status: ${quotation.status} → APPROVED`, actor, projectId: quotation.projectId,
   });
 }
 
