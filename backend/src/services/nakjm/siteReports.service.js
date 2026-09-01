@@ -3,12 +3,16 @@
 const { query } = require('../../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { paginate, paginatedResponse } = require('../../utils/pagination');
+const { tenantWhere, tenantIdForInsert } = require('../../middleware/tenantScope');
 
-const list = async (filters) => {
+const list = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'sr.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.project_id)   { conditions.push(`sr.project_id = $${idx++}`);   params.push(filters.project_id); }
   if (filters.report_type)  { conditions.push(`sr.report_type = $${idx++}`);  params.push(filters.report_type); }
@@ -28,7 +32,7 @@ const list = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const create = async (data) => {
+const create = async (data, req) => {
   const {
     project_id, reported_by = null, report_date = null, report_type = 'daily',
     progress_percent = 0, work_done = null, issues = null, manpower_count = 0,
@@ -37,15 +41,19 @@ const create = async (data) => {
   if (!project_id) { const e = new Error('project_id is required'); e.status = 400; throw e; }
   const id = uuidv4();
   const res = await query(
-    `INSERT INTO nakjm_site_reports (id, project_id, reported_by, report_date, report_type, progress_percent, work_done, issues, manpower_count, weather, visible_to_client, created_at)
-     VALUES ($1,$2,$3,COALESCE($4,CURRENT_DATE),$5,$6,$7,$8,$9,$10,$11,NOW()) RETURNING *`,
-    [id, project_id, reported_by, report_date, report_type, progress_percent, work_done, issues, manpower_count, weather, visible_to_client]
+    `INSERT INTO nakjm_site_reports (id, tenant_id, project_id, reported_by, report_date, report_type, progress_percent, work_done, issues, manpower_count, weather, visible_to_client, created_at)
+     VALUES ($1,$2,$3,$4,COALESCE($5,CURRENT_DATE),$6,$7,$8,$9,$10,$11,$12,NOW()) RETURNING *`,
+    [id, tenantIdForInsert(req), project_id, reported_by, report_date, report_type, progress_percent, work_done, issues, manpower_count, weather, visible_to_client]
   );
   return res.rows[0];
 };
 
-const remove = async (id) => {
-  const res = await query('DELETE FROM nakjm_site_reports WHERE id = $1 RETURNING id', [id]);
+const remove = async (id, req) => {
+  let sql = 'DELETE FROM nakjm_site_reports WHERE id = $1';
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING id`, params);
   if (!res.rows[0]) { const e = new Error('Site report not found'); e.status = 404; throw e; }
 };
 

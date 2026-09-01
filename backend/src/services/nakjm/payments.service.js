@@ -3,13 +3,17 @@
 const { query } = require('../../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { paginate, paginatedResponse } = require('../../utils/pagination');
+const { tenantWhere, tenantIdForInsert } = require('../../middleware/tenantScope');
 
 // ── Client payments (collection) ────────────────────────────────────────
-const listClientPayments = async (filters) => {
+const listClientPayments = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'cp.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.project_id) { conditions.push(`cp.project_id = $${idx++}`); params.push(filters.project_id); }
   if (filters.client_id)  { conditions.push(`cp.client_id = $${idx++}`);  params.push(filters.client_id); }
@@ -28,14 +32,14 @@ const listClientPayments = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const createClientPayment = async (data) => {
+const createClientPayment = async (data, req) => {
   const { project_id, client_id, pi_id = null, payment_date = null, amount, mode = 'bank_transfer', reference_no = null, milestone = null, notes = null } = data;
   if (!project_id || !client_id || !amount) { const e = new Error('project_id, client_id, and amount are required'); e.status = 400; throw e; }
   const id = uuidv4();
   const res = await query(
-    `INSERT INTO nakjm_client_payments (id, project_id, client_id, pi_id, payment_date, amount, mode, reference_no, milestone, notes, created_at)
-     VALUES ($1,$2,$3,$4,COALESCE($5,CURRENT_DATE),$6,$7,$8,$9,$10,NOW()) RETURNING *`,
-    [id, project_id, client_id, pi_id, payment_date, amount, mode, reference_no, milestone, notes]
+    `INSERT INTO nakjm_client_payments (id, tenant_id, project_id, client_id, pi_id, payment_date, amount, mode, reference_no, milestone, notes, created_at)
+     VALUES ($1,$2,$3,$4,$5,COALESCE($6,CURRENT_DATE),$7,$8,$9,$10,$11,NOW()) RETURNING *`,
+    [id, tenantIdForInsert(req), project_id, client_id, pi_id, payment_date, amount, mode, reference_no, milestone, notes]
   );
   if (pi_id) {
     await query(
@@ -49,17 +53,24 @@ const createClientPayment = async (data) => {
   return res.rows[0];
 };
 
-const removeClientPayment = async (id) => {
-  const res = await query('DELETE FROM nakjm_client_payments WHERE id = $1 RETURNING id', [id]);
+const removeClientPayment = async (id, req) => {
+  let sql = 'DELETE FROM nakjm_client_payments WHERE id = $1';
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING id`, params);
   if (!res.rows[0]) { const e = new Error('Payment not found'); e.status = 404; throw e; }
 };
 
 // ── Vendor payments (payouts) ───────────────────────────────────────────
-const listVendorPayments = async (filters) => {
+const listVendorPayments = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'vp.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.project_id) { conditions.push(`vp.project_id = $${idx++}`); params.push(filters.project_id); }
   if (filters.vendor_id)  { conditions.push(`vp.vendor_id = $${idx++}`);  params.push(filters.vendor_id); }
@@ -78,14 +89,14 @@ const listVendorPayments = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const createVendorPayment = async (data) => {
+const createVendorPayment = async (data, req) => {
   const { vendor_id, project_id, po_id = null, payment_date = null, amount, mode = 'bank_transfer', reference_no = null, notes = null } = data;
   if (!vendor_id || !project_id || !amount) { const e = new Error('vendor_id, project_id, and amount are required'); e.status = 400; throw e; }
   const id = uuidv4();
   const res = await query(
-    `INSERT INTO nakjm_vendor_payments (id, vendor_id, project_id, po_id, payment_date, amount, mode, reference_no, notes, created_at)
-     VALUES ($1,$2,$3,$4,COALESCE($5,CURRENT_DATE),$6,$7,$8,$9,NOW()) RETURNING *`,
-    [id, vendor_id, project_id, po_id, payment_date, amount, mode, reference_no, notes]
+    `INSERT INTO nakjm_vendor_payments (id, tenant_id, vendor_id, project_id, po_id, payment_date, amount, mode, reference_no, notes, created_at)
+     VALUES ($1,$2,$3,$4,$5,COALESCE($6,CURRENT_DATE),$7,$8,$9,$10,NOW()) RETURNING *`,
+    [id, tenantIdForInsert(req), vendor_id, project_id, po_id, payment_date, amount, mode, reference_no, notes]
   );
   if (po_id) {
     await query(
@@ -99,8 +110,12 @@ const createVendorPayment = async (data) => {
   return res.rows[0];
 };
 
-const removeVendorPayment = async (id) => {
-  const res = await query('DELETE FROM nakjm_vendor_payments WHERE id = $1 RETURNING id', [id]);
+const removeVendorPayment = async (id, req) => {
+  let sql = 'DELETE FROM nakjm_vendor_payments WHERE id = $1';
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING id`, params);
   if (!res.rows[0]) { const e = new Error('Payment not found'); e.status = 404; throw e; }
 };
 

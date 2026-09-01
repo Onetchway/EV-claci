@@ -1,8 +1,14 @@
 'use strict';
 
 const { query } = require('../../config/database');
+const { tenantWhere } = require('../../middleware/tenantScope');
 
-const overview = async () => {
+const overview = async (req) => {
+  const t = tenantWhere(req, 1);
+  const tParams = t.params;
+  const andTenant = t.clause ? ` AND ${t.clause}` : '';
+  const whereTenant = t.clause ? ` WHERE ${t.clause}` : '';
+
   const [
     clientsRes, vendorsRes, teamRes,
     projectsByStatusRes, contractRes,
@@ -10,24 +16,27 @@ const overview = async () => {
     vendorCommittedRes, vendorPaidRes,
     upcomingRes, recentReportsRes,
   ] = await Promise.all([
-    query(`SELECT COUNT(*) FROM nakjm_clients WHERE status = 'active'`),
-    query(`SELECT COUNT(*) FROM nakjm_vendors WHERE status = 'active'`),
-    query(`SELECT COUNT(*) FROM nakjm_team_members WHERE status = 'active'`),
-    query(`SELECT status, COUNT(*) AS count FROM nakjm_projects GROUP BY status`),
-    query(`SELECT COALESCE(SUM(contract_value),0) AS total, COALESCE(SUM(budget_amount),0) AS budget FROM nakjm_projects WHERE status NOT IN ('cancelled')`),
-    query(`SELECT COALESCE(SUM(amount),0) AS total FROM nakjm_client_payments`),
-    query(`SELECT COALESCE(SUM(total_amount),0) AS total FROM nakjm_proforma_invoices WHERE status != 'cancelled'`),
-    query(`SELECT COALESCE(SUM(total_amount),0) AS total FROM nakjm_purchase_orders WHERE status != 'cancelled'`),
-    query(`SELECT COALESCE(SUM(amount),0) AS total FROM nakjm_vendor_payments`),
+    query(`SELECT COUNT(*) FROM nakjm_clients WHERE status = 'active'${andTenant}`, tParams),
+    query(`SELECT COUNT(*) FROM nakjm_vendors WHERE status = 'active'${andTenant}`, tParams),
+    query(`SELECT COUNT(*) FROM nakjm_team_members WHERE status = 'active'${andTenant}`, tParams),
+    query(`SELECT status, COUNT(*) AS count FROM nakjm_projects${whereTenant} GROUP BY status`, tParams),
+    query(`SELECT COALESCE(SUM(contract_value),0) AS total, COALESCE(SUM(budget_amount),0) AS budget FROM nakjm_projects WHERE status NOT IN ('cancelled')${andTenant}`, tParams),
+    query(`SELECT COALESCE(SUM(amount),0) AS total FROM nakjm_client_payments${whereTenant}`, tParams),
+    query(`SELECT COALESCE(SUM(total_amount),0) AS total FROM nakjm_proforma_invoices WHERE status != 'cancelled'${andTenant}`, tParams),
+    query(`SELECT COALESCE(SUM(total_amount),0) AS total FROM nakjm_purchase_orders WHERE status != 'cancelled'${andTenant}`, tParams),
+    query(`SELECT COALESCE(SUM(amount),0) AS total FROM nakjm_vendor_payments${whereTenant}`, tParams),
     query(
       `SELECT id, project_code, name, status, target_end_date FROM nakjm_projects
-       WHERE target_end_date IS NOT NULL AND status IN ('approved','in_progress')
-       ORDER BY target_end_date ASC LIMIT 8`
+       WHERE target_end_date IS NOT NULL AND status IN ('approved','in_progress')${andTenant}
+       ORDER BY target_end_date ASC LIMIT 8`,
+      tParams
     ),
     query(
       `SELECT sr.id, sr.report_date, sr.progress_percent, sr.report_type, p.name AS project_name
        FROM nakjm_site_reports sr LEFT JOIN nakjm_projects p ON p.id = sr.project_id
-       ORDER BY sr.created_at DESC LIMIT 8`
+       ${t.clause ? `WHERE ${t.clause.replace('tenant_id', 'sr.tenant_id')}` : ''}
+       ORDER BY sr.created_at DESC LIMIT 8`,
+      tParams
     ),
   ]);
 
