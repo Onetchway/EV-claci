@@ -29,7 +29,22 @@ import { canManageHrms, canManageHrmsSetup, canSeeAllHrms, isAdmin } from "@/lib
 import type {
   AppUser, AttendanceRecord, AttendanceStatus, LeaveRequest, LeaveType, OfficeLocation,
 } from "@/lib/types";
-import { downloadCsv, formatDate, formatDateTime } from "@/lib/utils";
+import { downloadCsv, formatDate, formatDateTime, toDate } from "@/lib/utils";
+
+/** "HH:MM" in the browser's local time, for prefilling a <input type="time">. */
+function timeInputValue(at: AttendanceRecord["checkIn"]): string {
+  const d = at?.at ? toDate(at.at) : null;
+  if (!d) return "";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** Combines a yyyy-mm-dd date with an "HH:MM" time into a local Date, or null if the time is blank. */
+function combineDateTime(date: string, time: string): Date | null {
+  if (!time) return null;
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  return new Date(y!, (m ?? 1) - 1, d ?? 1, h ?? 0, min ?? 0);
+}
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
   PRESENT: "Present", ABSENT: "Absent", HALF_DAY: "Half day", ON_LEAVE: "On leave", WEEK_OFF: "Week off", HOLIDAY: "Holiday",
@@ -271,7 +286,19 @@ function MyAttendanceTab() {
                 {[...rows].sort((a, b) => b.date.localeCompare(a.date)).map((r) => (
                   <tr key={r.id}>
                     <td className="td">{formatDate(r.date)}</td>
-                    <td className="td"><Badge className={STATUS_STYLE[r.status]}>{STATUS_LABEL[r.status]}</Badge></td>
+                    <td className="td">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge className={STATUS_STYLE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+                        {r.markedBy && (
+                          <span
+                            title={`Marked by ${r.markedBy.name}`}
+                            className="inline-flex items-center rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 ring-1 ring-inset ring-sky-200"
+                          >
+                            Manager marked
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="td text-ink-600">{r.checkIn?.at ? formatDateTime(r.checkIn.at) : "—"}</td>
                     <td className="td text-ink-600">{r.checkOut?.at ? formatDateTime(r.checkOut.at) : "—"}</td>
                   </tr>
@@ -330,6 +357,8 @@ function TeamTab() {
   const [markTarget, setMarkTarget] = useState<AppUser | null>(null);
   const [markStatus, setMarkStatus] = useState<AttendanceStatus>("ABSENT");
   const [markNote, setMarkNote] = useState("");
+  const [markCheckIn, setMarkCheckIn] = useState("");
+  const [markCheckOut, setMarkCheckOut] = useState("");
   const { busy: marking, run: runMark } = useAsyncAction();
 
   const [downloadMonth, setDownloadMonth] = useState(ymd(new Date()).slice(0, 7));
@@ -353,7 +382,10 @@ function TeamTab() {
 
   async function saveMark() {
     if (!markTarget) return;
-    await markAttendance(markTarget.uid, markTarget.name, date, markStatus, actor, markNote);
+    await markAttendance(
+      markTarget.uid, markTarget.name, date, markStatus, actor, markNote,
+      combineDateTime(date, markCheckIn), combineDateTime(date, markCheckOut),
+    );
     setMarkTarget(null);
     setMarkNote("");
   }
@@ -423,14 +455,30 @@ function TeamTab() {
                     <tr key={u.uid}>
                       <td className="td font-medium text-ink-900">{u.name}</td>
                       <td className="td">
-                        {r ? <Badge className={STATUS_STYLE[r.status]}>{STATUS_LABEL[r.status]}</Badge> : <Badge className="bg-ink-100 text-ink-500 ring-ink-200">Not marked</Badge>}
+                        <div className="flex flex-wrap items-center gap-1">
+                          {r ? <Badge className={STATUS_STYLE[r.status]}>{STATUS_LABEL[r.status]}</Badge> : <Badge className="bg-ink-100 text-ink-500 ring-ink-200">Not marked</Badge>}
+                          {r?.markedBy && (
+                            <span
+                              title={`Marked by ${r.markedBy.name}`}
+                              className="inline-flex items-center rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 ring-1 ring-inset ring-sky-200"
+                            >
+                              Manager marked
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="td text-ink-600">{r?.checkIn?.at ? formatDateTime(r.checkIn.at) : "—"}</td>
                       <td className="td text-ink-600">{r?.checkOut?.at ? formatDateTime(r.checkOut.at) : "—"}</td>
                       <td className="td text-right">
                         <button
                           type="button"
-                          onClick={() => { setMarkTarget(u); setMarkStatus(r?.status ?? "ABSENT"); setMarkNote(r?.note ?? ""); }}
+                          onClick={() => {
+                            setMarkTarget(u);
+                            setMarkStatus(r?.status ?? "ABSENT");
+                            setMarkNote(r?.note ?? "");
+                            setMarkCheckIn(timeInputValue(r?.checkIn));
+                            setMarkCheckOut(timeInputValue(r?.checkOut));
+                          }}
                           className="text-xs font-medium text-brand-700 hover:underline"
                         >
                           Mark
@@ -472,7 +520,18 @@ function TeamTab() {
               options={(Object.keys(STATUS_LABEL) as AttendanceStatus[]).map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
             />
           </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Check-in time" hint="Optional — leave blank to leave it unset.">
+              <Input type="time" value={markCheckIn} onChange={(e) => setMarkCheckIn(e.target.value)} />
+            </Field>
+            <Field label="Check-out time" hint="Optional — leave blank to leave it unset.">
+              <Input type="time" value={markCheckOut} onChange={(e) => setMarkCheckOut(e.target.value)} />
+            </Field>
+          </div>
           <Field label="Note"><Textarea rows={3} value={markNote} onChange={(e) => setMarkNote(e.target.value)} /></Field>
+          <p className="text-xs text-ink-500">
+            Saving marks this record as manager-entered (shown as “Manager marked”) for {formatDate(date)}.
+          </p>
         </div>
       </Modal>
     </div>

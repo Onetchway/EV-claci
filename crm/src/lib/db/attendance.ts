@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, where,
+  collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, Timestamp, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -70,22 +70,36 @@ export async function checkOut(
   );
 }
 
-/** Admin/manager correction — marks a day's status by hand, bypassing geofencing entirely. */
+/**
+ * Admin/manager correction — marks a day's status by hand, bypassing
+ * geofencing entirely. Optionally backfills a check-in/check-out time too
+ * (e.g. an employee forgot to punch, or was in the field without the app) —
+ * left out, any existing punch on the record is untouched. Either way the
+ * record carries `markedBy` so it reads as manager-entered, not a self-punch.
+ */
 export async function markAttendance(
   uid: string, userName: string, date: string, status: AttendanceStatus, actor: Actor, note?: string,
+  checkInAt?: Date | null, checkOutAt?: Date | null,
 ): Promise<void> {
-  await setDoc(
-    doc(getDb(), ATTENDANCE, attendanceId(uid, date)),
-    {
-      uid, userName, date, status,
-      note: note ?? "",
-      markedBy: actor,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      updatedBy: actor,
-    },
-    { merge: true },
-  );
+  const manualPunch = (at: Date) => ({
+    at: Timestamp.fromDate(at),
+    lat: null, lng: null,
+    officeId: null, officeName: null, distanceMeters: null,
+    withinGeofence: false,
+  });
+
+  const payload: Record<string, unknown> = {
+    uid, userName, date, status,
+    note: note ?? "",
+    markedBy: actor,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor,
+  };
+  if (checkInAt) payload.checkIn = manualPunch(checkInAt);
+  if (checkOutAt) payload.checkOut = manualPunch(checkOutAt);
+
+  await setDoc(doc(getDb(), ATTENDANCE, attendanceId(uid, date)), payload, { merge: true });
 }
 
 export function subscribeMyAttendanceMonth(
