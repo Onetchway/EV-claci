@@ -1,10 +1,20 @@
 'use strict';
 
 const { query } = require('../config/database');
+const { tenantWhere } = require('../middleware/tenantScope');
 
-const adminDashboard = async () => {
+const adminDashboard = async (req) => {
   const now = new Date();
   const mtdStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
+  const stationsTenant = tenantWhere(req, 1);
+  const chargersTenant = tenantWhere(req, 1);
+  const sessionsTenant = tenantWhere(req, 1);
+  const usersTenant = tenantWhere(req, 1);
+  const revMtdTenant = tenantWhere(req, 2);
+  const energyMtdTenant = tenantWhere(req, 2);
+  const topStationsTenant = tenantWhere(req, 2);
+  const recentSessionsTenant = tenantWhere(req, 1);
 
   const [
     stationsRes,
@@ -16,28 +26,40 @@ const adminDashboard = async () => {
     topStationsRes,
     recentSessionsRes,
   ] = await Promise.all([
-    query(`SELECT status, COUNT(*) AS count FROM stations GROUP BY status`),
-    query(`SELECT status, COUNT(*) AS count FROM chargers GROUP BY status`),
-    query(`SELECT COUNT(*) AS count FROM charging_sessions WHERE status = 'active'`),
-    query(`SELECT COUNT(*) AS count FROM users`),
+    query(
+      `SELECT status, COUNT(*) AS count FROM stations ${stationsTenant.clause ? 'WHERE ' + stationsTenant.clause : ''} GROUP BY status`,
+      stationsTenant.params
+    ),
+    query(
+      `SELECT status, COUNT(*) AS count FROM chargers ${chargersTenant.clause ? 'WHERE ' + chargersTenant.clause : ''} GROUP BY status`,
+      chargersTenant.params
+    ),
+    query(
+      `SELECT COUNT(*) AS count FROM charging_sessions WHERE status = 'active'${sessionsTenant.clause ? ' AND ' + sessionsTenant.clause : ''}`,
+      sessionsTenant.params
+    ),
+    query(
+      `SELECT COUNT(*) AS count FROM users ${usersTenant.clause ? 'WHERE ' + usersTenant.clause : ''}`,
+      usersTenant.params
+    ),
     query(
       `SELECT COALESCE(SUM(total_revenue),0) AS total, COALESCE(SUM(charging_revenue),0) AS charging,
               COALESCE(SUM(bss_swap_revenue),0) AS bss_swap, COALESCE(SUM(bss_rental_revenue),0) AS bss_rental,
               COALESCE(SUM(gross_margin),0) AS gross_margin
-       FROM revenues WHERE date >= $1`,
-      [mtdStart]
+       FROM revenues WHERE date >= $1${revMtdTenant.clause ? ' AND ' + revMtdTenant.clause : ''}`,
+      [mtdStart, ...revMtdTenant.params]
     ),
     query(
-      `SELECT COALESCE(SUM(energy_consumed),0) AS total FROM revenues WHERE date >= $1`,
-      [mtdStart]
+      `SELECT COALESCE(SUM(energy_consumed),0) AS total FROM revenues WHERE date >= $1${energyMtdTenant.clause ? ' AND ' + energyMtdTenant.clause : ''}`,
+      [mtdStart, ...energyMtdTenant.params]
     ),
     query(
       `SELECT r.station_id, s.name, s.city, SUM(r.total_revenue) AS revenue
        FROM revenues r JOIN stations s ON s.id = r.station_id
-       WHERE r.date >= $1
+       WHERE r.date >= $1${topStationsTenant.clause ? ' AND ' + topStationsTenant.clause.replace('tenant_id', 'r.tenant_id') : ''}
        GROUP BY r.station_id, s.name, s.city
        ORDER BY revenue DESC LIMIT 5`,
-      [mtdStart]
+      [mtdStart, ...topStationsTenant.params]
     ),
     query(
       `SELECT cs.id, cs.start_time, cs.end_time, cs.energy_kwh, cs.revenue, cs.status,
@@ -45,7 +67,9 @@ const adminDashboard = async () => {
        FROM charging_sessions cs
        LEFT JOIN stations s ON s.id = cs.station_id
        LEFT JOIN chargers c ON c.id = cs.charger_id
-       ORDER BY cs.created_at DESC LIMIT 10`
+       ${recentSessionsTenant.clause ? 'WHERE ' + recentSessionsTenant.clause.replace('tenant_id', 'cs.tenant_id') : ''}
+       ORDER BY cs.created_at DESC LIMIT 10`,
+      recentSessionsTenant.params
     ),
   ]);
 
@@ -94,19 +118,32 @@ const adminDashboard = async () => {
 };
 
 // Fetch total_bss and merge into adminDashboard
-const adminDashboardFull = async () => {
+const adminDashboardFull = async (req) => {
+  const bssTenant = tenantWhere(req, 1);
   const [dashboard, bssRes] = await Promise.all([
-    adminDashboard(),
-    query('SELECT COUNT(*) AS count FROM bss_stations'),
+    adminDashboard(req),
+    query(
+      `SELECT COUNT(*) AS count FROM bss_stations ${bssTenant.clause ? 'WHERE ' + bssTenant.clause : ''}`,
+      bssTenant.params
+    ),
   ]);
   dashboard.data.total_bss = parseInt(bssRes.rows[0].count);
   return dashboard;
 };
 
-const stationDashboard = async (stationId) => {
+const stationDashboard = async (stationId, req) => {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
   const mtdStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
+  const stationTenant = tenantWhere(req, 2);
+  const chargerStatusTenant = tenantWhere(req, 2);
+  const activeSessionsTenant = tenantWhere(req, 2);
+  const todayRevTenant = tenantWhere(req, 3);
+  const mtdRevTenant = tenantWhere(req, 3);
+  const mtdEnergyTenant = tenantWhere(req, 3);
+  const recentSessionsTenant = tenantWhere(req, 2);
+  const recentSwapsTenant = tenantWhere(req, 2);
 
   const [
     stationRes,
@@ -118,34 +155,45 @@ const stationDashboard = async (stationId) => {
     recentSessionsRes,
     recentSwapsRes,
   ] = await Promise.all([
-    query('SELECT * FROM stations WHERE id = $1', [stationId]),
-    query(`SELECT status, COUNT(*) AS count FROM chargers WHERE station_id=$1 GROUP BY status`, [stationId]),
-    query(`SELECT COUNT(*) AS count FROM charging_sessions WHERE station_id=$1 AND status='active'`, [stationId]),
     query(
-      `SELECT COALESCE(SUM(total_revenue),0) AS total, COALESCE(SUM(gross_margin),0) AS margin
-       FROM revenues WHERE station_id=$1 AND date=$2`,
-      [stationId, today]
+      `SELECT * FROM stations WHERE id = $1${stationTenant.clause ? ' AND ' + stationTenant.clause : ''}`,
+      [stationId, ...stationTenant.params]
+    ),
+    query(
+      `SELECT status, COUNT(*) AS count FROM chargers WHERE station_id=$1${chargerStatusTenant.clause ? ' AND ' + chargerStatusTenant.clause : ''} GROUP BY status`,
+      [stationId, ...chargerStatusTenant.params]
+    ),
+    query(
+      `SELECT COUNT(*) AS count FROM charging_sessions WHERE station_id=$1 AND status='active'${activeSessionsTenant.clause ? ' AND ' + activeSessionsTenant.clause : ''}`,
+      [stationId, ...activeSessionsTenant.params]
     ),
     query(
       `SELECT COALESCE(SUM(total_revenue),0) AS total, COALESCE(SUM(gross_margin),0) AS margin
-       FROM revenues WHERE station_id=$1 AND date >= $2`,
-      [stationId, mtdStart]
+       FROM revenues WHERE station_id=$1 AND date=$2${todayRevTenant.clause ? ' AND ' + todayRevTenant.clause : ''}`,
+      [stationId, today, ...todayRevTenant.params]
     ),
     query(
-      `SELECT COALESCE(SUM(energy_consumed),0) AS total FROM revenues WHERE station_id=$1 AND date >= $2`,
-      [stationId, mtdStart]
+      `SELECT COALESCE(SUM(total_revenue),0) AS total, COALESCE(SUM(gross_margin),0) AS margin
+       FROM revenues WHERE station_id=$1 AND date >= $2${mtdRevTenant.clause ? ' AND ' + mtdRevTenant.clause : ''}`,
+      [stationId, mtdStart, ...mtdRevTenant.params]
+    ),
+    query(
+      `SELECT COALESCE(SUM(energy_consumed),0) AS total FROM revenues WHERE station_id=$1 AND date >= $2${mtdEnergyTenant.clause ? ' AND ' + mtdEnergyTenant.clause : ''}`,
+      [stationId, mtdStart, ...mtdEnergyTenant.params]
     ),
     query(
       `SELECT cs.*, c.connector_type FROM charging_sessions cs
        LEFT JOIN chargers c ON c.id = cs.charger_id
-       WHERE cs.station_id=$1 ORDER BY cs.created_at DESC LIMIT 5`,
-      [stationId]
+       WHERE cs.station_id=$1${recentSessionsTenant.clause ? ' AND ' + recentSessionsTenant.clause.replace('tenant_id', 'cs.tenant_id') : ''}
+       ORDER BY cs.created_at DESC LIMIT 5`,
+      [stationId, ...recentSessionsTenant.params]
     ),
     query(
       `SELECT bs.*, b.battery_type FROM bss_swaps bs
        LEFT JOIN bss_stations b ON b.id = bs.bss_station_id
-       WHERE bs.station_id=$1 ORDER BY bs.created_at DESC LIMIT 5`,
-      [stationId]
+       WHERE bs.station_id=$1${recentSwapsTenant.clause ? ' AND ' + recentSwapsTenant.clause.replace('tenant_id', 'bs.tenant_id') : ''}
+       ORDER BY bs.created_at DESC LIMIT 5`,
+      [stationId, ...recentSwapsTenant.params]
     ),
   ]);
 
@@ -187,21 +235,28 @@ const stationDashboard = async (stationId) => {
   };
 };
 
-const franchiseDashboard = async (franchiseId) => {
-  const frRes = await query('SELECT * FROM franchises WHERE id = $1', [franchiseId]);
+const franchiseDashboard = async (franchiseId, req) => {
+  const frTenant = tenantWhere(req, 2);
+  const frRes = await query(
+    `SELECT * FROM franchises WHERE id = $1${frTenant.clause ? ' AND ' + frTenant.clause : ''}`,
+    [franchiseId, ...frTenant.params]
+  );
   if (!frRes.rows[0]) { const e = new Error('Franchise not found'); e.status = 404; throw e; }
   const franchise = frRes.rows[0];
+
+  const assetsTenant = tenantWhere(req, 2);
+  const settlementsTenant = tenantWhere(req, 2);
 
   const [assetsRes, settlementsRes] = await Promise.all([
     query(
       `SELECT a.*, s.name AS station_name, s.city FROM assets a
        LEFT JOIN stations s ON s.id = a.station_id
-       WHERE a.franchise_id = $1`,
-      [franchiseId]
+       WHERE a.franchise_id = $1${assetsTenant.clause ? ' AND ' + assetsTenant.clause.replace('tenant_id', 'a.tenant_id') : ''}`,
+      [franchiseId, ...assetsTenant.params]
     ),
     query(
-      `SELECT * FROM settlements WHERE franchise_id = $1 ORDER BY created_at DESC`,
-      [franchiseId]
+      `SELECT * FROM settlements WHERE franchise_id = $1${settlementsTenant.clause ? ' AND ' + settlementsTenant.clause : ''} ORDER BY created_at DESC`,
+      [franchiseId, ...settlementsTenant.params]
     ),
   ]);
 
@@ -212,9 +267,10 @@ const franchiseDashboard = async (franchiseId) => {
   let totalRevenue = 0;
   if (stationIds.length > 0) {
     const placeholders = stationIds.map((_, i) => `$${i + 1}`).join(',');
+    const revTenant = tenantWhere(req, stationIds.length + 1);
     const revRes = await query(
-      `SELECT COALESCE(SUM(total_revenue),0) AS total FROM revenues WHERE station_id IN (${placeholders})`,
-      stationIds
+      `SELECT COALESCE(SUM(total_revenue),0) AS total FROM revenues WHERE station_id IN (${placeholders})${revTenant.clause ? ' AND ' + revTenant.clause : ''}`,
+      [...stationIds, ...revTenant.params]
     );
     totalRevenue = parseFloat(revRes.rows[0].total);
   }
