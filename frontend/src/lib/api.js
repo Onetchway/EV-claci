@@ -40,8 +40,38 @@ export const bssApi = { ...resource('/bss') };
 export const franchisesApi = {
   ...resource('/franchises'),
   dashboard: (id) => client.get(`/franchises/${id}/dashboard`),
-  // The logged-in franchise partner's own dashboard (role "franchise") — no id needed.
-  portalDashboard: () => client.get('/franchises/portal/dashboard'),
+  // The logged-in franchise partner's own portal (role "franchise") — no id
+  // needed anywhere here, it's always resolved from the caller's own
+  // franchise_id server-side. Mirrors crm/'s Livanto franchise/investor
+  // portal sections.
+  portalDashboard:  () => client.get('/franchises/portal/dashboard'),
+  portalDocuments:  () => client.get('/franchises/portal/documents'),
+  uploadDocument:   (kind, file) => {
+    const form = new FormData();
+    form.append('kind', kind);
+    form.append('file', file);
+    return client.post('/franchises/portal/documents', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  // The download route needs the Bearer token, so a plain <a href> won't
+  // work — fetch it as a blob and hand the browser a local object URL.
+  downloadDocument: async (id, fileName) => {
+    const res = await client.get(`/franchises/documents/${id}/download`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(res);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName || 'document';
+    document.body.appendChild(a); a.click(); a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+  portalPayments:   () => client.get('/franchises/portal/payments'),
+  getBankDetails:   () => client.get('/franchises/portal/bank-details'),
+  saveBankDetails:  (data) => client.put('/franchises/portal/bank-details', data),
+  portalSupport:    () => client.get('/franchises/portal/support'),
+  submitSupport:    (data) => client.post('/franchises/portal/support', data),
+  // Admin-side management of a specific franchise (see franchise/page.js).
+  setStage:         (id, stage) => client.put(`/franchises/${id}/stage`, { stage }),
+  listPayments:     (id) => client.get(`/franchises/${id}/payments`),
+  createPayment:    (id, data) => client.post(`/franchises/${id}/payments`, data),
+  markPaymentPaid:  (id, paymentId) => client.put(`/franchises/${id}/payments/${paymentId}/paid`),
 };
 export const sessionsApi = { ...resource('/sessions') };
 export const revenueApi = {

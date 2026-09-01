@@ -47,6 +47,29 @@ export PGPASSWORD="$PGPASSWORD_VAL"
 PSQL="psql -h $PGHOST -p $PGPORT -U $PGUSER -v ON_ERROR_STOP=1"
 DB_URL_BASE="postgresql://${PGUSER}:${PGPASSWORD_VAL}@${PGHOST}:${PGPORT}"
 
+# Runs a curl (args after --) and extracts one field with the given node
+# expression, retrying if the server isn't quite ready yet (a fresh
+# nodemon start can still be mid-restart for the first request or two,
+# which otherwise fails as an empty-body JSON parse error). Exits the
+# whole script with a clear message if it never succeeds.
+curl_json_field() {
+  local expr="$1"; shift
+  local body attempt
+  for attempt in $(seq 1 15); do
+    body=$(curl -s "$@") || body=""
+    if [ -n "$body" ]; then
+      if result=$(printf '%s' "$body" | node -pe "$expr" 2>/dev/null) && [ -n "$result" ] && [ "$result" != "undefined" ]; then
+        printf '%s' "$result"
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+  echo "Request never returned a usable response after 15 attempts: curl $*" >&2
+  echo "Last response body: $body" >&2
+  exit 1
+}
+
 echo "==> Checking Postgres connectivity ($PGUSER@$PGHOST:$PGPORT)..."
 if ! $PSQL -d postgres -tAc "select 1" >/dev/null; then
   echo "Could not connect to Postgres as '$PGUSER'. Set PGUSER/PGPASSWORD/PGHOST/PGPORT and retry." >&2
@@ -127,19 +150,20 @@ echo "==> Starting platform/backend on :5100..."
 for i in $(seq 1 20); do curl -s -o /dev/null http://localhost:5100/api/auth/login && break; sleep 0.5; done
 
 echo "==> Creating tenant '$TENANT_NAME' (slug: $TENANT_SLUG) via the super admin API..."
-TOKEN=$(curl -s -X POST http://localhost:5100/api/auth/login -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$SUPER_ADMIN_EMAIL\",\"password\":\"$SUPER_ADMIN_PASSWORD\"}" | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).token')
+TOKEN=$(curl_json_field 'JSON.parse(require("fs").readFileSync(0,"utf8")).token' \
+  -X POST http://localhost:5100/api/auth/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$SUPER_ADMIN_EMAIL\",\"password\":\"$SUPER_ADMIN_PASSWORD\"}")
 
 EXISTING_TENANT_ID=$(curl -s http://localhost:5100/api/tenants -H "Authorization: Bearer $TOKEN" \
-  | node -pe "const d=JSON.parse(require('fs').readFileSync(0,'utf8')).data||[]; const t=d.find(x=>x.slug==='$TENANT_SLUG'); t?t.id:''")
+  | node -pe "const d=JSON.parse(require('fs').readFileSync(0,'utf8')).data||[]; const t=d.find(x=>x.slug==='$TENANT_SLUG'); t?t.id:''" 2>/dev/null || true)
 
 if [ -n "$EXISTING_TENANT_ID" ]; then
   TENANT_ID="$EXISTING_TENANT_ID"
   echo "    tenant already exists ($TENANT_ID), reusing it."
 else
-  TENANT_ID=$(curl -s -X POST http://localhost:5100/api/tenants -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-    -d "{\"name\":\"$TENANT_NAME\",\"slug\":\"$TENANT_SLUG\",\"contact_name\":\"Ops Team\",\"contact_email\":\"ops@${TENANT_SLUG}.example\",\"deployment_mode\":\"shared\"}" \
-    | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).id')
+  TENANT_ID=$(curl_json_field 'JSON.parse(require("fs").readFileSync(0,"utf8")).id' \
+    -X POST http://localhost:5100/api/tenants -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+    -d "{\"name\":\"$TENANT_NAME\",\"slug\":\"$TENANT_SLUG\",\"contact_name\":\"Ops Team\",\"contact_email\":\"ops@${TENANT_SLUG}.example\",\"deployment_mode\":\"shared\"}")
   echo "    created tenant $TENANT_ID"
 fi
 
@@ -152,20 +176,20 @@ echo "==> Starting tenant CRM backend on :5000..."
 for i in $(seq 1 20); do curl -s -o /dev/null http://localhost:5000/api/auth/login && break; sleep 0.5; done
 
 echo "==> Creating a demo franchise ('$FRANCHISE_NAME') under '$TENANT_SLUG'..."
-TENANT_TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$TENANT_ADMIN_EMAIL\",\"password\":\"$TENANT_ADMIN_PASSWORD\",\"tenantSlug\":\"$TENANT_SLUG\"}" \
-  | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).data.token')
+TENANT_TOKEN=$(curl_json_field 'JSON.parse(require("fs").readFileSync(0,"utf8")).data.token' \
+  -X POST http://localhost:5000/api/auth/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$TENANT_ADMIN_EMAIL\",\"password\":\"$TENANT_ADMIN_PASSWORD\",\"tenantSlug\":\"$TENANT_SLUG\"}")
 
 EXISTING_FRANCHISE_ID=$(curl -s "http://localhost:5000/api/franchises?limit=100" -H "Authorization: Bearer $TENANT_TOKEN" \
-  | node -pe "const d=JSON.parse(require('fs').readFileSync(0,'utf8')).data||[]; const f=d.find(x=>x.name==='$FRANCHISE_NAME'); f?f.id:''")
+  | node -pe "const d=JSON.parse(require('fs').readFileSync(0,'utf8')).data||[]; const f=d.find(x=>x.name==='$FRANCHISE_NAME'); f?f.id:''" 2>/dev/null || true)
 
 if [ -n "$EXISTING_FRANCHISE_ID" ]; then
   FRANCHISE_ID="$EXISTING_FRANCHISE_ID"
   echo "    franchise already exists ($FRANCHISE_ID), reusing it."
 else
-  FRANCHISE_ID=$(curl -s -X POST http://localhost:5000/api/franchises -H "Authorization: Bearer $TENANT_TOKEN" -H 'Content-Type: application/json' \
-    -d "{\"name\":\"$FRANCHISE_NAME\",\"contact_name\":\"$FRANCHISE_PORTAL_NAME\",\"contact_email\":\"$FRANCHISE_PORTAL_EMAIL\",\"type\":\"investor\",\"revenue_share_percent\":20,\"investment_amount\":500000}" \
-    | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).id')
+  FRANCHISE_ID=$(curl_json_field 'JSON.parse(require("fs").readFileSync(0,"utf8")).id' \
+    -X POST http://localhost:5000/api/franchises -H "Authorization: Bearer $TENANT_TOKEN" -H 'Content-Type: application/json' \
+    -d "{\"name\":\"$FRANCHISE_NAME\",\"contact_name\":\"$FRANCHISE_PORTAL_NAME\",\"contact_email\":\"$FRANCHISE_PORTAL_EMAIL\",\"type\":\"investor\",\"revenue_share_percent\":20,\"investment_amount\":500000}")
   echo "    created franchise $FRANCHISE_ID"
 fi
 
