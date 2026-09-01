@@ -140,7 +140,7 @@ export default function ProformaInvoiceDetailPage() {
             ) : (
               <div className="overflow-x-auto scroll-thin">
                 <table className="w-full text-sm">
-                  <thead><tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500"><th className="pb-2">Date</th><th className="pb-2">Mode</th><th className="pb-2">Reference</th><th className="pb-2 text-right">Amount</th></tr></thead>
+                  <thead><tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500"><th className="pb-2">Date</th><th className="pb-2">Mode</th><th className="pb-2">Reference</th><th className="pb-2 text-right">Amount</th><th className="pb-2"></th></tr></thead>
                   <tbody>
                     {piPayments.map((p) => (
                       <tr key={p.id} className="border-b border-ink-100">
@@ -148,6 +148,11 @@ export default function ProformaInvoiceDetailPage() {
                         <td className="py-2 capitalize text-ink-600">{p.mode.replace(/_/g, " ").toLowerCase()}</td>
                         <td className="py-2 text-ink-600">{p.referenceNo || "—"}</td>
                         <td className="py-2 text-right tabular-nums text-emerald-600">{formatINR(p.amount)}</td>
+                        <td className="py-2 text-right">
+                          <Link href={`/proforma-invoices/${pi.id}/payments/${p.id}/print`} className="text-xs font-medium text-brand-600 hover:underline">
+                            Receipt
+                          </Link>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

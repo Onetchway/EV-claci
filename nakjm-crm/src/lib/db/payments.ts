@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, onSnapshot, query, runTransaction, serverTimestamp,
+  collection, doc, getDoc, onSnapshot, query, runTransaction, serverTimestamp,
   Timestamp, where,
 } from "firebase/firestore";
 
@@ -38,6 +38,16 @@ export function subscribeClientPayments(
     (snap) => cb(snap.docs.map((d) => mapClientPayment(d.id, d.data())).sort((a, b) => (b.paymentDate?.seconds ?? 0) - (a.paymentDate?.seconds ?? 0))),
     (err) => onError?.(err as Error),
   );
+}
+
+export async function getClientPayment(id: string): Promise<ClientPayment | null> {
+  const snap = await getDoc(doc(getDb(), CLIENT_PAYMENTS, id));
+  return snap.exists() ? mapClientPayment(snap.id, snap.data()) : null;
+}
+
+export async function getVendorPayment(id: string): Promise<VendorPayment | null> {
+  const snap = await getDoc(doc(getDb(), VENDOR_PAYMENTS, id));
+  return snap.exists() ? mapVendorPayment(snap.id, snap.data()) : null;
 }
 
 export function subscribeVendorPayments(
