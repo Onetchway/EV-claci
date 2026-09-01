@@ -37,6 +37,8 @@ import { recordClientPayment, recordVendorPayment, subscribeClientPayments, subs
 import { createProformaInvoice, deleteProformaInvoice, subscribePisForProject, updateProformaInvoice } from "@/lib/db/proforma-invoices";
 import { subscribeProjectTemplates } from "@/lib/db/project-templates";
 import { assignTeamMember, subscribeProject, subscribeSubprojects, trashProject, unassignTeamMember, updateProject } from "@/lib/db/projects";
+import { LEGAL_DOC_TYPE_LABEL, LEGAL_DOC_STATUS_META, type LegalDocType } from "@/lib/constants";
+import { subscribeLegalDocumentsForProject } from "@/lib/db/legal-documents";
 import { canManageIssues, canManageStages, canManageTasks, canTrash } from "@/lib/permissions";
 import { createPurchaseOrder, deletePurchaseOrder, subscribePosForProject, updatePurchaseOrder } from "@/lib/db/purchase-orders";
 import { createQuotation, deleteQuotation, nextQuotationVersion, subscribeQuotationsForProject, updateQuotation } from "@/lib/db/quotations";
@@ -47,12 +49,12 @@ import { createTask, deleteTask, subscribeTasksForProject, updateTask } from "@/
 import { listActiveTeamMembers } from "@/lib/db/team-members";
 import { listActiveVendors } from "@/lib/db/vendors";
 import type {
-  Boq, BoqLineItem, Client, Drawing, Handover, Inspection, Issue, Measurement, NakjmDocument, Ncr, Project,
+  Boq, BoqLineItem, Client, Drawing, Handover, Inspection, Issue, LegalDocument, Measurement, NakjmDocument, Ncr, Project,
   ProformaInvoice, ProjectStage, ProjectTask, PunchItem, PurchaseOrder, Quotation, Rfi, SiteReport, StageProgressPhoto, TeamMember, Vendor,
 } from "@/lib/types";
 import { formatCompactINR, formatDate, formatDateTime, formatINR, toDate } from "@/lib/utils";
 
-const TABS = ["Overview", "Stages & Tasks", "Timeline", "Measurements", "Issues", "RFI", "Quality", "Drawings", "Handover", "Reports", "Quotations", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
+const TABS = ["Overview", "Stages & Tasks", "Timeline", "Measurements", "Issues", "RFI", "Quality", "Drawings", "Handover", "Reports", "Quotations", "EOI", "Agreements", "BOQ", "Purchase Orders", "Proforma Invoices", "Payments", "Team", "Site Reports", "Documents"] as const;
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -223,6 +225,8 @@ export default function ProjectDetailPage() {
       {tab === "Handover" && <HandoverTab project={project} />}
       {tab === "Reports" && <ReportsTab project={project} />}
       {tab === "Quotations" && <QuotationsTab project={project} />}
+      {tab === "EOI" && <LegalDocumentsTab project={project} docType="EOI" />}
+      {tab === "Agreements" && <LegalDocumentsTab project={project} docType="AGREEMENT" />}
       {tab === "BOQ" && <BoqTab project={project} />}
       {tab === "Purchase Orders" && <PoTab project={project} />}
       {tab === "Proforma Invoices" && <PiTab project={project} />}
@@ -576,6 +580,45 @@ function QuotationsTab({ project }: { project: Project }) {
       >
         {deleteTarget && <p className="text-sm text-ink-700">{deleteTarget.quotationNo}</p>}
       </Modal>
+    </div>
+  );
+}
+
+// ── EOI / Agreements ───────────────────────────────────────────────────
+/** Read-only within the project tab — create/edit/print happens on the dedicated /eoi and /agreements pages. */
+function LegalDocumentsTab({ project, docType }: { project: Project; docType: LegalDocType }) {
+  const [rows, setRows] = useState<LegalDocument[] | null>(null);
+  const label = LEGAL_DOC_TYPE_LABEL[docType];
+  const basePath = docType === "EOI" ? "/eoi" : "/agreements";
+
+  useEffect(() => subscribeLegalDocumentsForProject(project.id, docType, setRows), [project.id, docType]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Link href={`${basePath}/new?projectId=${project.id}`}><Button><Plus className="h-4 w-4" /> New {label}</Button></Link>
+      </div>
+
+      {!rows ? <p className="text-sm text-ink-400">Loading…</p> : rows.length === 0 ? (
+        <EmptyState title={`No ${label.toLowerCase()}s yet`} description="All versions appear here as they're created." />
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+          <table className="w-full">
+            <thead><tr><th className="th">No.</th><th className="th">Version</th><th className="th">Status</th><th className="th">Date</th><th className="th">Subject</th></tr></thead>
+            <tbody>
+              {rows.map((d) => (
+                <tr key={d.id} className="border-t border-ink-100">
+                  <td className="td font-medium"><Link href={`${basePath}/${d.id}`} className="text-brand-700 hover:underline">{d.docNo}</Link></td>
+                  <td className="td">v{d.version}</td>
+                  <td className="td"><Badge className={LEGAL_DOC_STATUS_META[d.status].className}>{LEGAL_DOC_STATUS_META[d.status].label}</Badge></td>
+                  <td className="td">{formatDate(d.docDate)}</td>
+                  <td className="td text-ink-600">{d.subject}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
