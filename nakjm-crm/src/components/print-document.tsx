@@ -2,33 +2,61 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { ArrowLeft, Printer } from "lucide-react";
 
 import { COMPANY_INFO } from "@/lib/constants";
-import type { BankDetails } from "@/lib/db/settings";
+import { subscribeSettings, type BankDetails, type LetterheadSettings } from "@/lib/db/settings";
 import { Button } from "@/components/ui";
 
 /**
  * Shared letterhead for every printed document — Quotation, Purchase
- * Order, Proforma Invoice and BOQ all print as a simple bordered page
- * carrying the NAKJM logo + GSTIN/CIN at the top and the registered/office
- * address in the footer, matching the company letterhead.
+ * Order, Proforma Invoice and BOQ (and any future document type built on
+ * <PrintHeader>) all print through this one component, so uploading a
+ * letterhead once in Settings applies everywhere without touching each
+ * print page. Falls back to the default NAKJM logo/GSTIN/CIN header when
+ * no letterhead has been uploaded.
  */
+function useLetterhead(): LetterheadSettings | null | undefined {
+  const [letterhead, setLetterhead] = useState<LetterheadSettings | null | undefined>(undefined);
+  useEffect(() => subscribeSettings((s) => setLetterhead(s.letterhead), () => setLetterhead(null)), []);
+  return letterhead;
+}
+
+function LetterheadBanner({ letterhead }: { letterhead: LetterheadSettings }) {
+  if (letterhead.contentType === "application/pdf") {
+    return (
+      <embed
+        src={`${letterhead.url}#view=Fit&toolbar=0`}
+        type="application/pdf"
+        className="h-28 w-full rounded border border-ink-100 object-cover"
+      />
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element -- user-uploaded remote URL, no next/image domain config needed
+  return <img src={letterhead.url} alt="Letterhead" className="h-28 w-full rounded object-contain" />;
+}
+
 export function PrintHeader({ docLabel, docNumber, meta }: {
   docLabel: string;
   docNumber: string;
   meta?: ReactNode;
 }) {
+  const letterhead = useLetterhead();
+
   return (
     <div className="mb-4 border-b-2 border-brand-600 pb-3">
-      <div className="flex items-start justify-between gap-4">
-        <Image src="/logo.png" alt={COMPANY_INFO.name} width={180} height={58} priority className="h-12 w-auto" />
-        <div className="text-right text-[11px] leading-tight text-ink-500">
-          <p>GSTIN: {COMPANY_INFO.gstin}</p>
-          <p>CIN: {COMPANY_INFO.cin}</p>
+      {letterhead ? (
+        <LetterheadBanner letterhead={letterhead} />
+      ) : (
+        <div className="flex items-start justify-between gap-4">
+          <Image src="/logo.png" alt={COMPANY_INFO.name} width={180} height={58} priority className="h-12 w-auto" />
+          <div className="text-right text-[11px] leading-tight text-ink-500">
+            <p>GSTIN: {COMPANY_INFO.gstin}</p>
+            <p>CIN: {COMPANY_INFO.cin}</p>
+          </div>
         </div>
-      </div>
+      )}
       <div className="mt-3 flex items-end justify-between gap-4">
         <h1 className="text-lg font-bold uppercase tracking-wide text-navy-900">{docLabel}</h1>
         <div className="text-right text-sm">
@@ -41,6 +69,11 @@ export function PrintHeader({ docLabel, docNumber, meta }: {
 }
 
 export function PrintFooter() {
+  const letterhead = useLetterhead();
+  // A letterhead typically carries its own footer/address band already —
+  // don't print the default company block on top of it.
+  if (letterhead) return null;
+
   return (
     <footer className="mt-6 border-t-2 border-brand-600 pt-2 text-center text-[10px] leading-tight text-ink-400">
       <p className="font-semibold text-ink-600">{COMPANY_INFO.name}</p>

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Landmark, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, FileText, Landmark, Plus, Trash2, Upload } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { Button, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, useAsyncAction, useToast } from "@/components/ui";
 import { COMPANY_INFO, PROJECT_TYPES, type ProjectType } from "@/lib/constants";
 import { saveProjectTemplate, subscribeProjectTemplates } from "@/lib/db/project-templates";
-import { defaultSettings, saveSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
+import { defaultSettings, removeLetterhead, saveSettings, subscribeSettings, uploadLetterhead, type AppSettings } from "@/lib/db/settings";
 import { isAdmin } from "@/lib/permissions";
 
 export default function SettingsPage() {
@@ -23,6 +23,8 @@ export default function SettingsPage() {
   const [templateStages, setTemplateStages] = useState<string[]>([]);
   const [newStageName, setNewStageName] = useState("");
   const { busy: templateBusy, run: runTemplate } = useAsyncAction();
+  const { busy: letterheadBusy, run: runLetterhead } = useAsyncAction();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => subscribeSettings((s) => { setForm(s); setLoading(false); }, () => setLoading(false)), []);
   useEffect(() => subscribeProjectTemplates(setTemplates), []);
@@ -61,6 +63,22 @@ export default function SettingsPage() {
     await runTemplate(() => saveProjectTemplate(templateType, templateStages, actor), "Template saved.");
   }
 
+  async function onLetterheadSelected(file: File | undefined) {
+    if (!file) return;
+    await runLetterhead(async () => {
+      const letterhead = await uploadLetterhead(file, actor);
+      setForm((f) => ({ ...f, letterhead }));
+    }, "Letterhead uploaded.");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function onRemoveLetterhead() {
+    await runLetterhead(async () => {
+      await removeLetterhead(form, actor);
+      setForm((f) => ({ ...f, letterhead: null }));
+    }, "Letterhead removed.");
+  }
+
   if (loading) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
 
   return (
@@ -81,6 +99,45 @@ export default function SettingsPage() {
           <div className="sm:col-span-2"><dt className="text-xs text-ink-500">Registered address</dt><dd className="text-ink-900">{COMPANY_INFO.registeredAddress}</dd></div>
           <div className="sm:col-span-2"><dt className="text-xs text-ink-500">Office address</dt><dd className="text-ink-900">{COMPANY_INFO.officeAddress}</dd></div>
         </dl>
+      </Card>
+
+      <Card
+        title="Letterhead"
+        subtitle="Upload a scanned PDF or image of your printed letterhead. It replaces the default logo header on every generated Quotation, PO, PI, BOQ, and any other printed document, so documents go out on your own letterhead."
+      >
+        {form.letterhead ? (
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-ink-200 p-3">
+            <div className="flex items-center gap-3">
+              <FileText className="h-8 w-8 shrink-0 text-brand-600" />
+              <div>
+                <p className="text-sm font-medium text-ink-900">{form.letterhead.fileName}</p>
+                <p className="text-xs text-ink-500">{form.letterhead.contentType}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <a href={form.letterhead.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-brand-600 hover:underline">
+                Preview
+              </a>
+              <Button variant="secondary" size="sm" loading={letterheadBusy} onClick={() => void onRemoveLetterhead()}>
+                <Trash2 className="h-3.5 w-3.5" /> Remove
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,image/png,image/jpeg"
+              className="hidden"
+              onChange={(e) => void onLetterheadSelected(e.target.files?.[0])}
+            />
+            <Button variant="secondary" loading={letterheadBusy} onClick={() => fileInputRef.current?.click()}>
+              <Upload className="h-3.5 w-3.5" /> Upload letterhead (PDF, PNG, or JPG)
+            </Button>
+            <p className="mt-2 text-xs text-ink-500">No letterhead uploaded — printed documents use the default NAKJM header shown above.</p>
+          </div>
+        )}
       </Card>
 
       <Card title="Bank details" subtitle="Shown on printed Purchase Orders and Proforma Invoices so vendors and clients know where to pay.">
