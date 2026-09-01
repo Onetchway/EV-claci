@@ -33,20 +33,11 @@ export function PrintHeader({ docLabel, docNumber, meta }: {
   return (
     <div className="mb-4 border-b-2 border-brand-600 pb-3">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Image src={company.logoUrl || "/logo.png"} alt={company.name} width={180} height={58} priority className="h-12 w-auto" unoptimized={company.logoUrl.startsWith("http")} />
-          <p className="text-base font-bold text-navy-900">{company.name}</p>
-        </div>
-        <div className="text-right text-[11px] leading-tight text-ink-500">
-          <p>GSTIN: {company.gstin}</p>
-          <p>CIN: {company.cin}</p>
-        </div>
-      </div>
-      <div className="mt-3 flex items-end justify-between gap-4">
-        <h1 className="text-lg font-bold uppercase tracking-wide text-navy-900">{docLabel}</h1>
-        <div className="text-right text-sm">
-          <p className="font-semibold text-ink-900">{docNumber}</p>
+        <Image src={company.logoUrl || "/logo.png"} alt={company.name} width={180} height={58} priority className="h-12 w-auto" unoptimized={company.logoUrl.startsWith("http")} />
+        <div className="text-right text-ink-500">
+          <p className="text-sm font-semibold text-navy-900">{docLabel} &middot; {docNumber}</p>
           {meta}
+          <p className="mt-0.5 text-[11px]">{company.email}{company.website ? <>&nbsp;|&nbsp; {company.website}</> : null}</p>
         </div>
       </div>
     </div>
@@ -56,12 +47,22 @@ export function PrintHeader({ docLabel, docNumber, meta }: {
 export function PrintFooter() {
   const company = useCompanyInfo();
   return (
-    <footer className="mt-6 border-t-2 border-brand-600 pt-2 text-center text-[10px] leading-tight text-ink-400">
-      <p className="font-semibold text-ink-600">{company.name}</p>
-      <p>{company.email} &nbsp;|&nbsp; {company.website}</p>
-      <div className="mt-1 grid grid-cols-2 gap-4 text-left">
-        <p><span className="font-medium text-ink-500">Registered address: </span>{company.registeredAddress}</p>
-        <p><span className="font-medium text-ink-500">Office address: </span>{company.officeAddress}</p>
+    <footer className="mt-6 border-t-2 border-brand-600 pt-2 text-[10px] leading-tight text-ink-500">
+      <div className="grid grid-cols-3 divide-x divide-ink-200">
+        <div className="pr-4">
+          <p className="font-semibold text-ink-700">{company.name}</p>
+          <p className="mt-0.5">GSTIN: {company.gstin} &nbsp;|&nbsp; CIN: {company.cin}</p>
+          <p className="mt-0.5">{company.email}</p>
+          <p>{company.website}</p>
+        </div>
+        <div className="px-4">
+          <p className="font-semibold uppercase tracking-wide text-ink-500">Registered Address</p>
+          <p className="mt-0.5">{company.registeredAddress}</p>
+        </div>
+        <div className="pl-4">
+          <p className="font-semibold uppercase tracking-wide text-ink-500">Office Address</p>
+          <p className="mt-0.5">{company.officeAddress}</p>
+        </div>
       </div>
     </footer>
   );
