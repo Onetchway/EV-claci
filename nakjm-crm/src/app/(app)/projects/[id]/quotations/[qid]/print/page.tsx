@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
+import { PrintFooter, PrintHeader, PrintSheet, PrintToolbar, useDocumentTitle } from "@/components/print-document";
 import { EmptyState, Spinner } from "@/components/ui";
 import { getClient } from "@/lib/db/clients";
 import { getQuotation } from "@/lib/db/quotations";
@@ -21,6 +21,7 @@ export default function QuotationPrintPage() {
       if (row?.clientId) setClient(await getClient(row.clientId));
     });
   }, [qid]);
+  useDocumentTitle(q ? `NAKJM Quotation ${q.quotationNo}` : undefined);
 
   if (q === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (q === null) return <EmptyState title="Quotation not found" />;

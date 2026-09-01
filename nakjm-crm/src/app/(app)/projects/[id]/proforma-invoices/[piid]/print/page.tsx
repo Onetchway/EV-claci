@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { BankDetailsPrintBlock, PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
+import { BankDetailsPrintBlock, PrintFooter, PrintHeader, PrintSheet, PrintToolbar, useDocumentTitle } from "@/components/print-document";
 import { EmptyState, Spinner } from "@/components/ui";
 import { getClient } from "@/lib/db/clients";
 import { getProformaInvoice } from "@/lib/db/proforma-invoices";
@@ -24,6 +24,7 @@ export default function ProformaInvoicePrintPage() {
     });
   }, [piid]);
   useEffect(() => subscribeSettings(setSettings), []);
+  useDocumentTitle(pi ? `NAKJM PI ${pi.piNo}` : undefined);
 
   if (pi === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (pi === null) return <EmptyState title="Proforma invoice not found" />;

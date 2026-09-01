@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { BankDetailsPrintBlock, PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
+import { BankDetailsPrintBlock, PrintFooter, PrintHeader, PrintSheet, PrintToolbar, useDocumentTitle } from "@/components/print-document";
 import { EmptyState, Spinner } from "@/components/ui";
 import { getPurchaseOrder } from "@/lib/db/purchase-orders";
 import { getVendor } from "@/lib/db/vendors";
@@ -21,6 +21,7 @@ export default function PurchaseOrderPrintPage() {
       if (row?.vendorId) setVendor(await getVendor(row.vendorId));
     });
   }, [poid]);
+  useDocumentTitle(po ? `NAKJM PO ${po.poNo}` : undefined);
 
   if (po === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (po === null) return <EmptyState title="Purchase order not found" />;

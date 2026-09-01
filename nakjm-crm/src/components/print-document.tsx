@@ -67,6 +67,23 @@ export function PrintFooter() {
   );
 }
 
+/**
+ * Sets the browser tab title while a print page is mounted, restoring the
+ * previous title on unmount -- the tab title is what Chrome's "Save as PDF"
+ * pre-fills as the download filename, so this is what makes an exported PDF
+ * save as e.g. "NAKJM PO NKJM-PO-00007.pdf" instead of the app's generic title.
+ */
+export function useDocumentTitle(title: string | undefined) {
+  useEffect(() => {
+    if (!title) return;
+    const prev = document.title;
+    document.title = title;
+    return () => {
+      document.title = prev;
+    };
+  }, [title]);
+}
+
 export function PrintToolbar({ backHref }: { backHref: string }) {
   return (
     <div className="mb-4 flex items-center justify-between print:hidden">

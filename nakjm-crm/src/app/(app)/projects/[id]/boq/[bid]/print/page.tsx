@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
+import { PrintFooter, PrintHeader, PrintSheet, PrintToolbar, useDocumentTitle } from "@/components/print-document";
 import { EmptyState, Spinner } from "@/components/ui";
 import { getBoq } from "@/lib/db/boq";
 import type { Boq } from "@/lib/types";
@@ -16,6 +16,7 @@ export default function BoqPrintPage() {
   useEffect(() => {
     void getBoq(bid).then(setBoq);
   }, [bid]);
+  useDocumentTitle(boq ? `NAKJM BOQ ${boq.boqNo}` : undefined);
 
   if (boq === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (boq === null) return <EmptyState title="BOQ not found" />;
