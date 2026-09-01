@@ -3,9 +3,9 @@ import type { Timestamp } from "firebase/firestore";
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
   ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, EmploymentType,
-  HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus, LeaveType, NcrStatus,
-  PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus,
-  Role, RollStatus, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
+  HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus, LeaveType, LegalDocStatus,
+  LegalDocType, NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus,
+  QuotationStatus, RfiStatus, Role, RollStatus, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -270,6 +270,32 @@ export interface Quotation {
   /** Revision lineage: rootQuotationId is the same across every version of one quotation (the first version's own id); revisedFrom is the immediate prior version's id. Absent on quotations created before this existed. */
   rootQuotationId?: string | null;
   revisedFrom?: string | null;
+  createdAt: TS;
+  updatedAt: TS;
+}
+
+/** EOI (Expression of Interest) and Agreement -- letter-style documents (subject + free-text body), not priced bills. Both share this one shape, distinguished by docType. */
+export interface LegalDocument {
+  id: string;
+  docType: LegalDocType;
+  docNo: string;
+  projectId: string;
+  projectName: string;
+  clientId: string;
+  clientName: string;
+  version: number;
+  status: LegalDocStatus;
+  docDate: TS;
+  validUntil?: TS;
+  subject: string;
+  body: string;
+  terms?: string;
+  notes?: string;
+  /** Revision lineage, same convention as Quotation/BOQ: rootDocId is the first version's own id; revisedFrom is the immediate prior version's id. */
+  rootDocId?: string | null;
+  revisedFrom?: string | null;
+  /** A typed-name sign-off, not a cryptographic signature -- lightweight internal approval, matching the record's own status flow. */
+  approval?: { approvedBy: Actor; approvedAt: TS; signatureName: string; note?: string } | null;
   createdAt: TS;
   updatedAt: TS;
 }

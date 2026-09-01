@@ -155,6 +155,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // EOI and Agreement letter-style documents share one collection, keyed by docType.
+    match /legalDocuments/{legalDocId} {
+      allow read: if signedIn();
+      allow create, update: if canManageProcurement();
+      allow delete: if isAdmin();
+    }
+
     match /boqs/{boqId} {
       allow read: if signedIn();
       allow create, update: if canManageProcurement();

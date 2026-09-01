@@ -148,6 +148,21 @@ export type PoStatus = (typeof PO_STATUSES)[number];
 export const PI_STATUSES = ["DRAFT", "SENT", "PAID", "PARTIALLY_PAID", "CANCELLED"] as const;
 export type PiStatus = (typeof PI_STATUSES)[number];
 
+/** EOI (Expression of Interest) and Agreement -- prose/letter documents, not priced bills, so no line items or GST: a subject, a free-text body, an optional typed-name sign-off. Both share one collection/type, distinguished by docType. */
+export const LEGAL_DOC_TYPES = ["EOI", "AGREEMENT"] as const;
+export type LegalDocType = (typeof LEGAL_DOC_TYPES)[number];
+export const LEGAL_DOC_TYPE_LABEL: Record<LegalDocType, string> = { EOI: "Expression of Interest", AGREEMENT: "Agreement" };
+
+export const LEGAL_DOC_STATUSES = ["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED"] as const;
+export type LegalDocStatus = (typeof LEGAL_DOC_STATUSES)[number];
+export const LEGAL_DOC_STATUS_META: Record<LegalDocStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-600 ring-ink-200" },
+  SENT: { label: "Sent", className: "bg-amber-100 text-amber-700 ring-amber-200" },
+  ACCEPTED: { label: "Accepted", className: "bg-emerald-100 text-emerald-700 ring-emerald-200" },
+  REJECTED: { label: "Rejected", className: "bg-rose-100 text-rose-700 ring-rose-200" },
+  EXPIRED: { label: "Expired", className: "bg-ink-100 text-ink-500 ring-ink-200" },
+};
+
 /** Same total tax, different printed breakdown: IGST (inter-state) or CGST+SGST (intra-state). */
 export const GST_TYPES = ["IGST", "CGST_SGST"] as const;
 export type GstType = (typeof GST_TYPES)[number];
@@ -361,7 +376,7 @@ export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
   "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
-  "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST",
+  "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST", "EOI", "AGREEMENT",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -392,6 +407,8 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   PUNCH_ITEM: "Punch Item",
   HANDOVER: "Handover",
   LEAVE_REQUEST: "Leave Request",
+  EOI: "Expression of Interest",
+  AGREEMENT: "Agreement",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;
