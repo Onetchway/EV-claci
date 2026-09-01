@@ -60,7 +60,11 @@ CREATE TABLE IF NOT EXISTS tenants (
     contact_phone VARCHAR(50),
     deployment_mode VARCHAR(20) NOT NULL DEFAULT 'shared'
         CHECK (deployment_mode IN ('dedicated', 'isolated', 'shared')),
-    custom_domain VARCHAR(255),
+    -- Domain routing (super-admin managed): `slug` doubles as the tenant's
+    -- subdomain, e.g. slug "acme" -> acme.${PLATFORM_BASE_DOMAIN}. A tenant
+    -- can additionally (or instead) point their own domain at custom_domain,
+    -- e.g. crm.acmecorp.com. See /api/tenants/resolve.
+    custom_domain VARCHAR(255) UNIQUE,
     db_connection_ref VARCHAR(255),
     status VARCHAR(20) NOT NULL DEFAULT 'trial'
         CHECK (status IN ('trial', 'active', 'suspended', 'cancelled')),

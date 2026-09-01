@@ -67,16 +67,54 @@ safely share an instance with others — until then, only onboard
 `shared`-mode tenants one at a time behind a `dedicated`/`isolated`
 deploy, or finish the retrofit first.
 
-Also still open: OAuth self-signup (`backend/src/config/passport.js`)
-doesn't resolve which tenant a new Google sign-in belongs to — it's
-single-org by design (one `ALLOWED_EMAIL_DOMAIN`), see the comment in
-`passport.js`. And `users.service.js` deliberately does NOT let a
-tenant's own admin move users between tenants via `PUT /api/users/:id`
-(that's a platform-level action, not a CRM one) — but the platform side
-of "assign this user to this tenant" isn't built yet either. Until
-both exist, a `shared`-mode tenant's users have to be seeded directly
-(e.g. a one-off `UPDATE users SET tenant_id = ...` at onboarding), the
-same way `nakjm-crm`'s `scripts/create-user.ts` bootstraps its first users.
+## Domain routing (subdomain + custom domain, both super-admin managed)
+
+A `shared`-mode instance now resolves which tenant an inbound request
+belongs to from the Host it arrives on, two ways, both set from a
+tenant's page in the super-admin console:
+
+- **Subdomain** — every tenant's `slug` doubles as its subdomain, e.g.
+  slug `acme` resolves at `acme.${PLATFORM_BASE_DOMAIN}`. Edit it under
+  "Domain routing" on the tenant's page (this is the same slug used
+  elsewhere, so renaming it changes the tenant's URL).
+- **Custom domain** — a tenant can point their own domain
+  (`crm.clientcompany.com`) at the instance instead of/as well as the
+  subdomain; also set from the tenant's page. Unique across tenants.
+
+How it works end to end:
+
+1. `GET /api/tenants/resolve?host=...` on `platform/backend` — public,
+   unauthenticated (it only returns `{id, name, slug, status,
+   deployment_mode}`, never tenant data) — looks up a tenant by exact
+   `custom_domain` match, then by `slug` against `PLATFORM_BASE_DOMAIN`.
+2. `backend/src/utils/resolveTenant.js` — the tenant CRM's side, calls
+   that endpoint (in-memory cached ~5 min) for the request's `req.hostname`.
+   No-ops (returns `null`) if `PLATFORM_API_URL` isn't set, and fails open
+   (never blocks login) if the platform is unreachable.
+3. `backend/src/config/passport.js` — at Google sign-in, resolves the
+   tenant from the request host. If one resolves, it replaces the
+   single-org `ALLOWED_EMAIL_DOMAIN` gate entirely and a new user is
+   created with that tenant's `tenant_id`. If none resolves (standalone,
+   `dedicated`, `isolated`, or an unrecognized host), behavior is
+   byte-for-byte what it was before this feature: the `ALLOWED_DOMAIN`
+   gate applies, `tenant_id` stays `NULL`.
+
+DNS/infra this doesn't do for you: pointing `*.${PLATFORM_BASE_DOMAIN}`
+and each tenant's custom domain at your shared instance, and TLS for
+both, are still your infra's job (e.g. a wildcard cert + reverse proxy).
+`app.set('trust proxy', true)` is on in `backend/src/app.js` so
+`req.hostname` reflects the real Host through a proxy.
+
+Still open: `users.service.js` deliberately does NOT let a tenant's own
+admin move an *existing* user between tenants via `PUT /api/users/:id`
+(that's a platform-level action, not a CRM one) — domain routing only
+covers *new* signups. There's no platform-side "reassign this user"
+action yet, so moving an existing user needs a one-off `UPDATE users SET
+tenant_id = ...`. Also: email is globally unique across all tenants
+(`users.email UNIQUE`), so the same email can't have separate accounts
+under two different tenants in `shared` mode — a real limitation, not
+just an unbuilt feature; loosening it to `UNIQUE(tenant_id, email)` needs
+its own follow-up since `tenant_id` is nullable for non-shared rows.
 
 ## What's in this folder
 
@@ -158,11 +196,11 @@ and no-ops if SMTP isn't configured.
 
 ## Not built yet (next steps)
 
-- `shared`-mode multi-tenancy inside `backend/`/`frontend/` itself
-  (tenant_id column + scoping middleware) — only the platform side is done.
+- The `tenant_id`-scoping retrofit across the remaining `backend/src/services/*.service.js`
+  files (see the "Status: infrastructure done, retrofit in progress" section above).
 - Automated tenant provisioning for `dedicated`/`isolated` mode (spinning
   up a new database/deploy on tenant creation) — today `deployment_mode`
   is just recorded; the actual infra step is manual.
-- Payment gateway integration — invoices are generated and tracked, but
-  collecting payment (Razorpay/Stripe etc.) isn't wired up; `markPaid` is
-  currently a manual super-admin action.
+- Real payment collection (Razorpay/Stripe etc.) is explicitly out of
+  scope by design — invoices are generated, tracked, and emailed;
+  `markPaid` is a deliberate manual super-admin action, not a gap.

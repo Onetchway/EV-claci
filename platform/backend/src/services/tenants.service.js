@@ -82,7 +82,7 @@ const create = async (data, actor) => {
       data.contact_email,
       data.contact_phone || null,
       data.deployment_mode || 'shared',
-      data.custom_domain || null,
+      data.custom_domain ? data.custom_domain.trim().toLowerCase() : null,
       data.status || 'trial',
       data.billing_plan_id || null,
       data.billing_day || 1,
@@ -102,7 +102,7 @@ const create = async (data, actor) => {
 };
 
 const ALLOWED_UPDATE_FIELDS = [
-  'name', 'contact_name', 'contact_email', 'contact_phone', 'deployment_mode',
+  'name', 'slug', 'contact_name', 'contact_email', 'contact_phone', 'deployment_mode',
   'custom_domain', 'status', 'billing_plan_id', 'billing_model_override',
   'fixed_monthly_amount_override', 'per_employee_amount_override', 'billing_day',
   'trial_ends_at',
@@ -110,6 +110,8 @@ const ALLOWED_UPDATE_FIELDS = [
 
 const update = async (id, data, actor) => {
   const fields = []; const params = []; let idx = 1;
+  if (data.slug !== undefined) data.slug = slugify(data.slug);
+  if (data.custom_domain !== undefined) data.custom_domain = data.custom_domain ? data.custom_domain.trim().toLowerCase() : null;
   for (const f of ALLOWED_UPDATE_FIELDS) {
     if (data[f] !== undefined) { fields.push(`${f} = $${idx++}`); params.push(data[f]); }
   }
@@ -140,10 +142,38 @@ const rotateApiKey = async (id, actor) => {
   return res.rows[0];
 };
 
+// Domain-based tenant resolution, called by a tenant CRM instance running
+// in "shared" mode (one instance, many tenants) to figure out which
+// tenant a given inbound Host header belongs to — before that request has
+// any authenticated user to read tenant_id off of. Public by design: it
+// only returns non-sensitive routing info, never tenant data.
+const resolveByHost = async (host) => {
+  if (!host) { const e = new Error('host is required.'); e.status = 400; throw e; }
+  const bareHost = host.split(':')[0].toLowerCase();
+
+  const byCustomDomain = await query(
+    `SELECT id, name, slug, status, deployment_mode FROM tenants WHERE custom_domain = $1`,
+    [bareHost]
+  );
+  if (byCustomDomain.rows[0]) return byCustomDomain.rows[0];
+
+  const baseDomain = process.env.PLATFORM_BASE_DOMAIN;
+  if (baseDomain && bareHost.endsWith(`.${baseDomain}`)) {
+    const slug = bareHost.slice(0, -(baseDomain.length + 1));
+    const bySlug = await query(
+      `SELECT id, name, slug, status, deployment_mode FROM tenants WHERE slug = $1`,
+      [slug]
+    );
+    if (bySlug.rows[0]) return bySlug.rows[0];
+  }
+
+  const e = new Error('No tenant matches this host.'); e.status = 404; throw e;
+};
+
 const remove = async (id, actor) => {
   const res = await query(`DELETE FROM tenants WHERE id = $1 RETURNING id`, [id]);
   if (!res.rows[0]) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
   await audit.log({ superAdminId: actor?.id, tenantId: id, action: 'tenant.deleted' });
 };
 
-module.exports = { list, getOne, create, update, setStatus, rotateApiKey, remove };
+module.exports = { list, getOne, create, update, setStatus, rotateApiKey, remove, resolveByHost };

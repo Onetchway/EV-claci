@@ -1,5 +1,6 @@
 const svc = require('../services/tenants.service');
 
+exports.resolveByHost = async (req, res, next) => { try { res.json(await svc.resolveByHost(req.query.host)); } catch (e) { next(e); } };
 exports.list = async (req, res, next) => { try { res.json(await svc.list(req.query)); } catch (e) { next(e); } };
 exports.getOne = async (req, res, next) => { try { res.json(await svc.getOne(req.params.id)); } catch (e) { next(e); } };
 exports.create = async (req, res, next) => { try { res.status(201).json(await svc.create(req.body, req.superAdmin)); } catch (e) { next(e); } };

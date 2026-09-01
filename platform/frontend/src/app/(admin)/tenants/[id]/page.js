@@ -105,6 +105,37 @@ export default function TenantDetailPage() {
         </select>
       </div>
 
+      <div className="card p-5 space-y-4">
+        <h2 className="font-semibold">Domain routing</h2>
+        <p className="text-sm text-gray-500">
+          Only used in <strong>shared</strong> deployment mode — one CRM instance resolves which
+          tenant an inbound request belongs to by its subdomain or custom domain. Dedicated/isolated
+          tenants ignore this (their whole instance already belongs to one tenant).
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Subdomain</label>
+            <div className="flex items-center gap-1">
+              <input
+                className="input"
+                defaultValue={tenant.slug}
+                onBlur={(e) => updateTenant({ slug: e.target.value })}
+              />
+              <span className="text-sm text-gray-400 whitespace-nowrap">.{process.env.NEXT_PUBLIC_BASE_DOMAIN || 'yourplatform.com'}</span>
+            </div>
+          </div>
+          <div>
+            <label className="label">Custom domain (optional)</label>
+            <input
+              className="input"
+              placeholder="crm.clientcompany.com"
+              defaultValue={tenant.custom_domain || ''}
+              onBlur={(e) => updateTenant({ custom_domain: e.target.value || null })}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-6">
         <div className="card p-5 space-y-4">
           <h2 className="font-semibold">Billing</h2>

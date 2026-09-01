@@ -5,6 +5,11 @@ const ctrl = require('../controllers/tenants.controller');
 const { authenticate } = require('../middleware/auth');
 const { requireRole } = require('../middleware/role');
 
+// Public: a tenant CRM instance calls this (unauthenticated, server-to-server)
+// to resolve which tenant an inbound Host header belongs to. Returns only
+// non-sensitive routing info (id/name/slug/status/deployment_mode).
+router.get('/resolve', ctrl.resolveByHost);
+
 router.use(authenticate);
 
 router.get('/', ctrl.list);

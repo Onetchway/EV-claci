@@ -15,6 +15,11 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// Needed for correct req.hostname when this instance runs in "shared"
+// deployment mode behind a reverse proxy/load balancer (subdomain and
+// custom-domain tenant routing rely on the real Host header).
+app.set('trust proxy', true);
+
 app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',

@@ -1,26 +1,37 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { query } = require('./database');
+const { resolveTenantByHost } = require('../utils/resolveTenant');
 
 const ALLOWED_DOMAIN = process.env.ALLOWED_EMAIL_DOMAIN || 'zivahgroup.com';
 
-// NOTE on multi-tenant ("shared" deployment mode, see platform/README.md):
-// this domain gate is single-org. A shared instance serving several
-// tenants at once would need a domain -> tenant_id lookup here instead of
-// one global ALLOWED_DOMAIN, so that a new Google sign-in lands in the
-// right tenant. Not built — today, self-serve OAuth signup only makes
-// sense for a single-tenant (dedicated/isolated) deploy. In shared mode,
-// assign tenant_id to a user explicitly via PUT /api/users/:id instead.
+// Multi-tenant ("shared" deployment mode, see platform/README.md): a
+// shared instance resolves which tenant a sign-in belongs to from the
+// Host it came in on (subdomain or custom domain, both super-admin
+// managed — see platform/backend/src/services/tenants.service.js's
+// resolveByHost). When that resolves, it replaces the single-org
+// ALLOWED_EMAIL_DOMAIN gate entirely and the new/returning user is
+// stamped with that tenant's id. When it doesn't (standalone,
+// dedicated, or isolated deploys — no PLATFORM_API_URL, or the host
+// just isn't a known tenant domain), behavior is unchanged from before:
+// the single ALLOWED_DOMAIN gate applies and tenant_id stays NULL.
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.GOOGLE_CALLBACK_URL,
-}, async (accessToken, refreshToken, profile, done) => {
+  passReqToCallback: true,
+}, async (req, accessToken, refreshToken, profile, done) => {
   try {
     const email = profile.emails?.[0]?.value;
     if (!email) return done(null, false, { message: 'No email from Google.' });
-    if (email.split('@')[1] !== ALLOWED_DOMAIN)
+
+    const tenant = await resolveTenantByHost(req.hostname);
+
+    if (tenant) {
+      if (tenant.status === 'cancelled') return done(null, false, { message: 'This account is no longer active.' });
+    } else if (email.split('@')[1] !== ALLOWED_DOMAIN) {
       return done(null, false, { message: `Only @${ALLOWED_DOMAIN} emails are allowed.` });
+    }
 
     const picture = profile.photos?.[0]?.value || null;
     const existing = await query('SELECT * FROM users WHERE email = $1', [email]);
@@ -34,8 +45,8 @@ passport.use(new GoogleStrategy({
       user = updated.rows[0];
     } else {
       const created = await query(
-        `INSERT INTO users (name, email, picture, role) VALUES ($1, $2, $3, 'operations') RETURNING *`,
-        [profile.displayName, email, picture]
+        `INSERT INTO users (name, email, picture, role, tenant_id) VALUES ($1, $2, $3, 'operations', $4) RETURNING *`,
+        [profile.displayName, email, picture, tenant?.id || null]
       );
       user = created.rows[0];
     }
