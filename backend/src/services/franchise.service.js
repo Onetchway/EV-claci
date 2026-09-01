@@ -3,12 +3,16 @@
 const { query } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { paginate, paginatedResponse } = require('../utils/pagination');
+const { tenantWhere, tenantIdForInsert } = require('../middleware/tenantScope');
 
-const list = async (filters) => {
+const list = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.status) { conditions.push(`status = $${idx++}`); params.push(filters.status); }
   if (filters.type)   { conditions.push(`type = $${idx++}`);   params.push(filters.type); }
@@ -31,8 +35,12 @@ const list = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const getOne = async (id) => {
-  const res = await query('SELECT * FROM franchises WHERE id = $1', [id]);
+const getOne = async (id, req) => {
+  const conditions = ['id = $1'];
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { conditions.push(tenant.clause); params.push(...tenant.params); }
+  const res = await query(`SELECT * FROM franchises WHERE ${conditions.join(' AND ')}`, params);
   if (!res.rows[0]) { const e = new Error('Franchise not found'); e.status = 404; throw e; }
 
   const [assetsRes, settlementsRes] = await Promise.all([
@@ -51,7 +59,7 @@ const getOne = async (id) => {
   return { ...res.rows[0], assets: assetsRes.rows, recent_settlements: settlementsRes.rows };
 };
 
-const create = async (data) => {
+const create = async (data, req) => {
   const {
     name, contact_name, contact_email, contact_phone = null,
     type, revenue_share_percent = 0, investment_amount = 0, status = 'active',
@@ -61,14 +69,14 @@ const create = async (data) => {
   }
   const id = uuidv4();
   const res = await query(
-    `INSERT INTO franchises (id, name, contact_name, contact_email, contact_phone, type, revenue_share_percent, investment_amount, status, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW()) RETURNING *`,
-    [id, name, contact_name, contact_email, contact_phone, type, revenue_share_percent, investment_amount, status]
+    `INSERT INTO franchises (id, tenant_id, name, contact_name, contact_email, contact_phone, type, revenue_share_percent, investment_amount, status, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW()) RETURNING *`,
+    [id, tenantIdForInsert(req), name, contact_name, contact_email, contact_phone, type, revenue_share_percent, investment_amount, status]
   );
   return res.rows[0];
 };
 
-const update = async (id, data) => {
+const update = async (id, data, req) => {
   const allowed = ['name', 'contact_name', 'contact_email', 'contact_phone', 'type', 'revenue_share_percent', 'investment_amount', 'status'];
   const fields = []; const params = []; let idx = 1;
   for (const f of allowed) {
@@ -77,13 +85,20 @@ const update = async (id, data) => {
   if (!fields.length) { const e = new Error('No valid fields to update'); e.status = 400; throw e; }
   fields.push('updated_at = NOW()');
   params.push(id);
-  const res = await query(`UPDATE franchises SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`, params);
+  let sql = `UPDATE franchises SET ${fields.join(', ')} WHERE id = $${idx}`;
+  const tenant = tenantWhere(req, idx + 1);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING *`, params);
   if (!res.rows[0]) { const e = new Error('Franchise not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const remove = async (id) => {
-  const res = await query('DELETE FROM franchises WHERE id = $1 RETURNING id', [id]);
+const remove = async (id, req) => {
+  let sql = 'DELETE FROM franchises WHERE id = $1';
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING id`, params);
   if (!res.rows[0]) { const e = new Error('Franchise not found'); e.status = 404; throw e; }
 };
 

@@ -5,6 +5,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS nakjm_documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     project_id UUID REFERENCES nakjm_projects(id) ON DELETE CASCADE,
     doc_type VARCHAR(30) NOT NULL DEFAULT 'other' CHECK (doc_type IN ('client_po', 'work_order', 'boq_upload', 'quotation_upload', 'other')),
     file_name VARCHAR(500) NOT NULL,
@@ -23,3 +24,6 @@ ALTER TABLE nakjm_projects            ADD COLUMN IF NOT EXISTS source_document_i
 ALTER TABLE nakjm_proforma_invoices   ADD COLUMN IF NOT EXISTS source_document_id UUID REFERENCES nakjm_documents(id) ON DELETE SET NULL;
 ALTER TABLE nakjm_boqs                ADD COLUMN IF NOT EXISTS source_document_id UUID REFERENCES nakjm_documents(id) ON DELETE SET NULL;
 ALTER TABLE nakjm_quotations          ADD COLUMN IF NOT EXISTS source_boq_id UUID REFERENCES nakjm_boqs(id) ON DELETE SET NULL;
+
+-- Tenant scoping index ("shared" deployment mode, see platform/README.md)
+CREATE INDEX IF NOT EXISTS idx_nakjm_documents_tenant_id ON nakjm_documents(tenant_id);

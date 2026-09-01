@@ -9,6 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================
 CREATE TABLE IF NOT EXISTS franchises (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     name VARCHAR(255) NOT NULL,
     contact_name VARCHAR(255) NOT NULL,
     contact_email VARCHAR(255) NOT NULL,
@@ -26,6 +27,7 @@ CREATE TABLE IF NOT EXISTS franchises (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     picture VARCHAR(500),
@@ -40,6 +42,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS stations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     name VARCHAR(255) NOT NULL,
     address TEXT NOT NULL,
     city VARCHAR(100) NOT NULL,
@@ -59,6 +62,7 @@ CREATE TABLE IF NOT EXISTS stations (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS assets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
     asset_type VARCHAR(50) NOT NULL CHECK (asset_type IN ('charger', 'bss', 'transformer', 'solar')),
     name VARCHAR(255) NOT NULL,
@@ -78,6 +82,7 @@ CREATE TABLE IF NOT EXISTS assets (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS chargers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     asset_id UUID UNIQUE REFERENCES assets(id) ON DELETE CASCADE,
     station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
     connector_type VARCHAR(20) NOT NULL CHECK (connector_type IN ('CCS', 'CHAdeMO', 'Type2', 'GB/T')),
@@ -94,6 +99,7 @@ CREATE TABLE IF NOT EXISTS chargers (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS bss_stations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     asset_id UUID UNIQUE REFERENCES assets(id) ON DELETE CASCADE,
     station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
     number_of_batteries INT NOT NULL DEFAULT 0,
@@ -111,6 +117,7 @@ CREATE TABLE IF NOT EXISTS bss_stations (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS charging_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     charger_id UUID NOT NULL REFERENCES chargers(id) ON DELETE CASCADE,
     station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
     user_ref VARCHAR(255),
@@ -129,6 +136,7 @@ CREATE TABLE IF NOT EXISTS charging_sessions (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS bss_swaps (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     bss_station_id UUID NOT NULL REFERENCES bss_stations(id) ON DELETE CASCADE,
     station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
     swap_type VARCHAR(20) NOT NULL CHECK (swap_type IN ('swap', 'rental_start', 'rental_end')),
@@ -143,6 +151,7 @@ CREATE TABLE IF NOT EXISTS bss_swaps (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS revenues (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     charging_revenue DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -163,6 +172,7 @@ CREATE TABLE IF NOT EXISTS revenues (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS settlements (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     franchise_id UUID NOT NULL REFERENCES franchises(id) ON DELETE CASCADE,
     station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
     period_start DATE NOT NULL,
@@ -189,3 +199,15 @@ CREATE INDEX IF NOT EXISTS idx_assets_station_id ON assets(station_id);
 CREATE INDEX IF NOT EXISTS idx_bss_swaps_station_id ON bss_swaps(bss_station_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_charging_sessions_charger_id ON charging_sessions(charger_id);
+
+-- Tenant scoping indexes ("shared" deployment mode, see platform/README.md)
+CREATE INDEX IF NOT EXISTS idx_franchises_tenant_id ON franchises(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_stations_tenant_id ON stations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_assets_tenant_id ON assets(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_chargers_tenant_id ON chargers(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_bss_stations_tenant_id ON bss_stations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_charging_sessions_tenant_id ON charging_sessions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_bss_swaps_tenant_id ON bss_swaps(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_revenues_tenant_id ON revenues(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_settlements_tenant_id ON settlements(tenant_id);

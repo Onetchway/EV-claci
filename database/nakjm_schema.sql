@@ -8,6 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_clients (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     name VARCHAR(255) NOT NULL,
     client_type VARCHAR(30) NOT NULL DEFAULT 'private' CHECK (client_type IN ('oem', 'cpo', 'private', 'government', 'other')),
     contact_name VARCHAR(255),
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS nakjm_clients (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_vendors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     name VARCHAR(255) NOT NULL,
     category VARCHAR(30) NOT NULL DEFAULT 'other' CHECK (category IN ('electrical', 'civil', 'cabling', 'transformer', 'ht_works', 'equipment_supply', 'logistics', 'manpower', 'other')),
     contact_name VARCHAR(255),
@@ -50,6 +52,7 @@ CREATE TABLE IF NOT EXISTS nakjm_vendors (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_team_members (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE,
     phone VARCHAR(50),
@@ -66,6 +69,7 @@ CREATE TABLE IF NOT EXISTS nakjm_team_members (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     project_code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     client_id UUID NOT NULL REFERENCES nakjm_clients(id) ON DELETE RESTRICT,
@@ -92,6 +96,7 @@ CREATE TABLE IF NOT EXISTS nakjm_projects (
 -- Project <-> Team (many-to-many, with a project-specific role)
 CREATE TABLE IF NOT EXISTS nakjm_project_team (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     project_id UUID NOT NULL REFERENCES nakjm_projects(id) ON DELETE CASCADE,
     team_member_id UUID NOT NULL REFERENCES nakjm_team_members(id) ON DELETE CASCADE,
     project_role VARCHAR(100),
@@ -105,6 +110,7 @@ CREATE TABLE IF NOT EXISTS nakjm_project_team (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_quotations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     quotation_no VARCHAR(50) UNIQUE NOT NULL,
     project_id UUID NOT NULL REFERENCES nakjm_projects(id) ON DELETE CASCADE,
     client_id UUID NOT NULL REFERENCES nakjm_clients(id) ON DELETE RESTRICT,
@@ -124,6 +130,7 @@ CREATE TABLE IF NOT EXISTS nakjm_quotations (
 
 CREATE TABLE IF NOT EXISTS nakjm_quotation_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     quotation_id UUID NOT NULL REFERENCES nakjm_quotations(id) ON DELETE CASCADE,
     sr_no INT NOT NULL DEFAULT 1,
     description TEXT NOT NULL,
@@ -140,6 +147,7 @@ CREATE TABLE IF NOT EXISTS nakjm_quotation_items (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_boqs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     boq_no VARCHAR(50) UNIQUE NOT NULL,
     project_id UUID NOT NULL REFERENCES nakjm_projects(id) ON DELETE CASCADE,
     quotation_id UUID REFERENCES nakjm_quotations(id) ON DELETE SET NULL,
@@ -155,6 +163,7 @@ CREATE TABLE IF NOT EXISTS nakjm_boqs (
 
 CREATE TABLE IF NOT EXISTS nakjm_boq_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     boq_id UUID NOT NULL REFERENCES nakjm_boqs(id) ON DELETE CASCADE,
     section VARCHAR(255),
     sr_no INT NOT NULL DEFAULT 1,
@@ -175,6 +184,7 @@ CREATE TABLE IF NOT EXISTS nakjm_boq_items (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_purchase_orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     po_no VARCHAR(50) UNIQUE NOT NULL,
     project_id UUID NOT NULL REFERENCES nakjm_projects(id) ON DELETE CASCADE,
     vendor_id UUID NOT NULL REFERENCES nakjm_vendors(id) ON DELETE RESTRICT,
@@ -192,6 +202,7 @@ CREATE TABLE IF NOT EXISTS nakjm_purchase_orders (
 
 CREATE TABLE IF NOT EXISTS nakjm_po_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     po_id UUID NOT NULL REFERENCES nakjm_purchase_orders(id) ON DELETE CASCADE,
     description TEXT NOT NULL,
     unit VARCHAR(30),
@@ -205,6 +216,7 @@ CREATE TABLE IF NOT EXISTS nakjm_po_items (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_proforma_invoices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     pi_no VARCHAR(50) UNIQUE NOT NULL,
     project_id UUID NOT NULL REFERENCES nakjm_projects(id) ON DELETE CASCADE,
     client_id UUID NOT NULL REFERENCES nakjm_clients(id) ON DELETE RESTRICT,
@@ -223,6 +235,7 @@ CREATE TABLE IF NOT EXISTS nakjm_proforma_invoices (
 
 CREATE TABLE IF NOT EXISTS nakjm_pi_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     pi_id UUID NOT NULL REFERENCES nakjm_proforma_invoices(id) ON DELETE CASCADE,
     description TEXT NOT NULL,
     unit VARCHAR(30),
@@ -236,6 +249,7 @@ CREATE TABLE IF NOT EXISTS nakjm_pi_items (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_client_payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     project_id UUID NOT NULL REFERENCES nakjm_projects(id) ON DELETE CASCADE,
     client_id UUID NOT NULL REFERENCES nakjm_clients(id) ON DELETE RESTRICT,
     pi_id UUID REFERENCES nakjm_proforma_invoices(id) ON DELETE SET NULL,
@@ -253,6 +267,7 @@ CREATE TABLE IF NOT EXISTS nakjm_client_payments (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_vendor_payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     vendor_id UUID NOT NULL REFERENCES nakjm_vendors(id) ON DELETE RESTRICT,
     project_id UUID NOT NULL REFERENCES nakjm_projects(id) ON DELETE CASCADE,
     po_id UUID REFERENCES nakjm_purchase_orders(id) ON DELETE SET NULL,
@@ -269,6 +284,7 @@ CREATE TABLE IF NOT EXISTS nakjm_vendor_payments (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS nakjm_site_reports (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID, -- NULL in standalone/dedicated/isolated deploys; set for "shared" mode, see platform/README.md
     project_id UUID NOT NULL REFERENCES nakjm_projects(id) ON DELETE CASCADE,
     reported_by UUID REFERENCES nakjm_team_members(id) ON DELETE SET NULL,
     report_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -298,3 +314,21 @@ CREATE INDEX IF NOT EXISTS idx_nakjm_client_payments_project ON nakjm_client_pay
 CREATE INDEX IF NOT EXISTS idx_nakjm_vendor_payments_vendor  ON nakjm_vendor_payments(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_nakjm_vendor_payments_project ON nakjm_vendor_payments(project_id);
 CREATE INDEX IF NOT EXISTS idx_nakjm_site_reports_project    ON nakjm_site_reports(project_id);
+
+-- Tenant scoping indexes ("shared" deployment mode, see platform/README.md)
+CREATE INDEX IF NOT EXISTS idx_nakjm_clients_tenant_id ON nakjm_clients(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_vendors_tenant_id ON nakjm_vendors(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_team_members_tenant_id ON nakjm_team_members(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_projects_tenant_id ON nakjm_projects(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_project_team_tenant_id ON nakjm_project_team(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_quotations_tenant_id ON nakjm_quotations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_quotation_items_tenant_id ON nakjm_quotation_items(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_boqs_tenant_id ON nakjm_boqs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_boq_items_tenant_id ON nakjm_boq_items(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_purchase_orders_tenant_id ON nakjm_purchase_orders(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_po_items_tenant_id ON nakjm_po_items(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_proforma_invoices_tenant_id ON nakjm_proforma_invoices(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_pi_items_tenant_id ON nakjm_pi_items(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_client_payments_tenant_id ON nakjm_client_payments(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_vendor_payments_tenant_id ON nakjm_vendor_payments(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_nakjm_site_reports_tenant_id ON nakjm_site_reports(tenant_id);

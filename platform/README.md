@@ -43,8 +43,40 @@ Set via `tenants.deployment_mode`:
 beyond adding the usage-reporting call described above. `shared` mode
 additionally requires adding `tenant_id` to every table in
 `database/schema.sql` and a middleware that scopes every query to
-`req.user.tenant_id` — not built yet; do this before onboarding a
-`shared`-mode tenant.
+`req.user.tenant_id`.
+
+**Status: infrastructure done, retrofit in progress.** Every table across
+`database/schema.sql`, `database/nakjm_schema.sql` and
+`database/nakjm_documents_schema.sql` now has a nullable `tenant_id`
+column (`database/migrations/001_add_tenant_id.sql` for existing
+deployments; new installs get it straight from the schema files). It's
+NULL for every row in `dedicated`/`isolated`/standalone deploys, so
+nothing changes for them. `backend/src/middleware/tenantScope.js` has the
+two helpers every service uses — `tenantWhere(req, paramIndex)` to scope
+a read, `tenantIdForInsert(req)` to stamp a write — and
+`users.service.js` + `franchise.service.js` are retrofitted as the
+reference implementation (see their diffs for the exact pattern:
+add `tenant.clause`/`tenant.params` from `tenantWhere` into the
+conditions array, pass `req` through from the controller).
+
+The same mechanical change still needs applying to the rest of
+`backend/src/services/*.service.js` (`assets`, `bss`, `chargers`,
+`dashboard`, `revenue`, `sessions`, `settlements`, `stations`, and all
+11 files under `services/nakjm/`) before a `shared`-mode tenant can
+safely share an instance with others — until then, only onboard
+`shared`-mode tenants one at a time behind a `dedicated`/`isolated`
+deploy, or finish the retrofit first.
+
+Also still open: OAuth self-signup (`backend/src/config/passport.js`)
+doesn't resolve which tenant a new Google sign-in belongs to — it's
+single-org by design (one `ALLOWED_EMAIL_DOMAIN`), see the comment in
+`passport.js`. And `users.service.js` deliberately does NOT let a
+tenant's own admin move users between tenants via `PUT /api/users/:id`
+(that's a platform-level action, not a CRM one) — but the platform side
+of "assign this user to this tenant" isn't built yet either. Until
+both exist, a `shared`-mode tenant's users have to be seeded directly
+(e.g. a one-off `UPDATE users SET tenant_id = ...` at onboarding), the
+same way `nakjm-crm`'s `scripts/create-user.ts` bootstraps its first users.
 
 ## What's in this folder
 
