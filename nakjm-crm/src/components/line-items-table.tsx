@@ -5,6 +5,13 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import type { BoqLineItem, LineItem } from "@/lib/types";
 
+/**
+ * Each line item renders as its own full-width block, description on its own
+ * full-width auto-growing textarea line (Odoo's product-line editor look),
+ * with the remaining fields (qty/unit/rate/etc.) laid out in a compact grid
+ * beneath it -- rather than cramming every field into equal-width table
+ * columns, where description had no room to be read while typing.
+ */
 export function ItemsTable<T extends Record<string, unknown>>({
   items, setItems, fields,
 }: {
@@ -12,36 +19,54 @@ export function ItemsTable<T extends Record<string, unknown>>({
   setItems: (items: T[]) => void;
   fields: { key: keyof T; label: string; type?: string }[];
 }) {
+  const descField = fields.find((f) => f.key === "description");
+  const otherFields = fields.filter((f) => f.key !== "description");
+
   const addRow = () => setItems([...items, Object.fromEntries(fields.map((f) => [f.key, f.type === "number" ? 0 : ""])) as T]);
   const update = (i: number, key: keyof T, value: string) =>
     setItems(items.map((it, idx) => (idx === i ? { ...it, [key]: value } : it)));
   const remove = (i: number) => setItems(items.filter((_, idx) => idx !== i));
 
   return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto rounded-xl border border-ink-200">
-        <table className="w-full">
-          <thead><tr>{fields.map((f) => <th key={String(f.key)} className="th py-3 text-sm">{f.label}</th>)}<th className="th" /></tr></thead>
-          <tbody>
-            {items.map((it, i) => (
-              <tr key={i} className="border-t border-ink-100">
-                {fields.map((f) => (
-                  <td key={String(f.key)} className="td p-2">
-                    <input
-                      className="input py-2.5 text-base"
-                      type={f.type ?? "text"}
-                      value={(it[f.key] as string | number) ?? ""}
-                      onChange={(e) => update(i, f.key, e.target.value)}
-                    />
-                  </td>
-                ))}
-                <td className="td p-2"><button type="button" onClick={() => remove(i)}><Trash2 className="h-4 w-4 text-rose-500" /></button></td>
-              </tr>
-            ))}
-            {items.length === 0 && <tr><td colSpan={fields.length + 1} className="td text-center text-ink-400">No line items yet.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+    <div className="space-y-3">
+      {items.map((it, i) => (
+        <div key={i} className="rounded-xl border border-ink-200 p-3">
+          <div className="flex items-start gap-2">
+            {descField && (
+              <div className="flex-1">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-500">{descField.label}</label>
+                <textarea
+                  className="input min-h-[4.5rem] resize-y py-2.5 text-base"
+                  rows={3}
+                  value={(it[descField.key] as string) ?? ""}
+                  onChange={(e) => update(i, descField.key, e.target.value)}
+                />
+              </div>
+            )}
+            <button type="button" className="mt-6 shrink-0" onClick={() => remove(i)}>
+              <Trash2 className="h-4 w-4 text-rose-500" />
+            </button>
+          </div>
+          {otherFields.length > 0 && (
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+              {otherFields.map((f) => (
+                <div key={String(f.key)}>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-500">{f.label}</label>
+                  <input
+                    className="input py-2.5 text-base"
+                    type={f.type ?? "text"}
+                    value={(it[f.key] as string | number) ?? ""}
+                    onChange={(e) => update(i, f.key, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      {items.length === 0 && (
+        <div className="rounded-xl border border-dashed border-ink-200 py-8 text-center text-sm text-ink-400">No line items yet.</div>
+      )}
       <Button type="button" variant="secondary" size="sm" onClick={addRow}><Plus className="h-3.5 w-3.5" /> Add Line</Button>
     </div>
   );
