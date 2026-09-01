@@ -3,6 +3,7 @@ import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Zap } from 'lucide-react';
+import { useTenantSlug, tenantHref } from '@/lib/tenant';
 
 export default function LoginPage() {
   return (
@@ -17,24 +18,27 @@ function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const urlError = params.get('error');
+  const tenant = useTenantSlug();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
 
-  useEffect(() => { if (session) router.replace('/dashboard'); }, [session, router]);
+  useEffect(() => { if (session) router.replace(tenantHref('/dashboard', tenant)); }, [session, router, tenant]);
 
   async function onSubmit(e) {
     e.preventDefault();
     setBusy(true);
     setFormError('');
-    const res = await signIn('credentials', { email, password, redirect: false });
+    // tenantSlug: which tenant's login page this is (see middleware.js) —
+    // the backend rejects a login whose tenant doesn't match the user's own.
+    const res = await signIn('credentials', { email, password, tenantSlug: tenant || '', redirect: false });
     setBusy(false);
     if (res?.error) {
       setFormError('Invalid email or password.');
     } else {
-      router.push('/dashboard');
+      router.push(tenantHref('/dashboard', tenant));
     }
   }
 

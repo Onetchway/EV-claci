@@ -170,10 +170,26 @@ const resolveByHost = async (host) => {
   const e = new Error('No tenant matches this host.'); e.status = 404; throw e;
 };
 
+// Path-based tenant resolution, called by a tenant CRM instance running in
+// "shared" mode when deployed under a single domain that routes tenants by
+// URL path instead of subdomain (e.g. app.alpha.com/xpulse rather than
+// xpulse.alpha.com) — see frontend/middleware.js. Same public, non-sensitive
+// contract as resolveByHost above; slug is just matched directly since it's
+// already the unambiguous tenant identifier (no domain-stripping needed).
+const resolveBySlug = async (slug) => {
+  if (!slug) { const e = new Error('slug is required.'); e.status = 400; throw e; }
+  const res = await query(
+    `SELECT id, name, slug, status, deployment_mode FROM tenants WHERE slug = $1`,
+    [slug.toLowerCase()]
+  );
+  if (!res.rows[0]) { const e = new Error('No tenant matches this slug.'); e.status = 404; throw e; }
+  return res.rows[0];
+};
+
 const remove = async (id, actor) => {
   const res = await query(`DELETE FROM tenants WHERE id = $1 RETURNING id`, [id]);
   if (!res.rows[0]) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
   await audit.log({ superAdminId: actor?.id, tenantId: id, action: 'tenant.deleted' });
 };
 
-module.exports = { list, getOne, create, update, setStatus, rotateApiKey, remove, resolveByHost };
+module.exports = { list, getOne, create, update, setStatus, rotateApiKey, remove, resolveByHost, resolveBySlug };

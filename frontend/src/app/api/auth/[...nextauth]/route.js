@@ -11,12 +11,19 @@ const providers = [
     credentials: {
       email: { label: 'Email', type: 'email' },
       password: { label: 'Password', type: 'password' },
+      // Path-based tenant mode only (see middleware.js) — which tenant's
+      // login page this is, so the backend can reject a cross-tenant login.
+      tenantSlug: { label: 'Tenant', type: 'text' },
     },
     async authorize(credentials) {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: credentials?.email, password: credentials?.password }),
+        body: JSON.stringify({
+          email: credentials?.email,
+          password: credentials?.password,
+          tenantSlug: credentials?.tenantSlug || undefined,
+        }),
       });
       if (!res.ok) return null;
       const { data } = await res.json();

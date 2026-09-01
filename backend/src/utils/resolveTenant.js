@@ -40,4 +40,34 @@ async function resolveTenantByHost(host) {
   }
 }
 
-module.exports = { resolveTenantByHost };
+/**
+ * Same idea as resolveTenantByHost, but for a single-domain deployment that
+ * routes tenants by URL path instead of subdomain (app.alpha.com/xpulse —
+ * see frontend/middleware.js) rather than by Host header.
+ */
+const slugCache = new Map(); // slug -> { tenant, expiresAt }
+
+async function resolveTenantBySlug(slug) {
+  const apiUrl = process.env.PLATFORM_API_URL;
+  if (!apiUrl || !slug) return null;
+
+  const bareSlug = slug.toLowerCase();
+  const cached = slugCache.get(bareSlug);
+  if (cached && cached.expiresAt > Date.now()) return cached.tenant;
+
+  try {
+    const response = await fetch(`${apiUrl}/tenants/resolve-slug?slug=${encodeURIComponent(bareSlug)}`);
+    if (!response.ok) {
+      slugCache.set(bareSlug, { tenant: null, expiresAt: Date.now() + CACHE_TTL_MS });
+      return null;
+    }
+    const tenant = await response.json();
+    slugCache.set(bareSlug, { tenant, expiresAt: Date.now() + CACHE_TTL_MS });
+    return tenant;
+  } catch (err) {
+    console.error('[resolveTenant] Platform lookup failed:', err.message);
+    return null;
+  }
+}
+
+module.exports = { resolveTenantByHost, resolveTenantBySlug };

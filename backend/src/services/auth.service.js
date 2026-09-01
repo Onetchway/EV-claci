@@ -3,6 +3,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
+const { resolveTenantBySlug } = require('../utils/resolveTenant');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
 
@@ -10,7 +11,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-producti
 // local testing where OAuth isn't set up. Only works for a user that has
 // a password_hash (set via createUser below); a Google-only user has none
 // and this always rejects them with the same generic message.
-const login = async ({ email, password }) => {
+//
+// tenantSlug is passed by a path-routed deployment (app.alpha.com/xpulse —
+// see frontend/middleware.js) to say which tenant's login page this is. When
+// present, the user's own tenant must match, so one tenant's login page
+// can't be used to sign into another tenant's account — same generic
+// message either way, so this never confirms whether an email exists.
+const login = async ({ email, password, tenantSlug }) => {
   if (!email || !password) { const e = new Error('Email and password are required.'); e.status = 400; throw e; }
 
   const res = await query(
@@ -22,6 +29,11 @@ const login = async ({ email, password }) => {
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) { const e = new Error('Invalid credentials.'); e.status = 401; throw e; }
+
+  if (tenantSlug) {
+    const tenant = await resolveTenantBySlug(tenantSlug);
+    if (!tenant || tenant.id !== user.tenant_id) { const e = new Error('Invalid credentials.'); e.status = 401; throw e; }
+  }
 
   const payload = {
     id: user.id, email: user.email, name: user.name, picture: user.picture || null,

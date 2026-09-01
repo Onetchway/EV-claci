@@ -9,6 +9,9 @@ const { requireRole } = require('../middleware/role');
 // to resolve which tenant an inbound Host header belongs to. Returns only
 // non-sensitive routing info (id/name/slug/status/deployment_mode).
 router.get('/resolve', ctrl.resolveByHost);
+// Same, but by URL path slug — for a single-domain, path-routed deployment
+// (app.alpha.com/xpulse) instead of subdomain routing.
+router.get('/resolve-slug', ctrl.resolveBySlug);
 
 router.use(authenticate);
 

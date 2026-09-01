@@ -8,6 +8,7 @@ import {
   Briefcase, ClipboardList, Truck, Wallet, ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTenantSlug, tenantHref } from '@/lib/tenant';
 
 const NAV = [
   { label: 'Dashboard',    href: '/dashboard',    icon: LayoutDashboard },
@@ -34,6 +35,7 @@ export default function Sidebar() {
   const path    = usePathname();
   const { data: session } = useSession();
   const role    = session?.user?.role;
+  const tenant  = useTenantSlug();
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-[var(--sidebar-width)] bg-gray-900 text-white flex flex-col z-30">
@@ -51,9 +53,9 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
         {NAV.filter(item => !item.role || item.role === role).map(({ label, href, icon: Icon }) => {
-          const active = path === href || path.startsWith(href + '/');
+          const active = path === tenantHref(href, tenant) || path.startsWith(tenantHref(href, tenant) + '/');
           return (
-            <Link key={href} href={href}
+            <Link key={href} href={tenantHref(href, tenant)}
               className={cn('flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 active ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800')}>
               <Icon className="w-4 h-4 flex-shrink-0" />
@@ -65,9 +67,9 @@ export default function Sidebar() {
 
         <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">NAKJM EPC</p>
         {NAKJM_NAV.map(({ label, href, icon: Icon }) => {
-          const active = path === href || path.startsWith(href + '/');
+          const active = path === tenantHref(href, tenant) || path.startsWith(tenantHref(href, tenant) + '/');
           return (
-            <Link key={href} href={href}
+            <Link key={href} href={tenantHref(href, tenant)}
               className={cn('flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 active ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800')}>
               <Icon className="w-4 h-4 flex-shrink-0" />
@@ -92,7 +94,7 @@ export default function Sidebar() {
             </div>
           </div>
         )}
-        <button onClick={() => signOut({ callbackUrl: '/login' })}
+        <button onClick={() => signOut({ callbackUrl: tenantHref('/login', tenant) })}
           className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors w-full">
           <LogOut className="w-4 h-4" /> Sign out
         </button>
