@@ -3,12 +3,16 @@
 const { query } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { paginate, paginatedResponse } = require('../utils/pagination');
+const { tenantWhere, tenantIdForInsert } = require('../middleware/tenantScope');
 
-const list = async (filters) => {
+const list = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 's.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.city)         { conditions.push(`s.city ILIKE $${idx++}`);     params.push(`%${filters.city}%`); }
   if (filters.state)        { conditions.push(`s.state ILIKE $${idx++}`);    params.push(`%${filters.state}%`); }
@@ -34,35 +38,40 @@ const list = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const getOne = async (id) => {
+const getOne = async (id, req) => {
+  const conditions = ['s.id = $1'];
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 's.tenant_id')); params.push(...tenant.params); }
+
   const res = await query(
     `SELECT s.*,
       (SELECT COUNT(*) FROM assets        a  WHERE a.station_id  = s.id) AS asset_count,
       (SELECT COUNT(*) FROM chargers      c  WHERE c.station_id  = s.id) AS charger_count,
       (SELECT COUNT(*) FROM bss_stations  bs WHERE bs.station_id = s.id) AS bss_count,
       (SELECT COUNT(*) FROM charging_sessions cs WHERE cs.station_id = s.id AND cs.status = 'active') AS active_sessions
-     FROM stations s WHERE s.id = $1`,
-    [id]
+     FROM stations s WHERE ${conditions.join(' AND ')}`,
+    params
   );
   if (!res.rows[0]) { const e = new Error('Station not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const create = async (data) => {
+const create = async (data, req) => {
   const { name, address, city, state, latitude = null, longitude = null, station_type, electricity_rate = 0, selling_rate = 0, status = 'active' } = data;
   if (!name || !address || !city || !state || !station_type) {
     const e = new Error('name, address, city, state, station_type are required'); e.status = 400; throw e;
   }
   const id = uuidv4();
   const res = await query(
-    `INSERT INTO stations (id, name, address, city, state, latitude, longitude, station_type, electricity_rate, selling_rate, status, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW()) RETURNING *`,
-    [id, name, address, city, state, latitude, longitude, station_type, electricity_rate, selling_rate, status]
+    `INSERT INTO stations (id, tenant_id, name, address, city, state, latitude, longitude, station_type, electricity_rate, selling_rate, status, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW()) RETURNING *`,
+    [id, tenantIdForInsert(req), name, address, city, state, latitude, longitude, station_type, electricity_rate, selling_rate, status]
   );
   return res.rows[0];
 };
 
-const update = async (id, data) => {
+const update = async (id, data, req) => {
   const allowed = ['name', 'address', 'city', 'state', 'latitude', 'longitude', 'station_type', 'electricity_rate', 'selling_rate', 'status'];
   const fields = []; const params = []; let idx = 1;
   for (const f of allowed) {
@@ -71,18 +80,28 @@ const update = async (id, data) => {
   if (!fields.length) { const e = new Error('No valid fields to update'); e.status = 400; throw e; }
   fields.push('updated_at = NOW()');
   params.push(id);
-  const res = await query(`UPDATE stations SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`, params);
+  let sql = `UPDATE stations SET ${fields.join(', ')} WHERE id = $${idx}`;
+  const tenant = tenantWhere(req, idx + 1);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING *`, params);
   if (!res.rows[0]) { const e = new Error('Station not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const remove = async (id) => {
-  const res = await query('DELETE FROM stations WHERE id = $1 RETURNING id', [id]);
+const remove = async (id, req) => {
+  let sql = 'DELETE FROM stations WHERE id = $1';
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING id`, params);
   if (!res.rows[0]) { const e = new Error('Station not found'); e.status = 404; throw e; }
 };
 
-const stats = async (id, filters = {}) => {
-  const stRes = await query('SELECT * FROM stations WHERE id = $1', [id]);
+const stats = async (id, filters = {}, req) => {
+  const stConditions = ['id = $1']; const stParams = [id];
+  const stTenant = tenantWhere(req, 2);
+  if (stTenant.clause) { stConditions.push(stTenant.clause); stParams.push(...stTenant.params); }
+  const stRes = await query(`SELECT * FROM stations WHERE ${stConditions.join(' AND ')}`, stParams);
   if (!stRes.rows[0]) { const e = new Error('Station not found'); e.status = 404; throw e; }
 
   const conds = ['station_id = $1']; const params = [id]; let idx = 2;

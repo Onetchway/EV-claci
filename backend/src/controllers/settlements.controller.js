@@ -4,54 +4,54 @@ const svc = require('../services/settlements.service');
 const { sendCsv } = require('../utils/csvExport');
 
 exports.list = async (req, res, next) => {
-  try { res.json(await svc.list(req.query)); } catch (e) { next(e); }
+  try { res.json(await svc.list(req.query, req)); } catch (e) { next(e); }
 };
 
 exports.getOne = async (req, res, next) => {
   try {
-    const data = await svc.getOne(req.params.id);
+    const data = await svc.getOne(req.params.id, req);
     res.json({ success: true, data, message: 'Settlement retrieved successfully' });
   } catch (e) { next(e); }
 };
 
 exports.generate = async (req, res, next) => {
   try {
-    const data = await svc.generate(req.body);
+    const data = await svc.generate(req.body, req);
     res.status(201).json({ success: true, data, message: 'Settlement generated successfully' });
   } catch (e) { next(e); }
 };
 
 exports.approve = async (req, res, next) => {
   try {
-    const data = await svc.approve(req.params.id);
+    const data = await svc.approve(req.params.id, req);
     res.json({ success: true, data, message: 'Settlement approved successfully' });
   } catch (e) { next(e); }
 };
 
 exports.markPaid = async (req, res, next) => {
   try {
-    const data = await svc.markPaid(req.params.id);
+    const data = await svc.markPaid(req.params.id, req);
     res.json({ success: true, data, message: 'Settlement marked as paid' });
   } catch (e) { next(e); }
 };
 
 exports.updateStatus = async (req, res, next) => {
   try {
-    const data = await svc.updateStatus(req.params.id, req.body.status, req.body.notes);
+    const data = await svc.updateStatus(req.params.id, req.body.status, req.body.notes, req);
     res.json({ success: true, data, message: 'Settlement status updated' });
   } catch (e) { next(e); }
 };
 
 exports.getReport = async (req, res, next) => {
   try {
-    const data = await svc.getReport(req.params.id);
+    const data = await svc.getReport(req.params.id, req);
     res.json({ success: true, data, message: 'Settlement report retrieved successfully' });
   } catch (e) { next(e); }
 };
 
 exports.exportCsv = async (req, res, next) => {
   try {
-    const s = await svc.getOne(req.params.id);
+    const s = await svc.getOne(req.params.id, req);
     const rows = [{
       'Settlement ID': s.id,
       'Franchise': s.franchise_name,

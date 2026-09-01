@@ -4,33 +4,33 @@ const svc = require('../services/sessions.service');
 const { sendCsv } = require('../utils/csvExport');
 
 exports.list = async (req, res, next) => {
-  try { res.json(await svc.list(req.query)); } catch (e) { next(e); }
+  try { res.json(await svc.list(req.query, req)); } catch (e) { next(e); }
 };
 
 exports.getOne = async (req, res, next) => {
   try {
-    const data = await svc.getOne(req.params.id);
+    const data = await svc.getOne(req.params.id, req);
     res.json({ success: true, data, message: 'Session retrieved successfully' });
   } catch (e) { next(e); }
 };
 
 exports.create = async (req, res, next) => {
   try {
-    const data = await svc.create(req.body);
+    const data = await svc.create(req.body, req);
     res.status(201).json({ success: true, data, message: 'Session created successfully' });
   } catch (e) { next(e); }
 };
 
 exports.endSession = async (req, res, next) => {
   try {
-    const data = await svc.endSession(req.params.id, req.body);
+    const data = await svc.endSession(req.params.id, req.body, req);
     res.json({ success: true, data, message: 'Session ended successfully' });
   } catch (e) { next(e); }
 };
 
 exports.exportCsv = async (req, res, next) => {
   try {
-    const rows = await svc.exportForCsv(req.query);
+    const rows = await svc.exportForCsv(req.query, req);
     const csvRows = rows.map(r => ({
       'Session ID': r.id,
       'User Ref': r.user_ref || '',

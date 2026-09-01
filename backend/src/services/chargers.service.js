@@ -3,12 +3,16 @@
 const { query, getClient } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { paginate, paginatedResponse } = require('../utils/pagination');
+const { tenantWhere, tenantIdForInsert } = require('../middleware/tenantScope');
 
-const list = async (filters) => {
+const list = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'c.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.station_id) { conditions.push(`c.station_id = $${idx++}`); params.push(filters.station_id); }
   if (filters.stationId)  { conditions.push(`c.station_id = $${idx++}`); params.push(filters.stationId); }
@@ -32,13 +36,18 @@ const list = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const getOne = async (id) => {
+const getOne = async (id, req) => {
+  const conditions = ['c.id = $1'];
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'c.tenant_id')); params.push(...tenant.params); }
+
   const res = await query(
     `SELECT c.*, s.name AS station_name, s.electricity_rate, s.selling_rate
      FROM chargers c
      JOIN stations s ON s.id = c.station_id
-     WHERE c.id = $1`,
-    [id]
+     WHERE ${conditions.join(' AND ')}`,
+    params
   );
   if (!res.rows[0]) { const e = new Error('Charger not found'); e.status = 404; throw e; }
   const sessions = await query(
@@ -48,21 +57,21 @@ const getOne = async (id) => {
   return { ...res.rows[0], recent_sessions: sessions.rows };
 };
 
-const create = async (data) => {
+const create = async (data, req) => {
   const { asset_id = null, station_id, connector_type, power_rating = 0, ocpp_id = null, status = 'available' } = data;
   if (!station_id || !connector_type) {
     const e = new Error('station_id and connector_type are required'); e.status = 400; throw e;
   }
   const id = uuidv4();
   const res = await query(
-    `INSERT INTO chargers (id, asset_id, station_id, connector_type, power_rating, ocpp_id, status, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW()) RETURNING *`,
-    [id, asset_id, station_id, connector_type, power_rating, ocpp_id, status]
+    `INSERT INTO chargers (id, tenant_id, asset_id, station_id, connector_type, power_rating, ocpp_id, status, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW()) RETURNING *`,
+    [id, tenantIdForInsert(req), asset_id, station_id, connector_type, power_rating, ocpp_id, status]
   );
   return res.rows[0];
 };
 
-const update = async (id, data) => {
+const update = async (id, data, req) => {
   const allowed = ['asset_id', 'station_id', 'connector_type', 'power_rating', 'ocpp_id', 'status'];
   const fields = []; const params = []; let idx = 1;
   for (const f of allowed) {
@@ -71,41 +80,54 @@ const update = async (id, data) => {
   if (!fields.length) { const e = new Error('No valid fields to update'); e.status = 400; throw e; }
   fields.push('updated_at = NOW()');
   params.push(id);
-  const res = await query(`UPDATE chargers SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`, params);
+  let sql = `UPDATE chargers SET ${fields.join(', ')} WHERE id = $${idx}`;
+  const tenant = tenantWhere(req, idx + 1);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING *`, params);
   if (!res.rows[0]) { const e = new Error('Charger not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const remove = async (id) => {
-  const res = await query('DELETE FROM chargers WHERE id = $1 RETURNING id', [id]);
+const remove = async (id, req) => {
+  let sql = 'DELETE FROM chargers WHERE id = $1';
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING id`, params);
   if (!res.rows[0]) { const e = new Error('Charger not found'); e.status = 404; throw e; }
 };
 
-const heartbeat = async (id) => {
-  const res = await query(
-    `UPDATE chargers SET last_heartbeat = NOW(), updated_at = NOW() WHERE id = $1 RETURNING id, status, last_heartbeat`,
-    [id]
-  );
+const heartbeat = async (id, req) => {
+  let sql = 'UPDATE chargers SET last_heartbeat = NOW(), updated_at = NOW() WHERE id = $1';
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING id, status, last_heartbeat`, params);
   if (!res.rows[0]) { const e = new Error('Charger not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const updateStatus = async (id, status) => {
+const updateStatus = async (id, status, req) => {
   const valid = ['available', 'charging', 'fault', 'offline'];
   if (!valid.includes(status)) { const e = new Error(`status must be one of: ${valid.join(', ')}`); e.status = 400; throw e; }
-  const res = await query(
-    `UPDATE chargers SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-    [status, id]
-  );
+  let sql = `UPDATE chargers SET status = $1, updated_at = NOW() WHERE id = $2`;
+  const params = [status, id];
+  const tenant = tenantWhere(req, 3);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING *`, params);
   if (!res.rows[0]) { const e = new Error('Charger not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const remoteStart = async (chargerId, userId, stationId) => {
+const remoteStart = async (chargerId, userId, stationId, req) => {
+  const conditions = ['c.id = $1'];
+  const params = [chargerId];
+  const cTenant = tenantWhere(req, 2);
+  if (cTenant.clause) { conditions.push(cTenant.clause.replace('tenant_id', 'c.tenant_id')); params.push(...cTenant.params); }
   const chargerRes = await query(
     `SELECT c.*, s.electricity_rate, s.selling_rate
-     FROM chargers c JOIN stations s ON s.id = c.station_id WHERE c.id = $1`,
-    [chargerId]
+     FROM chargers c JOIN stations s ON s.id = c.station_id WHERE ${conditions.join(' AND ')}`,
+    params
   );
   const charger = chargerRes.rows[0];
   if (!charger) { const e = new Error('Charger not found'); e.status = 404; throw e; }
@@ -119,9 +141,9 @@ const remoteStart = async (chargerId, userId, stationId) => {
     await client.query('BEGIN');
     const sessionId = uuidv4();
     const sessionRes = await client.query(
-      `INSERT INTO charging_sessions (id, charger_id, station_id, user_ref, start_time, status, created_at)
-       VALUES ($1,$2,$3,$4,NOW(),'active',NOW()) RETURNING *`,
-      [sessionId, chargerId, sid, userId || null]
+      `INSERT INTO charging_sessions (id, tenant_id, charger_id, station_id, user_ref, start_time, status, created_at)
+       VALUES ($1,$2,$3,$4,$5,NOW(),'active',NOW()) RETURNING *`,
+      [sessionId, tenantIdForInsert(req), chargerId, sid, userId || null]
     );
     await client.query(
       `UPDATE chargers SET status='charging', updated_at=NOW() WHERE id=$1`,
@@ -137,11 +159,15 @@ const remoteStart = async (chargerId, userId, stationId) => {
   }
 };
 
-const remoteStop = async (chargerId) => {
+const remoteStop = async (chargerId, req) => {
+  const conditions = ['c.id = $1'];
+  const params = [chargerId];
+  const cTenant = tenantWhere(req, 2);
+  if (cTenant.clause) { conditions.push(cTenant.clause.replace('tenant_id', 'c.tenant_id')); params.push(...cTenant.params); }
   const chargerRes = await query(
     `SELECT c.*, s.electricity_rate, s.selling_rate
-     FROM chargers c JOIN stations s ON s.id = c.station_id WHERE c.id = $1`,
-    [chargerId]
+     FROM chargers c JOIN stations s ON s.id = c.station_id WHERE ${conditions.join(' AND ')}`,
+    params
   );
   const charger = chargerRes.rows[0];
   if (!charger) { const e = new Error('Charger not found'); e.status = 404; throw e; }
@@ -172,8 +198,8 @@ const remoteStop = async (chargerId) => {
     );
     await client.query(`UPDATE chargers SET status='available', updated_at=NOW() WHERE id=$1`, [chargerId]);
     await client.query(
-      `INSERT INTO revenues (id, station_id, date, charging_revenue, total_revenue, electricity_cost, gross_margin, energy_consumed, session_count, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$4,$5,$6,$7,1,NOW(),NOW())
+      `INSERT INTO revenues (id, tenant_id, station_id, date, charging_revenue, total_revenue, electricity_cost, gross_margin, energy_consumed, session_count, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$5,$6,$7,$8,1,NOW(),NOW())
        ON CONFLICT (station_id, date) DO UPDATE SET
          charging_revenue = revenues.charging_revenue + EXCLUDED.charging_revenue,
          total_revenue    = revenues.total_revenue    + EXCLUDED.total_revenue,
@@ -182,7 +208,7 @@ const remoteStop = async (chargerId) => {
          energy_consumed  = revenues.energy_consumed  + EXCLUDED.energy_consumed,
          session_count    = revenues.session_count    + 1,
          updated_at       = NOW()`,
-      [uuidv4(), charger.station_id, sessionDate, revenue, electricityCost, margin, energyKwh]
+      [uuidv4(), tenantIdForInsert(req), charger.station_id, sessionDate, revenue, electricityCost, margin, energyKwh]
     );
     await client.query('COMMIT');
     return updated.rows[0];

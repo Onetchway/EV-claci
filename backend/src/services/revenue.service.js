@@ -2,12 +2,16 @@
 
 const { query } = require('../config/database');
 const { paginate, paginatedResponse } = require('../utils/pagination');
+const { tenantWhere, tenantIdForInsert } = require('../middleware/tenantScope');
 
-const list = async (filters) => {
+const list = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'r.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.station_id) { conditions.push(`r.station_id = $${idx++}`); params.push(filters.station_id); }
   if (filters.stationId)  { conditions.push(`r.station_id = $${idx++}`); params.push(filters.stationId); }
@@ -56,10 +60,13 @@ const list = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const summary = async (filters) => {
+const summary = async (filters, req) => {
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.station_id) { conditions.push(`station_id = $${idx++}`); params.push(filters.station_id); }
   if (filters.stationId)  { conditions.push(`station_id = $${idx++}`); params.push(filters.stationId); }
@@ -88,12 +95,15 @@ const summary = async (filters) => {
   return res.rows[0];
 };
 
-const byStation = async (stationId, filters = {}) => {
+const byStation = async (stationId, filters = {}, req) => {
   const conditions = [`r.station_id = $1`]; const params = [stationId]; let idx = 2;
 
   if (filters.from && filters.to) { conditions.push(`r.date BETWEEN $${idx++} AND $${idx++}`); params.push(filters.from, filters.to); }
   else if (filters.from) { conditions.push(`r.date >= $${idx++}`); params.push(filters.from); }
   else if (filters.to)   { conditions.push(`r.date <= $${idx++}`); params.push(filters.to); }
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'r.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   const where = `WHERE ${conditions.join(' AND ')}`;
   const res = await query(
@@ -103,7 +113,7 @@ const byStation = async (stationId, filters = {}) => {
   return res.rows;
 };
 
-const getPnL = async (stationId, filters = {}) => {
+const getPnL = async (stationId, filters = {}, req) => {
   const stRes = await query('SELECT * FROM stations WHERE id = $1', [stationId]);
   if (!stRes.rows[0]) { const e = new Error('Station not found'); e.status = 404; throw e; }
 
@@ -111,6 +121,9 @@ const getPnL = async (stationId, filters = {}) => {
   if (filters.start_date && filters.end_date) { conditions.push(`date BETWEEN $${idx++} AND $${idx++}`); params.push(filters.start_date, filters.end_date); }
   else if (filters.start_date) { conditions.push(`date >= $${idx++}`); params.push(filters.start_date); }
   else if (filters.end_date)   { conditions.push(`date <= $${idx++}`); params.push(filters.end_date); }
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause); params.push(...tenant.params); idx += tenant.params.length; }
 
   const where = `WHERE ${conditions.join(' AND ')}`;
   const dailyRes = await query(`SELECT * FROM revenues ${where} ORDER BY date ASC`, params);
@@ -136,10 +149,13 @@ const getPnL = async (stationId, filters = {}) => {
   return { station: stRes.rows[0], totals, daily: withRunning };
 };
 
-const exportForCsv = async (filters) => {
+const exportForCsv = async (filters, req) => {
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'r.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.station_id) { conditions.push(`r.station_id = $${idx++}`); params.push(filters.station_id); }
   if (filters.from && filters.to) { conditions.push(`r.date BETWEEN $${idx++} AND $${idx++}`); params.push(filters.from, filters.to); }
@@ -161,7 +177,7 @@ const exportForCsv = async (filters) => {
 };
 
 // Compute (recompute) daily revenue for a station from raw sessions and bss_swaps
-const computeRevenue = async (stationId, dateStr) => {
+const computeRevenue = async (stationId, dateStr, req) => {
   const dateToUse = dateStr || new Date().toISOString().split('T')[0];
 
   const stRes = await query('SELECT * FROM stations WHERE id = $1', [stationId]);
@@ -189,8 +205,8 @@ const computeRevenue = async (stationId, dateStr) => {
 
   const { v4: uuidv4 } = require('uuid');
   const res = await query(
-    `INSERT INTO revenues (id, station_id, date, charging_revenue, bss_swap_revenue, bss_rental_revenue, total_revenue, electricity_cost, gross_margin, energy_consumed, session_count, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())
+    `INSERT INTO revenues (id, tenant_id, station_id, date, charging_revenue, bss_swap_revenue, bss_rental_revenue, total_revenue, electricity_cost, gross_margin, energy_consumed, session_count, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())
      ON CONFLICT (station_id, date) DO UPDATE SET
        charging_revenue   = EXCLUDED.charging_revenue,
        bss_swap_revenue   = EXCLUDED.bss_swap_revenue,
@@ -202,7 +218,7 @@ const computeRevenue = async (stationId, dateStr) => {
        session_count      = EXCLUDED.session_count,
        updated_at         = NOW()
      RETURNING *`,
-    [uuidv4(), stationId, dateToUse, chargingRevenue, bssSwapRevenue, bssRentalRevenue, totalRevenue, electricityCost, grossMargin, energyKwh, sessionsRes.rows.length]
+    [uuidv4(), tenantIdForInsert(req), stationId, dateToUse, chargingRevenue, bssSwapRevenue, bssRentalRevenue, totalRevenue, electricityCost, grossMargin, energyKwh, sessionsRes.rows.length]
   );
   return res.rows[0];
 };

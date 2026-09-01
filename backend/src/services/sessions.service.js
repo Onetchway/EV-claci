@@ -3,12 +3,16 @@
 const { query, getClient } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { paginate, paginatedResponse } = require('../utils/pagination');
+const { tenantWhere, tenantIdForInsert } = require('../middleware/tenantScope');
 
-const list = async (filters) => {
+const list = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'cs.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.station_id) { conditions.push(`cs.station_id = $${idx++}`); params.push(filters.station_id); }
   if (filters.stationId)  { conditions.push(`cs.station_id = $${idx++}`); params.push(filters.stationId); }
@@ -42,7 +46,12 @@ const list = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const getOne = async (id) => {
+const getOne = async (id, req) => {
+  const conditions = ['cs.id = $1'];
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'cs.tenant_id')); params.push(...tenant.params); }
+
   const res = await query(
     `SELECT cs.*,
       c.connector_type, c.power_rating, c.ocpp_id,
@@ -50,18 +59,21 @@ const getOne = async (id) => {
      FROM charging_sessions cs
      LEFT JOIN chargers c ON c.id = cs.charger_id
      LEFT JOIN stations s ON s.id = cs.station_id
-     WHERE cs.id = $1`,
-    [id]
+     WHERE ${conditions.join(' AND ')}`,
+    params
   );
   if (!res.rows[0]) { const e = new Error('Session not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const create = async ({ charger_id, station_id, user_ref = null }) => {
+const create = async ({ charger_id, station_id, user_ref = null }, req) => {
   if (!charger_id || !station_id) {
     const e = new Error('charger_id and station_id are required'); e.status = 400; throw e;
   }
-  const chargerRes = await query('SELECT * FROM chargers WHERE id = $1', [charger_id]);
+  const chargerConditions = ['id = $1']; const chargerParams = [charger_id];
+  const chargerTenant = tenantWhere(req, 2);
+  if (chargerTenant.clause) { chargerConditions.push(chargerTenant.clause); chargerParams.push(...chargerTenant.params); }
+  const chargerRes = await query(`SELECT * FROM chargers WHERE ${chargerConditions.join(' AND ')}`, chargerParams);
   const charger = chargerRes.rows[0];
   if (!charger) { const e = new Error('Charger not found'); e.status = 404; throw e; }
   if (charger.status !== 'available') {
@@ -73,9 +85,9 @@ const create = async ({ charger_id, station_id, user_ref = null }) => {
     await client.query('BEGIN');
     const sessionId = uuidv4();
     const sessionRes = await client.query(
-      `INSERT INTO charging_sessions (id, charger_id, station_id, user_ref, start_time, status, created_at)
-       VALUES ($1,$2,$3,$4,NOW(),'active',NOW()) RETURNING *`,
-      [sessionId, charger_id, station_id, user_ref]
+      `INSERT INTO charging_sessions (id, tenant_id, charger_id, station_id, user_ref, start_time, status, created_at)
+       VALUES ($1,$2,$3,$4,$5,NOW(),'active',NOW()) RETURNING *`,
+      [sessionId, tenantIdForInsert(req), charger_id, station_id, user_ref]
     );
     await client.query(`UPDATE chargers SET status='charging', updated_at=NOW() WHERE id=$1`, [charger_id]);
     await client.query('COMMIT');
@@ -88,13 +100,16 @@ const create = async ({ charger_id, station_id, user_ref = null }) => {
   }
 };
 
-const endSession = async (id, { energy_kwh, revenue } = {}) => {
+const endSession = async (id, { energy_kwh, revenue } = {}, req) => {
+  const sessConditions = ['cs.id = $1']; const sessParams = [id];
+  const sessTenant = tenantWhere(req, 2);
+  if (sessTenant.clause) { sessConditions.push(sessTenant.clause.replace('tenant_id', 'cs.tenant_id')); sessParams.push(...sessTenant.params); }
   const sessionRes = await query(
     `SELECT cs.*, s.selling_rate, s.electricity_rate
      FROM charging_sessions cs
      JOIN stations s ON s.id = cs.station_id
-     WHERE cs.id = $1`,
-    [id]
+     WHERE ${sessConditions.join(' AND ')}`,
+    sessParams
   );
   const session = sessionRes.rows[0];
   if (!session) { const e = new Error('Session not found'); e.status = 404; throw e; }
@@ -123,8 +138,8 @@ const endSession = async (id, { energy_kwh, revenue } = {}) => {
     );
     await client.query(`UPDATE chargers SET status='available', updated_at=NOW() WHERE id=$1`, [session.charger_id]);
     await client.query(
-      `INSERT INTO revenues (id, station_id, date, charging_revenue, total_revenue, electricity_cost, gross_margin, energy_consumed, session_count, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$4,$5,$6,$7,1,NOW(),NOW())
+      `INSERT INTO revenues (id, tenant_id, station_id, date, charging_revenue, total_revenue, electricity_cost, gross_margin, energy_consumed, session_count, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$5,$6,$7,$8,1,NOW(),NOW())
        ON CONFLICT (station_id, date) DO UPDATE SET
          charging_revenue = revenues.charging_revenue + EXCLUDED.charging_revenue,
          total_revenue    = revenues.total_revenue    + EXCLUDED.total_revenue,
@@ -133,7 +148,7 @@ const endSession = async (id, { energy_kwh, revenue } = {}) => {
          energy_consumed  = revenues.energy_consumed  + EXCLUDED.energy_consumed,
          session_count    = revenues.session_count    + 1,
          updated_at       = NOW()`,
-      [uuidv4(), session.station_id, sessionDate, rev, cost, margin, kwh]
+      [uuidv4(), tenantIdForInsert(req), session.station_id, sessionDate, rev, cost, margin, kwh]
     );
     await client.query('COMMIT');
     return updated.rows[0];
@@ -146,10 +161,13 @@ const endSession = async (id, { energy_kwh, revenue } = {}) => {
 };
 
 // Export sessions as array of plain objects for CSV
-const exportForCsv = async (filters) => {
+const exportForCsv = async (filters, req) => {
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'cs.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.station_id) { conditions.push(`cs.station_id = $${idx++}`); params.push(filters.station_id); }
   if (filters.from && filters.to) { conditions.push(`cs.start_time BETWEEN $${idx++} AND $${idx++}`); params.push(filters.from, filters.to); }

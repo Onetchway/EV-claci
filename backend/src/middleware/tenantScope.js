@@ -7,13 +7,15 @@
  * NULL and every helper below is a no-op, so this file only matters once
  * a deploy actually has multi-tenant users.
  *
- * How a user gets a tenant_id: NOT self-serve OAuth signup — an unknown
- * Google login has no business auto-joining a specific client's tenant.
- * Instead, a tenant's own admin invites/creates users via POST /api/users
- * (see users.controller.js), and that endpoint stamps the new user's
- * tenant_id from the inviting admin's own req.user.tenant_id. So tenancy
- * propagates from whoever is already inside a tenant, never from the
- * signup flow itself.
+ * How a user gets a tenant_id: at Google sign-in, resolved from the
+ * request's Host header via src/utils/resolveTenant.js + src/config/
+ * passport.js (subdomain/custom-domain routing, set per tenant from the
+ * super-admin console — see platform/README.md's "Domain routing"
+ * section). Once a user exists, their tenant_id is fixed — moving an
+ * *existing* user to a different tenant is deliberately not exposed via
+ * PUT /api/users/:id (see users.service.js's update()); that's a
+ * platform-level action, not something a tenant's own admin should be
+ * able to do to another tenant's user.
  */
 
 // SQL fragment + param for scoping a query to the current user's tenant.

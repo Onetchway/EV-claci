@@ -3,12 +3,16 @@
 const { query } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { paginate, paginatedResponse } = require('../utils/pagination');
+const { tenantWhere, tenantIdForInsert } = require('../middleware/tenantScope');
 
-const list = async (filters) => {
+const list = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'a.tenant_id')); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.station_id)   { conditions.push(`a.station_id   = $${idx++}`); params.push(filters.station_id); }
   if (filters.stationId)    { conditions.push(`a.station_id   = $${idx++}`); params.push(filters.stationId); }
@@ -38,20 +42,25 @@ const list = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const getOne = async (id) => {
+const getOne = async (id, req) => {
+  const conditions = ['a.id = $1'];
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { conditions.push(tenant.clause.replace('tenant_id', 'a.tenant_id')); params.push(...tenant.params); }
+
   const res = await query(
     `SELECT a.*, s.name AS station_name, f.name AS franchise_name
      FROM assets a
      LEFT JOIN stations   s ON s.id = a.station_id
      LEFT JOIN franchises f ON f.id = a.franchise_id
-     WHERE a.id = $1`,
-    [id]
+     WHERE ${conditions.join(' AND ')}`,
+    params
   );
   if (!res.rows[0]) { const e = new Error('Asset not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const create = async (data) => {
+const create = async (data, req) => {
   const {
     station_id, asset_type, name, capacity = null, oem = null,
     installed_by = 'company', ownership = 'company',
@@ -62,14 +71,14 @@ const create = async (data) => {
   }
   const id = uuidv4();
   const res = await query(
-    `INSERT INTO assets (id, station_id, asset_type, name, capacity, oem, installed_by, ownership, franchise_id, commission_date, status, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW()) RETURNING *`,
-    [id, station_id, asset_type, name, capacity, oem, installed_by, ownership, franchise_id, commission_date, status]
+    `INSERT INTO assets (id, tenant_id, station_id, asset_type, name, capacity, oem, installed_by, ownership, franchise_id, commission_date, status, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW()) RETURNING *`,
+    [id, tenantIdForInsert(req), station_id, asset_type, name, capacity, oem, installed_by, ownership, franchise_id, commission_date, status]
   );
   return res.rows[0];
 };
 
-const update = async (id, data) => {
+const update = async (id, data, req) => {
   const allowed = ['station_id', 'asset_type', 'name', 'capacity', 'oem', 'installed_by', 'ownership', 'franchise_id', 'commission_date', 'status'];
   const fields = []; const params = []; let idx = 1;
   for (const f of allowed) {
@@ -78,13 +87,20 @@ const update = async (id, data) => {
   if (!fields.length) { const e = new Error('No valid fields to update'); e.status = 400; throw e; }
   fields.push('updated_at = NOW()');
   params.push(id);
-  const res = await query(`UPDATE assets SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`, params);
+  let sql = `UPDATE assets SET ${fields.join(', ')} WHERE id = $${idx}`;
+  const tenant = tenantWhere(req, idx + 1);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING *`, params);
   if (!res.rows[0]) { const e = new Error('Asset not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const remove = async (id) => {
-  const res = await query('DELETE FROM assets WHERE id = $1 RETURNING id', [id]);
+const remove = async (id, req) => {
+  let sql = 'DELETE FROM assets WHERE id = $1';
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING id`, params);
   if (!res.rows[0]) { const e = new Error('Asset not found'); e.status = 404; throw e; }
 };
 
