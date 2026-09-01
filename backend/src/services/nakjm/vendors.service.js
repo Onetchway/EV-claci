@@ -3,12 +3,16 @@
 const { query } = require('../../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { paginate, paginatedResponse } = require('../../utils/pagination');
+const { tenantWhere, tenantIdForInsert } = require('../../middleware/tenantScope');
 
-const list = async (filters) => {
+const list = async (filters, req) => {
   const { page, limit, skip } = paginate(filters);
   const conditions = [];
   const params = [];
   let idx = 1;
+
+  const tenant = tenantWhere(req, idx);
+  if (tenant.clause) { conditions.push(tenant.clause); params.push(...tenant.params); idx += tenant.params.length; }
 
   if (filters.status)   { conditions.push(`status = $${idx++}`);   params.push(filters.status); }
   if (filters.category) { conditions.push(`category = $${idx++}`); params.push(filters.category); }
@@ -32,8 +36,12 @@ const list = async (filters) => {
   return paginatedResponse(dataRes.rows, total, page, limit);
 };
 
-const getOne = async (id) => {
-  const res = await query('SELECT * FROM nakjm_vendors WHERE id = $1', [id]);
+const getOne = async (id, req) => {
+  const conditions = ['id = $1'];
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { conditions.push(tenant.clause); params.push(...tenant.params); }
+  const res = await query(`SELECT * FROM nakjm_vendors WHERE ${conditions.join(' AND ')}`, params);
   if (!res.rows[0]) { const e = new Error('Vendor not found'); e.status = 404; throw e; }
 
   const [posRes, paymentsRes] = await Promise.all([
@@ -64,7 +72,7 @@ const getOne = async (id) => {
   };
 };
 
-const create = async (data) => {
+const create = async (data, req) => {
   const {
     name, category = 'other', contact_name = null, contact_email = null, contact_phone = null,
     address = null, gstin = null, bank_account_no = null, bank_ifsc = null, bank_name = null,
@@ -73,14 +81,14 @@ const create = async (data) => {
   if (!name) { const e = new Error('name is required'); e.status = 400; throw e; }
   const id = uuidv4();
   const res = await query(
-    `INSERT INTO nakjm_vendors (id, name, category, contact_name, contact_email, contact_phone, address, gstin, bank_account_no, bank_ifsc, bank_name, rating, status, notes, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),NOW()) RETURNING *`,
-    [id, name, category, contact_name, contact_email, contact_phone, address, gstin, bank_account_no, bank_ifsc, bank_name, rating, status, notes]
+    `INSERT INTO nakjm_vendors (id, tenant_id, name, category, contact_name, contact_email, contact_phone, address, gstin, bank_account_no, bank_ifsc, bank_name, rating, status, notes, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW(),NOW()) RETURNING *`,
+    [id, tenantIdForInsert(req), name, category, contact_name, contact_email, contact_phone, address, gstin, bank_account_no, bank_ifsc, bank_name, rating, status, notes]
   );
   return res.rows[0];
 };
 
-const update = async (id, data) => {
+const update = async (id, data, req) => {
   const allowed = ['name', 'category', 'contact_name', 'contact_email', 'contact_phone', 'address', 'gstin', 'bank_account_no', 'bank_ifsc', 'bank_name', 'rating', 'status', 'notes'];
   const fields = []; const params = []; let idx = 1;
   for (const f of allowed) {
@@ -89,13 +97,20 @@ const update = async (id, data) => {
   if (!fields.length) { const e = new Error('No valid fields to update'); e.status = 400; throw e; }
   fields.push('updated_at = NOW()');
   params.push(id);
-  const res = await query(`UPDATE nakjm_vendors SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`, params);
+  let sql = `UPDATE nakjm_vendors SET ${fields.join(', ')} WHERE id = $${idx}`;
+  const tenant = tenantWhere(req, idx + 1);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING *`, params);
   if (!res.rows[0]) { const e = new Error('Vendor not found'); e.status = 404; throw e; }
   return res.rows[0];
 };
 
-const remove = async (id) => {
-  const res = await query('DELETE FROM nakjm_vendors WHERE id = $1 RETURNING id', [id]);
+const remove = async (id, req) => {
+  let sql = 'DELETE FROM nakjm_vendors WHERE id = $1';
+  const params = [id];
+  const tenant = tenantWhere(req, 2);
+  if (tenant.clause) { sql += ` AND ${tenant.clause}`; params.push(...tenant.params); }
+  const res = await query(`${sql} RETURNING id`, params);
   if (!res.rows[0]) { const e = new Error('Vendor not found'); e.status = 404; throw e; }
 };
 
