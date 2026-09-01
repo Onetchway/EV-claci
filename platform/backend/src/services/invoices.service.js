@@ -4,6 +4,7 @@ const { query, getClient } = require('../config/database');
 const { paginate, paginatedResponse } = require('../utils/pagination');
 const { nextInvoiceNumber } = require('../utils/invoiceNumber');
 const audit = require('./audit.service');
+const { sendInvoiceEmail } = require('./email.service');
 
 const list = async (filters) => {
   const { page, limit, skip } = paginate(filters);
@@ -135,6 +136,8 @@ const generateForTenant = async (tenantId, periodStart, periodEnd, actor) => {
       action: 'invoice.generated',
       details: { invoice_number: invoiceNumber, total_amount: totalAmount },
     });
+
+    sendInvoiceEmail(invoice, tenant).catch((err) => console.error(`[invoices] Failed to email ${invoiceNumber}:`, err.message));
 
     return invoice;
   } catch (err) {

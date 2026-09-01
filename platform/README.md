@@ -107,6 +107,23 @@ npm install
 npm run dev                  # http://localhost:3100
 ```
 
+## Closing the loop with the tenant CRM
+
+`backend/src/jobs/reportUsage.js` is the tenant-side half of usage
+self-reporting: it counts rows in that CRM's own `users` table and pushes
+the count to `POST /api/usage/report` on the platform, authenticated with
+the `PLATFORM_TENANT_API_KEY` issued when the super admin onboarded that
+tenant (set `PLATFORM_API_URL` + `PLATFORM_TENANT_API_KEY` in `backend/.env`,
+then cron `npm run report-usage` — e.g. daily). It's a no-op if those env
+vars aren't set, so a standalone (non-platform) deploy of `backend/` is
+unaffected. This is intentionally the *only* thing that CRM instance sends
+to the platform.
+
+Invoice generation (manual or the daily cron) also emails the tenant
+contact via SMTP (`platform/backend/.env`'s `SMTP_*` vars, same
+provider-agnostic pattern as `nakjm-crm`'s email notifications) — logs
+and no-ops if SMTP isn't configured.
+
 ## Not built yet (next steps)
 
 - `shared`-mode multi-tenancy inside `backend/`/`frontend/` itself
@@ -117,4 +134,3 @@ npm run dev                  # http://localhost:3100
 - Payment gateway integration — invoices are generated and tracked, but
   collecting payment (Razorpay/Stripe etc.) isn't wired up; `markPaid` is
   currently a manual super-admin action.
-- Email delivery of invoices to tenant contacts.
