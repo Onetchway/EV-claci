@@ -53,7 +53,7 @@ async function sendInvoiceEmail(invoice, tenant) {
       <tr><td><strong>Total due</strong></td><td><strong>${invoice.currency} ${invoice.total_amount}</strong></td></tr>
       <tr><td>Due date</td><td>${new Date(invoice.due_at).toDateString()}</td></tr>
     </table>
-    <p>Thanks for using Livanto.</p>
+    <p>Thanks for using Alpha.</p>
   `;
   await sendEmail({ to: tenant.contact_email, subject: `Invoice ${invoice.invoice_number} — ${tenant.name}`, html });
 }

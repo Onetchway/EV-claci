@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Reports this CRM's current employee count to the Livanto platform's
+ * Reports this CRM's current employee count to the Alpha platform's
  * super-admin control plane, for per-employee billing.
  *
  * This is the ONLY data this tenant CRM sends to the platform. No employee

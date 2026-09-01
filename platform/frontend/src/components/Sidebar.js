@@ -19,7 +19,7 @@ export default function Sidebar() {
       style={{ width: 'var(--sidebar-width)' }}
     >
       <div className="px-5 py-5 border-b border-gray-100">
-        <div className="font-semibold text-gray-900">Livanto Platform</div>
+        <div className="font-semibold text-gray-900">Alpha Platform</div>
         <div className="text-xs text-gray-500">Super-admin console</div>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1">

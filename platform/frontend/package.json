@@ -1,5 +1,5 @@
 {
-  "name": "livanto-platform-frontend",
+  "name": "alpha-platform-frontend",
   "version": "1.0.0",
   "description": "Super-admin console — manage tenants, feature access, and billing",
   "private": true,

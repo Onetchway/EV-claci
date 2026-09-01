@@ -1,4 +1,4 @@
-# Livanto Platform — multi-client super-admin control plane
+# Alpha Platform — multi-client super-admin control plane
 
 Turns the existing Livanto CRM (`backend/` + `frontend/`, the EV charging
 franchise CRM — CMS-adjacent pieces excluded per scope) into something you

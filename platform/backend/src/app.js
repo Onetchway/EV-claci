@@ -36,7 +36,7 @@ app.use(errorHandler);
 if (require.main === module) {
   const PORT = process.env.PORT || 5100;
   app.listen(PORT, () => {
-    console.log(`Livanto platform control-plane API listening on :${PORT}`);
+    console.log(`Alpha platform control-plane API listening on :${PORT}`);
     if (process.env.NODE_ENV !== 'test') require('./jobs/scheduler').start();
   });
 }

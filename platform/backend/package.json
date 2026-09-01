@@ -1,5 +1,5 @@
 {
-  "name": "livanto-platform-backend",
+  "name": "alpha-platform-backend",
   "version": "1.0.0",
   "description": "Super-admin control plane — tenant provisioning, feature flags, billing & invoicing",
   "main": "src/app.js",

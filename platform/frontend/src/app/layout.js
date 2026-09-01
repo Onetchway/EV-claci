@@ -2,7 +2,7 @@ import './globals.css';
 import Providers from './providers';
 
 export const metadata = {
-  title: 'Livanto Platform — Super Admin',
+  title: 'Alpha Platform — Super Admin',
   description: 'Manage tenants, feature access, and billing across every client CRM instance.',
 };
 

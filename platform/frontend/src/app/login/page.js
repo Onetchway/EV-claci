@@ -25,7 +25,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm card p-8">
-        <h1 className="text-xl font-semibold mb-1">Livanto Platform</h1>
+        <h1 className="text-xl font-semibold mb-1">Alpha Platform</h1>
         <p className="text-sm text-gray-500 mb-6">Super-admin console</p>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
