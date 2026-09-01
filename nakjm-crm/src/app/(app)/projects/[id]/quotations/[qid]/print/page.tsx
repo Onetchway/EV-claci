@@ -94,7 +94,14 @@ export default function QuotationPrintPage() {
         <div className="mt-4 flex justify-end">
           <dl className="w-56 space-y-1.5 text-sm">
             <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(q.subtotal)}</dd></div>
-            <div className="flex justify-between"><dt className="text-ink-600">Tax ({q.taxPercent}%)</dt><dd className="tabular-nums">{formatINR(q.taxAmount)}</dd></div>
+            {q.gstType === "CGST_SGST" ? (
+              <>
+                <div className="flex justify-between"><dt className="text-ink-600">CGST</dt><dd className="tabular-nums">{formatINR(q.cgstAmount ?? 0)}</dd></div>
+                <div className="flex justify-between"><dt className="text-ink-600">SGST</dt><dd className="tabular-nums">{formatINR(q.sgstAmount ?? 0)}</dd></div>
+              </>
+            ) : (
+              <div className="flex justify-between"><dt className="text-ink-600">IGST ({q.taxPercent}%)</dt><dd className="tabular-nums">{formatINR(q.igstAmount ?? q.taxAmount)}</dd></div>
+            )}
             <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(q.totalAmount)}</dd></div>
           </dl>
         </div>

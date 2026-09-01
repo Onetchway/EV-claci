@@ -92,7 +92,14 @@ export default function PurchaseOrderPrintPage() {
         <div className="mt-4 flex justify-end">
           <dl className="w-56 space-y-1.5 text-sm">
             <div className="flex justify-between"><dt className="text-ink-600">Subtotal</dt><dd className="tabular-nums">{formatINR(po.subtotal)}</dd></div>
-            <div className="flex justify-between"><dt className="text-ink-600">Tax</dt><dd className="tabular-nums">{formatINR(po.taxAmount)}</dd></div>
+            {po.gstType === "CGST_SGST" ? (
+              <>
+                <div className="flex justify-between"><dt className="text-ink-600">CGST</dt><dd className="tabular-nums">{formatINR(po.cgstAmount ?? 0)}</dd></div>
+                <div className="flex justify-between"><dt className="text-ink-600">SGST</dt><dd className="tabular-nums">{formatINR(po.sgstAmount ?? 0)}</dd></div>
+              </>
+            ) : (
+              <div className="flex justify-between"><dt className="text-ink-600">IGST</dt><dd className="tabular-nums">{formatINR(po.igstAmount ?? po.taxAmount)}</dd></div>
+            )}
             <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(po.totalAmount)}</dd></div>
             <div className="flex justify-between text-ink-600"><dt>Paid</dt><dd className="tabular-nums">{formatINR(po.paidAmount)}</dd></div>
           </dl>
