@@ -5,7 +5,7 @@
 # Brings up 4 apps:
 #   platform/backend   :5100  (super admin API)
 #   platform/frontend  :3100  (super admin UI)
-#   backend            :5000  (tenant CRM API, shared/path-tenant mode)
+#   backend            :5050  (tenant CRM API, shared/path-tenant mode)
 #   frontend           :3000  (tenant CRM UI, shared/path-tenant mode)
 #
 # Usage:
@@ -148,7 +148,7 @@ write_env platform/frontend/.env.local \
   "NEXT_PUBLIC_BASE_DOMAIN=alpha.app"
 
 write_env backend/.env \
-  "PORT=5000" \
+  "PORT=5050" \
   "DATABASE_URL=${DB_URL_BASE}/${TENANT_DB}" \
   "JWT_SECRET=dev-test-secret-for-sandbox-only" \
   "ALLOWED_EMAIL_DOMAIN=zivahgroup.com" \
@@ -160,7 +160,7 @@ write_env backend/.env \
 write_env frontend/.env.local \
   "NEXTAUTH_URL=http://localhost:3000" \
   "NEXTAUTH_SECRET=local-dev-secret-not-for-production" \
-  "NEXT_PUBLIC_API_URL=http://localhost:5000/api" \
+  "NEXT_PUBLIC_API_URL=http://localhost:5050/api" \
   "ALLOWED_EMAIL_DOMAIN=zivahgroup.com" \
   "MULTI_TENANT_PATH_MODE=1" \
   "NEXT_PUBLIC_MULTI_TENANT_PATH_MODE=1"
@@ -205,17 +205,17 @@ echo "==> Seeding tenant admin user ($TENANT_ADMIN_EMAIL) and assigning to '$TEN
 (cd backend && npm run seed -- --email "$TENANT_ADMIN_EMAIL" --name "$TENANT_ADMIN_NAME" --password "$TENANT_ADMIN_PASSWORD" >/dev/null)
 $PSQL -d "$TENANT_DB" -c "UPDATE users SET tenant_id='$TENANT_ID' WHERE email='$(echo "$TENANT_ADMIN_EMAIL" | tr '[:upper:]' '[:lower:]')'" >/dev/null
 
-echo "==> Starting tenant CRM backend on :5000..."
-free_port 5000
+echo "==> Starting tenant CRM backend on :5050..."
+free_port 5050
 (cd backend && nohup npm run dev > /tmp/alpha-tenant-backend.log 2>&1 &)
-wait_for_port 5000 /tmp/alpha-tenant-backend.log
+wait_for_port 5050 /tmp/alpha-tenant-backend.log
 
 echo "==> Creating a demo franchise ('$FRANCHISE_NAME') under '$TENANT_SLUG'..."
 TENANT_TOKEN=$(curl_json_field 'JSON.parse(require("fs").readFileSync(0,"utf8")).data.token' \
-  -X POST http://localhost:5000/api/auth/login -H 'Content-Type: application/json' \
+  -X POST http://localhost:5050/api/auth/login -H 'Content-Type: application/json' \
   -d "{\"email\":\"$TENANT_ADMIN_EMAIL\",\"password\":\"$TENANT_ADMIN_PASSWORD\",\"tenantSlug\":\"$TENANT_SLUG\"}")
 
-EXISTING_FRANCHISE_ID=$(curl -s "http://localhost:5000/api/franchises?limit=100" -H "Authorization: Bearer $TENANT_TOKEN" \
+EXISTING_FRANCHISE_ID=$(curl -s "http://localhost:5050/api/franchises?limit=100" -H "Authorization: Bearer $TENANT_TOKEN" \
   | node -pe "const d=JSON.parse(require('fs').readFileSync(0,'utf8')).data||[]; const f=d.find(x=>x.name==='$FRANCHISE_NAME'); f?f.id:''" 2>/dev/null || true)
 
 if [ -n "$EXISTING_FRANCHISE_ID" ]; then
@@ -223,7 +223,7 @@ if [ -n "$EXISTING_FRANCHISE_ID" ]; then
   echo "    franchise already exists ($FRANCHISE_ID), reusing it."
 else
   FRANCHISE_ID=$(curl_json_field 'JSON.parse(require("fs").readFileSync(0,"utf8")).id' \
-    -X POST http://localhost:5000/api/franchises -H "Authorization: Bearer $TENANT_TOKEN" -H 'Content-Type: application/json' \
+    -X POST http://localhost:5050/api/franchises -H "Authorization: Bearer $TENANT_TOKEN" -H 'Content-Type: application/json' \
     -d "{\"name\":\"$FRANCHISE_NAME\",\"contact_name\":\"$FRANCHISE_PORTAL_NAME\",\"contact_email\":\"$FRANCHISE_PORTAL_EMAIL\",\"type\":\"investor\",\"revenue_share_percent\":20,\"investment_amount\":500000}")
   echo "    created franchise $FRANCHISE_ID"
 fi
