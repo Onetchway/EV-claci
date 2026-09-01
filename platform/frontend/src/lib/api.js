@@ -35,6 +35,10 @@ const resource = (base) => ({
   delete: (id) => client.delete(`${base}/${id}`),
 });
 
+export const dashboardApi = {
+  overview: () => client.get('/dashboard'),
+};
+
 export const authApi = {
   login: (data) => client.post('/auth/login', data),
   me: () => client.get('/auth/me'),

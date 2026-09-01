@@ -1,0 +1,3 @@
+const svc = require('../services/dashboard.service');
+
+exports.overview = async (req, res, next) => { try { res.json(await svc.overview()); } catch (e) { next(e); } };

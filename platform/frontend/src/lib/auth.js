@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('platform_token', token);
     localStorage.setItem('platform_admin', JSON.stringify(loggedInAdmin));
     setAdmin(loggedInAdmin);
-    router.push('/tenants');
+    router.push('/dashboard');
   };
 
   const logout = () => {
