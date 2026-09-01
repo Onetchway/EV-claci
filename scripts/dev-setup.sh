@@ -22,7 +22,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PGUSER="${PGUSER:-postgres}"
-PGPASSWORD_VAL="${PGPASSWORD:-postgres}"
+# ":-" would treat PGPASSWORD='' (explicitly no password, e.g. Homebrew
+# Postgres's default trust auth) the same as unset and default it to
+# "postgres" anyway — "-" only substitutes when the variable is truly
+# unset, so an intentional empty string is preserved.
+PGPASSWORD_VAL="${PGPASSWORD-postgres}"
 PGHOST="${PGHOST:-localhost}"
 PGPORT="${PGPORT:-5432}"
 PLATFORM_DB="${PLATFORM_DB:-alpha_platform}"
