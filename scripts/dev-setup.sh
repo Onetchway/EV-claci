@@ -70,6 +70,35 @@ curl_json_field() {
   exit 1
 }
 
+# Kills anything already listening on a port before starting a server on
+# it — a re-run of this script (or a server left running in another
+# terminal) otherwise makes the new nodemon crash-loop on EADDRINUSE,
+# which then shows up several steps later as a confusing "server never
+# responded" error instead of the actual port conflict.
+free_port() {
+  local port="$1" pids
+  pids=$(lsof -ti tcp:"$port" 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo "    :$port already in use (pid $pids) — stopping it first."
+    kill -9 $pids 2>/dev/null || true
+    sleep 1
+  fi
+}
+
+# Waits for a server to actually be listening (not just "eventually", so a
+# crash-looping nodemon fails fast with its own log instead of the caller
+# hitting a confusing empty-response error several steps later).
+wait_for_port() {
+  local port="$1" log="$2" i
+  for i in $(seq 1 40); do
+    if [ -n "$(lsof -ti tcp:"$port" 2>/dev/null || true)" ]; then return 0; fi
+    sleep 0.5
+  done
+  echo "Server on :$port never started. Last 30 lines of $log:" >&2
+  tail -30 "$log" >&2 || true
+  exit 1
+}
+
 echo "==> Checking Postgres connectivity ($PGUSER@$PGHOST:$PGPORT)..."
 if ! $PSQL -d postgres -tAc "select 1" >/dev/null; then
   echo "Could not connect to Postgres as '$PGUSER'. Set PGUSER/PGPASSWORD/PGHOST/PGPORT and retry." >&2
@@ -146,8 +175,9 @@ echo "==> Seeding super admin ($SUPER_ADMIN_EMAIL)..."
 (cd platform/backend && npm run seed -- --email "$SUPER_ADMIN_EMAIL" --name "$SUPER_ADMIN_NAME" --password "$SUPER_ADMIN_PASSWORD" >/dev/null)
 
 echo "==> Starting platform/backend on :5100..."
+free_port 5100
 (cd platform/backend && nohup npm run dev > /tmp/alpha-platform-backend.log 2>&1 &)
-for i in $(seq 1 20); do curl -s -o /dev/null http://localhost:5100/api/auth/login && break; sleep 0.5; done
+wait_for_port 5100 /tmp/alpha-platform-backend.log
 
 echo "==> Creating tenant '$TENANT_NAME' (slug: $TENANT_SLUG) via the super admin API..."
 TOKEN=$(curl_json_field 'JSON.parse(require("fs").readFileSync(0,"utf8")).token' \
@@ -172,8 +202,9 @@ echo "==> Seeding tenant admin user ($TENANT_ADMIN_EMAIL) and assigning to '$TEN
 $PSQL -d "$TENANT_DB" -c "UPDATE users SET tenant_id='$TENANT_ID' WHERE email='$(echo "$TENANT_ADMIN_EMAIL" | tr '[:upper:]' '[:lower:]')'" >/dev/null
 
 echo "==> Starting tenant CRM backend on :5000..."
+free_port 5000
 (cd backend && nohup npm run dev > /tmp/alpha-tenant-backend.log 2>&1 &)
-for i in $(seq 1 20); do curl -s -o /dev/null http://localhost:5000/api/auth/login && break; sleep 0.5; done
+wait_for_port 5000 /tmp/alpha-tenant-backend.log
 
 echo "==> Creating a demo franchise ('$FRANCHISE_NAME') under '$TENANT_SLUG'..."
 TENANT_TOKEN=$(curl_json_field 'JSON.parse(require("fs").readFileSync(0,"utf8")).data.token' \
@@ -198,8 +229,12 @@ echo "==> Seeding franchise portal login ($FRANCHISE_PORTAL_EMAIL)..."
 $PSQL -d "$TENANT_DB" -c "UPDATE users SET tenant_id='$TENANT_ID' WHERE email='$(echo "$FRANCHISE_PORTAL_EMAIL" | tr '[:upper:]' '[:lower:]')'" >/dev/null
 
 echo "==> Starting frontend apps (:3100, :3000)..."
+free_port 3100
+free_port 3000
 (cd platform/frontend && nohup npm run dev > /tmp/alpha-platform-frontend.log 2>&1 &)
 (cd frontend && nohup npm run dev > /tmp/alpha-tenant-frontend.log 2>&1 &)
+wait_for_port 3100 /tmp/alpha-platform-frontend.log
+wait_for_port 3000 /tmp/alpha-tenant-frontend.log
 
 echo ""
 echo "All set. Logs: /tmp/alpha-*.log"
