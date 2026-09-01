@@ -59,11 +59,21 @@ export default function ProformaInvoicePrintPage() {
         </div>
 
         <div className="mt-6 overflow-x-auto scroll-thin">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-[4%]" />
+              <col className="w-[38%]" />
+              <col className="w-[10%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[16%]" />
+              <col className="w-[16%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
                 <th className="py-2 pr-3">#</th>
                 <th className="py-2 pr-3">Description</th>
+                <th className="py-2 px-3">HSN/SAC</th>
                 <th className="py-2 px-3">Unit</th>
                 <th className="whitespace-nowrap py-2 px-3 text-right">Qty</th>
                 <th className="whitespace-nowrap py-2 px-3 text-right">Rate</th>
@@ -74,7 +84,8 @@ export default function ProformaInvoicePrintPage() {
               {pi.items.map((line) => (
                 <tr key={line.srNo} className="border-b border-ink-100">
                   <td className="py-3 pr-3 align-top text-ink-500">{line.srNo}</td>
-                  <td className="py-3 pr-3 align-top">{line.description}</td>
+                  <td className="break-words py-3 pr-3 align-top">{line.description}</td>
+                  <td className="py-3 px-3 align-top text-ink-500">{line.hsnCode || "—"}</td>
                   <td className="py-3 px-3 align-top text-ink-500">{line.unit || "—"}</td>
                   <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{line.qty}</td>
                   <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{formatINR(line.rate)}</td>
@@ -95,6 +106,13 @@ export default function ProformaInvoicePrintPage() {
         </div>
 
         <BankDetailsPrintBlock bank={settings.bank} />
+
+        {pi.terms && (
+          <div className="mt-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Terms</p>
+            <p className="mt-1 whitespace-pre-line text-sm text-ink-700">{pi.terms}</p>
+          </div>
+        )}
 
         {pi.notes && (
           <div className="mt-4 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{pi.notes}</div>

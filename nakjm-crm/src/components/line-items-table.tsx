@@ -76,6 +76,7 @@ export const BOQ_FIELDS = [
   { key: "qty" as const, label: "Qty", type: "number" },
   { key: "supplyRate" as const, label: "Supply Rate", type: "number" },
   { key: "installationRate" as const, label: "Install Rate", type: "number" },
+  { key: "remarks" as const, label: "Remarks" },
 ];
 
 export type DraftItem = Omit<LineItem, "amount" | "srNo">;

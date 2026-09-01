@@ -39,7 +39,7 @@ export default function PurchaseOrderDetailPage() {
   const [signatureName, setSignatureName] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
   const [payForm, setPayForm] = useState({ amount: "", mode: "BANK_TRANSFER" as PaymentMode, referenceNo: "", notes: "" });
-  const [editForm, setEditForm] = useState({ poNo: "", deliveryDate: "", notes: "" });
+  const [editForm, setEditForm] = useState({ poNo: "", deliveryDate: "", terms: "", notes: "" });
   const [editItems, setEditItems] = useState<DraftItem[]>([]);
 
   useEffect(() => subscribePurchaseOrder(id, setPo), [id]);
@@ -65,7 +65,7 @@ export default function PurchaseOrderDetailPage() {
   }
 
   function openEdit() {
-    setEditForm({ poNo: po!.poNo, deliveryDate: po!.deliveryDate ? po!.deliveryDate.toDate().toISOString().slice(0, 10) : "", notes: po!.notes ?? "" });
+    setEditForm({ poNo: po!.poNo, deliveryDate: po!.deliveryDate ? po!.deliveryDate.toDate().toISOString().slice(0, 10) : "", terms: po!.terms ?? "", notes: po!.notes ?? "" });
     setEditItems(po!.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode, gstPercent: it.gstPercent })));
     setEditOpen(true);
   }
@@ -74,7 +74,7 @@ export default function PurchaseOrderDetailPage() {
     if (!editForm.poNo.trim()) return;
     await run(async () => {
       await updatePurchaseOrder(po!, {
-        poNo: editForm.poNo, notes: editForm.notes, items: editItems,
+        poNo: editForm.poNo, terms: editForm.terms, notes: editForm.notes, items: editItems,
         deliveryDate: editForm.deliveryDate ? new Date(editForm.deliveryDate) : null,
       }, actor);
       setEditOpen(false);
@@ -265,6 +265,7 @@ export default function PurchaseOrderDetailPage() {
         <div className="mb-4 grid grid-cols-2 gap-3">
           <Field label="PO Number" required><Input value={editForm.poNo} onChange={(e) => setEditForm((f) => ({ ...f, poNo: e.target.value }))} /></Field>
           <Field label="Expected Delivery"><Input type="date" value={editForm.deliveryDate} onChange={(e) => setEditForm((f) => ({ ...f, deliveryDate: e.target.value }))} /></Field>
+          <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={editForm.terms} onChange={(e) => setEditForm((f) => ({ ...f, terms: e.target.value }))} /></Field>
           <Field label="Notes" className="col-span-2"><Textarea value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} /></Field>
         </div>
         <ItemsTable items={editItems} setItems={setEditItems} fields={PO_ITEM_FIELDS} />

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 
 import { BankDetailsPrintBlock, PrintFooter, PrintHeader, PrintSheet, PrintToolbar } from "@/components/print-document";
 import { EmptyState, Spinner } from "@/components/ui";
-import { defaultSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
 import { getPurchaseOrder } from "@/lib/db/purchase-orders";
 import { getVendor } from "@/lib/db/vendors";
 import type { PurchaseOrder, Vendor } from "@/lib/types";
@@ -15,7 +14,6 @@ export default function PurchaseOrderPrintPage() {
   const { id, poid } = useParams<{ id: string; poid: string }>();
   const [po, setPo] = useState<PurchaseOrder | null | undefined>(undefined);
   const [vendor, setVendor] = useState<Vendor | null>(null);
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings());
 
   useEffect(() => {
     void getPurchaseOrder(poid).then(async (row) => {
@@ -23,7 +21,6 @@ export default function PurchaseOrderPrintPage() {
       if (row?.vendorId) setVendor(await getVendor(row.vendorId));
     });
   }, [poid]);
-  useEffect(() => subscribeSettings(setSettings), []);
 
   if (po === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (po === null) return <EmptyState title="Purchase order not found" />;
@@ -50,18 +47,26 @@ export default function PurchaseOrderPrintPage() {
             {vendor?.gstin && <p className="text-ink-600">GSTIN: {vendor.gstin}</p>}
           </div>
           <div className="text-right">
-            <p className="text-xs text-ink-500">Project</p>
-            <p className="text-ink-900">{po.projectName}</p>
-            {po.deliveryDate && (<><p className="mt-2 text-xs text-ink-500">Delivery by</p><p className="text-ink-900">{formatDate(po.deliveryDate)}</p></>)}
+            {po.deliveryDate && (<><p className="text-xs text-ink-500">Delivery by</p><p className="text-ink-900">{formatDate(po.deliveryDate)}</p></>)}
           </div>
         </div>
 
         <div className="mt-6 overflow-x-auto scroll-thin">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-[4%]" />
+              <col className="w-[38%]" />
+              <col className="w-[10%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[16%]" />
+              <col className="w-[16%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
                 <th className="py-2 pr-3">#</th>
                 <th className="py-2 pr-3">Description</th>
+                <th className="py-2 px-3">HSN/SAC</th>
                 <th className="py-2 px-3">Unit</th>
                 <th className="whitespace-nowrap py-2 px-3 text-right">Qty</th>
                 <th className="whitespace-nowrap py-2 px-3 text-right">Rate</th>
@@ -72,7 +77,8 @@ export default function PurchaseOrderPrintPage() {
               {po.items.map((line) => (
                 <tr key={line.srNo} className="border-b border-ink-100">
                   <td className="py-3 pr-3 align-top text-ink-500">{line.srNo}</td>
-                  <td className="py-3 pr-3 align-top">{line.description}</td>
+                  <td className="break-words py-3 pr-3 align-top">{line.description}</td>
+                  <td className="py-3 px-3 align-top text-ink-500">{line.hsnCode || "—"}</td>
                   <td className="py-3 px-3 align-top text-ink-500">{line.unit || "—"}</td>
                   <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{line.qty}</td>
                   <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{formatINR(line.rate)}</td>
@@ -92,7 +98,9 @@ export default function PurchaseOrderPrintPage() {
           </dl>
         </div>
 
-        <BankDetailsPrintBlock bank={settings.bank} />
+        <BankDetailsPrintBlock
+          bank={vendor?.bankAccountNo ? { accountName: vendor.name, accountNo: vendor.bankAccountNo, ifsc: vendor.bankIfsc ?? "", bankName: vendor.bankName ?? "", branch: "" } : null}
+        />
 
         {po.terms && (
           <div className="mt-6">

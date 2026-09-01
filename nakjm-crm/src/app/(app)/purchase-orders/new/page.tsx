@@ -38,6 +38,7 @@ function NewPurchaseOrderForm() {
   const [projectId, setProjectId] = useState(params.get("projectId") ?? "");
   const [vendorId, setVendorId] = useState(params.get("vendorId") ?? "");
   const [deliveryDate, setDeliveryDate] = useState("");
+  const [terms, setTerms] = useState("");
   const [notes, setNotes] = useState("");
   const [gstType, setGstType] = useState<"IGST" | "CGST_SGST">("IGST");
   const [shipToDifferent, setShipToDifferent] = useState(false);
@@ -105,7 +106,7 @@ function NewPurchaseOrderForm() {
       const po = await createPurchaseOrder({
         poNo: finalPoNo, projectId, projectName: project?.name ?? "", vendorId, vendorName: vendor?.name ?? "",
         deliveryDate: deliveryDate ? new Date(deliveryDate) : null, items, gstType, sourceBoqId,
-        shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "", notes,
+        shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "", terms, notes,
       }, actor);
       if (sourceFile) {
         await uploadDocument({ file: sourceFile, projectId, linkedEntityType: "PURCHASE_ORDER", linkedEntityId: po.id, docType: "PO_UPLOAD", notes: "Original uploaded PO file", actor });
@@ -135,6 +136,7 @@ function NewPurchaseOrderForm() {
               <Field label="Vendor" required><Select value={vendorId} placeholder="Select a vendor…" options={vendors.map((v) => ({ value: v.id, label: v.name }))} onChange={(e) => setVendorId(e.target.value)} /></Field>
               <Field label="Link to Project" required><Select value={projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setProjectId(e.target.value)} /></Field>
               <Field label="Expected Delivery"><Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></Field>
+              <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
             </div>
 

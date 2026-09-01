@@ -36,7 +36,7 @@ export default function QuotationDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [signatureName, setSignatureName] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
-  const [editForm, setEditForm] = useState({ quotationNo: "", validUntil: "", notes: "" });
+  const [editForm, setEditForm] = useState({ quotationNo: "", validUntil: "", terms: "", notes: "" });
   const [editItems, setEditItems] = useState<DraftItem[]>([]);
   const [lineage, setLineage] = useState<Quotation[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -82,7 +82,7 @@ export default function QuotationDetailPage() {
   }
 
   function openEdit() {
-    setEditForm({ quotationNo: q!.quotationNo, validUntil: q!.validUntil ? q!.validUntil.toDate().toISOString().slice(0, 10) : "", notes: q!.notes ?? "" });
+    setEditForm({ quotationNo: q!.quotationNo, validUntil: q!.validUntil ? q!.validUntil.toDate().toISOString().slice(0, 10) : "", terms: q!.terms ?? "", notes: q!.notes ?? "" });
     setEditItems(q!.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode, gstPercent: it.gstPercent })));
     setEditOpen(true);
   }
@@ -91,7 +91,7 @@ export default function QuotationDetailPage() {
     if (!editForm.quotationNo.trim()) return;
     await run(async () => {
       await updateQuotation(q!, {
-        quotationNo: editForm.quotationNo, notes: editForm.notes, items: editItems,
+        quotationNo: editForm.quotationNo, terms: editForm.terms, notes: editForm.notes, items: editItems,
         validUntil: editForm.validUntil ? new Date(editForm.validUntil) : null,
       }, actor);
       setEditOpen(false);
@@ -247,6 +247,7 @@ export default function QuotationDetailPage() {
         <div className="mb-4 grid grid-cols-2 gap-3">
           <Field label="Quotation No." required><Input value={editForm.quotationNo} onChange={(e) => setEditForm((f) => ({ ...f, quotationNo: e.target.value }))} /></Field>
           <Field label="Valid Until"><Input type="date" value={editForm.validUntil} onChange={(e) => setEditForm((f) => ({ ...f, validUntil: e.target.value }))} /></Field>
+          <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={editForm.terms} onChange={(e) => setEditForm((f) => ({ ...f, terms: e.target.value }))} /></Field>
           <Field label="Notes" className="col-span-2"><Textarea value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} /></Field>
         </div>
         <ItemsTable items={editItems} setItems={setEditItems} fields={QUOTATION_ITEM_FIELDS} />

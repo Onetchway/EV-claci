@@ -45,7 +45,17 @@ export default function BoqPrintPage() {
         </div>
 
         <div className="mt-6 overflow-x-auto scroll-thin">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-[4%]" />
+              <col className="w-[32%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
                 <th className="py-2 pr-3">#</th>
@@ -62,7 +72,7 @@ export default function BoqPrintPage() {
               {boq.items.map((line) => (
                 <tr key={line.srNo} className="border-b border-ink-100">
                   <td className="py-3 pr-3 align-top text-ink-500">{line.srNo}</td>
-                  <td className="py-3 pr-3 align-top">
+                  <td className="break-words py-3 pr-3 align-top">
                     {line.section && <span className="mr-1 text-[10px] font-semibold uppercase text-ink-400">{line.section}</span>}
                     {line.description}
                     {line.remarks && <p className="mt-0.5 text-[11px] text-ink-400">{line.remarks}</p>}
@@ -84,6 +94,13 @@ export default function BoqPrintPage() {
             <div className="flex justify-between border-t border-ink-200 pt-1.5 font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatINR(boq.totalAmount)}</dd></div>
           </dl>
         </div>
+
+        {boq.terms && (
+          <div className="mt-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Terms</p>
+            <p className="mt-1 whitespace-pre-line text-sm text-ink-700">{boq.terms}</p>
+          </div>
+        )}
 
         {boq.notes && (
           <div className="mt-4 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{boq.notes}</div>

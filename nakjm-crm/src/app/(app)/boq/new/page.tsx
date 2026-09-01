@@ -34,6 +34,7 @@ function NewBoqForm() {
   const [boqNo, setBoqNo] = useState("");
   const [projectId, setProjectId] = useState(params.get("projectId") ?? "");
   const [siteName, setSiteName] = useState("");
+  const [terms, setTerms] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<DraftBoqItem[]>([]);
   const [importing, setImporting] = useState(false);
@@ -88,7 +89,7 @@ function NewBoqForm() {
     }
     await run(async () => {
       const cleanItems = items.map((it) => ({ ...it, category: (it.category as BoqCategory) || "OTHER" })) as BoqLineItem[];
-      const boq = await createBoq({ boqNo, projectId, projectName: project.name, siteName, items: cleanItems, notes }, actor);
+      const boq = await createBoq({ boqNo, projectId, projectName: project.name, siteName, items: cleanItems, terms, notes }, actor);
       if (sourceFile) {
         await uploadDocument({ file: sourceFile, projectId, linkedEntityType: "BOQ", linkedEntityId: boq.id, docType: "BOQ_UPLOAD", notes: "Original uploaded BOQ file", actor });
       }
@@ -115,6 +116,7 @@ function NewBoqForm() {
                 <Select value={projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setProjectId(e.target.value)} />
               </Field>
               <Field label="Site Name"><Input value={siteName} onChange={(e) => setSiteName(e.target.value)} /></Field>
+              <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
               <Field label="Attach source document" className="col-span-2" hint="Optional — a client's original BOQ/RFQ file (PDF, scan, etc.), kept on record even if it can't be auto-imported above.">
                 <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-ink-300 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50">

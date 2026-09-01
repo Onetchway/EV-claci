@@ -67,6 +67,7 @@ export interface BoqDraft {
   status?: BoqStatus;
   boqDate?: Date | null;
   items: BoqLineItem[];
+  terms?: string;
   notes?: string;
   sourceDocumentId?: string | null;
 }
@@ -85,6 +86,7 @@ export async function createBoq(draft: BoqDraft, actor?: Actor): Promise<Boq> {
     boqDate: draft.boqDate ? Timestamp.fromDate(draft.boqDate) : Timestamp.now(),
     items,
     totalAmount: total,
+    terms: draft.terms ?? "",
     notes: draft.notes ?? "",
     sourceDocumentId: draft.sourceDocumentId ?? null,
     createdAt: serverTimestamp(),
@@ -161,6 +163,7 @@ export async function reviseBoq(boq: Boq, actor: Actor): Promise<Boq> {
     boqDate: Timestamp.now(),
     items: boq.items,
     totalAmount: boq.totalAmount,
+    terms: boq.terms ?? "",
     notes: boq.notes ?? "",
     sourceDocumentId: boq.sourceDocumentId ?? null,
     rootBoqId: rootId,
@@ -181,6 +184,7 @@ export interface BoqPatch {
   siteName?: string;
   boqDate?: Date | null;
   items?: BoqLineItem[];
+  terms?: string;
   notes?: string;
 }
 
@@ -193,6 +197,7 @@ export async function updateBoq(boq: Boq, patch: BoqPatch, actor: Actor): Promis
   }
   if (patch.boqNo !== undefined) update.boqNo = patch.boqNo;
   if (patch.siteName !== undefined) update.siteName = patch.siteName;
+  if (patch.terms !== undefined) update.terms = patch.terms;
   if (patch.notes !== undefined) update.notes = patch.notes;
   if (patch.boqDate !== undefined) update.boqDate = patch.boqDate ? Timestamp.fromDate(patch.boqDate) : null;
   await updateDoc(doc(getDb(), BOQS, boq.id), update);

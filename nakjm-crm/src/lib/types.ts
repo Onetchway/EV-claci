@@ -311,6 +311,7 @@ export interface Boq {
   boqDate: TS;
   items: BoqLineItem[];
   totalAmount: number;
+  terms?: string;
   notes?: string;
   sourceDocumentId?: string | null;
   /** Revision lineage: rootBoqId is the same across every version of one BOQ (the first version's own id); revisedFrom is the immediate prior version's id. Absent on BOQs created before this existed. */

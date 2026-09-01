@@ -34,7 +34,7 @@ export default function ProformaInvoiceDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [payForm, setPayForm] = useState({ amount: "", mode: "BANK_TRANSFER" as PaymentMode, referenceNo: "", milestone: "" });
-  const [editForm, setEditForm] = useState({ piNo: "", dueDate: "", milestone: "" });
+  const [editForm, setEditForm] = useState({ piNo: "", dueDate: "", milestone: "", terms: "" });
   const [editItems, setEditItems] = useState<DraftItem[]>([]);
 
   useEffect(() => subscribeProformaInvoice(id, setPi), [id]);
@@ -52,7 +52,7 @@ export default function ProformaInvoiceDetailPage() {
   }
 
   function openEdit() {
-    setEditForm({ piNo: pi!.piNo, dueDate: pi!.dueDate ? pi!.dueDate.toDate().toISOString().slice(0, 10) : "", milestone: pi!.milestone ?? "" });
+    setEditForm({ piNo: pi!.piNo, dueDate: pi!.dueDate ? pi!.dueDate.toDate().toISOString().slice(0, 10) : "", milestone: pi!.milestone ?? "", terms: pi!.terms ?? "" });
     setEditItems(pi!.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode, gstPercent: it.gstPercent })));
     setEditOpen(true);
   }
@@ -61,7 +61,7 @@ export default function ProformaInvoiceDetailPage() {
     if (!editForm.piNo.trim()) return;
     await run(async () => {
       await updateProformaInvoice(pi!, {
-        piNo: editForm.piNo, milestone: editForm.milestone, items: editItems,
+        piNo: editForm.piNo, milestone: editForm.milestone, terms: editForm.terms, items: editItems,
         dueDate: editForm.dueDate ? new Date(editForm.dueDate) : null,
       }, actor);
       setEditOpen(false);
@@ -225,6 +225,7 @@ export default function ProformaInvoiceDetailPage() {
           <Field label="PI No." required><Input value={editForm.piNo} onChange={(e) => setEditForm((f) => ({ ...f, piNo: e.target.value }))} /></Field>
           <Field label="Due Date"><Input type="date" value={editForm.dueDate} onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
           <Field label="Milestone" className="col-span-2"><Input value={editForm.milestone} onChange={(e) => setEditForm((f) => ({ ...f, milestone: e.target.value }))} /></Field>
+          <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={editForm.terms} onChange={(e) => setEditForm((f) => ({ ...f, terms: e.target.value }))} /></Field>
         </div>
         <ItemsTable items={editItems} setItems={setEditItems} fields={QUOTATION_ITEM_FIELDS} />
       </Modal>

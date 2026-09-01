@@ -29,7 +29,7 @@ export default function BoqDetailPage() {
   const [boq, setBoq] = useState<Boq | null | undefined>(undefined);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [form, setForm] = useState({ boqNo: "", siteName: "", notes: "" });
+  const [form, setForm] = useState({ boqNo: "", siteName: "", terms: "", notes: "" });
   const [items, setItems] = useState<DraftBoqItem[]>([]);
   const [lineage, setLineage] = useState<Boq[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -73,8 +73,8 @@ export default function BoqDetailPage() {
   }
 
   function openEdit() {
-    setForm({ boqNo: boq!.boqNo, siteName: boq!.siteName ?? "", notes: boq!.notes ?? "" });
-    setItems(boq!.items.map((it) => ({ section: it.section, description: it.description, makeOem: it.makeOem, unit: it.unit, qty: it.qty, supplyRate: it.supplyRate, installationRate: it.installationRate, category: it.category })));
+    setForm({ boqNo: boq!.boqNo, siteName: boq!.siteName ?? "", terms: boq!.terms ?? "", notes: boq!.notes ?? "" });
+    setItems(boq!.items.map((it) => ({ section: it.section, description: it.description, makeOem: it.makeOem, unit: it.unit, qty: it.qty, supplyRate: it.supplyRate, installationRate: it.installationRate, category: it.category, remarks: it.remarks })));
     setEditOpen(true);
   }
 
@@ -82,7 +82,7 @@ export default function BoqDetailPage() {
     if (!form.boqNo.trim()) return;
     await run(async () => {
       const cleanItems = items.map((it) => ({ ...it, category: (it.category as BoqCategory) || "OTHER" })) as BoqLineItem[];
-      await updateBoq(boq!, { boqNo: form.boqNo, siteName: form.siteName, items: cleanItems, notes: form.notes }, actor);
+      await updateBoq(boq!, { boqNo: form.boqNo, siteName: form.siteName, items: cleanItems, terms: form.terms, notes: form.notes }, actor);
       setEditOpen(false);
     }, "BOQ updated.");
   }
@@ -166,6 +166,7 @@ export default function BoqDetailPage() {
             </div>
           </Card>
 
+          {boq.terms && <Card title="Terms &amp; conditions"><p className="whitespace-pre-line text-sm text-ink-700">{boq.terms}</p></Card>}
           {boq.notes && <Card title="Notes"><p className="whitespace-pre-line text-sm text-ink-700">{boq.notes}</p></Card>}
         </div>
 
@@ -226,6 +227,7 @@ export default function BoqDetailPage() {
         </div>
         <ItemsTable items={items} setItems={setItems} fields={BOQ_FIELDS} />
         <p className="mt-2 text-xs text-ink-500">Categories: {BOQ_CATEGORIES.join(", ")}.</p>
+        <div className="mt-4"><Field label="Terms &amp; Conditions"><Textarea value={form.terms} onChange={(e) => setForm((f) => ({ ...f, terms: e.target.value }))} /></Field></div>
       </Modal>
 
       <Modal
