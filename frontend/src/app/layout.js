@@ -2,7 +2,7 @@ import './globals.css';
 import Providers from './providers';
 
 export const metadata = {
-  title: 'Electriva CSMS',
+  title: 'Electriva CRM',
   description: 'EV Charging & Infrastructure Management System',
   icons: { icon: '/favicon.ico' },
 };

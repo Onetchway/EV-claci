@@ -3,6 +3,11 @@
 const { query } = require('../config/database');
 const { tenantWhere } = require('../middleware/tenantScope');
 
+// Shape here is a direct contract with frontend/src/app/(dashboard)/
+// dashboard/page.js (kpis/chargerStatuses/recentSessions/monthlyRevenue,
+// camelCase) — this endpoint has no other consumer, so there's no
+// envelope ({success,data,message}) to unwrap, unlike some of the
+// nakjm/* endpoints.
 const adminDashboard = async (req) => {
   const now = new Date();
   const mtdStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -12,19 +17,20 @@ const adminDashboard = async (req) => {
   const sessionsTenant = tenantWhere(req, 1);
   const usersTenant = tenantWhere(req, 1);
   const revMtdTenant = tenantWhere(req, 2);
-  const energyMtdTenant = tenantWhere(req, 2);
-  const topStationsTenant = tenantWhere(req, 2);
+  const franchisePayoutTenant = tenantWhere(req, 1);
   const recentSessionsTenant = tenantWhere(req, 1);
+  const monthlyRevenueTenant = tenantWhere(req, 2);
 
   const [
     stationsRes,
     chargerStatusRes,
     activeSessionsRes,
+    totalSessionsRes,
     usersRes,
     revenueMtdRes,
-    energyMtdRes,
-    topStationsRes,
+    franchisePayoutRes,
     recentSessionsRes,
+    monthlyRevenueRes,
   ] = await Promise.all([
     query(
       `SELECT status, COUNT(*) AS count FROM stations ${stationsTenant.clause ? 'WHERE ' + stationsTenant.clause : ''} GROUP BY status`,
@@ -39,27 +45,21 @@ const adminDashboard = async (req) => {
       sessionsTenant.params
     ),
     query(
+      `SELECT COUNT(*) AS count FROM charging_sessions${sessionsTenant.clause ? ' WHERE ' + sessionsTenant.clause : ''}`,
+      sessionsTenant.params
+    ),
+    query(
       `SELECT COUNT(*) AS count FROM users ${usersTenant.clause ? 'WHERE ' + usersTenant.clause : ''}`,
       usersTenant.params
     ),
     query(
-      `SELECT COALESCE(SUM(total_revenue),0) AS total, COALESCE(SUM(charging_revenue),0) AS charging,
-              COALESCE(SUM(bss_swap_revenue),0) AS bss_swap, COALESCE(SUM(bss_rental_revenue),0) AS bss_rental,
-              COALESCE(SUM(gross_margin),0) AS gross_margin
+      `SELECT COALESCE(SUM(total_revenue),0) AS total, COALESCE(SUM(energy_consumed),0) AS energy
        FROM revenues WHERE date >= $1${revMtdTenant.clause ? ' AND ' + revMtdTenant.clause : ''}`,
       [mtdStart, ...revMtdTenant.params]
     ),
     query(
-      `SELECT COALESCE(SUM(energy_consumed),0) AS total FROM revenues WHERE date >= $1${energyMtdTenant.clause ? ' AND ' + energyMtdTenant.clause : ''}`,
-      [mtdStart, ...energyMtdTenant.params]
-    ),
-    query(
-      `SELECT r.station_id, s.name, s.city, SUM(r.total_revenue) AS revenue
-       FROM revenues r JOIN stations s ON s.id = r.station_id
-       WHERE r.date >= $1${topStationsTenant.clause ? ' AND ' + topStationsTenant.clause.replace('tenant_id', 'r.tenant_id') : ''}
-       GROUP BY r.station_id, s.name, s.city
-       ORDER BY revenue DESC LIMIT 5`,
-      [mtdStart, ...topStationsTenant.params]
+      `SELECT COALESCE(SUM(franchise_share),0) AS total FROM settlements${franchisePayoutTenant.clause ? ' WHERE ' + franchisePayoutTenant.clause : ''}`,
+      franchisePayoutTenant.params
     ),
     query(
       `SELECT cs.id, cs.start_time, cs.end_time, cs.energy_kwh, cs.revenue, cs.status,
@@ -71,49 +71,55 @@ const adminDashboard = async (req) => {
        ORDER BY cs.created_at DESC LIMIT 10`,
       recentSessionsTenant.params
     ),
+    query(
+      `SELECT date, SUM(total_revenue) AS revenue, SUM(energy_consumed) AS energy
+       FROM revenues WHERE date >= $1${monthlyRevenueTenant.clause ? ' AND ' + monthlyRevenueTenant.clause : ''}
+       GROUP BY date ORDER BY date`,
+      [mtdStart, ...monthlyRevenueTenant.params]
+    ),
   ]);
 
-  const stationStatusBreakdown = {};
   let totalStations = 0;
-  for (const row of stationsRes.rows) {
-    stationStatusBreakdown[row.status] = parseInt(row.count);
-    totalStations += parseInt(row.count);
-  }
+  for (const row of stationsRes.rows) totalStations += parseInt(row.count);
+  const activeStations = parseInt(stationsRes.rows.find((r) => r.status === 'active')?.count || 0);
 
-  const chargerStatusBreakdown = {};
+  const chargerStatuses = {};
   let totalChargers = 0;
-  let activeChargers = 0;
   for (const row of chargerStatusRes.rows) {
-    chargerStatusBreakdown[row.status] = parseInt(row.count);
+    chargerStatuses[row.status.toUpperCase()] = parseInt(row.count);
     totalChargers += parseInt(row.count);
-    if (row.status === 'available' || row.status === 'charging') {
-      activeChargers += parseInt(row.count);
-    }
   }
+  const availableChargers = parseInt(chargerStatusRes.rows.find((r) => r.status === 'available')?.count || 0);
+  const chargingChargers = parseInt(chargerStatusRes.rows.find((r) => r.status === 'charging')?.count || 0);
+
+  const totalRevenue = parseFloat(revenueMtdRes.rows[0].total);
+  const franchisePayout = parseFloat(franchisePayoutRes.rows[0].total);
 
   return {
-    success: true,
-    data: {
-      total_stations: totalStations,
-      active_chargers: activeChargers,
-      total_chargers: totalChargers,
-      total_bss: 0, // computed below
-      total_users: parseInt(usersRes.rows[0].count),
-      total_revenue_mtd: parseFloat(revenueMtdRes.rows[0].total),
-      total_energy_mtd: parseFloat(energyMtdRes.rows[0].total),
-      active_sessions: parseInt(activeSessionsRes.rows[0].count),
-      station_status_breakdown: stationStatusBreakdown,
-      charger_status_breakdown: chargerStatusBreakdown,
-      top_stations_by_revenue: topStationsRes.rows,
-      recent_sessions: recentSessionsRes.rows,
-      revenue_breakdown_mtd: {
-        charging: parseFloat(revenueMtdRes.rows[0].charging),
-        bss_swap: parseFloat(revenueMtdRes.rows[0].bss_swap),
-        bss_rental: parseFloat(revenueMtdRes.rows[0].bss_rental),
-        gross_margin: parseFloat(revenueMtdRes.rows[0].gross_margin),
-      },
+    kpis: {
+      totalStations, activeStations,
+      totalChargers, availableChargers, chargingChargers,
+      activeSessions: parseInt(activeSessionsRes.rows[0].count),
+      totalSessions: parseInt(totalSessionsRes.rows[0].count),
+      totalUsers: parseInt(usersRes.rows[0].count),
+      totalRevenue, franchisePayout, netRevenue: totalRevenue - franchisePayout,
+      totalEnergyKwh: parseFloat(revenueMtdRes.rows[0].energy),
     },
-    message: 'Admin dashboard retrieved successfully',
+    chargerStatuses,
+    recentSessions: recentSessionsRes.rows.map((s) => ({
+      id: s.id,
+      station: { name: s.station_name },
+      charger: { connectorType: s.connector_type },
+      startTime: s.start_time,
+      energyKwh: parseFloat(s.energy_kwh),
+      revenue: parseFloat(s.revenue),
+      status: s.status,
+    })),
+    monthlyRevenue: monthlyRevenueRes.rows.map((r) => ({
+      date: r.date,
+      revenue: parseFloat(r.revenue),
+      energy: parseFloat(r.energy),
+    })),
   };
 };
 
@@ -127,7 +133,7 @@ const adminDashboardFull = async (req) => {
       bssTenant.params
     ),
   ]);
-  dashboard.data.total_bss = parseInt(bssRes.rows[0].count);
+  dashboard.kpis.totalBss = parseInt(bssRes.rows[0].count);
   return dashboard;
 };
 

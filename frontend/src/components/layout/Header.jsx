@@ -16,7 +16,7 @@ const TITLES = {
 
 export default function Header() {
   const path  = usePathname();
-  const title = Object.entries(TITLES).find(([k]) => path === k || path.startsWith(k + '/'))?.[1] || 'Electriva CSMS';
+  const title = Object.entries(TITLES).find(([k]) => path === k || path.startsWith(k + '/'))?.[1] || 'Electriva CRM';
 
   return (
     <header className="sticky top-0 z-20 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">

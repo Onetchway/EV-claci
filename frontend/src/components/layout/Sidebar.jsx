@@ -55,7 +55,7 @@ export default function Sidebar() {
         </div>
         <div>
           <p className="font-bold text-sm leading-none">Electriva</p>
-          <p className="text-xs text-gray-400">CSMS Platform</p>
+          <p className="text-xs text-gray-400">CRM Platform</p>
         </div>
       </div>
 

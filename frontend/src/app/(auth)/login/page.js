@@ -57,8 +57,8 @@ function LoginForm() {
             <Zap className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Electriva CSMS</h1>
-            <p className="text-sm text-gray-300">Charging Management Platform</p>
+            <h1 className="text-2xl font-bold">Electriva CRM</h1>
+            <p className="text-sm text-gray-300">Charging Franchise CRM</p>
           </div>
         </div>
 
