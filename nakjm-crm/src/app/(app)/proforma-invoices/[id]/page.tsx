@@ -155,7 +155,13 @@ export default function ProformaInvoiceDetailPage() {
           {pi.shipToDifferent && pi.shipToAddress && (
             <Card title="Ship to"><p className="whitespace-pre-line text-sm text-ink-700">{pi.shipToAddress}</p></Card>
           )}
-          {pi.terms && <Card title="Terms &amp; conditions"><p className="whitespace-pre-line text-sm text-ink-700">{pi.terms}</p></Card>}
+          <Card title="Terms &amp; conditions">
+            {pi.terms ? (
+              <p className="whitespace-pre-line text-sm text-ink-700">{pi.terms}</p>
+            ) : (
+              <p className="text-sm text-ink-400">No terms added yet.{canManageProcurement(viewer) && pi.status === "DRAFT" ? " Click Edit to add." : ""}</p>
+            )}
+          </Card>
           {pi.notes && <Card title="Notes"><p className="whitespace-pre-line text-sm text-ink-700">{pi.notes}</p></Card>}
 
           <Card title="Payment ledger" subtitle={`${piPayments.length} ${piPayments.length === 1 ? "entry" : "entries"}`}>

@@ -185,9 +185,13 @@ export default function QuotationDetailPage() {
           {q.shipToDifferent && q.shipToAddress && (
             <Card title="Ship to"><p className="whitespace-pre-line text-sm text-ink-700">{q.shipToAddress}</p></Card>
           )}
-          {q.terms && (
-            <Card title="Terms &amp; conditions"><p className="whitespace-pre-line text-sm text-ink-700">{q.terms}</p></Card>
-          )}
+          <Card title="Terms &amp; conditions">
+            {q.terms ? (
+              <p className="whitespace-pre-line text-sm text-ink-700">{q.terms}</p>
+            ) : (
+              <p className="text-sm text-ink-400">No terms added yet.{canManageProcurement(viewer) && q.status !== "APPROVED" ? " Click Edit to add." : ""}</p>
+            )}
+          </Card>
           {q.notes && (
             <Card title="Notes"><p className="whitespace-pre-line text-sm text-ink-700">{q.notes}</p></Card>
           )}

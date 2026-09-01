@@ -166,7 +166,13 @@ export default function BoqDetailPage() {
             </div>
           </Card>
 
-          {boq.terms && <Card title="Terms &amp; conditions"><p className="whitespace-pre-line text-sm text-ink-700">{boq.terms}</p></Card>}
+          <Card title="Terms &amp; conditions">
+            {boq.terms ? (
+              <p className="whitespace-pre-line text-sm text-ink-700">{boq.terms}</p>
+            ) : (
+              <p className="text-sm text-ink-400">No terms added yet.{canManageProcurement(viewer) && boq.status !== "APPROVED" ? " Click Edit to add." : ""}</p>
+            )}
+          </Card>
           {boq.notes && <Card title="Notes"><p className="whitespace-pre-line text-sm text-ink-700">{boq.notes}</p></Card>}
         </div>
 

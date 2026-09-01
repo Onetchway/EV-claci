@@ -182,11 +182,13 @@ export default function PurchaseOrderDetailPage() {
             </Card>
           )}
 
-          {po.terms && (
-            <Card title="Terms &amp; conditions">
+          <Card title="Terms &amp; conditions">
+            {po.terms ? (
               <p className="whitespace-pre-line text-sm text-ink-700">{po.terms}</p>
-            </Card>
-          )}
+            ) : (
+              <p className="text-sm text-ink-400">No terms added yet.{canManageProcurement(viewer) && po.status === "DRAFT" ? " Click Edit to add." : ""}</p>
+            )}
+          </Card>
 
           {po.notes && (
             <Card title="Notes">
