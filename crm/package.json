@@ -12,7 +12,8 @@
     "verify": "tsx scripts/verify-pricing.ts",
     "seed": "tsx scripts/seed.ts",
     "create-user": "tsx scripts/create-user.ts",
-    "reset-leads": "tsx scripts/reset-and-import-leads.ts"
+    "reset-leads": "tsx scripts/reset-and-import-leads.ts",
+    "report-usage": "tsx scripts/report-usage.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
