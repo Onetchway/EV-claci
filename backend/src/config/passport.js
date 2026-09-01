@@ -5,6 +5,14 @@ const { resolveTenantByHost } = require('../utils/resolveTenant');
 
 const ALLOWED_DOMAIN = process.env.ALLOWED_EMAIL_DOMAIN || 'zivahgroup.com';
 
+// Google OAuth is optional — only registered when configured. Deploys
+// without GOOGLE_CLIENT_ID (local testing, or a tenant that only wants
+// email/password login — see src/services/auth.service.js) skip this
+// entirely rather than crashing on startup.
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  console.log('[passport] GOOGLE_CLIENT_ID/SECRET not set — Google sign-in disabled, email/password login still works.');
+} else {
+
 // Multi-tenant ("shared" deployment mode, see platform/README.md): a
 // shared instance resolves which tenant a sign-in belongs to from the
 // Host it came in on (subdomain or custom domain, both super-admin
@@ -53,3 +61,5 @@ passport.use(new GoogleStrategy({
     return done(null, user);
   } catch (err) { return done(err); }
 }));
+
+}

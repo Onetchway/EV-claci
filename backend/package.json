@@ -2,13 +2,15 @@
   "name": "ev-csms-backend",
   "version": "1.0.0",
   "description": "EV Charging & Infrastructure Management System — Backend",
-  "main": "src/app.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
-    "report-usage": "node src/jobs/reportUsage.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "report-usage": "node src/jobs/reportUsage.js",
+    "seed": "node src/seed.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "csv-writer": "^1.6.0",
     "dotenv": "^16.3.1",

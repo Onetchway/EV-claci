@@ -6,6 +6,7 @@ const { authorize }    = require('../middleware/rbac');
 router.use(authenticate);
 
 router.get('/',         authorize('ADMIN'), ctrl.list);
+router.post('/',        authorize('ADMIN'), ctrl.create);
 router.get('/:id',      authorize('ADMIN'), ctrl.getOne);
 router.put('/:id',      authorize('ADMIN'), ctrl.update);
 router.delete('/:id',   authorize('ADMIN'), ctrl.remove);

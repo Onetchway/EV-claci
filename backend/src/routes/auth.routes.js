@@ -4,9 +4,19 @@ const router   = require('express').Router();
 const passport = require('passport');
 const jwt      = require('jsonwebtoken');
 const { authenticate } = require('../middleware/auth');
+const authService = require('../services/auth.service');
 
 const JWT_SECRET   = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+// POST /api/auth/login — email/password, an alternative to Google OAuth
+// for deploys/testing where OAuth isn't set up. See src/services/auth.service.js.
+router.post('/login', async (req, res, next) => {
+  try {
+    const { token, user } = await authService.login(req.body);
+    res.json({ success: true, data: { token, user } });
+  } catch (err) { next(err); }
+});
 
 // Redirect to Google consent screen
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false }));

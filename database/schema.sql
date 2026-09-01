@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     picture VARCHAR(500),
+    password_hash VARCHAR(255), -- NULL for Google-OAuth-only users; set for email/password login
     role VARCHAR(50) NOT NULL DEFAULT 'operations' CHECK (role IN ('admin', 'operations', 'finance', 'franchise')),
     franchise_id UUID REFERENCES franchises(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
