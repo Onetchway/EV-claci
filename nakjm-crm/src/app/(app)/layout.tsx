@@ -180,7 +180,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <p className="truncate text-sm font-medium text-navy-900">{profile?.name}</p>
             <p className="truncate text-[11px] text-ink-500">{role ? ROLE_LABEL[role] : ""}</p>
           </div>
-          <NotificationsBell />
           <button
             onClick={() => void signOut().then(() => router.replace("/login"))}
             className="rounded-lg p-1.5 text-ink-500 hover:bg-ink-100 hover:text-navy-900"
@@ -220,7 +219,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setNavOpen(true)} className="rounded-lg p-1.5 text-ink-600 hover:bg-ink-100" aria-label="Open navigation">
             <Menu className="h-5 w-5" />
           </button>
-          <span className="text-sm font-semibold text-ink-900">NAKJM Infrastructure</span>
+          <span className="flex-1 text-sm font-semibold text-ink-900">NAKJM Infrastructure</span>
+          <NotificationsBell />
+        </header>
+
+        <header className="sticky top-0 z-20 hidden items-center justify-end border-b border-ink-200 bg-white/90 px-6 py-2.5 backdrop-blur lg:flex">
+          <NotificationsBell />
         </header>
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
