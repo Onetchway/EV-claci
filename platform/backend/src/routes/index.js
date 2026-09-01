@@ -7,5 +7,6 @@ router.use('/features',      require('./features.routes'));
 router.use('/billing-plans', require('./billingPlans.routes'));
 router.use('/invoices',      require('./invoices.routes'));
 router.use('/usage',         require('./usage.routes'));
+router.use('/provisioning',  require('./provisioning.routes'));
 
 module.exports = router;

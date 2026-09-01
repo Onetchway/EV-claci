@@ -150,6 +150,7 @@ platform/
 - `POST /api/invoices/tenants/:tenantId/generate` — generate one invoice on demand.
 - `PATCH /api/invoices/:id/paid` / `/void` — mark an invoice's status.
 - `POST /api/usage/report` — **tenant-authenticated** (via `X-Tenant-Api-Key`), a tenant's own backend pushes its current employee count here.
+- `POST /api/provisioning/tenants/:tenantId/isolated-database` — creates and schema-loads a new Postgres database for an `isolated`-mode tenant (see "Tenant database provisioning" below).
 - `src/jobs/generateInvoices.js` + `src/jobs/scheduler.js` — runs daily; any
   active tenant whose `billing_day` matches today gets last month's invoice
   generated automatically, no super-admin action needed.
@@ -194,11 +195,35 @@ contact via SMTP (`platform/backend/.env`'s `SMTP_*` vars, same
 provider-agnostic pattern as `nakjm-crm`'s email notifications) — logs
 and no-ops if SMTP isn't configured.
 
+## Tenant database provisioning ("isolated" mode)
+
+`POST /api/provisioning/tenants/:tenantId/isolated-database` — super admin
+only, and only for `isolated`-mode tenants — automates the database half
+of onboarding: it `CREATE DATABASE`s a new tenant database (named
+`tenant_<slug>`) on whatever Postgres server `PROVISIONING_ADMIN_DATABASE_URL`
+points at, then loads the full CRM schema into it (`database/schema.sql`
++ `nakjm_schema.sql` + `nakjm_documents_schema.sql`, the same three files
+a manual setup would run). The connection string — WITH credentials — is
+returned once in the response and never persisted; the platform only
+keeps a credential-free reference (`tenants.db_connection_ref`, host/port/
+dbname, no username or password) so you can see at a glance whether a
+tenant's been provisioned. Triggered from the tenant's page in the
+super-admin console ("Database" card, isolated-mode tenants only).
+
+This is the automatable half of provisioning. It does NOT deploy
+`backend/`/`frontend/` anywhere or point DNS at anything — you still run
+that CRM instance against the connection string yourself (or your
+deploy tooling does). `dedicated`-mode tenants aren't covered by this at
+all — that's a separate hosting stack entirely, per whatever provider
+that tenant uses, which isn't something this platform can automate
+without knowing which provider and holding its credentials.
+
 ## Not built yet (next steps)
 
-- Automated tenant provisioning for `dedicated`/`isolated` mode (spinning
-  up a new database/deploy on tenant creation) — today `deployment_mode`
-  is just recorded; the actual infra step is manual.
+- Automated `backend/`/`frontend/` *deployment* itself (only the database
+  half of `isolated`-mode provisioning is automated, see above) — and
+  anything for `dedicated` mode, which depends on a hosting provider
+  decision this platform can't make for you.
 - Real payment collection (Razorpay/Stripe etc.) is explicitly out of
   scope by design — invoices are generated, tracked, and emailed;
   `markPaid` is a deliberate manual super-admin action, not a gap.

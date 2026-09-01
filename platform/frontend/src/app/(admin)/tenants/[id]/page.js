@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { tenantsApi, featuresApi, billingPlansApi, invoicesApi, usageApi } from '@/lib/api';
+import { tenantsApi, featuresApi, billingPlansApi, invoicesApi, usageApi, provisioningApi } from '@/lib/api';
 
 export default function TenantDetailPage() {
   const { id } = useParams();
@@ -13,6 +13,7 @@ export default function TenantDetailPage() {
   const [invoices, setInvoices] = useState([]);
   const [usage, setUsage] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [provisioning, setProvisioning] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -83,6 +84,19 @@ export default function TenantDetailPage() {
     }
   };
 
+  const provisionDatabase = async () => {
+    setProvisioning(true);
+    try {
+      const { connection_string } = await provisioningApi.provisionIsolatedDatabase(id);
+      toast.success(`Database ready. Connection string (save now, shown once): ${connection_string}`, { duration: 20000 });
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setProvisioning(false);
+    }
+  };
+
   if (loading || !tenant) return <div className="text-gray-400">Loading…</div>;
 
   const grouped = features.reduce((acc, f) => {
@@ -104,6 +118,26 @@ export default function TenantDetailPage() {
           <option value="cancelled">Cancelled</option>
         </select>
       </div>
+
+      {tenant.deployment_mode === 'isolated' && (
+        <div className="card p-5 space-y-3">
+          <h2 className="font-semibold">Database</h2>
+          <p className="text-sm text-gray-500">
+            Isolated-mode tenants get their own Postgres database on your infra. Provisioning creates it
+            and loads the full CRM schema — the connection string (with credentials) is shown once here;
+            the platform only keeps a credential-free reference afterward.
+          </p>
+          {tenant.db_connection_ref ? (
+            <p className="text-sm text-gray-700">
+              Provisioned: <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{tenant.db_connection_ref}</code>
+            </p>
+          ) : (
+            <button className="btn-secondary" disabled={provisioning} onClick={provisionDatabase}>
+              {provisioning ? 'Provisioning…' : 'Provision isolated database'}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="card p-5 space-y-4">
         <h2 className="font-semibold">Domain routing</h2>

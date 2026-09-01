@@ -70,4 +70,8 @@ export const usageApi = {
   forTenant: (tenantId) => client.get(`/usage/tenants/${tenantId}`),
 };
 
+export const provisioningApi = {
+  provisionIsolatedDatabase: (tenantId) => client.post(`/provisioning/tenants/${tenantId}/isolated-database`),
+};
+
 export default client;
