@@ -1,7 +1,7 @@
 'use strict';
 
 // Bootstraps the first super admin.
-// Usage: npm run seed -- --email you@livanto.com --name "Your Name" --password "changeme123"
+// Usage: npm run seed -- --email you@alpha.com --name "Your Name" --password "changeme123"
 
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
@@ -18,7 +18,7 @@ function parseArgs() {
 async function main() {
   const { email, name, password } = parseArgs();
   if (!email || !name || !password) {
-    console.error('Usage: npm run seed -- --email you@livanto.com --name "Your Name" --password "changeme123"');
+    console.error('Usage: npm run seed -- --email you@alpha.com --name "Your Name" --password "changeme123"');
     process.exit(1);
   }
 

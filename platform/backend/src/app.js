@@ -26,7 +26,7 @@ if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', limiter);
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'livanto-platform-control-plane', ts: new Date() }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'alpha-platform-control-plane', ts: new Date() }));
 
 app.use('/api', routes);
 

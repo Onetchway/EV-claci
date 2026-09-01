@@ -161,7 +161,7 @@ cd platform/backend
 cp .env.example .env      # fill in DATABASE_URL, JWT_SECRET
 psql "$DATABASE_URL" -f ../database/schema.sql
 npm install
-npm run seed -- --email you@livanto.com --name "Your Name" --password "changeme123"
+npm run seed -- --email you@alpha.com --name "Your Name" --password "changeme123"
 npm run dev                # http://localhost:5100
 ```
 
