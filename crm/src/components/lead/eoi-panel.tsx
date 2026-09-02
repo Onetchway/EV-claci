@@ -38,12 +38,14 @@ import { cn, formatDate, formatDateTime, formatINR } from "@/lib/utils";
  */
 
 export function EoiPanel({
-  lead, actor, viewer, canEdit,
+  lead, actor, viewer, canEdit, creationEnabled = true,
 }: {
   lead: Lead;
   actor: Actor;
   viewer: Viewer;
   canEdit: boolean;
+  /** The Alpha platform's feature_catalog key "eoi" — a super admin can withhold the ability to draft a *new* EOI for this tenant without touching an already-issued one. Defaults to true for any caller that doesn't pass it. */
+  creationEnabled?: boolean;
 }) {
   const [draft, setDraft] = useState<EoiDoc | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -133,9 +135,13 @@ export function EoiPanel({
         <EmptyState
           icon={<FileText className="h-8 w-8" />}
           title="No Letter of Intent yet"
-          description="Generate one from this lead's quotation. Every line stays editable before you issue it."
+          description={
+            creationEnabled
+              ? "Generate one from this lead's quotation. Every line stays editable before you issue it."
+              : "EOI creation is turned off for your organization. Contact your Alpha platform administrator to enable it."
+          }
           action={
-            canEdit ? (
+            canEdit && creationEnabled ? (
               <Button variant="primary" onClick={() => setCreateOpen(true)}>
                 <Plus className="h-4 w-4" /> Draft Letter of Intent
               </Button>
@@ -215,7 +221,7 @@ export function EoiPanel({
               </Button>
             )}
 
-            {canEdit && (
+            {canEdit && creationEnabled && (
               <Button
                 onClick={() => setRegenerateOpen(true)}
                 title="Rebuild the letter from this lead's current client, site and quotation details — the current letter is archived first, not lost."

@@ -21,6 +21,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { ROLE_LABEL, type Role } from "@/lib/constants";
 import { subscribeRoleAccessPolicy } from "@/lib/db/access-policy";
 import { subscribeOrganization } from "@/lib/db/organizations";
+import { FeatureFlagsProvider } from "@/lib/feature-flags-context";
 import { hasPageAccess } from "@/lib/page-access";
 import { isAdmin } from "@/lib/permissions";
 import type { Organization } from "@/lib/types";
@@ -358,13 +359,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">
-          {hasPageAccess(pathname, roles, { policyOverrides: rolePolicy, userOverrides: profile?.pageAccessOverrides }) ? children : (
-            <EmptyState
-              icon={<ShieldCheck className="h-8 w-8 text-rose-500" />}
-              title="Restricted"
-              description="Your role doesn't have access to this page. Contact your administrator if you believe this is wrong."
-            />
-          )}
+          <FeatureFlagsProvider value={{ categories: enabledCategories, keys: enabledFeatureKeys }}>
+            {hasPageAccess(pathname, roles, { policyOverrides: rolePolicy, userOverrides: profile?.pageAccessOverrides }) ? children : (
+              <EmptyState
+                icon={<ShieldCheck className="h-8 w-8 text-rose-500" />}
+                title="Restricted"
+                description="Your role doesn't have access to this page. Contact your administrator if you believe this is wrong."
+              />
+            )}
+          </FeatureFlagsProvider>
         </main>
       </div>
     </div>

@@ -29,6 +29,7 @@ import {
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useAgents } from "@/hooks/use-leads";
 import { useSettings } from "@/hooks/use-settings";
+import { useFeatureEnabled } from "@/lib/feature-flags-context";
 import {
   commercialModelLabel, FRANCHISE_LOI_TYPES, LAND_TYPE_LABEL, LEAD_TYPE_LABEL,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNER_TYPE_LABEL, POWER_LOAD_LABEL,
@@ -99,6 +100,8 @@ export default function LeadDetailPage() {
   useDocumentTitle(lead?.code);
 
   const viewer = useViewer();
+  const eoiCreationEnabled = useFeatureEnabled("eoi");
+  const agreementCreationEnabled = useFeatureEnabled("franchise_agreement");
 
   // Guards against landing on a tab this lead's type no longer offers —
   // e.g. it was on "Financing" and the type was edited to Software.
@@ -595,11 +598,11 @@ export default function LeadDetailPage() {
       )}
 
       {tab === "Letter of Intent" && actor && (
-        <EoiPanel lead={lead} actor={actor} viewer={viewer} canEdit={editable} />
+        <EoiPanel lead={lead} actor={actor} viewer={viewer} canEdit={editable} creationEnabled={eoiCreationEnabled} />
       )}
 
       {tab === "Agreement" && actor && (
-        <AgreementPanel lead={lead} actor={actor} viewer={viewer} canEdit={editable} />
+        <AgreementPanel lead={lead} actor={actor} viewer={viewer} canEdit={editable} creationEnabled={agreementCreationEnabled} />
       )}
 
       {tab === "Payments" && actor && (

@@ -325,12 +325,14 @@ export function AgreementLetterArticle({
 }
 
 export function AgreementPanel({
-  lead, actor, viewer, canEdit,
+  lead, actor, viewer, canEdit, creationEnabled = true,
 }: {
   lead: Lead;
   actor: Actor;
   viewer: Viewer;
   canEdit: boolean;
+  /** The Alpha platform's feature_catalog key "franchise_agreement" — a super admin can withhold the ability to draft a *new* Agreement for this tenant without touching an already-issued one (or an uploaded signed copy). Defaults to true for any caller that doesn't pass it. */
+  creationEnabled?: boolean;
 }) {
   const [draft, setDraft] = useState<AgreementDoc | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -402,8 +404,12 @@ export function AgreementPanel({
       <div className="space-y-4">
         <EmptyState
           title="No Franchise Agreement yet"
-          description="Draft one from the lead's own details, or upload an already-signed or externally-drawn-up copy below."
-          action={canEdit && <Button variant="primary" onClick={() => void startCreate()}><Plus className="h-4 w-4" /> Draft Agreement</Button>}
+          description={
+            creationEnabled
+              ? "Draft one from the lead's own details, or upload an already-signed or externally-drawn-up copy below."
+              : "Drafting an Agreement is turned off for your organization — you can still upload an already-signed or externally-drawn-up copy below. Contact your Alpha platform administrator to enable drafting."
+          }
+          action={canEdit && creationEnabled && <Button variant="primary" onClick={() => void startCreate()}><Plus className="h-4 w-4" /> Draft Agreement</Button>}
         />
         <UploadedAgreementsCard lead={lead} actor={actor} viewer={viewer} canEdit={canEdit} />
         <CreateModal
@@ -467,7 +473,7 @@ export function AgreementPanel({
                 Save changes
               </Button>
             )}
-            {canEdit && (
+            {canEdit && creationEnabled && (
               <Button
                 size="sm"
                 onClick={() => { setDraft(current); setRegenerateOpen(true); }}
