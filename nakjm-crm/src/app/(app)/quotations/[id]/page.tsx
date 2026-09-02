@@ -120,26 +120,26 @@ export default function QuotationDetailPage() {
         <div className="space-y-4 lg:col-span-2">
           <Card title="Line items">
             <div className="overflow-x-auto scroll-thin">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
-                    <th className="pb-2">Description</th>
-                    <th className="pb-2">HSN/SAC</th>
-                    <th className="pb-2">Unit</th>
-                    <th className="pb-2 text-right">Qty</th>
-                    <th className="pb-2 text-right">Rate</th>
-                    <th className="pb-2 text-right">Amount</th>
+                    <th className="py-2 pr-3">Description</th>
+                    <th className="px-3 py-2">HSN/SAC</th>
+                    <th className="px-3 py-2">Unit</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right">Qty</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right">Rate</th>
+                    <th className="whitespace-nowrap py-2 pl-3 text-right">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {q.items.map((line) => (
                     <tr key={line.srNo} className="border-b border-ink-100">
-                      <td className="py-2">{line.description}</td>
-                      <td className="py-2 text-ink-500">{line.hsnCode || "—"}</td>
-                      <td className="py-2 text-ink-500">{line.unit || "—"}</td>
-                      <td className="py-2 text-right tabular-nums">{line.qty}</td>
-                      <td className="py-2 text-right tabular-nums">{formatINR(line.rate)}</td>
-                      <td className="py-2 text-right tabular-nums">{formatINR(line.amount)}</td>
+                      <td className="py-2.5 pr-3 align-top">{line.description}</td>
+                      <td className="px-3 py-2.5 align-top text-ink-500">{line.hsnCode || "—"}</td>
+                      <td className="px-3 py-2.5 align-top text-ink-500">{line.unit || "—"}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right align-top tabular-nums">{line.qty}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right align-top tabular-nums">{formatINR(line.rate)}</td>
+                      <td className="whitespace-nowrap py-2.5 pl-3 text-right align-top tabular-nums">{formatINR(line.amount)}</td>
                     </tr>
                   ))}
                 </tbody>

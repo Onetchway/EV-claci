@@ -21,12 +21,12 @@ const STATUS_DIFF_PATTERN = /^status:\s*(.+?)\s*(?:→|->)\s*(.+)$/i;
 
 function StatusDiffChip({ from, to }: { from: string; to: string }) {
   return (
-    <div className="rounded-lg bg-ink-50 px-3 py-2 text-sm">
+    <p className="text-sm">
       <span className="text-ink-500">status: </span>
       <span className="text-rose-500 line-through">{from}</span>
-      <span className="mx-1.5 text-ink-400">&rarr;</span>
+      <span className="mx-1 text-ink-400">&rarr;</span>
       <span className="font-medium text-emerald-600">{to}</span>
-    </div>
+    </p>
   );
 }
 
@@ -49,23 +49,23 @@ export function EntityActivityLog({ entityType, entityId }: { entityType: Activi
             const Icon = meta.icon;
             const diff = STATUS_DIFF_PATTERN.exec(r.message);
             return (
-              <li key={r.id} className="relative flex gap-3 pb-5 last:pb-0">
-                {i < rows.length - 1 && <span className="absolute left-4 top-9 h-[calc(100%-1.5rem)] w-px bg-ink-200" />}
-                <span className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${meta.iconBg}`}>
-                  <Icon className={`h-4 w-4 ${meta.iconColor}`} />
+              <li key={r.id} className="relative flex gap-2.5 pb-3.5 last:pb-0">
+                {i < rows.length - 1 && <span className="absolute left-[9px] top-5 h-[calc(100%-0.75rem)] w-px bg-ink-200" />}
+                <span className={`relative mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full ${meta.iconBg}`}>
+                  <Icon className={`h-2.5 w-2.5 ${meta.iconColor}`} />
                 </span>
-                <div className="min-w-0 flex-1 pt-0.5">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="font-medium text-ink-900">{meta.label}</p>
+                    <p className="text-sm font-medium text-ink-900">{meta.label}</p>
                     <span className="shrink-0 text-xs text-ink-400">{formatRelative(r.at)}</span>
                   </div>
                   {diff ? (
-                    <div className="mt-1.5"><StatusDiffChip from={diff[1]!} to={diff[2]!} /></div>
+                    <div className="mt-1"><StatusDiffChip from={diff[1]!} to={diff[2]!} /></div>
                   ) : (
                     <p className="mt-0.5 text-sm text-ink-600">{r.message}</p>
                   )}
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <Avatar name={r.actor.name} size={18} />
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <Avatar name={r.actor.name} size={14} />
                     <span className="text-xs text-ink-500">{r.actor.name}</span>
                   </div>
                 </div>
