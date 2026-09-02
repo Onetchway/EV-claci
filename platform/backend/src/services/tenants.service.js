@@ -261,11 +261,17 @@ const rotateApiKey = async (id, actor) => {
 
 // Edits a tenant's branding after creation -- unlike create()'s one-time
 // logoUrl/primaryColorHex (never overwritten on re-provision), this is a
-// deliberate super-admin edit and always wins. Best-effort against the
-// tenant's CRM, same as rotateApiKey; never fails if CRM_PROVISION_URL/
-// SECRET aren't configured or that CRM instance is unreachable.
+// deliberate super-admin edit and always wins. Persisted on the tenant row
+// here (so the edit form has something real to read back), then pushed to
+// the tenant's CRM best-effort, same as rotateApiKey; that push never fails
+// the request if CRM_PROVISION_URL/SECRET aren't configured or that CRM
+// instance is unreachable -- but the local save always happens first.
 const updateBranding = async (id, data, actor) => {
-  const tenantRes = await query(`SELECT id, slug FROM tenants WHERE id = $1`, [id]);
+  const tenantRes = await query(
+    `UPDATE tenants SET logo_url = $1, primary_color_hex = $2, updated_at = NOW()
+     WHERE id = $3 RETURNING id, slug, logo_url, primary_color_hex`,
+    [data.logo_url || null, data.primary_color_hex || null, id]
+  );
   const tenant = tenantRes.rows[0];
   if (!tenant) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
 
@@ -290,7 +296,7 @@ const updateBranding = async (id, data, actor) => {
   }
 
   await audit.log({ superAdminId: actor?.id, tenantId: id, action: 'tenant.branding_updated', details: data });
-  return { crmSync };
+  return { crmSync, logo_url: tenant.logo_url, primary_color_hex: tenant.primary_color_hex };
 };
 
 // Domain-based tenant resolution, called by a tenant CRM instance running

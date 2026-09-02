@@ -135,6 +135,14 @@ const refund = async (paymentId, actor) => {
     `UPDATE payments SET status = 'refunded', updated_at = NOW() WHERE id = $1 RETURNING *`,
     [paymentId]
   );
+
+  // A refunded payment must not leave its invoice showing 'paid' -- that
+  // would both misrepresent the ledger and block createOrderForInvoice
+  // (which refuses to re-collect on an invoice already marked paid).
+  // 'void' is the closest status the invoices table's CHECK constraint
+  // allows for "this invoice's obligation was reversed, needs review."
+  await invoices.setStatus(payment.invoice_id, 'void', actor);
+
   await audit.log({ superAdminId: actor?.id, tenantId: payment.tenant_id, action: 'payment.refunded', details: { payment_id: paymentId, invoice_id: payment.invoice_id } });
   return updated.rows[0];
 };

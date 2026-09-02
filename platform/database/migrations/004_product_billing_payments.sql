@@ -9,6 +9,14 @@ ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(12,2) NOT 
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS credit_applied DECIMAL(12,2) NOT NULL DEFAULT 0;
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(50);
 
+-- Branding fields super admins can edit from the Organization page (see
+-- tenants.service.js's updateBranding). The platform keeps its own copy
+-- so the edit form has something to read back and pre-fill on reload --
+-- syncing to the tenant's CRM (which is the value actually rendered on
+-- the tenant's login page/sidebar) is a separate, best-effort side effect.
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS logo_url VARCHAR(2000);
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS primary_color_hex VARCHAR(10);
+
 -- ============================================================
 -- MODULES — a coarser grouping than feature_catalog.category: an
 -- explicit, tenant-toggleable entitlement over a whole product area
