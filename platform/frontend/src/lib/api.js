@@ -46,7 +46,8 @@ export const authApi = {
 
 export const tenantsApi = {
   ...resource('/tenants'),
-  setStatus: (id, status) => client.patch(`/tenants/${id}/status`, { status }),
+  lifecycle: (id, action) => client.post(`/tenants/${id}/lifecycle/${action}`),
+  deletePermanently: (id) => client.delete(`/tenants/${id}/permanently`),
   rotateApiKey: (id) => client.post(`/tenants/${id}/rotate-key`),
   updateBranding: (id, data) => client.put(`/tenants/${id}/branding`, data),
   retryProvisioning: (id) => client.post(`/tenants/${id}/retry-provisioning`),

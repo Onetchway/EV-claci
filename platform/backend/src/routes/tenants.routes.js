@@ -19,10 +19,11 @@ router.get('/', ctrl.list);
 router.post('/', requireRole('super_admin'), ctrl.create);
 router.get('/:id', ctrl.getOne);
 router.put('/:id', requireRole('super_admin'), ctrl.update);
-router.patch('/:id/status', requireRole('super_admin'), ctrl.setStatus);
+router.post('/:id/lifecycle/:action', requireRole('super_admin', 'operations'), ctrl.lifecycle);
 router.post('/:id/rotate-key', requireRole('super_admin'), ctrl.rotateApiKey);
 router.put('/:id/branding', requireRole('super_admin'), ctrl.updateBranding);
-router.post('/:id/retry-provisioning', requireRole('super_admin'), ctrl.retryProvisioning);
+router.post('/:id/retry-provisioning', requireRole('super_admin', 'operations'), ctrl.retryProvisioning);
 router.delete('/:id', requireRole('super_admin'), ctrl.remove);
+router.delete('/:id/permanently', requireRole('super_admin'), ctrl.deletePermanently);
 
 module.exports = router;

@@ -10,18 +10,26 @@ import { tenantsApi, billingPlansApi } from '@/lib/api';
 import CreateOrgWizard from '@/components/CreateOrgWizard';
 
 const STATUS_BADGE = {
-  active: 'badge-green',
+  lead: 'badge-gray',
   trial: 'badge-yellow',
+  active: 'badge-green',
+  past_due: 'badge-yellow',
+  paused: 'badge-gray',
   suspended: 'badge-red',
   cancelled: 'badge-gray',
+  archived: 'badge-gray',
 };
 
 const STATUS_FILTERS = [
   { value: '', label: 'All' },
-  { value: 'active', label: 'Active' },
+  { value: 'lead', label: 'Lead' },
   { value: 'trial', label: 'Trial' },
+  { value: 'active', label: 'Active' },
+  { value: 'past_due', label: 'Past due' },
+  { value: 'paused', label: 'Paused' },
   { value: 'suspended', label: 'Suspended' },
   { value: 'cancelled', label: 'Cancelled' },
+  { value: 'archived', label: 'Archived' },
 ];
 
 const money = (n, currency = 'INR') =>

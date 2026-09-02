@@ -16,7 +16,7 @@ const create = async (data, actor) => {
     const e = new Error('name, email and password are required.'); e.status = 400; throw e;
   }
   if (data.password.length < 8) { const e = new Error('Password must be at least 8 characters.'); e.status = 400; throw e; }
-  const role = ['super_admin', 'billing_ops', 'support'].includes(data.role) ? data.role : 'support';
+  const role = ['super_admin', 'billing_ops', 'support', 'operations', 'read_only'].includes(data.role) ? data.role : 'support';
   const passwordHash = await bcrypt.hash(data.password, 10);
   const res = await query(
     `INSERT INTO super_admins (name, email, password_hash, role, is_active)

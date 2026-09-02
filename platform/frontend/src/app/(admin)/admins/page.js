@@ -7,7 +7,14 @@ import { ShieldCheck } from 'lucide-react';
 import { adminsApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
-const ROLES = ['super_admin', 'billing_ops', 'support'];
+const ROLES = ['super_admin', 'billing_ops', 'operations', 'support', 'read_only'];
+const ROLE_LABELS = {
+  super_admin: 'Owner',
+  billing_ops: 'Finance',
+  operations: 'Operations',
+  support: 'Support',
+  read_only: 'Read-only',
+};
 
 function AdminForm({ onClose, onSaved }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'support' });
@@ -47,7 +54,7 @@ function AdminForm({ onClose, onSaved }) {
         <div>
           <label className="label">Role</label>
           <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            {ROLES.map((r) => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
           </select>
         </div>
         <div className="flex justify-end gap-2 pt-2">
@@ -117,7 +124,7 @@ export default function AdminsPage() {
                 <td className="text-ink-500">{a.email}</td>
                 <td>
                   <select className="select w-40" value={a.role} onChange={(e) => changeRole(a, e.target.value)}>
-                    {ROLES.map((r) => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+                    {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                   </select>
                 </td>
                 <td>

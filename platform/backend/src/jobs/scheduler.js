@@ -12,7 +12,7 @@ function start() {
   // of whether it fired on schedule or was triggered manually.
   cron.schedule(`0 ${hour} * * *`, async () => {
     console.log('[scheduler] Running daily invoice generation...');
-    for (const jobName of ['invoice_generation', 'mark_overdue_invoices', 'payment_retry']) {
+    for (const jobName of ['invoice_generation', 'mark_overdue_invoices', 'payment_retry', 'trial_sweep', 'retention_sweep']) {
       try {
         await jobs.runJob(jobName, 'scheduled');
       } catch (err) {

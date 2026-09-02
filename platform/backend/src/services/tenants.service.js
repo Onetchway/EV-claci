@@ -191,11 +191,16 @@ const create = async (data, actor) => {
   return { ...tenant, crmProvisioning };
 };
 
+// status is deliberately excluded -- it only ever changes through
+// lifecycle.service.js's validated transitions (see tenants.routes.js's
+// /:id/lifecycle/:action), never a raw PATCH, so an update can't skip
+// straight from "trial" to "archived" or leave cancelled_at/archived_at
+// out of sync with the status.
 const ALLOWED_UPDATE_FIELDS = [
   'name', 'slug', 'contact_name', 'contact_email', 'contact_phone', 'deployment_mode',
-  'custom_domain', 'status', 'billing_plan_id', 'billing_model_override',
+  'custom_domain', 'billing_plan_id', 'billing_model_override',
   'fixed_monthly_amount_override', 'per_employee_amount_override', 'billing_day',
-  'trial_ends_at',
+  'trial_ends_at', 'retention_days',
 ];
 
 const update = async (id, data, actor) => {
@@ -218,8 +223,6 @@ const update = async (id, data, actor) => {
   delete tenant.api_key;
   return tenant;
 };
-
-const setStatus = async (id, status, actor) => update(id, { status }, actor);
 
 const rotateApiKey = async (id, actor) => {
   const apiKey = generateApiKey();
@@ -362,4 +365,4 @@ const remove = async (id, actor) => {
   await audit.log({ superAdminId: actor?.id, tenantId: id, action: 'tenant.deleted' });
 };
 
-module.exports = { list, getOne, create, update, setStatus, rotateApiKey, updateBranding, retryProvisioning, remove, resolveByHost, resolveBySlug };
+module.exports = { list, getOne, create, update, rotateApiKey, updateBranding, retryProvisioning, remove, resolveByHost, resolveBySlug };

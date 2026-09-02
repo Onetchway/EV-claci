@@ -4,6 +4,7 @@ const { query } = require('../config/database');
 const generateInvoices = require('../jobs/generateInvoices');
 const markOverdueInvoices = require('../jobs/markOverdueInvoices');
 const retryFailedPayments = require('../jobs/retryFailedPayments');
+const lifecycle = require('./lifecycle.service');
 
 // Registry of every background job the Jobs page shows -- name, what it
 // does, and the function that actually runs it (used by both the daily
@@ -12,6 +13,8 @@ const REGISTRY = {
   invoice_generation: { label: 'Monthly Billing / Invoice Generation', run: generateInvoices.run },
   mark_overdue_invoices: { label: 'Mark Overdue Invoices', run: markOverdueInvoices.run },
   payment_retry: { label: 'Payment Retry', run: retryFailedPayments.run },
+  trial_sweep: { label: 'Trial Expiry / Ending-Soon Sweep', run: lifecycle.sweepTrials },
+  retention_sweep: { label: 'Cancelled → Archived Retention Sweep', run: lifecycle.sweepRetention },
 };
 
 // Wraps a job's run() with a job_runs row -- both scheduled (cron) and

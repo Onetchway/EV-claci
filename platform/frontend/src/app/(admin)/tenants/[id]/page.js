@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import {
   Building2, IndianRupee, Key, Receipt, RefreshCw, Users,
@@ -13,10 +13,28 @@ import {
 } from '@/lib/api';
 
 const STATUS_BADGE = {
-  active: 'badge-green',
+  lead: 'badge-gray',
   trial: 'badge-yellow',
+  active: 'badge-green',
+  past_due: 'badge-yellow',
+  paused: 'badge-gray',
   suspended: 'badge-red',
   cancelled: 'badge-gray',
+  archived: 'badge-gray',
+};
+
+// Which lifecycle actions are valid from each current status — mirrors
+// platform/backend/src/services/lifecycle.service.js's ACTIONS map, so the
+// buttons offered here always match what the backend will actually accept.
+const LIFECYCLE_ACTIONS = {
+  lead: [{ action: 'start_trial', label: 'Start trial' }, { action: 'cancel', label: 'Cancel' }],
+  trial: [{ action: 'activate', label: 'Activate' }, { action: 'suspend', label: 'Suspend' }, { action: 'cancel', label: 'Cancel' }],
+  active: [{ action: 'pause', label: 'Pause' }, { action: 'mark_past_due', label: 'Mark past due' }, { action: 'suspend', label: 'Suspend' }, { action: 'cancel', label: 'Cancel' }],
+  past_due: [{ action: 'activate', label: 'Mark paid' }, { action: 'suspend', label: 'Suspend' }, { action: 'cancel', label: 'Cancel' }],
+  paused: [{ action: 'resume', label: 'Resume' }, { action: 'suspend', label: 'Suspend' }, { action: 'cancel', label: 'Cancel' }],
+  suspended: [{ action: 'activate', label: 'Reactivate' }, { action: 'cancel', label: 'Cancel' }],
+  cancelled: [{ action: 'reactivate', label: 'Reactivate' }, { action: 'archive', label: 'Archive now' }],
+  archived: [{ action: 'reactivate', label: 'Reactivate' }],
 };
 
 const money = (n, currency) =>
@@ -26,6 +44,7 @@ const TABS = ['Overview', 'Billing', 'Features', 'Domains', 'Support'];
 
 export default function TenantDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [tenant, setTenant] = useState(null);
   const [features, setFeatures] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -151,6 +170,34 @@ export default function TenantDetailPage() {
       const updated = await tenantsApi.update(id, patch);
       setTenant((prev) => ({ ...prev, ...updated }));
       toast.success('Saved.');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+
+  const runLifecycle = async (action, label) => {
+    if (!window.confirm(`${label}? This changes the tenant's status immediately.`)) return;
+    setLifecycleBusy(true);
+    try {
+      const updated = await tenantsApi.lifecycle(id, action);
+      setTenant((prev) => ({ ...prev, ...updated }));
+      toast.success(`${label} — done.`);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLifecycleBusy(false);
+    }
+  };
+
+  const deleteTenantPermanently = async () => {
+    const typed = window.prompt(`This permanently deletes "${tenant.name}" and cannot be undone. Type the organization name to confirm:`);
+    if (typed !== tenant.name) return;
+    try {
+      await tenantsApi.deletePermanently(id);
+      toast.success('Tenant permanently deleted.');
+      router.push('/tenants');
     } catch (err) {
       toast.error(err.message);
     }
@@ -326,12 +373,18 @@ export default function TenantDetailPage() {
             <p className="text-sm text-ink-500 mt-0.5">{tenant.contact_email} · {tenant.deployment_mode} deployment</p>
           </div>
         </div>
-        <select className="select w-40" value={tenant.status} onChange={(e) => updateTenant({ status: e.target.value })}>
-          <option value="trial">Trial</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        <div className="flex flex-wrap items-center gap-2">
+          {(LIFECYCLE_ACTIONS[tenant.status] || []).map((a) => (
+            <button
+              key={a.action}
+              className="btn-secondary"
+              disabled={lifecycleBusy}
+              onClick={() => runLifecycle(a.action, a.label)}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -373,6 +426,38 @@ export default function TenantDetailPage() {
               <div className="flex justify-between"><dt className="text-ink-500">Phone</dt><dd className="text-ink-800">{tenant.contact_phone || '—'}</dd></div>
               <div className="flex justify-between"><dt className="text-ink-500">Deployment</dt><dd className="text-ink-800 capitalize">{tenant.deployment_mode}</dd></div>
               <div className="flex justify-between"><dt className="text-ink-500">Created</dt><dd className="text-ink-800">{new Date(tenant.created_at).toLocaleDateString()}</dd></div>
+            </dl>
+          </div>
+
+          <div className="card">
+            <div className="card-header"><p className="card-title">Lifecycle &amp; retention</p></div>
+            <dl className="card-pad space-y-3 text-sm">
+              <div className="flex justify-between items-center">
+                <dt className="text-ink-500">Retention after cancellation</dt>
+                <dd className="flex items-center gap-1.5">
+                  <input
+                    className="input w-20"
+                    type="number" min="1"
+                    defaultValue={tenant.retention_days}
+                    onBlur={(e) => updateTenant({ retention_days: Number(e.target.value) })}
+                  />
+                  <span className="text-ink-400">days</span>
+                </dd>
+              </div>
+              {tenant.cancelled_at && (
+                <div className="flex justify-between"><dt className="text-ink-500">Cancelled</dt><dd className="text-ink-800">{new Date(tenant.cancelled_at).toLocaleDateString()}</dd></div>
+              )}
+              {tenant.archived_at && (
+                <div className="flex justify-between"><dt className="text-ink-500">Archived</dt><dd className="text-ink-800">{new Date(tenant.archived_at).toLocaleDateString()}</dd></div>
+              )}
+              {tenant.status === 'archived' && (
+                <div className="pt-2 border-t border-ink-100">
+                  <button className="btn-secondary text-danger-600" onClick={deleteTenantPermanently}>
+                    Permanently delete tenant
+                  </button>
+                  <p className="text-xs text-ink-400 mt-1.5">Erases this tenant and its billing history. Cannot be undone.</p>
+                </div>
+              )}
             </dl>
           </div>
 
