@@ -32,6 +32,11 @@ export function formatNumber(n: number | null | undefined, digits = 0): string {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: digits }).format(n);
 }
 
+export const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
 type MaybeTS = Timestamp | Date | string | number | null | undefined;
 
 export function toDate(value: MaybeTS): Date | null {

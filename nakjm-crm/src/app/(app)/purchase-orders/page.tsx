@@ -11,17 +11,48 @@ import { ExportButton } from "@/components/export-button";
 import { PO_STATUSES, type PoStatus } from "@/lib/constants";
 import { subscribePurchaseOrders } from "@/lib/db/purchase-orders";
 import type { PurchaseOrder } from "@/lib/types";
-import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
+import { formatCompactINR, formatDate, formatINR, MONTH_NAMES, toDate } from "@/lib/utils";
 
 const OPEN_STATUSES: PoStatus[] = ["DRAFT", "ISSUED", "ACKNOWLEDGED", "PARTIALLY_DELIVERED"];
 
 export default function PurchaseOrdersPage() {
   const [rows, setRows] = useState<PurchaseOrder[] | null>(null);
   const [status, setStatus] = useState<PoStatus | "ALL">("ALL");
+  const [year, setYear] = useState<string>("ALL");
+  const [month, setMonth] = useState<string>("ALL");
+  const [projectId, setProjectId] = useState<string>("ALL");
+  const [vendorId, setVendorId] = useState<string>("ALL");
 
   useEffect(() => subscribePurchaseOrders(setRows), []);
 
-  const filtered = useMemo(() => (!rows ? [] : status === "ALL" ? rows : rows.filter((r) => r.status === status)), [rows, status]);
+  const years = useMemo(() => {
+    const s = new Set<number>();
+    (rows ?? []).forEach((r) => { const d = toDate(r.poDate); if (d) s.add(d.getFullYear()); });
+    return [...s].sort((a, b) => b - a);
+  }, [rows]);
+  const projects = useMemo(() => {
+    const m = new Map<string, string>();
+    (rows ?? []).forEach((r) => { if (r.projectId) m.set(r.projectId, r.projectName); });
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [rows]);
+  const vendors = useMemo(() => {
+    const m = new Map<string, string>();
+    (rows ?? []).forEach((r) => { if (r.vendorId) m.set(r.vendorId, r.vendorName); });
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    return rows.filter((r) => {
+      if (status !== "ALL" && r.status !== status) return false;
+      if (projectId !== "ALL" && r.projectId !== projectId) return false;
+      if (vendorId !== "ALL" && r.vendorId !== vendorId) return false;
+      const d = toDate(r.poDate);
+      if (year !== "ALL" && (!d || d.getFullYear() !== Number(year))) return false;
+      if (month !== "ALL" && (!d || d.getMonth() !== Number(month))) return false;
+      return true;
+    });
+  }, [rows, status, year, month, projectId, vendorId]);
 
   const stats = useMemo(() => {
     const all = rows ?? [];
@@ -41,7 +72,6 @@ export default function PurchaseOrdersPage() {
         description="What NAKJM has ordered from vendors — equipment, civil work, EPC scope — and what's still owed."
         actions={
           <>
-            <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...PO_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))]} onChange={(e) => setStatus(e.target.value as PoStatus | "ALL")} />
             <ExportButton
               filename="purchase-orders"
               sheetName="Purchase Orders"
@@ -54,6 +84,14 @@ export default function PurchaseOrdersPage() {
           </>
         }
       />
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...PO_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))]} onChange={(e) => setStatus(e.target.value as PoStatus | "ALL")} />
+        <Select value={year} className="w-auto" options={[{ value: "ALL", label: "All years" }, ...years.map((y) => ({ value: String(y), label: String(y) }))]} onChange={(e) => setYear(e.target.value)} />
+        <Select value={month} className="w-auto" options={[{ value: "ALL", label: "All months" }, ...MONTH_NAMES.map((m, i) => ({ value: String(i), label: m }))]} onChange={(e) => setMonth(e.target.value)} />
+        <Select value={projectId} className="w-auto" options={[{ value: "ALL", label: "All projects" }, ...projects.map(([id, name]) => ({ value: id, label: name }))]} onChange={(e) => setProjectId(e.target.value)} />
+        <Select value={vendorId} className="w-auto" options={[{ value: "ALL", label: "All vendors" }, ...vendors.map(([id, name]) => ({ value: id, label: name }))]} onChange={(e) => setVendorId(e.target.value)} />
+      </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Purchase orders" value={stats.total} icon={<FileText className="h-4 w-4" />} />
