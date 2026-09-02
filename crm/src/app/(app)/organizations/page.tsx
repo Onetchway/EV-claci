@@ -135,7 +135,7 @@ export default function OrganizationsPage() {
         <EmptyState
           icon={<Building2 className="h-8 w-8" />}
           title="No organisations yet"
-          description="Every team member is on Livanto's own default branding until you create one and assign it to them under Team & Roles."
+          description="Every team member is on the company's own default branding until you create one and assign it to them under Team & Roles."
           action={<Button variant="primary" onClick={openNew}><Plus className="h-4 w-4" /> New organisation</Button>}
         />
       ) : (
@@ -200,7 +200,7 @@ export default function OrganizationsPage() {
           <Field label="Slug" hint="URL segment for this tenant's own CRM, e.g. app.alpha.com/xpulse. Also what matches this org to its Alpha platform tenant record.">
             <Input value={draft.slug ?? ""} onChange={(e) => setDraft((d) => ({ ...d, slug: e.target.value }))} placeholder="xpulse" />
           </Field>
-          <Field label="Logo URL" hint="Shown in the sidebar in place of the Livanto logo for this org's team members.">
+          <Field label="Logo URL" hint="Shown in the sidebar in place of the default logo for this org's team members.">
             <Input value={draft.logoUrl ?? ""} onChange={(e) => setDraft((d) => ({ ...d, logoUrl: e.target.value }))} placeholder="https://…" />
           </Field>
           <Field label="Primary colour" hint="Hex, e.g. #1fae54. Used for the sidebar icon background.">

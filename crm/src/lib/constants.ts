@@ -300,10 +300,11 @@ export const TYPES_WITHOUT_PAYMENTS: LeadType[] = ["SITE", "RWA", "CORPORATE", "
 export const COMMERCIAL_MODELS = ["OPEX", "CAPEX"] as const;
 export type CommercialModel = (typeof COMMERCIAL_MODELS)[number];
 
-export const COMMERCIAL_MODEL_LABEL: Record<CommercialModel, string> = {
-  OPEX: "OPEX — Livanto owns & operates, client pays usage-based",
-  CAPEX: "CAPEX — client buys the installation outright",
-};
+/** OPEX's description names the operating company, so it takes the issuing tenant's own short name rather than a fixed Record. */
+export function commercialModelLabel(model: CommercialModel, companyShortName: string): string {
+  if (model === "CAPEX") return "CAPEX — client buys the installation outright";
+  return `OPEX — ${companyShortName || "the company"} owns & operates, client pays usage-based`;
+}
 
 export const SOURCES = [
   "LINKEDIN",
@@ -1334,27 +1335,36 @@ export const AGREEMENT_STATUS_COLOR: Record<AgreementStatus, string> = {
  * field's storage key in AgreementDoc.scheduleI; order here is the order
  * both the editable form and the printed Schedule I table use.
  */
-export const AGREEMENT_SCHEDULE_FIELDS = [
-  { key: "clientName", label: "Client / Franchisee Name" },
-  { key: "entityType", label: "Entity Type" },
-  { key: "registeredAddress", label: "Registered / Residential Address" },
-  { key: "siteAddress", label: "Site / Location" },
-  { key: "chargerTypeCapacity", label: "Charger Type & Capacity" },
-  { key: "commissioningDate", label: "Commercial Commissioning Date" },
-  { key: "tenure", label: "Tenure" },
-  { key: "minimumAssuredAmount", label: "Minimum Assured Monthly Amount" },
-  { key: "payoutPeriod", label: "Payout / Support Period" },
-  { key: "livantoFee", label: "Livanto Fee (per kWh)" },
-  { key: "discomFee", label: "DISCOM Fee (per kWh)" },
-  { key: "landUsageFee", label: "Land Usage Fee (per kWh)" },
-  { key: "investorEarning", label: "Investor Earning (per kWh)" },
-  { key: "publicSellingRate", label: "Public Selling Rate (per kWh)" },
-  { key: "paymentSettlementDate", label: "Payment Settlement Date" },
-  { key: "originalEquipmentCost", label: "Original Equipment Cost of Charger (for Buyback computation)" },
-  { key: "depreciationRate", label: "Depreciation Rate (per annum, for Buyback computation)" },
-  { key: "buybackFloorValue", label: "Buyback Floor Value (% of Original Equipment Cost)" },
-] as const;
-export type AgreementScheduleKey = (typeof AGREEMENT_SCHEDULE_FIELDS)[number]["key"];
+/**
+ * `livantoFee`'s label names the operating company, so the schedule is
+ * built by a function taking the issuing tenant's own short name rather
+ * than a fixed array -- the `key` itself stays "livantoFee" (a stable
+ * AgreementDoc.scheduleI storage key; renaming it would orphan existing
+ * agreement data).
+ */
+export function agreementScheduleFields(companyShortName: string) {
+  return [
+    { key: "clientName", label: "Client / Franchisee Name" },
+    { key: "entityType", label: "Entity Type" },
+    { key: "registeredAddress", label: "Registered / Residential Address" },
+    { key: "siteAddress", label: "Site / Location" },
+    { key: "chargerTypeCapacity", label: "Charger Type & Capacity" },
+    { key: "commissioningDate", label: "Commercial Commissioning Date" },
+    { key: "tenure", label: "Tenure" },
+    { key: "minimumAssuredAmount", label: "Minimum Assured Monthly Amount" },
+    { key: "payoutPeriod", label: "Payout / Support Period" },
+    { key: "livantoFee", label: `${companyShortName || "Company"} Fee (per kWh)` },
+    { key: "discomFee", label: "DISCOM Fee (per kWh)" },
+    { key: "landUsageFee", label: "Land Usage Fee (per kWh)" },
+    { key: "investorEarning", label: "Investor Earning (per kWh)" },
+    { key: "publicSellingRate", label: "Public Selling Rate (per kWh)" },
+    { key: "paymentSettlementDate", label: "Payment Settlement Date" },
+    { key: "originalEquipmentCost", label: "Original Equipment Cost of Charger (for Buyback computation)" },
+    { key: "depreciationRate", label: "Depreciation Rate (per annum, for Buyback computation)" },
+    { key: "buybackFloorValue", label: "Buyback Floor Value (% of Original Equipment Cost)" },
+  ] as const;
+}
+export type AgreementScheduleKey = ReturnType<typeof agreementScheduleFields>[number]["key"];
 
 /**
  * Issuing entity. Appears on every generated Letter of Intent. These are the

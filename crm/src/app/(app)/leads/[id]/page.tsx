@@ -28,8 +28,9 @@ import {
 } from "@/components/ui";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useAgents } from "@/hooks/use-leads";
+import { useSettings } from "@/hooks/use-settings";
 import {
-  COMMERCIAL_MODEL_LABEL, FRANCHISE_LOI_TYPES, LAND_TYPE_LABEL, LEAD_TYPE_LABEL,
+  commercialModelLabel, FRANCHISE_LOI_TYPES, LAND_TYPE_LABEL, LEAD_TYPE_LABEL,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNER_TYPE_LABEL, POWER_LOAD_LABEL,
   REJECTION_LABEL, REJECTION_REASONS, SOURCE_LABEL, STAGE_META, STATUS_COLOR,
   STATUS_LABEL, TYPES_WITHOUT_CHARGERS, TYPES_WITHOUT_DOCUMENTS,
@@ -67,6 +68,7 @@ export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { profile, role, actor } = useAuth();
+  const { settings } = useSettings();
   const { users } = useAgents();
   const { busy, run } = useAsyncAction();
 
@@ -356,7 +358,7 @@ export default function LeadDetailPage() {
               lead.type === "FRANCHISE" && lead.client?.phone && (
                 <a
                   href={`https://wa.me/91${lead.client.phone}?text=${encodeURIComponent(
-                    `Hi ${lead.client.name}, you can track your Livanto Green franchise (${lead.code}) any time at https://app.livantogreen.com/portal/login — sign in with this WhatsApp number, we'll text you a one-time code.`,
+                    `Hi ${lead.client.name}, you can track your ${settings.company.shortName || "franchise"} franchise (${lead.code}) any time at ${typeof window !== "undefined" ? window.location.origin : ""}/portal/login — sign in with this WhatsApp number, we'll text you a one-time code.`,
                   )}`}
                   target="_blank"
                   rel="noreferrer"
@@ -370,7 +372,7 @@ export default function LeadDetailPage() {
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Detail label="Name" value={lead.client?.name} />
               {lead.commercialModel && (
-                <Detail label="Commercial model" value={COMMERCIAL_MODEL_LABEL[lead.commercialModel]} />
+                <Detail label="Commercial model" value={commercialModelLabel(lead.commercialModel, settings.company.shortName)} />
               )}
               <Detail
                 label="Phone"

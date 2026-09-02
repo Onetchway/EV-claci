@@ -1,5 +1,7 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { adminConfigured, adminDb } from "@/lib/firebase/admin";
 import { publicOrigin } from "@/lib/ocpi/base-url";
 
 export const runtime = "nodejs";
@@ -13,7 +15,7 @@ export const dynamic = "force-dynamic";
  * hand when a v1 route's shape changes; the CRM's /developer page renders
  * this directly rather than duplicating the description.
  */
-function spec(origin: string) {
+function spec(origin: string, companyName: string) {
   const bearerAuth = { bearerAuth: [] as string[] };
   const errorSchema = {
     type: "object",
@@ -48,7 +50,7 @@ function spec(origin: string) {
   return {
     openapi: "3.0.3",
     info: {
-      title: "Livanto Green API",
+      title: `${companyName} API`,
       version: "1.0.0",
       description:
         "Read-only integration API for external systems (accounting, fleet dashboards, partner NOCs). " +
@@ -99,5 +101,15 @@ function spec(origin: string) {
 }
 
 export async function GET(req: Request) {
-  return NextResponse.json(spec(publicOrigin(req)));
+  const slug = cookies().get("tenant_slug")?.value;
+  let companyName = "CRM";
+  if (slug && adminConfigured()) {
+    try {
+      const snap = await adminDb().collection("organizations").where("slug", "==", slug).limit(1).get();
+      companyName = (snap.docs[0]?.data() as { name?: string } | undefined)?.name || companyName;
+    } catch {
+      // Falls back to the generic title -- an OpenAPI doc is fine without a name.
+    }
+  }
+  return NextResponse.json(spec(publicOrigin(req), companyName));
 }

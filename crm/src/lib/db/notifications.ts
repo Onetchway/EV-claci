@@ -20,7 +20,8 @@ import {
 import type { Role } from "../constants";
 import { ymd } from "../dates";
 import { getDb } from "../firebase/client";
-import type { AppNotification } from "../types";
+import { getCurrentTenantId } from "../tenant";
+import type { AppNotification, AppSettings } from "../types";
 import { getUsersByRole } from "./users";
 
 export const MAIL = "mail";
@@ -148,14 +149,31 @@ export function queueEmailSafe(input: QueueEmailInput): void {
   });
 }
 
-const APP_URL = "https://app.livantogreen.com";
+// Every org served by this deployment answers on its own domain/path (see
+// src/middleware.ts), so the running page's own origin is always the right
+// base -- never a single hardcoded production URL.
+function appUrl(): string {
+  return typeof window !== "undefined" ? window.location.origin : "";
+}
 
 export function leadUrl(leadId: string): string {
-  return `${APP_URL}/leads/${leadId}`;
+  return `${appUrl()}/leads/${leadId}`;
 }
 
 export function portalLoginUrl(): string {
-  return `${APP_URL}/portal/login`;
+  return `${appUrl()}/portal/login`;
+}
+
+/** One-off read of the current tenant's own Settings → Company name, for outbound email copy. Blank (not Livanto's) when not yet configured -- see lib/db/settings.ts's withDefaults. */
+async function currentCompanyName(): Promise<string> {
+  try {
+    const orgId = await getCurrentTenantId();
+    const snap = await getDoc(doc(getDb(), "settings", orgId ?? "app"));
+    const shortName = (snap.data() as Partial<AppSettings> | undefined)?.company?.shortName;
+    return shortName?.trim() || "";
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -166,13 +184,14 @@ export function portalLoginUrl(): string {
  * Best-effort: still needs the Trigger Email extension installed (see this
  * file's header comment) to actually deliver.
  */
-export function notifyPortalLinkSafe(lead: { code: string; client: { name: string; email?: string; phone: string } }): void {
+export async function notifyPortalLinkSafe(lead: { code: string; client: { name: string; email?: string; phone: string } }): Promise<void> {
   if (!lead.client.email) return;
+  const companyName = (await currentCompanyName()) || "us";
   const html =
     `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;line-height:1.6;max-width:520px">` +
-    `<p style="margin:0 0 16px;font-weight:700;font-size:16px;color:#16a34a">Livanto Green</p>` +
+    `<p style="margin:0 0 16px;font-weight:700;font-size:16px;color:#16a34a">${companyName}</p>` +
     `<p>Hi ${lead.client.name},</p>` +
-    `<p>Thank you for your interest in a Livanto Green EV charging franchise (reference <strong>${lead.code}</strong>). ` +
+    `<p>Thank you for your interest in a ${companyName} EV charging franchise (reference <strong>${lead.code}</strong>). ` +
     `You can track its progress — stage, agreement, project updates, photos and payments — any time from our franchise partner portal:</p>` +
     `<p style="margin:20px 0"><a href="${portalLoginUrl()}" style="background:#16a34a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">Open the franchise portal</a></p>` +
     `<p style="font-size:13px;color:#555">Sign in with your registered mobile number (+91 ${lead.client.phone}) — we'll text you a one-time code, no password needed.</p>` +
@@ -185,17 +204,18 @@ export function notifyPortalLinkSafe(lead: { code: string; client: { name: strin
   });
 }
 
-function wrap(bodyHtml: string): string {
+async function wrap(bodyHtml: string): Promise<string> {
+  const companyName = (await currentCompanyName()) || "the";
   return (
     `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;line-height:1.5;max-width:520px">` +
-    `<p style="margin:0 0 12px;font-weight:700;font-size:16px">Livanto Green CRM</p>` +
+    `<p style="margin:0 0 12px;font-weight:700;font-size:16px">${companyName} CRM</p>` +
     bodyHtml +
-    `<p style="margin:20px 0 0;color:#888;font-size:12px">You're receiving this because you're part of the Livanto Green CRM team.</p>` +
+    `<p style="margin:20px 0 0;color:#888;font-size:12px">You're receiving this because you're part of the ${companyName} CRM team.</p>` +
     `</div>`
   );
 }
 
-export function notifyAssigned(opts: {
+export async function notifyAssigned(opts: {
   toUid: string;
   toEmail: string;
   agentName: string;
@@ -203,11 +223,11 @@ export function notifyAssigned(opts: {
   leadName?: string;
   actorName: string;
   leadId: string;
-}): void {
+}): Promise<void> {
   queueEmailSafe({
     to: [opts.toEmail],
     subject: `Lead ${opts.leadCode} assigned to you`,
-    html: wrap(
+    html: await wrap(
       `<p>Hi ${opts.agentName},</p>` +
       `<p><strong>${opts.actorName}</strong> assigned lead <strong>${opts.leadCode}</strong>` +
       `${opts.leadName ? ` (${opts.leadName})` : ""} to you.</p>` +
@@ -222,18 +242,18 @@ export function notifyAssigned(opts: {
   });
 }
 
-export function notifyMention(opts: {
+export async function notifyMention(opts: {
   toUid: string;
   toEmail: string;
   mentionedByName: string;
   leadCode: string;
   leadId: string;
   message: string;
-}): void {
+}): Promise<void> {
   queueEmailSafe({
     to: [opts.toEmail],
     subject: `${opts.mentionedByName} mentioned you on ${opts.leadCode}`,
-    html: wrap(
+    html: await wrap(
       `<p><strong>${opts.mentionedByName}</strong> mentioned you on lead <strong>${opts.leadCode}</strong>:</p>` +
       `<p style="padding:10px 14px;background:#f8fafc;border-left:3px solid #0ea5e9;border-radius:4px">${opts.message}</p>` +
       `<p><a href="${leadUrl(opts.leadId)}" style="color:#0ea5e9">Open the lead →</a></p>`,
@@ -247,19 +267,19 @@ export function notifyMention(opts: {
   });
 }
 
-export function notifyComplaintTag(opts: {
+export async function notifyComplaintTag(opts: {
   toUid: string;
   toEmail: string;
   taggedByName: string;
   subject: string;
-}): void {
+}): Promise<void> {
   queueEmailSafe({
     to: [opts.toEmail],
     subject: `${opts.taggedByName} tagged you on a complaint: ${opts.subject}`,
-    html: wrap(
+    html: await wrap(
       `<p><strong>${opts.taggedByName}</strong> tagged you on a complaint:</p>` +
       `<p style="padding:10px 14px;background:#f8fafc;border-left:3px solid #0ea5e9;border-radius:4px">${opts.subject}</p>` +
-      `<p><a href="${APP_URL}/complaints" style="color:#0ea5e9">Open Complaints →</a></p>`,
+      `<p><a href="${appUrl()}/complaints" style="color:#0ea5e9">Open Complaints →</a></p>`,
     ),
   });
   createNotificationSafe({
@@ -269,18 +289,18 @@ export function notifyComplaintTag(opts: {
   });
 }
 
-export function notifyStageOrStatus(opts: {
+export async function notifyStageOrStatus(opts: {
   toEmail: string;
   agentName: string;
   leadCode: string;
   leadId: string;
   actorName: string;
   summary: string;
-}): void {
+}): Promise<void> {
   queueEmailSafe({
     to: [opts.toEmail],
     subject: `${opts.leadCode} updated: ${opts.summary}`,
-    html: wrap(
+    html: await wrap(
       `<p>Hi ${opts.agentName},</p>` +
       `<p><strong>${opts.actorName}</strong> updated lead <strong>${opts.leadCode}</strong>: ${opts.summary}</p>` +
       `<p><a href="${leadUrl(opts.leadId)}" style="color:#0ea5e9">Open the lead →</a></p>`,
@@ -289,12 +309,13 @@ export function notifyStageOrStatus(opts: {
 }
 
 /** Customer-facing wrapper (invoices, receipts, wallet alerts) — separate branding from the internal-staff wrap() above; company name is caller-supplied so white-label Organizations can send under their own name. */
-function wrapCustomer(bodyHtml: string, companyName = "Livanto Green"): string {
+function wrapCustomer(bodyHtml: string, companyName?: string): string {
+  const name = companyName?.trim() || "us";
   return (
     `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;line-height:1.6;max-width:520px">` +
-    `<p style="margin:0 0 16px;font-weight:700;font-size:18px;color:#0f766e">${companyName}</p>` +
+    `<p style="margin:0 0 16px;font-weight:700;font-size:18px;color:#0f766e">${name}</p>` +
     bodyHtml +
-    `<p style="margin:24px 0 0;color:#888;font-size:12px">This is an automated message from ${companyName}. Please don't reply directly to this email.</p>` +
+    `<p style="margin:24px 0 0;color:#888;font-size:12px">This is an automated message from ${name}. Please don't reply directly to this email.</p>` +
     `</div>`
   );
 }
@@ -308,7 +329,7 @@ export function emailInvoiceIssued(opts: {
 }): void {
   queueEmailSafe({
     to: [opts.to],
-    subject: `Invoice ${opts.invoiceNumber} from ${opts.companyName ?? "Livanto Green"}`,
+    subject: `Invoice ${opts.invoiceNumber} from ${opts.companyName?.trim() || "us"}`,
     html: wrapCustomer(
       `<p>Hello,</p>` +
       `<p>Your invoice <strong>${opts.invoiceNumber}</strong> for <strong>₹${opts.totalInr.toLocaleString("en-IN")}</strong> is ready.</p>` +

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Loader2, LogOut, MapPin, Zap } from "lucide-react";
 
 import { PortalBrand } from "@/components/portal-brand";
+import { useSettings } from "@/hooks/use-settings";
 import { STAGE_META } from "@/lib/constants";
 import { subscribeInvestorLeads } from "@/lib/db/leads";
 import { usePortalAuth } from "@/lib/portal-auth";
@@ -24,6 +25,7 @@ const STAGE_ACCENT: Record<string, string> = {
 export default function PortalDashboardPage() {
   const router = useRouter();
   const { loading, user, phoneE164, signOut } = usePortalAuth();
+  const { settings } = useSettings();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [leadsLoading, setLeadsLoading] = useState(true);
   const [leadsError, setLeadsError] = useState<string | null>(null);
@@ -79,7 +81,7 @@ export default function PortalDashboardPage() {
             <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Franchise partner portal</p>
             <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">Manage your franchise</h1>
             <p className="mt-2 max-w-lg text-sm text-white/80">
-              Track stage, payments, project progress and documents for {leads.length > 1 ? "every franchise you've taken with us" : "your franchise with Livanto Green"}, live.
+              Track stage, payments, project progress and documents for {leads.length > 1 ? "every franchise you've taken with us" : `your franchise with ${settings.company.shortName || "us"}`}, live.
             </p>
           </div>
 

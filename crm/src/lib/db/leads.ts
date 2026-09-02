@@ -12,6 +12,7 @@ import {
   type LeadType, type RejectionReason, type Source, type Stage,
 } from "../constants";
 import { AGREEMENT_CLAUSES, AGREEMENT_RECITALS } from "../agreement-template";
+import { renderTemplate } from "../loi-template";
 import { diffLead, summariseChanges } from "../diff";
 import { getDb } from "../firebase/client";
 import {
@@ -1255,7 +1256,7 @@ export const AGREEMENT_VERSIONS = "agreementVersions";
 // Intent already exists, from its negotiated per-kWh economics and payout
 // terms too, since those numbers were already agreed with the client and
 // shouldn't need retyping into the Agreement.
-export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc {
+export function buildAgreementFromLead(lead: Lead, number: string, companyShortName: string): AgreementDoc {
   const eoi = lead.eoi;
   const tenureYears = eoi?.tenureYears || lead.site?.tenureYears;
   // The site's own manually-agreed figures (if set) beat whatever the EOI
@@ -1286,9 +1287,14 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
     },
     // Seeded from the standard template as a per-agreement, editable copy —
     // not a reference to the shared constant, so editing one lead's wording
-    // never touches another's.
-    recitals: [...AGREEMENT_RECITALS],
-    clauses: AGREEMENT_CLAUSES.map((c) => ({ ...c, paragraphs: [...c.paragraphs] })),
+    // never touches another's. {{company}} placeholders are resolved here,
+    // once, against the issuing tenant's own Settings → Company -- the
+    // template itself stays tenant-agnostic (see agreement-template.ts).
+    recitals: AGREEMENT_RECITALS.map((r) => renderTemplate(r, { company: companyShortName })),
+    clauses: AGREEMENT_CLAUSES.map((c) => ({
+      ...c,
+      paragraphs: c.paragraphs.map((p) => renderTemplate(p, { company: companyShortName })),
+    })),
     createdAt: null,
   };
 }

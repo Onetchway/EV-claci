@@ -11,7 +11,7 @@ import {
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  AGREEMENT_SCHEDULE_FIELDS, AGREEMENT_STATUSES, AGREEMENT_STATUS_COLOR, AGREEMENT_STATUS_LABEL,
+  agreementScheduleFields, AGREEMENT_STATUSES, AGREEMENT_STATUS_COLOR, AGREEMENT_STATUS_LABEL,
   type AgreementScheduleKey, type AgreementStatus,
 } from "@/lib/constants";
 import { AGREEMENT_CLAUSES, AGREEMENT_RECITALS } from "@/lib/agreement-template";
@@ -296,7 +296,7 @@ export function AgreementLetterArticle({
             </tr>
           </thead>
           <tbody>
-            {AGREEMENT_SCHEDULE_FIELDS.map((f, i) => (
+            {agreementScheduleFields(company.shortName).map((f, i) => (
               <tr key={f.key} className={i % 2 === 0 ? "bg-ink-50" : "bg-white"}>
                 <td className="border border-ink-300 px-3 py-1.5 font-medium text-ink-800">{f.label}</td>
                 <td className="border border-ink-300 px-3 py-1.5 text-ink-700">
@@ -357,7 +357,7 @@ export function AgreementPanel({
 
   async function startCreate() {
     const number = await nextAgreementNumber();
-    setDraft(buildAgreementFromLead(lead, number));
+    setDraft(buildAgreementFromLead(lead, number, company.shortName));
     setCreateOpen(true);
   }
 
@@ -387,7 +387,7 @@ export function AgreementPanel({
     setDraft((d) => {
       const base = d ?? lead.agreement;
       if (!base) return d;
-      const built = buildAgreementFromLead(lead, base.number);
+      const built = buildAgreementFromLead(lead, base.number, company.shortName);
       return { ...base, scheduleI: { ...base.scheduleI, ...built.scheduleI } };
     });
   }
@@ -413,6 +413,7 @@ export function AgreementPanel({
           onPatch={patchSchedule}
           onFetch={fetchFromLead}
           busy={busy}
+          companyShortName={company.shortName}
           onSave={() =>
             void run(async () => {
               if (!draft) return;
@@ -547,7 +548,7 @@ export function AgreementPanel({
           </>
         }
       >
-        <ScheduleForm draft={draft} onPatch={patchSchedule} onFetch={fetchFromLead} />
+        <ScheduleForm draft={draft} onPatch={patchSchedule} onFetch={fetchFromLead} companyShortName={company.shortName} />
       </Modal>
 
       <Modal
@@ -619,11 +620,12 @@ export function AgreementPanel({
 }
 
 function ScheduleForm({
-  draft, onPatch, onFetch,
+  draft, onPatch, onFetch, companyShortName,
 }: {
   draft: AgreementDoc | null;
   onPatch: (key: AgreementScheduleKey, value: string) => void;
   onFetch?: () => void;
+  companyShortName: string;
 }) {
   if (!draft) return null;
   return (
@@ -634,7 +636,7 @@ function ScheduleForm({
         </Button>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
-        {AGREEMENT_SCHEDULE_FIELDS.map((f) => (
+        {agreementScheduleFields(companyShortName).map((f) => (
           <Field key={f.key} label={f.label}>
             <Input
               value={draft.scheduleI[f.key] ?? ""}
@@ -648,7 +650,7 @@ function ScheduleForm({
 }
 
 function CreateModal({
-  open, draft, onClose, onPatch, onFetch, onSave, busy,
+  open, draft, onClose, onPatch, onFetch, onSave, busy, companyShortName,
 }: {
   open: boolean;
   draft: AgreementDoc | null;
@@ -657,6 +659,7 @@ function CreateModal({
   onFetch?: () => void;
   onSave: () => void;
   busy: boolean;
+  companyShortName: string;
 }) {
   return (
     <Modal
@@ -674,7 +677,7 @@ function CreateModal({
         </>
       }
     >
-      <ScheduleForm draft={draft} onPatch={onPatch} onFetch={onFetch} />
+      <ScheduleForm draft={draft} onPatch={onPatch} onFetch={onFetch} companyShortName={companyShortName} />
     </Modal>
   );
 }

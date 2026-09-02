@@ -68,6 +68,8 @@ export function topUpWallet(opts: {
   ownerName: string;
   amountInr: number;
   couponCode?: string;
+  /** Shown in the Razorpay Checkout modal's title — from the issuing tenant's own Settings → Company. */
+  companyName?: string;
 }): Promise<WalletTopupResult> {
   return new Promise((resolve, reject) => {
     (async () => {
@@ -81,7 +83,7 @@ export function topUpWallet(opts: {
         amount: order.amount,
         currency: order.currency,
         order_id: order.orderId,
-        name: "Livanto Green — Wallet top-up",
+        name: `${opts.companyName || "Wallet"} top-up`,
         description: opts.ownerName,
         handler: (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
           void authedFetch("/api/payments/razorpay/verify", {

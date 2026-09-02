@@ -15,7 +15,7 @@ import { useAgents } from "@/hooks/use-leads";
 import { useSettings } from "@/hooks/use-settings";
 import {
   BANKS, CHARGER_OEMS, CLIENT_ENTITY_TYPE_LABEL, CLIENT_ENTITY_TYPES,
-  COMMERCIAL_MODEL_LABEL, COMMERCIAL_MODELS,
+  commercialModelLabel, COMMERCIAL_MODELS,
   COMMERCIAL_MODEL_TYPES, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES,
   LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL,
   locationProviderLabel, LOCATION_PROVIDERS, LOCATION_TYPES,
@@ -277,7 +277,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Card title="Lead type" subtitle="What this contact actually wants from Livanto.">
+      <Card title="Lead type" subtitle={`What this contact actually wants from ${settings.company.shortName || "us"}.`}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Type" required>
             <Select
@@ -298,7 +298,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 value={values.commercialModel ?? ""}
                 onChange={(e) => set("commercialModel", (e.target.value || null) as CommercialModel | null)}
                 placeholder="Select a model"
-                options={COMMERCIAL_MODELS.map((m) => ({ value: m, label: COMMERCIAL_MODEL_LABEL[m] }))}
+                options={COMMERCIAL_MODELS.map((m) => ({ value: m, label: commercialModelLabel(m, settings.company.shortName) }))}
               />
             </Field>
           )}
@@ -595,7 +595,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                     onChange={(e) => setSite({ siteOwnerSharePerKwh: e.target.value === "" ? null : Number(e.target.value) })}
                   />
                 </Field>
-                <Field label="Livanto earning (₹/kWh)">
+                <Field label={`${settings.company.shortName || "Company"} earning (₹/kWh)`}>
                   <Input
                     type="number"
                     min={0}
@@ -606,7 +606,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 </Field>
                 <Field
                   label="Franchise earning (₹/kWh)"
-                  hint="Selling rate minus site owner share, Livanto's earning and the DISCOM rate."
+                  hint={`Selling rate minus site owner share, ${settings.company.shortName || "the company"}'s earning and the DISCOM rate.`}
                 >
                   <p className="input flex items-center bg-ink-50 font-semibold tabular-nums text-ink-900">
                     ₹{(

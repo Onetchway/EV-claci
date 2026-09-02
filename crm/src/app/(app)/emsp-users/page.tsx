@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
+import { useSettings } from "@/hooks/use-settings";
 import {
   Badge, Button, Card, Checkbox, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction, useToast,
 } from "@/components/ui";
@@ -25,6 +26,7 @@ import { manualWalletCredit } from "@/lib/wallet-client";
 
 export default function EmspUsersPage() {
   const { actor } = useAuth();
+  const { settings } = useSettings();
   const viewer = useViewer();
   const canManage = canManageEmspUsers(viewer);
   const { run, busy } = useAsyncAction();
@@ -84,6 +86,7 @@ export default function EmspUsersPage() {
         : await topUpWallet({
           ownerType: topupFor.ownerType, ownerId: topupFor.ownerId, ownerName: topupFor.name,
           amountInr: amount, couponCode: topupCoupon.trim() || undefined,
+          companyName: settings.company.shortName,
         });
       push(
         "bonusInr" in result && result.bonusInr
@@ -101,6 +104,7 @@ export default function EmspUsersPage() {
           amountInr: amount + (paidResult.bonusInr ?? 0),
           newBalanceInr: paidResult.newBalanceInr!,
           razorpayPaymentId: paidResult.razorpayPaymentId,
+          companyName: settings.company.shortName,
         });
       }
       setTopupFor(null);

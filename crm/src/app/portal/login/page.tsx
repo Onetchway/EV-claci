@@ -185,7 +185,7 @@ export default function PortalLoginPage() {
               ))}
             </div>
 
-            <p className="relative mt-6 text-xs text-white/40">&copy; {new Date().getFullYear()} Livanto Green Infra Private Limited</p>
+            <p className="relative mt-6 text-xs text-white/40">&copy; {new Date().getFullYear()} {settings.company.legalName || settings.company.shortName || "All rights reserved"}</p>
           </div>
 
           {/* Login form */}
@@ -274,7 +274,7 @@ export default function PortalLoginPage() {
             )}
 
             <p className="mt-8 flex items-center justify-center gap-1.5 text-center text-xs text-ink-400">
-              <Lock className="h-3 w-3" /> Do not share your OTP with anyone, including Livanto staff.
+              <Lock className="h-3 w-3" /> Do not share your OTP with anyone, including {settings.company.shortName || "our"} staff.
             </p>
           </div>
         </div>

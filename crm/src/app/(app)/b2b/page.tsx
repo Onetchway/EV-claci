@@ -9,7 +9,7 @@ import {
 } from "@/components/ui";
 import { useLeads } from "@/hooks/use-leads";
 import {
-  B2B_LEAD_TYPES, COMMERCIAL_MODEL_LABEL, LEAD_TYPE_LABEL, STAGE_META,
+  B2B_LEAD_TYPES, LEAD_TYPE_LABEL, STAGE_META,
   STATUS_COLOR, STATUS_LABEL, type LeadType,
 } from "@/lib/constants";
 import { applyClientFilters } from "@/lib/db/leads";
@@ -91,7 +91,7 @@ export default function B2bPage() {
                     </Link>
                   </td>
                   <td className="td text-ink-600">{LEAD_TYPE_LABEL[l.type]}</td>
-                  <td className="td text-ink-600">{l.commercialModel ? COMMERCIAL_MODEL_LABEL[l.commercialModel].split(" —")[0] : "—"}</td>
+                  <td className="td text-ink-600">{l.commercialModel || "—"}</td>
                   <td className="td">
                     <Badge className={STAGE_META[l.stage].color}>{STAGE_META[l.stage].short}</Badge>
                     {l.status !== "ACTIVE" && <Badge className={`ml-1 ${STATUS_COLOR[l.status]}`}>{STATUS_LABEL[l.status]}</Badge>}

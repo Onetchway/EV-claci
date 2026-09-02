@@ -122,11 +122,16 @@ export async function POST(req: Request) {
     // working fallback.
     try {
       const resetLink = await auth.generatePasswordResetLink(body.email);
+      // Same settings/{orgId} doc Settings → Company writes to (lib/db/
+      // settings.ts) -- reads the issuing tenant's own name rather than
+      // hardcoding Livanto's, matching every other outbound message.
+      const settingsSnap = orgId ? await db.collection("settings").doc(orgId).get() : null;
+      const companyName = (settingsSnap?.data()?.company?.shortName as string | undefined)?.trim() || "the platform";
       await db.collection("mail").add({
         to: [body.email],
         message: {
-          subject: "Set your Livanto Green password",
-          html: `<p>Hi ${body.name},</p><p>An account has been created for you on the Livanto Green platform. Set your password to sign in:</p><p><a href="${resetLink}">${resetLink}</a></p><p>If you weren't expecting this, you can ignore this email.</p>`,
+          subject: `Set your ${companyName} password`,
+          html: `<p>Hi ${body.name},</p><p>An account has been created for you on the ${companyName} platform. Set your password to sign in:</p><p><a href="${resetLink}">${resetLink}</a></p><p>If you weren't expecting this, you can ignore this email.</p>`,
         },
         createdAt: FieldValue.serverTimestamp(),
       });
