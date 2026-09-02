@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Battery, BookOpen, Boxes, Building2, CalendarCheck, CalendarClock, CalendarDays, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
+  BarChart3, Battery, Boxes, Building2, CalendarCheck, CalendarClock, CalendarDays, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
   Gauge, Globe, HardHat, Handshake, IdCard, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, Mail, MapPin, Menu, MessageSquareWarning, Package, Percent, Plug, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
-  Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, Workflow, X, Zap,
+  Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -31,6 +31,8 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   adminOnly?: boolean;
+  /** platform/database/schema.sql's feature_catalog.key — hides just this item (not the whole group) when the super admin has turned it off for this tenant. Omit for an item with no matching catalog entry (always shown, subject only to the group's own category gate). */
+  featureKey?: string;
 }
 
 interface NavGroup {
@@ -42,51 +44,47 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Dashboard",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/agents", label: "Team Performance", icon: BarChart3, adminOnly: true },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, featureKey: "dashboard" },
+      { href: "/agents", label: "Team Performance", icon: BarChart3, adminOnly: true, featureKey: "team_performance" },
     ],
   },
   {
     label: "Sales",
     items: [
-      { href: "/leads", label: "All Leads", icon: Users2 },
-      { href: "/loans", label: "Loan Customers", icon: Landmark },
-      { href: "/site-enquiries", label: "Site Enquiries", icon: MapPin },
-      { href: "/partners", label: "Channel Partners", icon: Handshake },
-      { href: "/quotations", label: "Create Quotation", icon: FileSignature },
-      { href: "/catalog", label: "Charger Catalogue", icon: Package },
+      { href: "/leads", label: "All Leads", icon: Users2, featureKey: "leads" },
+      { href: "/loans", label: "Loan Customers", icon: Landmark, featureKey: "loan_customers" },
+      { href: "/site-enquiries", label: "Site Enquiries", icon: MapPin, featureKey: "site_enquiries" },
+      { href: "/partners", label: "Channel Partners", icon: Handshake, featureKey: "channel_partners" },
+      { href: "/quotations", label: "Create Quotation", icon: FileSignature, featureKey: "quotations" },
+      { href: "/catalog", label: "Charger Catalogue", icon: Package, featureKey: "charger_catalogue" },
     ],
   },
   {
     label: "Operations",
     items: [
-      { href: "/projects", label: "Project Management", icon: HardHat },
-      { href: "/vendors", label: "Vendor Management", icon: Truck },
-      { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
-      { href: "/proforma-invoices", label: "Proforma Invoices", icon: FileSpreadsheet },
-      { href: "/assets", label: "Asset Register", icon: Boxes },
+      { href: "/projects", label: "Project Management", icon: HardHat, featureKey: "projects" },
+      { href: "/vendors", label: "Vendor Management", icon: Truck, featureKey: "vendors" },
+      { href: "/purchase-orders", label: "Purchase Orders", icon: FileText, featureKey: "purchase_orders" },
+      { href: "/proforma-invoices", label: "Proforma Invoices", icon: FileSpreadsheet, featureKey: "proforma_invoices" },
+      { href: "/assets", label: "Asset Register", icon: Boxes, featureKey: "assets" },
     ],
   },
   {
     label: "HRMS",
     items: [
-      { href: "/employees", label: "Employees", icon: Users2 },
-      { href: "/attendance", label: "Attendance", icon: CalendarCheck },
-      { href: "/roster", label: "Roster", icon: KanbanSquare },
-      { href: "/holidays", label: "Holidays", icon: CalendarDays },
+      { href: "/employees", label: "Employees", icon: Users2, featureKey: "employees" },
+      { href: "/attendance", label: "Attendance", icon: CalendarCheck, featureKey: "attendance" },
+      { href: "/roster", label: "Roster", icon: KanbanSquare, featureKey: "roster" },
+      { href: "/holidays", label: "Holidays", icon: CalendarDays, featureKey: "holidays" },
     ],
   },
   {
     label: "Settings",
     items: [
-      { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true },
+      { href: "/users", label: "Team & Roles", icon: Users, adminOnly: true, featureKey: "users" },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
-      { href: "/auto-triggers", label: "Auto Triggers", icon: Zap, adminOnly: true },
-      { href: "/workflows", label: "Workflows", icon: Workflow, adminOnly: true },
-      { href: "/diagnostics", label: "Diagnostic Knowledge Base", icon: BookOpen },
-      { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true },
-      { href: "/developer", label: "Developer (API & Webhooks)", icon: Terminal, adminOnly: true },
-      { href: "/trash", label: "Trash", icon: Trash2, adminOnly: true },
+      { href: "/logs", label: "Audit Log", icon: FileClock, adminOnly: true, featureKey: "audit_log" },
+      { href: "/trash", label: "Trash", icon: Trash2, adminOnly: true, featureKey: "trash" },
       { href: "/organizations", label: "Tenants (White Label)", icon: Building2, adminOnly: true },
     ],
   },
@@ -129,9 +127,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const [org, setOrg] = useState<Organization | null>(null);
   const [rolePolicy, setRolePolicy] = useState<Record<string, Role[]> | null>(null);
-  // null = every category enabled (not onboarded onto the platform, or no
-  // key set for this org — see api/platform-features/categories/route.ts).
+  // null = every category/feature enabled (not onboarded onto the
+  // platform, or no key set for this org — see
+  // api/platform-features/categories/route.ts).
   const [enabledCategories, setEnabledCategories] = useState<string[] | null>(null);
+  const [enabledFeatureKeys, setEnabledFeatureKeys] = useState<string[] | null>(null);
   const { settings } = useSettings();
 
   useEffect(() => subscribeRoleAccessPolicy(setRolePolicy), []);
@@ -141,9 +141,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     user.getIdToken().then((token) =>
       fetch("/api/platform-features/categories", { headers: { authorization: `Bearer ${token}` } })
-        .then((r) => (r.ok ? r.json() : { categories: null }))
-        .then((data) => { if (!cancelled) setEnabledCategories(data.categories); })
-        .catch(() => { if (!cancelled) setEnabledCategories(null); }),
+        .then((r) => (r.ok ? r.json() : { categories: null, keys: null }))
+        .then((data) => {
+          if (cancelled) return;
+          setEnabledCategories(data.categories);
+          setEnabledFeatureKeys(data.keys);
+        })
+        .catch(() => { if (!cancelled) { setEnabledCategories(null); setEnabledFeatureKeys(null); } }),
     );
     return () => { cancelled = true; };
   }, [user]);
@@ -216,6 +220,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }).map((g) => ({
     ...g,
     items: g.items.filter((n) => (!n.adminOnly || (role && isAdmin(role)))
+      && (!n.featureKey || enabledFeatureKeys === null || enabledFeatureKeys.includes(n.featureKey))
       && hasPageAccess(n.href, roles, { policyOverrides: rolePolicy, userOverrides: profile?.pageAccessOverrides })),
   })).filter((g) => g.items.length > 0);
 

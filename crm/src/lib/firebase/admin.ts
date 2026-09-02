@@ -113,7 +113,23 @@ export function adminDb(): Firestore {
     // Same reasoning as the client SDK's getDb(): a spread draft with an
     // unset optional field carries `undefined`, which Admin SDK writes
     // reject by default instead of just omitting the key.
-    adminDbInstance.settings({ ignoreUndefinedProperties: true });
+    //
+    // Guarded with try/catch, not just the module-level `if` above: in
+    // Next.js dev mode, each API route is compiled on demand into its own
+    // module instance, so a route hit for the first time gets its own
+    // fresh `adminDbInstance` variable (undefined) even though some
+    // *other* route already called settings() on this same underlying
+    // Firestore singleton (getFirestore(app) returns the same instance
+    // for a given app+name, cached by the Admin SDK itself, regardless of
+    // which webpack module asked for it) -- the `if` above only guards
+    // redundant calls within one module instance, not across them.
+    // Firestore throws on a second settings() call; that's expected here
+    // and safe to ignore; anything else should still surface.
+    try {
+      adminDbInstance.settings({ ignoreUndefinedProperties: true });
+    } catch (err) {
+      if (!(err instanceof Error) || !err.message.includes("already been initialized")) throw err;
+    }
   }
   return adminDbInstance;
 }

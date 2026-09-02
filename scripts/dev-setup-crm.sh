@@ -132,6 +132,7 @@ write_env crm/.env.local \
   "NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-livanto" \
   "NEXT_PUBLIC_FIREBASE_API_KEY=demo-api-key" \
   "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=demo-livanto.firebaseapp.com" \
+  "PLATFORM_API_URL=http://localhost:5100/api" \
   "PLATFORM_PROVISION_SECRET=${PROVISION_SECRET}"
 
 echo "==> Installing dependencies (skips a package if node_modules already exists)..."

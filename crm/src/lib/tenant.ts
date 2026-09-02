@@ -23,16 +23,17 @@ export function tenantHref(path: string, slug: string | null): string {
   return `/${slug}${path}`;
 }
 
-// The signed-in user's tenantId, from their ID token's custom claim (set
+// The signed-in user's orgId, from their ID token's custom claim (set
 // alongside `role` at account creation — see src/app/api/users/route.ts).
 // This is what every Firestore query and write actually scopes by; the
 // path slug above is only ever used for routing/branding, never trusted
 // for data access on its own. Firestore security rules read the same
-// claim server-side, so a client that got this wrong (or lied about it)
-// still can't read or write another tenant's documents.
+// claim server-side (firebase/firestore.rules's orgId() function), so a
+// client that got this wrong (or lied about it) still can't read or write
+// another tenant's documents.
 export async function getCurrentTenantId(): Promise<string | null> {
   const user = getFirebaseAuth().currentUser;
   if (!user) return null;
   const result = await getIdTokenResult(user);
-  return (result.claims.tenantId as string | undefined) ?? null;
+  return (result.claims.orgId as string | undefined) ?? null;
 }

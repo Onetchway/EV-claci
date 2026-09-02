@@ -47,7 +47,13 @@ service cloud.firestore {
     // opaque to that analysis and the whole list is denied. Confirmed
     // against the Firestore emulator before/after this fix.
     function ownsLeadDirectlyAsInvestor() {
-      return investorPhone() != null && resource.data.investorPhoneE164 == investorPhone();
+      // 'investorPhoneE164' in resource.data: most leads never set this
+      // field at all, and accessing a missing map key throws (not just
+      // "undefined") -- fatal for a list query, which evaluates this
+      // against every possible matching document, not just ones that
+      // actually have the field.
+      return investorPhone() != null
+        && 'investorPhoneE164' in resource.data && resource.data.investorPhoneE164 == investorPhone();
     }
 
     // For rules evaluated on a DIFFERENT document that needs to check some
@@ -124,12 +130,21 @@ service cloud.firestore {
     }
 
     // The signed-in user is the owner named on the document.
+    // 'ownerId' in resource.data: accessing a missing map key throws rather
+    // than returning undefined/null, which is fatal when this runs as one
+    // OR-branch of a list query's rule (evaluated against every possible
+    // matching document, not just ones that actually set the field) --
+    // e.g. an org admin's org-wide leads list, which never filters on
+    // ownerId and so relies on the *other* OR-branch (sameOrgExisting())
+    // to be provable; the throw here otherwise kills the whole read even
+    // though that branch alone was sufficient. Confirmed against the
+    // Firestore emulator.
     function ownsExisting() {
-      return signedIn() && resource.data.ownerId == uid();
+      return signedIn() && 'ownerId' in resource.data && resource.data.ownerId == uid();
     }
 
     function ownsIncoming() {
-      return signedIn() && request.resource.data.ownerId == uid();
+      return signedIn() && 'ownerId' in request.resource.data && request.resource.data.ownerId == uid();
     }
 
     // The actor block stamped on writes must be the caller — an agent cannot
@@ -595,26 +610,35 @@ service cloud.firestore {
     // so subscribeAttendanceRange()/subscribeAllUsers-style team views would
     // be denied outright even for a legitimate same-org manager.
     match /attendance/{attendanceId} {
-      allow read: if (canManageHrms() && sameOrgExisting()) || resource.data.uid == uid();
+      // 'uid' in resource.data guards against the same "Property uid is
+      // undefined" throw the leads rule hit (see ownsExisting() above) —
+      // canManageHrms()'s own-org branch alone is what makes a manager's
+      // team-wide list provable; the second OR-branch must never throw
+      // evaluating it.
+      allow read: if (canManageHrms() && sameOrgExisting())
+                  || ('uid' in resource.data && resource.data.uid == uid());
       allow create: if signedIn()
                     && sameOrgIncoming()
                     && (request.resource.data.uid == uid() || canManageHrms());
       allow update: if (canManageHrms() && sameOrgExisting() && sameOrgIncoming())
-                    || (resource.data.uid == uid() && request.resource.data.uid == uid() && sameOrgExisting() && sameOrgIncoming());
+                    || ('uid' in resource.data && resource.data.uid == uid()
+                        && request.resource.data.uid == uid() && sameOrgExisting() && sameOrgIncoming());
       allow delete: if isAdmin() && sameOrgExisting();
     }
 
     // One doc per employee per Monday-starting week (id `${uid}_${weekStart}`).
     // Only managers/admins build it; everyone reads their own.
     match /rosters/{rosterId} {
-      allow read: if (canManageHrms() && sameOrgExisting()) || resource.data.uid == uid();
+      allow read: if (canManageHrms() && sameOrgExisting())
+                  || ('uid' in resource.data && resource.data.uid == uid());
       allow create: if canManageHrms() && sameOrgIncoming();
       allow update: if canManageHrms() && sameOrgExisting() && sameOrgIncoming();
       allow delete: if canManageHrms() && sameOrgExisting();
     }
 
     match /leaveRequests/{leaveRequestId} {
-      allow read: if (canManageHrms() && sameOrgExisting()) || resource.data.uid == uid();
+      allow read: if (canManageHrms() && sameOrgExisting())
+                  || ('uid' in resource.data && resource.data.uid == uid());
       // An employee applies for their own leave, starting PENDING.
       allow create: if signedIn()
                     && request.resource.data.uid == uid()
@@ -623,7 +647,7 @@ service cloud.firestore {
       // A manager/admin approves or rejects; the employee themself may only
       // cancel their own still-pending request.
       allow update: if (canManageHrms() && request.resource.data.uid == resource.data.uid && sameOrgExisting() && sameOrgIncoming())
-                    || (resource.data.uid == uid()
+                    || ('uid' in resource.data && resource.data.uid == uid()
                         && resource.data.status == 'PENDING'
                         && request.resource.data.status == 'CANCELLED');
       allow delete: if isAdmin() && sameOrgExisting();
@@ -990,17 +1014,21 @@ service cloud.firestore {
     // Follow-up task engine. Same visibility shape as leads/activities: an
     // agent sees their own tasks, org-wide roles see everything.
     match /tasks/{taskId} {
-      allow read: if seesAllLeads() || resource.data.ownerId == uid();
-      allow create: if canWriteLeads() && actorIsSelf('createdBy');
-      allow update: if canWriteLeads() && (seesAllLeads() || resource.data.ownerId == uid());
-      allow delete: if isAdmin();
+      allow read: if (seesAllLeads() && sameOrgExisting())
+                  || ('ownerId' in resource.data && resource.data.ownerId == uid());
+      allow create: if canWriteLeads() && actorIsSelf('createdBy') && sameOrgIncoming();
+      allow update: if canWriteLeads() && sameOrgExisting()
+                    && (seesAllLeads() || ('ownerId' in resource.data && resource.data.ownerId == uid()));
+      allow delete: if isAdmin() && sameOrgExisting();
     }
 
     // Admin-configured follow-up sequences (Day 0, Day 1, Day 3 …), applied
     // on demand to a lead. Readable org-wide so any agent can apply one.
     match /sequences/{sequenceId} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if isAdmin() && sameOrgIncoming();
+      allow update: if isAdmin() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if isAdmin() && sameOrgExisting();
     }
 
     // ------------------------------------------------------------- activities

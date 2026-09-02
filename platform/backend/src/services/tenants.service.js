@@ -114,6 +114,11 @@ const create = async (data, actor) => {
           name: tenant.name,
           adminEmail: tenant.contact_email,
           adminName: tenant.contact_name,
+          // Lets the CRM immediately look up this tenant's own enabled
+          // features (GET /api/features/me, authenticated by this same
+          // key) instead of failing open to "everything enabled" until
+          // someone manually pastes it in later.
+          tenantApiKey: tenant.api_key,
         }),
       });
       if (response.ok) {

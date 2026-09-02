@@ -13,6 +13,7 @@ import {
 
 import type { FollowupPriority, FollowupType } from "../constants";
 import { getDb } from "../firebase/client";
+import { getCurrentTenantId } from "../tenant";
 import type { Actor, FollowupSequence, FollowupTask, Lead } from "../types";
 
 export const TASKS = "tasks";
@@ -40,7 +41,9 @@ export interface TaskDraft {
 }
 
 export async function createTask(draft: TaskDraft, actor: Actor): Promise<void> {
+  const orgId = await getCurrentTenantId();
   await addDoc(collection(getDb(), TASKS), {
+    orgId,
     leadId: draft.leadId,
     leadCode: draft.leadCode,
     leadName: draft.leadName ?? "",
@@ -81,15 +84,21 @@ export function subscribeTasksForLead(
   cb: (rows: FollowupTask[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), TASKS), where("leadId", "==", leadId), fsLimit(200)),
-    (snap) => {
-      const rows = snap.docs.map((d) => mapTask(d.id, d.data()));
-      rows.sort((a, b) => (a.dueAt?.toMillis?.() ?? 0) - (b.dueAt?.toMillis?.() ?? 0));
-      cb(rows);
-    },
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), TASKS), where("orgId", "==", orgId), where("leadId", "==", leadId), fsLimit(200)),
+      (snap) => {
+        const rows = snap.docs.map((d) => mapTask(d.id, d.data()));
+        rows.sort((a, b) => (a.dueAt?.toMillis?.() ?? 0) - (b.dueAt?.toMillis?.() ?? 0));
+        cb(rows);
+      },
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 /** Every open task org-wide, due soonest first — callers scope by owner client-side. */
@@ -97,11 +106,17 @@ export function subscribeOpenTasks(
   cb: (rows: FollowupTask[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), TASKS), where("status", "==", "OPEN"), orderBy("dueAt", "asc"), fsLimit(500)),
-    (snap) => cb(snap.docs.map((d) => mapTask(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), TASKS), where("orgId", "==", orgId), where("status", "==", "OPEN"), orderBy("dueAt", "asc"), fsLimit(500)),
+      (snap) => cb(snap.docs.map((d) => mapTask(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 // ---------------------------------------------------------------------------
@@ -112,11 +127,17 @@ export function subscribeSequences(
   cb: (rows: FollowupSequence[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  return onSnapshot(
-    query(collection(getDb(), SEQUENCES), orderBy("name", "asc")),
-    (snap) => cb(snap.docs.map((d) => mapSequence(d.id, d.data()))),
-    (err) => onError?.(err as Error),
-  );
+  let unsubscribe = () => {};
+  let cancelled = false;
+  void getCurrentTenantId().then((orgId) => {
+    if (cancelled) return;
+    unsubscribe = onSnapshot(
+      query(collection(getDb(), SEQUENCES), where("orgId", "==", orgId), orderBy("name", "asc")),
+      (snap) => cb(snap.docs.map((d) => mapSequence(d.id, d.data()))),
+      (err) => onError?.(err as Error),
+    );
+  }, (err) => onError?.(err as Error));
+  return () => { cancelled = true; unsubscribe(); };
 }
 
 export async function saveSequence(
@@ -127,8 +148,10 @@ export async function saveSequence(
   if (id) {
     await updateDoc(doc(getDb(), SEQUENCES, id), { ...rest });
   } else {
+    const orgId = await getCurrentTenantId();
     await addDoc(collection(getDb(), SEQUENCES), {
       ...rest,
+      orgId,
       createdAt: serverTimestamp(),
       createdBy: actor,
     });
@@ -142,6 +165,7 @@ export async function applySequence(
   actor: Actor,
 ): Promise<void> {
   const db = getDb();
+  const orgId = await getCurrentTenantId();
   const batch = writeBatch(db);
   const base = new Date();
 
@@ -150,6 +174,7 @@ export async function applySequence(
     dueAt.setDate(dueAt.getDate() + step.dayOffset);
     const ref = doc(collection(db, TASKS));
     batch.set(ref, {
+      orgId,
       leadId: lead.id,
       leadCode: lead.code,
       leadName: lead.client?.name ?? "",

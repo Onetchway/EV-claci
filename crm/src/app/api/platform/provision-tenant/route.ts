@@ -29,6 +29,16 @@ const Body = z.object({
   adminName: z.string().min(1).max(120),
   /** Omit to have the route generate one, returned once in the response. */
   adminPassword: z.string().min(8).max(72).optional(),
+  /**
+   * This tenant's own platform API key (tenants.api_key on the platform
+   * side) -- stored into organizationPlatformKeys so this org's CRM nav
+   * immediately reflects whatever feature set the super admin set for it
+   * (see lib/platform-features.ts), instead of failing open to "every
+   * feature enabled" until someone manually visits Settings and pastes it
+   * in via api/organizations/[id]/platform-key. Optional so provisioning
+   * still works for a platform build that hasn't wired this through yet.
+   */
+  tenantApiKey: z.string().min(1).max(200).optional(),
 });
 
 function randomPassword(): string {
@@ -90,6 +100,12 @@ export async function POST(req: Request) {
     // the highest a tenant's own team gets; SUPER_ADMIN stays reserved for
     // Livanto's own staff.
     await auth.setCustomUserClaims(uid, { role: "ADMIN", roles: ["ADMIN"], orgId });
+
+    if (body.tenantApiKey) {
+      await db.collection("organizationPlatformKeys").doc(orgId).set({
+        tenantApiKey: body.tenantApiKey, updatedAt: FieldValue.serverTimestamp(), updatedBy: null,
+      });
+    }
 
     await db.collection("users").doc(uid).set(
       {
