@@ -19,7 +19,10 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Api-Key'],
 }));
-app.use(express.json({ limit: '2mb' }));
+// Captures the raw request bytes alongside the parsed body -- payments.
+// service.js's webhook handler needs the exact bytes Razorpay signed, not
+// a re-serialized copy of req.body (whitespace/key-order could differ).
+app.use(express.json({ limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 

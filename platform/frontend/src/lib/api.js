@@ -101,6 +101,12 @@ export const creditsApi = {
   addCredit: (tenantId, amount, reason) => client.post(`/credits/tenants/${tenantId}`, { amount, reason }),
 };
 
+export const paymentsApi = {
+  forInvoice: (invoiceId) => client.get(`/payments/invoices/${invoiceId}`),
+  createOrder: (invoiceId) => client.post(`/payments/invoices/${invoiceId}/order`),
+  refund: (paymentId) => client.post(`/payments/${paymentId}/refund`),
+};
+
 export const usageApi = {
   forTenant: (tenantId) => client.get(`/usage/tenants/${tenantId}`),
 };
