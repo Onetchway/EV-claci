@@ -1321,32 +1321,72 @@ export const AGREEMENT_STATUS_COLOR: Record<AgreementStatus, string> = {
   SUPERSEDED: "bg-amber-100 text-amber-800 ring-amber-200",
 };
 
+export const AGREEMENT_SCENARIOS = ["A", "B"] as const;
+export type AgreementScenario = (typeof AGREEMENT_SCENARIOS)[number];
+export const AGREEMENT_SCENARIO_LABEL: Record<AgreementScenario, string> = {
+  A: "Scenario A — Livanto Site",
+  B: "Scenario B — Franchisee Site",
+};
+
 /**
- * Schedule I — the one part of the Franchise Agreement that actually varies
- * deal to deal; the 20 numbered clauses above it are fixed legal language
- * (see agreement-template.ts) and are never edited per lead. `key` is the
- * field's storage key in AgreementDoc.scheduleI; order here is the order
- * both the editable form and the printed Schedule I table use.
+ * Schedule I — the site/commercial particulars that vary deal to deal; the
+ * 27 numbered clauses are fixed legal language (see agreement-template.ts)
+ * and are never edited per lead. `key` is the field's storage key in
+ * AgreementDoc.scheduleI; order here is the order both the editable form
+ * and the printed Schedule I table use, grouped by the source template's
+ * own Parts A (parties/site), C (charger/tenure/commercial) and D (buyback)
+ * — Part B is a fixed Scenario A vs B reference matrix, not per-lead data,
+ * so it's rendered as static text rather than modelled here.
  */
 export const AGREEMENT_SCHEDULE_FIELDS = [
-  { key: "clientName", label: "Client / Franchisee Name" },
-  { key: "entityType", label: "Entity Type" },
-  { key: "registeredAddress", label: "Registered / Residential Address" },
-  { key: "siteAddress", label: "Site / Location" },
-  { key: "chargerTypeCapacity", label: "Charger Type & Capacity" },
-  { key: "commissioningDate", label: "Commercial Commissioning Date" },
-  { key: "tenure", label: "Tenure" },
-  { key: "minimumAssuredAmount", label: "Minimum Assured Monthly Amount" },
-  { key: "payoutPeriod", label: "Payout / Support Period" },
-  { key: "livantoFee", label: "Livanto Fee (per kWh)" },
-  { key: "discomFee", label: "DISCOM Fee (per kWh)" },
-  { key: "landUsageFee", label: "Land Usage Fee (per kWh)" },
-  { key: "investorEarning", label: "Investor Earning (per kWh)" },
-  { key: "publicSellingRate", label: "Public Selling Rate (per kWh)" },
-  { key: "paymentSettlementDate", label: "Payment Settlement Date" },
-  { key: "originalEquipmentCost", label: "Original Equipment Cost of Charger (for Buyback computation)" },
-  { key: "depreciationRate", label: "Depreciation Rate (per annum, for Buyback computation)" },
-  { key: "buybackFloorValue", label: "Buyback Floor Value (% of Original Equipment Cost)" },
+  // Part A — Parties, Site and Site Scenario
+  { key: "franchiseeName", label: "Franchisee Name", part: "A" },
+  { key: "entityType", label: "Entity Type", part: "A" },
+  { key: "panCinLlpin", label: "PAN / CIN / LLPIN", part: "A" },
+  { key: "gstin", label: "GSTIN (if registered)", part: "A" },
+  { key: "registeredAddress", label: "Registered / Residential Address", part: "A" },
+  { key: "authorisedSignatory", label: "Authorised Signatory", part: "A" },
+  { key: "franchiseeContact", label: "Franchisee Notice Email / Mobile", part: "A" },
+  { key: "franchiseeBankDetails", label: "Franchisee Bank Account for Settlement", part: "A" },
+  { key: "livantoNoticeAddress", label: "Livanto Notice Address", part: "A" },
+  { key: "livantoContact", label: "Livanto Notice Email / Mobile", part: "A" },
+  { key: "siteName", label: "Site / Location Name", part: "A" },
+  { key: "siteAddress", label: "Site Address (complete, with PIN)", part: "A" },
+  { key: "siteHolder", label: "Site Holder", part: "A" },
+  { key: "siteDocuments", label: "Site Documents (title / lease / licence)", part: "A" },
+  { key: "ownerLessor", label: "Owner / Lessor of the Site (if leased)", part: "A" },
+  { key: "maxChargingStations", label: "Maximum charging stations permitted at the Site", part: "A" },
+  { key: "nonCompeteRadius", label: "Non-compete radius", part: "A" },
+  { key: "arbitrationSeat", label: "Arbitration seat and jurisdiction", part: "A" },
+  // Part C — Charging Station, Tenure and Commercial Terms
+  { key: "chargerTypeCapacity", label: "Charger Type & Capacity", part: "C" },
+  { key: "numberOfChargingPoints", label: "Number of Charging Points", part: "C" },
+  { key: "targetCodPeriod", label: "Target period for COD", part: "C" },
+  { key: "longStopDate", label: "Long-Stop Date for COD", part: "C" },
+  { key: "tenure", label: "Term", part: "C" },
+  { key: "publicSellingRate", label: "Public Selling Rate (per kWh)", part: "C" },
+  { key: "electricityCost", label: "Electricity Cost (per kWh)", part: "C" },
+  { key: "landUsageFee", label: "Land Usage Fee (per kWh)", part: "C" },
+  { key: "livantoFee", label: "Livanto Fee (per kWh)", part: "C" },
+  { key: "franchiseeEarning", label: "Franchisee Earning (per kWh)", part: "C" },
+  { key: "minimumAssuredAmount", label: "Minimum Assured Amount", part: "C" },
+  { key: "payoutPeriod", label: "Payout Period", part: "C" },
+  { key: "maxAggregateCap", label: "Maximum aggregate cap on Minimum Assured Amount", part: "C" },
+  { key: "settlementDate", label: "Settlement Date", part: "C" },
+  { key: "interestRate", label: "Interest on delayed payment", part: "C" },
+  { key: "uptimeStandard", label: "Uptime standard", part: "C" },
+  { key: "liquidatedDamages", label: "Liquidated damages for downtime", part: "C" },
+  { key: "insurancePremiumBorne", label: "Insurance premium borne by", part: "C" },
+  { key: "subsidySharing", label: "Subsidy sharing", part: "C" },
+  { key: "warrantyPeriod", label: "Warranty period", part: "C" },
+  { key: "amcPeriod", label: "AMC and O&M period", part: "C" },
+  // Part D — Buyback Particulars
+  { key: "originalEquipmentCost", label: "Original Equipment Cost (Charging Station)", part: "D" },
+  { key: "depreciationRate", label: "Depreciation rate on the Charging Station (per annum)", part: "D" },
+  { key: "buybackFloorCharger", label: "Buyback floor value — Charging Station", part: "D" },
+  { key: "infrastructureWorksCost", label: "Cost of Infrastructure Works", part: "D" },
+  { key: "buybackFloorInfra", label: "Buyback floor value — Infrastructure Works", part: "D" },
+  { key: "buybackPaymentPeriod", label: "Buyback payment period", part: "D" },
 ] as const;
 export type AgreementScheduleKey = (typeof AGREEMENT_SCHEDULE_FIELDS)[number]["key"];
 

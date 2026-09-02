@@ -11,10 +11,16 @@ import {
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  AGREEMENT_SCHEDULE_FIELDS, AGREEMENT_STATUSES, AGREEMENT_STATUS_COLOR, AGREEMENT_STATUS_LABEL,
-  type AgreementScheduleKey, type AgreementStatus,
+  AGREEMENT_SCENARIO_LABEL, AGREEMENT_SCENARIOS, AGREEMENT_SCHEDULE_FIELDS, AGREEMENT_STATUSES,
+  AGREEMENT_STATUS_COLOR, AGREEMENT_STATUS_LABEL,
+  type AgreementScenario, type AgreementScheduleKey, type AgreementStatus,
 } from "@/lib/constants";
-import { AGREEMENT_CLAUSES, AGREEMENT_RECITALS } from "@/lib/agreement-template";
+import {
+  AGREEMENT_ANNEXURE_A_HEADING, AGREEMENT_ANNEXURE_A_INTRO, AGREEMENT_ANNEXURE_A_PARAGRAPHS,
+  AGREEMENT_ANNEXURE_A_SUBTITLE, AGREEMENT_CLAUSES, AGREEMENT_OPERATIVE_WORDS, AGREEMENT_PREAMBLE,
+  AGREEMENT_RECITALS, AGREEMENT_SCENARIO_MATRIX, AGREEMENT_SCHEDULE_II_PART_D_NOTE, AGREEMENT_SCHEDULE_III,
+  AGREEMENT_SCHEDULE_IV, AGREEMENT_SITE_SCENARIO_NOTE, AGREEMENT_TITLE,
+} from "@/lib/agreement-template";
 import { deleteDocument, subscribeDocuments, uploadDocument, validateFile } from "@/lib/db/documents";
 import {
   buildAgreementFromLead, deleteAgreement, deleteAgreementVersion, issueAgreement,
@@ -22,8 +28,10 @@ import {
   subscribeAgreementVersions,
 } from "@/lib/db/leads";
 import { canDeleteDocument, canDeleteEoi, canIssueEoi, type Viewer } from "@/lib/permissions";
-import type { Actor, AgreementDoc, AgreementVersion, AppSettings, Lead, LeadDocument } from "@/lib/types";
-import { cn, formatDate, formatDateTime } from "@/lib/utils";
+import type {
+  Actor, AgreementBomRow, AgreementDoc, AgreementInstalmentRow, AgreementVersion, AppSettings, Lead, LeadDocument,
+} from "@/lib/types";
+import { cn, formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 const STATUS_STYLE: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-800 ring-amber-200",
@@ -191,6 +199,298 @@ function EditableParagraph({
   );
 }
 
+/** A single Schedule I cell — dual-rendered input (screen) / span (print), same print-safety pattern as the rest of the document. */
+function ScheduleCell({
+  value, onChange, readOnly, label,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  readOnly: boolean;
+  label: string;
+}) {
+  if (readOnly) return <>{value || "—"}</>;
+  return (
+    <>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="—"
+        aria-label={label}
+        className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 print:hidden"
+      />
+      <span className="hidden print:inline">{value || "—"}</span>
+    </>
+  );
+}
+
+function SchedulePartTable({
+  part, agreement, readOnly, onPatch,
+}: {
+  part: "A" | "C" | "D";
+  agreement: AgreementDoc;
+  readOnly: boolean;
+  onPatch: (key: AgreementScheduleKey, value: string) => void;
+}) {
+  const fields = AGREEMENT_SCHEDULE_FIELDS.filter((f) => f.part === part);
+  return (
+    <table className="mt-3 w-full border-collapse text-sm">
+      <thead>
+        <tr>
+          <th className="border border-ink-300 bg-brand-700 px-3 py-1.5 text-left text-xs font-semibold text-white">Parameter</th>
+          <th className="border border-ink-300 bg-brand-700 px-3 py-1.5 text-left text-xs font-semibold text-white">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {fields.map((f, i) => (
+          <tr key={f.key} className={i % 2 === 0 ? "bg-ink-50" : "bg-white"}>
+            <td className="border border-ink-300 px-3 py-1.5 font-medium text-ink-800">{f.label}</td>
+            <td className="border border-ink-300 px-3 py-1.5 text-ink-700">
+              <ScheduleCell
+                value={agreement.scheduleI[f.key] ?? ""}
+                onChange={(v) => onPatch(f.key, v)}
+                readOnly={readOnly}
+                label={f.label}
+              />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/** Schedule I, Part B — the fixed Scenario A vs B reference matrix. Never edited per lead. */
+function ScenarioMatrixTable() {
+  return (
+    <table className="mt-3 w-full border-collapse text-xs">
+      <thead>
+        <tr>
+          <th className="border border-ink-300 bg-brand-700 px-2 py-1.5 text-left font-semibold text-white">Parameter</th>
+          <th className="border border-ink-300 bg-brand-700 px-2 py-1.5 text-left font-semibold text-white">Scenario A — Livanto Site</th>
+          <th className="border border-ink-300 bg-brand-700 px-2 py-1.5 text-left font-semibold text-white">Scenario B — Franchisee Site</th>
+        </tr>
+      </thead>
+      <tbody>
+        {AGREEMENT_SCENARIO_MATRIX.map((row, i) => (
+          <tr key={row.parameter} className={i % 2 === 0 ? "bg-ink-50" : "bg-white"}>
+            <td className="border border-ink-300 px-2 py-1.5 font-medium text-ink-800">{row.parameter}</td>
+            <td className="border border-ink-300 px-2 py-1.5 text-ink-700">{row.scenarioA}</td>
+            <td className="border border-ink-300 px-2 py-1.5 text-ink-700">{row.scenarioB}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/** Schedule II, Part A / B — the Charging Station / Infrastructure Works BOM tables, auto-seeded from the quote and freely editable thereafter. GST is computed per row from that row's own gstPct, not a flat rate. */
+function BomTable({
+  title, items, readOnly, onChange,
+}: {
+  title: string;
+  items: AgreementBomRow[];
+  readOnly: boolean;
+  onChange: (rows: AgreementBomRow[]) => void;
+}) {
+  function patchRow(id: string, p: Partial<AgreementBomRow>) {
+    onChange(items.map((r) => (r.id === id ? { ...r, ...p } : r)));
+  }
+  const subtotal = items.reduce((a, r) => a + r.value, 0);
+
+  return (
+    <>
+      <table className="mt-3 w-full border-collapse text-xs">
+        <thead>
+          <tr className="border-y border-ink-300 bg-ink-50 break-inside-avoid">
+            <th className="w-10 px-2 py-1.5 text-left font-semibold">S.No.</th>
+            <th className="px-2 py-1.5 text-left font-semibold">Item Description</th>
+            <th className="w-32 px-2 py-1.5 text-left font-semibold">Serial No.</th>
+            <th className="w-14 px-2 py-1.5 text-right font-semibold">Qty</th>
+            <th className="w-24 px-2 py-1.5 text-right font-semibold">Value (Rs.)</th>
+            <th className="w-14 px-2 py-1.5 text-right font-semibold">GST %</th>
+            <th className="w-24 px-2 py-1.5 text-right font-semibold">Total (Rs.)</th>
+            {!readOnly && <th className="w-8 print:hidden" />}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((row, i) => {
+            const lineTotal = row.value * (1 + row.gstPct / 100);
+            return (
+              <tr key={row.id} className="border-b border-ink-200 align-top break-inside-avoid">
+                <td className="px-2 py-1.5 tabular-nums">{i + 1}</td>
+                <td className="px-2 py-1.5">
+                  {readOnly ? row.description : (
+                    <input
+                      value={row.description}
+                      onChange={(e) => patchRow(row.id, { description: e.target.value })}
+                      className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none print:border-0"
+                      aria-label={`Description for row ${i + 1}`}
+                    />
+                  )}
+                </td>
+                <td className="px-2 py-1.5">
+                  {readOnly ? (row.serialNo || "—") : (
+                    <input
+                      value={row.serialNo}
+                      onChange={(e) => patchRow(row.id, { serialNo: e.target.value })}
+                      placeholder="—"
+                      className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none print:border-0"
+                      aria-label={`Serial number for row ${i + 1}`}
+                    />
+                  )}
+                </td>
+                <td className="px-2 py-1.5 text-right tabular-nums">
+                  {readOnly ? row.qty : (
+                    <input
+                      type="number"
+                      value={row.qty || ""}
+                      onChange={(e) => patchRow(row.id, { qty: Number(e.target.value) || 0 })}
+                      className="w-full rounded border border-transparent bg-transparent px-1 text-right hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none print:border-0"
+                      aria-label={`Quantity for row ${i + 1}`}
+                    />
+                  )}
+                </td>
+                <td className="px-2 py-1.5 text-right tabular-nums">
+                  {readOnly ? formatINR(row.value) : (
+                    <input
+                      type="number"
+                      value={row.value || ""}
+                      onChange={(e) => patchRow(row.id, { value: Number(e.target.value) || 0 })}
+                      className="w-full rounded border border-transparent bg-transparent px-1 text-right hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none print:border-0"
+                      aria-label={`Value for row ${i + 1}`}
+                    />
+                  )}
+                </td>
+                <td className="px-2 py-1.5 text-right tabular-nums">
+                  {readOnly ? row.gstPct : (
+                    <input
+                      type="number"
+                      value={row.gstPct || ""}
+                      onChange={(e) => patchRow(row.id, { gstPct: Number(e.target.value) || 0 })}
+                      className="w-full rounded border border-transparent bg-transparent px-1 text-right hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none print:border-0"
+                      aria-label={`GST percent for row ${i + 1}`}
+                    />
+                  )}
+                </td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{formatINR(lineTotal)}</td>
+                {!readOnly && (
+                  <td className="px-1 py-1.5 print:hidden">
+                    <button
+                      type="button"
+                      onClick={() => onChange(items.filter((r) => r.id !== row.id))}
+                      className="rounded p-1 text-ink-400 hover:bg-rose-50 hover:text-rose-600"
+                      aria-label={`Remove row ${i + 1}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+          <tr className="border-b-2 border-ink-400 font-bold break-inside-avoid">
+            <td />
+            <td className="px-2 py-2" colSpan={4}>Sub-total — {title}</td>
+            <td className="px-2 py-2" />
+            <td className="px-2 py-2 text-right tabular-nums">{formatINR(subtotal)}</td>
+            {!readOnly && <td className="print:hidden" />}
+          </tr>
+        </tbody>
+      </table>
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={() => onChange([...items, { id: `bom${Date.now()}`, description: "", serialNo: "", qty: 1, value: 0, gstPct: 18 }])}
+          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline print:hidden"
+        >
+          <Plus className="h-3 w-3" /> Add a row
+        </button>
+      )}
+    </>
+  );
+}
+
+/** Schedule II, Part C — the payment instalments table. Amounts are GST-inclusive, same convention as the EOI's own Participation Summary. */
+function InstalmentsTable({
+  instalments, readOnly, onChange,
+}: {
+  instalments: AgreementInstalmentRow[];
+  readOnly: boolean;
+  onChange: (rows: AgreementInstalmentRow[]) => void;
+}) {
+  function patchRow(id: string, p: Partial<AgreementInstalmentRow>) {
+    onChange(instalments.map((r) => (r.id === id ? { ...r, ...p } : r)));
+  }
+  const total = instalments.reduce((a, r) => a + r.amount, 0);
+
+  return (
+    <>
+      <table className="mt-3 w-full border-collapse text-sm">
+        <thead>
+          <tr className="border-y border-ink-300 bg-ink-50">
+            <th className="px-2 py-1.5 text-left font-semibold">Particulars</th>
+            <th className="w-40 px-2 py-1.5 text-right font-semibold">Amount (Rs.)</th>
+            {!readOnly && <th className="w-8 print:hidden" />}
+          </tr>
+        </thead>
+        <tbody>
+          {instalments.map((row, i) => (
+            <tr key={row.id} className="border-b border-ink-200 align-top">
+              <td className="px-2 py-1.5">
+                {readOnly ? row.label : (
+                  <input
+                    value={row.label}
+                    onChange={(e) => patchRow(row.id, { label: e.target.value })}
+                    className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none print:border-0"
+                    aria-label={`Label for instalment ${i + 1}`}
+                  />
+                )}
+              </td>
+              <td className="px-2 py-1.5 text-right tabular-nums">
+                {readOnly ? formatINR(row.amount) : (
+                  <input
+                    type="number"
+                    value={row.amount || ""}
+                    onChange={(e) => patchRow(row.id, { amount: Number(e.target.value) || 0 })}
+                    className="w-full rounded border border-transparent bg-transparent px-1 text-right hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none print:border-0"
+                    aria-label={`Amount for instalment ${i + 1}`}
+                  />
+                )}
+              </td>
+              {!readOnly && (
+                <td className="px-1 py-1.5 print:hidden">
+                  <button
+                    type="button"
+                    onClick={() => onChange(instalments.filter((r) => r.id !== row.id))}
+                    className="rounded p-1 text-ink-400 hover:bg-rose-50 hover:text-rose-600"
+                    aria-label={`Remove instalment ${i + 1}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+          <tr className="border-b-2 border-ink-400 font-bold">
+            <td className="px-2 py-2">Total Payable (incl. GST)</td>
+            <td className="px-2 py-2 text-right tabular-nums">{formatINR(total)}</td>
+            {!readOnly && <td className="print:hidden" />}
+          </tr>
+        </tbody>
+      </table>
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={() => onChange([...instalments, { id: `i${Date.now()}`, label: "", amount: 0 }])}
+          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline print:hidden"
+        >
+          <Plus className="h-3 w-3" /> Add a row
+        </button>
+      )}
+    </>
+  );
+}
+
 /** The letter itself — shared between the live editable draft and a read-only archived version, and reused verbatim by the investor portal. */
 export function AgreementLetterArticle({
   agreement, company, readOnly, onPatch,
@@ -198,11 +498,14 @@ export function AgreementLetterArticle({
   agreement: AgreementDoc;
   company: AppSettings["company"];
   readOnly?: boolean;
-  /** When set, Schedule I, recitals and clause text all become editable directly on the letter — mirrors how the Letter of Intent stays editable inline. */
+  /** When set, Schedule I/II, recitals and clause text all become editable directly on the letter — mirrors how the Letter of Intent stays editable inline. */
   onPatch?: (p: Partial<AgreementDoc>) => void;
 }) {
   const recitals = agreement.recitals ?? AGREEMENT_RECITALS;
   const clauses = agreement.clauses ?? AGREEMENT_CLAUSES;
+  const chargingStationItems = agreement.chargingStationItems ?? [];
+  const infrastructureItems = agreement.infrastructureItems ?? [];
+  const instalments = agreement.instalments ?? [];
   const editable = Boolean(onPatch) && !readOnly;
 
   function patchSchedule(key: AgreementScheduleKey, value: string) {
@@ -220,46 +523,37 @@ export function AgreementLetterArticle({
     });
   }
 
+  const consideration = chargingStationItems.reduce((a, r) => a + r.value, 0) + infrastructureItems.reduce((a, r) => a + r.value, 0);
+  const considerationGst = consideration * 0.18;
+  const annexureItems = [...chargingStationItems, ...infrastructureItems];
+
   return (
     <article className="loi-sheet loi-letter rounded-xl border border-ink-200 bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
       <PrintDocument
-        header={<PrintHeader company={company} docLabel="Franchise and Commercial Partnership Agreement" docNumber={agreement.number} />}
+        header={<PrintHeader company={company} docLabel="EV Charging Station Franchise and Operation Agreement" docNumber={agreement.number} />}
         footer={<PrintFooter company={company} />}
       >
         <h1 className="text-center text-base font-bold uppercase tracking-wide text-ink-900">EV Charging Station</h1>
-        <h2 className="mt-1 text-center text-sm font-bold uppercase tracking-wide text-ink-700">Franchise and Commercial Partnership Agreement</h2>
-        <p className="mt-4 text-sm text-ink-700">
-          This Franchise and Commercial Partnership Agreement (&ldquo;Agreement&rdquo;) is entered into on this{" "}
-          {agreement.issuedDate ? formatDate(agreement.issuedDate) : "____"} (&ldquo;Effective Date&rdquo;), at Lucknow, Uttar Pradesh.
-        </p>
+        <h2 className="mt-1 text-center text-sm font-bold uppercase tracking-wide text-ink-700">{AGREEMENT_TITLE}</h2>
 
-        <p className="mt-4 text-center text-sm font-bold text-ink-900">BY AND BETWEEN</p>
+        {AGREEMENT_PREAMBLE.map((p, i) => (
+          <p key={i} className="mt-3 text-sm leading-relaxed text-ink-700">{p}</p>
+        ))}
+        <p className="mt-3 text-sm italic leading-relaxed text-ink-600">{AGREEMENT_SITE_SCENARIO_NOTE}</p>
 
-        <p className="mt-3 text-sm leading-relaxed text-ink-700">
-          <strong>Livanto Green Infra Private Limited</strong>, a company incorporated under the Companies Act, 2013,
-          bearing CIN: U35100UP2025PTC232160, having its registered office at 3 Millennium Palace, Sushant Golf City,
-          Lucknow, Uttar Pradesh &ndash; 226030, represented by its authorised signatory (hereinafter referred to as
-          &ldquo;Livanto&rdquo; or the &ldquo;Franchisor&rdquo;, which expression shall, unless repugnant to the
-          context or meaning thereof, include its successors, permitted assigns and authorised representatives), of
-          the <strong>First Part</strong>;
-        </p>
-
-        <p className="mt-3 text-center text-sm font-bold text-ink-900">AND</p>
-
-        <p className="mt-3 text-sm leading-relaxed text-ink-700">
-          <strong>{agreement.scheduleI.clientName || "[CLIENT NAME]"}</strong>, a{" "}
-          <strong>{agreement.scheduleI.entityType || "[individual / proprietorship / partnership firm / private limited company]"}</strong>,
-          having <strong>registered office / residential address</strong> at{" "}
-          <strong>{agreement.scheduleI.registeredAddress || "[COMPLETE ADDRESS]"}</strong>, represented by its authorised
-          representative/signatory [NAME], [Designation, if applicable] (hereinafter referred to as the
-          &ldquo;Franchisee&rdquo;, which expression shall, unless repugnant to the context or meaning thereof,
-          include its successors, permitted assigns, heirs, executors and authorised representatives), of the{" "}
-          <strong>Second Part</strong>;
-        </p>
-
-        <p className="mt-3 text-sm leading-relaxed text-ink-700">
-          (Livanto and the Franchisee shall hereinafter be collectively referred to as the &ldquo;Parties&rdquo; and
-          individually as a &ldquo;Party&rdquo;.)
+        {editable && (
+          <div className="mt-3 flex items-center gap-2 print:hidden">
+            <span className="text-xs font-semibold text-ink-700">Selected Scenario:</span>
+            <Select
+              value={agreement.scenario}
+              onChange={(e) => onPatch?.({ scenario: e.target.value as AgreementScenario })}
+              className="w-auto"
+              options={AGREEMENT_SCENARIOS.map((s) => ({ value: s, label: AGREEMENT_SCENARIO_LABEL[s] }))}
+            />
+          </div>
+        )}
+        <p className="hidden text-sm font-semibold text-ink-800 print:block">
+          Selected Scenario: {AGREEMENT_SCENARIO_LABEL[agreement.scenario]}
         </p>
 
         <h3 className="mt-5 text-sm font-bold text-ink-900">RECITALS</h3>
@@ -274,6 +568,8 @@ export function AgreementLetterArticle({
             />
           </div>
         ))}
+
+        <p className="mt-4 text-sm leading-relaxed text-ink-700">{AGREEMENT_OPERATIVE_WORDS}</p>
 
         {clauses.map((c, ci) => (
           <div key={c.number} className="mt-5">
@@ -302,7 +598,7 @@ export function AgreementLetterArticle({
             <p className="mt-2">Date: ____________________________</p>
           </div>
           <div>
-            <p className="font-semibold text-ink-900">For {agreement.scheduleI.clientName || "the Franchisee"}</p>
+            <p className="font-semibold text-ink-900">For {agreement.scheduleI.franchiseeName || "the Franchisee"}</p>
             <p className="mt-4">Signature: ____________________________</p>
             <p className="mt-2">Name: ____________________________</p>
             <p className="mt-2">Designation: ____________________________</p>
@@ -310,39 +606,116 @@ export function AgreementLetterArticle({
           </div>
         </div>
 
-        <h3 className="mt-8 text-center text-sm font-bold text-ink-900">SCHEDULE I</h3>
-        <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Site, Charger, Tenure and Commercial Details</p>
+        {/* Schedule I */}
+        <h3 className="mt-8 text-center text-sm font-bold text-ink-900 break-before-page">SCHEDULE I</h3>
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Site, Charger, Tenure and Commercial Particulars</p>
         <p className="mt-2 text-sm text-ink-700">
-          The Parties confirm that the details set out in this Schedule I are accurate as of the date of execution
-          of the Agreement and form an integral part thereof.
+          The Parties confirm that the particulars set out in this Schedule I are accurate as at the date of execution
+          of this Agreement and form an integral part thereof.
         </p>
+
+        <h4 className="mt-4 text-sm font-bold text-ink-900">Part A — Parties, Site and Site Scenario</h4>
+        <SchedulePartTable part="A" agreement={agreement} readOnly={!editable} onPatch={patchSchedule} />
+
+        <h4 className="mt-5 text-sm font-bold text-ink-900">Part B — Operating Model Matrix</h4>
+        <p className="mt-1 text-xs text-ink-600">The column corresponding to the Selected Scenario above is the operative column for this Agreement.</p>
+        <ScenarioMatrixTable />
+
+        <h4 className="mt-5 text-sm font-bold text-ink-900">Part C — Charging Station, Tenure and Commercial Terms</h4>
+        <SchedulePartTable part="C" agreement={agreement} readOnly={!editable} onPatch={patchSchedule} />
+
+        <h4 className="mt-5 text-sm font-bold text-ink-900">Part D — Buyback Particulars</h4>
+        <SchedulePartTable part="D" agreement={agreement} readOnly={!editable} onPatch={patchSchedule} />
+
+        {/* Schedule II */}
+        <h3 className="mt-8 text-center text-sm font-bold text-ink-900 break-before-page">SCHEDULE II</h3>
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Bill of Material, Consideration and Asset Identification</p>
+        <p className="mt-2 text-sm text-ink-700">
+          The Franchisee Assets sold by Livanto to the Franchisee under Clause 5 comprise the items in Parts A and B
+          below. The Franchisee is and shall remain the sole and absolute owner of every item so listed.
+        </p>
+
+        <h4 className="mt-4 text-sm font-bold text-ink-900">Part A — Charging Station (charger equipment)</h4>
+        <BomTable
+          title="Charging Station (Original Equipment Cost)"
+          items={chargingStationItems}
+          readOnly={!editable}
+          onChange={(rows) => onPatch?.({ chargingStationItems: rows })}
+        />
+
+        <h4 className="mt-5 text-sm font-bold text-ink-900">Part B — Infrastructure Works (funded by and owned by the Franchisee)</h4>
+        <p className="mt-1 text-xs text-ink-600">
+          The following are funded by the Franchisee out of the consideration under Part C and belong absolutely to
+          the Franchisee. They do not form part of the Charging Station and are dealt with separately on expiry or
+          termination under Clause 21.9.
+        </p>
+        <BomTable
+          title="Infrastructure Works"
+          items={infrastructureItems}
+          readOnly={!editable}
+          onChange={(rows) => onPatch?.({ infrastructureItems: rows })}
+        />
+
+        <h4 className="mt-5 text-sm font-bold text-ink-900">Part C — Total Consideration and Payment Milestones</h4>
+        <table className="mt-2 w-full max-w-md border-collapse text-sm">
+          <tbody>
+            <tr className="border-b border-ink-200">
+              <td className="px-2 py-1.5">Total Consideration (Parts A + B, exclusive of GST)</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{formatINR(consideration)}</td>
+            </tr>
+            <tr className="border-b border-ink-200">
+              <td className="px-2 py-1.5">GST @ 18%</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{formatINR(considerationGst)}</td>
+            </tr>
+            <tr className="border-b-2 border-ink-400 font-bold">
+              <td className="px-2 py-2">Total Payable</td>
+              <td className="px-2 py-2 text-right tabular-nums">{formatINR(consideration + considerationGst)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <InstalmentsTable instalments={instalments} readOnly={!editable} onChange={(rows) => onPatch?.({ instalments: rows })} />
+
+        <h4 className="mt-5 text-sm font-bold text-ink-900">Part D — Warranty and AMC Included in the Consideration</h4>
+        <p className="mt-2 text-sm text-ink-700">{AGREEMENT_SCHEDULE_II_PART_D_NOTE}</p>
+
+        {/* Schedule III */}
+        <h3 className="mt-8 text-center text-sm font-bold text-ink-900 break-before-page">SCHEDULE III</h3>
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Scope of Operations &amp; Maintenance and AMC</p>
+        {AGREEMENT_SCHEDULE_III.map((s) => (
+          <div key={s.number} className="mt-4">
+            <h4 className="text-sm font-bold text-ink-900">{s.number}. {s.heading}</h4>
+            {s.paragraphs.map((p, pi) => <p key={pi} className="mt-2 text-sm leading-relaxed text-ink-700">{p}</p>)}
+          </div>
+        ))}
+
+        {/* Schedule IV */}
+        <h3 className="mt-8 text-center text-sm font-bold text-ink-900 break-before-page">SCHEDULE IV</h3>
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">{AGREEMENT_SCHEDULE_IV.heading}</p>
+        {AGREEMENT_SCHEDULE_IV.paragraphs.map((p, pi) => <p key={pi} className="mt-2 text-sm leading-relaxed text-ink-700">{p}</p>)}
+
+        {/* Annexure A */}
+        <h3 className="mt-8 text-center text-sm font-bold text-ink-900 break-before-page">ANNEXURE A</h3>
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">{AGREEMENT_ANNEXURE_A_HEADING}</p>
+        <p className="mt-1 text-center text-xs italic text-ink-500">{AGREEMENT_ANNEXURE_A_SUBTITLE}</p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-700">{AGREEMENT_ANNEXURE_A_INTRO}</p>
+        {AGREEMENT_ANNEXURE_A_PARAGRAPHS.map((p, pi) => <p key={pi} className="mt-2 text-sm leading-relaxed text-ink-700">{p}</p>)}
+
         <table className="mt-3 w-full border-collapse text-sm">
           <thead>
-            <tr>
-              <th className="border border-ink-300 bg-brand-700 px-3 py-1.5 text-left text-xs font-semibold text-white">Parameter</th>
-              <th className="border border-ink-300 bg-brand-700 px-3 py-1.5 text-left text-xs font-semibold text-white">Detail</th>
+            <tr className="border-y border-ink-300 bg-ink-50">
+              <th className="w-10 px-2 py-1.5 text-left font-semibold">S.No.</th>
+              <th className="px-2 py-1.5 text-left font-semibold">Equipment</th>
+              <th className="w-40 px-2 py-1.5 text-left font-semibold">Serial Number</th>
             </tr>
           </thead>
           <tbody>
-            {AGREEMENT_SCHEDULE_FIELDS.map((f, i) => (
-              <tr key={f.key} className={i % 2 === 0 ? "bg-ink-50" : "bg-white"}>
-                <td className="border border-ink-300 px-3 py-1.5 font-medium text-ink-800">{f.label}</td>
-                <td className="border border-ink-300 px-3 py-1.5 text-ink-700">
-                  {editable ? (
-                    <>
-                      <input
-                        value={agreement.scheduleI[f.key] ?? ""}
-                        onChange={(e) => patchSchedule(f.key, e.target.value)}
-                        placeholder="—"
-                        aria-label={f.label}
-                        className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 print:hidden"
-                      />
-                      <span className="hidden print:inline">{agreement.scheduleI[f.key] || "—"}</span>
-                    </>
-                  ) : (
-                    agreement.scheduleI[f.key] || "—"
-                  )}
-                </td>
+            {annexureItems.length === 0 ? (
+              <tr><td colSpan={3} className="px-2 py-2 text-ink-500">No equipment recorded on Schedule II yet.</td></tr>
+            ) : annexureItems.map((row, i) => (
+              <tr key={row.id} className="border-b border-ink-200">
+                <td className="px-2 py-1.5 tabular-nums">{i + 1}</td>
+                <td className="px-2 py-1.5">{row.description || "—"}</td>
+                <td className="px-2 py-1.5">{row.serialNo || "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -397,7 +770,15 @@ export function AgreementPanel({
     });
   }
 
-  // General patch for the live letter — Schedule I cells, recitals and
+  function patchScenario(scenario: AgreementScenario) {
+    setDraft((d) => {
+      const base = d ?? lead.agreement;
+      if (!base) return d;
+      return { ...base, scenario };
+    });
+  }
+
+  // General patch for the live letter — Schedule I/II cells, recitals and
   // clause paragraphs all flow through here, same as the modal-only
   // patchSchedule above but for the whole document.
   function patch(p: Partial<AgreementDoc>) {
@@ -439,6 +820,7 @@ export function AgreementPanel({
           draft={draft}
           onClose={() => { setCreateOpen(false); setDraft(null); }}
           onPatch={patchSchedule}
+          onScenario={patchScenario}
           onFetch={fetchFromLead}
           busy={busy}
           onSave={() =>
@@ -461,7 +843,7 @@ export function AgreementPanel({
       <Card
         className="print:hidden"
         title="Franchise Agreement"
-        subtitle={`${current.number} · ${AGREEMENT_STATUS_LABEL[current.status]}${dirty ? " · Unsaved changes" : ""}`}
+        subtitle={`${current.number} · ${AGREEMENT_STATUS_LABEL[current.status]} · ${AGREEMENT_SCENARIO_LABEL[current.scenario]}${dirty ? " · Unsaved changes" : ""}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={AGREEMENT_STATUS_COLOR[current.status]}>{AGREEMENT_STATUS_LABEL[current.status]}</Badge>
@@ -531,8 +913,8 @@ export function AgreementPanel({
       >
         <p className="text-xs text-ink-500">
           {canEdit && current.status !== "SIGNED"
-            ? "Click any line below — recitals, clauses or Schedule I — to edit it directly, then Save changes."
-            : "Recitals, clauses and Schedule I are seeded from Livanto's standard template and can be edited per lead."}
+            ? "Click any line below — recitals, clauses, Schedule I or Schedule II — to edit it directly, then Save changes."
+            : "Recitals, clauses, Schedule I and Schedule II are seeded from Livanto's standard MASTER template and can be edited per lead."}
           {current.issuedDate && ` Issued ${formatDateTime(current.issuedDate)}.`}
         </p>
       </Card>
@@ -553,6 +935,7 @@ export function AgreementPanel({
         onClose={() => { setRegenerateOpen(false); setDraft(null); }}
         title="Edit Schedule I"
         description="Regenerating archives the current Agreement to Previous versions, then replaces it with these details under a new number."
+        wide
         footer={
           <>
             <Button onClick={() => { setRegenerateOpen(false); setDraft(null); }}>Cancel</Button>
@@ -574,7 +957,7 @@ export function AgreementPanel({
           </>
         }
       >
-        <ScheduleForm draft={draft} onPatch={patchSchedule} onFetch={fetchFromLead} />
+        <ScheduleForm draft={draft} onPatch={patchSchedule} onScenario={patchScenario} onFetch={fetchFromLead} />
       </Modal>
 
       <Modal
@@ -639,10 +1022,11 @@ export function AgreementPanel({
 }
 
 function ScheduleForm({
-  draft, onPatch, onFetch,
+  draft, onPatch, onScenario, onFetch,
 }: {
   draft: AgreementDoc | null;
   onPatch: (key: AgreementScheduleKey, value: string) => void;
+  onScenario: (scenario: AgreementScenario) => void;
   onFetch?: () => void;
 }) {
   if (!draft) return null;
@@ -653,6 +1037,13 @@ function ScheduleForm({
           <Download className="h-3.5 w-3.5" /> Fetch from EOI / lead
         </Button>
       )}
+      <Field label="Site Scenario">
+        <Select
+          value={draft.scenario}
+          onChange={(e) => onScenario(e.target.value as AgreementScenario)}
+          options={AGREEMENT_SCENARIOS.map((s) => ({ value: s, label: AGREEMENT_SCENARIO_LABEL[s] }))}
+        />
+      </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         {AGREEMENT_SCHEDULE_FIELDS.map((f) => (
           <Field key={f.key} label={f.label}>
@@ -668,12 +1059,13 @@ function ScheduleForm({
 }
 
 function CreateModal({
-  open, draft, onClose, onPatch, onFetch, onSave, busy,
+  open, draft, onClose, onPatch, onScenario, onFetch, onSave, busy,
 }: {
   open: boolean;
   draft: AgreementDoc | null;
   onClose: () => void;
   onPatch: (key: AgreementScheduleKey, value: string) => void;
+  onScenario: (scenario: AgreementScenario) => void;
   onFetch?: () => void;
   onSave: () => void;
   busy: boolean;
@@ -683,7 +1075,7 @@ function CreateModal({
       open={open}
       onClose={onClose}
       title="Draft the Franchise Agreement"
-      description="Fill in Schedule I — the 20 standard clauses need no editing."
+      description="Fill in Schedule I and pick the Site Scenario — the 27 standard clauses need no editing, and Schedule II is auto-seeded from the quote."
       wide
       footer={
         <>
@@ -694,7 +1086,7 @@ function CreateModal({
         </>
       }
     >
-      <ScheduleForm draft={draft} onPatch={onPatch} onFetch={onFetch} />
+      <ScheduleForm draft={draft} onPatch={onPatch} onScenario={onScenario} onFetch={onFetch} />
     </Modal>
   );
 }

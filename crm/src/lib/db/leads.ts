@@ -18,8 +18,8 @@ import {
   buildQuote, describeCapacity, normaliseConfig, normaliseExtras, type ConfigItem, type ExtraItem,
 } from "../pricing";
 import type {
-  Actor, AgreementDoc, AgreementVersion, ClientInfo, EoiDoc, EoiVersion, FinancingInfo, Lead,
-  MergedLeadRef, SiteInfo,
+  Actor, AgreementBomRow, AgreementDoc, AgreementInstalmentRow, AgreementVersion, ClientInfo, EoiDoc, EoiVersion,
+  FinancingInfo, Lead, MergedLeadRef, SiteInfo,
 } from "../types";
 import { buildSearchTokens, formatINR, normalisePhone, toDate, toE164India } from "../utils";
 import { logActivitySafe } from "./activity";
@@ -1243,27 +1243,102 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
   // Same source the EOI itself was built from, so the two never disagree.
   const tenureExtendable = eoi?.tenureExtendable ?? lead.site?.tenureExtendable ?? true;
   const perKwh = (n?: number) => (n ? `Rs. ${n.toFixed(2)} per kWh` : "");
+  const scenario: "A" | "B" = "A";
+
+  // Schedule II, Parts A & B — auto-seeded from the same quote engine the
+  // quotation/EOI already run, splitting each charger's own Equipment line
+  // (key ends -equip, or -blended for a combined line) into the Charging
+  // Station, and its Electrical & Civil Work line (key ends -civil) into
+  // Infrastructure Works.
+  const quote = buildQuote(lead.config, { extras: lead.extras, discount: lead.discount });
+  const chargingStationItems: AgreementBomRow[] = [];
+  const infrastructureItems: AgreementBomRow[] = [];
+  quote.chargerLines.forEach((line, i) => {
+    const row: AgreementBomRow = {
+      id: `bom${i}`,
+      description: line.label,
+      serialNo: "",
+      qty: line.qty,
+      value: line.base,
+      gstPct: line.gstPct,
+    };
+    if (line.key.endsWith("-civil")) infrastructureItems.push(row);
+    else chargingStationItems.push(row);
+  });
+  const originalEquipmentCost = chargingStationItems.reduce((a, r) => a + r.value, 0);
+  const infrastructureWorksCost = infrastructureItems.reduce((a, r) => a + r.value, 0);
+
+  // Schedule II, Part C — the four payment milestones, derived from the
+  // quote's own 3-stage advance/civil/equipment split (the same split the
+  // EOI's Participation Summary uses): the civil-work stage is divided in
+  // two, for commencement of site works and for DISCOM submission +
+  // completion of civil works respectively.
+  const [advanceMs, civilMs, equipMs] = quote.milestones;
+  const civilHalf = Math.round((civilMs?.total ?? 0) / 2);
+  const instalments: AgreementInstalmentRow[] = [
+    { id: "i1", label: "Instalment 1 — on execution", amount: advanceMs?.total ?? 0 },
+    { id: "i2", label: "Instalment 2 — on commencement of site works", amount: civilHalf },
+    { id: "i3", label: "Instalment 3 — on submission of DISCOM application and completion of civil works", amount: (civilMs?.total ?? 0) - civilHalf },
+    { id: "i4", label: "Instalment 4 — on COD and execution of the Annexure A certificate", amount: equipMs?.total ?? 0 },
+  ];
+
   return {
     number,
     status: "DRAFT",
     issuedDate: null,
+    scenario,
     scheduleI: {
-      clientName: lead.client?.name ?? "",
-      entityType: lead.client?.entityType === "FIRM" ? "Firm" : "Individual",
+      franchiseeName: lead.client?.name ?? "",
+      entityType: lead.client?.entityType === "FIRM" ? "Firm / Company" : "Individual",
+      panCinLlpin: lead.client?.pan ?? "",
+      gstin: lead.client?.gstin ?? "",
       registeredAddress: lead.client?.address ?? "",
+      authorisedSignatory: lead.client?.name ?? "",
+      franchiseeContact: [lead.client?.email, lead.client?.phone].filter(Boolean).join(" / "),
+      franchiseeBankDetails: "",
+      livantoNoticeAddress: "3 Millennium Palace, Sushant Golf City, Lucknow, Uttar Pradesh – 226030",
+      livantoContact: "info@livantogreen.com",
+      siteName: lead.site?.locationName ?? "",
       siteAddress: lead.site?.address || lead.site?.locationName || "",
+      siteHolder: scenario === "A" ? "Livanto" : "the Franchisee",
+      siteDocuments: "",
+      ownerLessor: "",
+      maxChargingStations: "2",
+      nonCompeteRadius: "",
+      arbitrationSeat: "Lucknow, Uttar Pradesh",
       chargerTypeCapacity: describeCapacity(lead.config),
+      numberOfChargingPoints: quote.unitCount ? String(quote.unitCount) : "",
+      targetCodPeriod: "4 months from the Effective Date",
+      longStopDate: "",
       tenure: tenureYears
         ? `${tenureYears} years from the Commercial Commissioning Date${tenureExtendable ? ", extendable by mutual written agreement" : ""}`
         : "",
+      publicSellingRate: perKwh(eoi?.sellingRatePerKwh),
+      electricityCost: "At DISCOM actuals — pure pass-through, no mark-up",
+      landUsageFee: perKwh(eoi?.siteOwnerSharePerKwh),
+      livantoFee: perKwh(eoi?.livantoEarningPerKwh),
+      franchiseeEarning: perKwh(eoi?.franchiseEarningPerKwh),
       minimumAssuredAmount: minMonthlyPayout ? `Rs. ${minMonthlyPayout.toLocaleString("en-IN")} per month` : "",
       payoutPeriod: payoutMonths ? `${payoutMonths} months from the Commercial Commissioning Date` : "",
-      livantoFee: perKwh(eoi?.livantoEarningPerKwh),
-      discomFee: perKwh(eoi?.discomRatePerKwh),
-      landUsageFee: perKwh(eoi?.siteOwnerSharePerKwh),
-      investorEarning: perKwh(eoi?.franchiseEarningPerKwh),
-      publicSellingRate: perKwh(eoi?.sellingRatePerKwh),
+      maxAggregateCap: "",
+      settlementDate: "On or before the 10th day of each calendar month, for the preceding Settlement Period",
+      interestRate: "12% per annum simple, from the due date until payment",
+      uptimeStandard: "90% average monthly uptime per Charging Point, best-effort",
+      liquidatedDamages: "",
+      insurancePremiumBorne: "Livanto",
+      subsidySharing: "",
+      warrantyPeriod: "24 months from the COD",
+      amcPeriod: tenureYears ? `${tenureYears} years from the COD` : "",
+      originalEquipmentCost: originalEquipmentCost ? `Rs. ${originalEquipmentCost.toLocaleString("en-IN")}` : "",
+      depreciationRate: "",
+      buybackFloorCharger: "",
+      infrastructureWorksCost: infrastructureWorksCost ? `Rs. ${infrastructureWorksCost.toLocaleString("en-IN")}` : "",
+      buybackFloorInfra: "",
+      buybackPaymentPeriod: "45 days from exercise of the Buyback Option",
     },
+    chargingStationItems,
+    infrastructureItems,
+    instalments,
     // Seeded from the standard template as a per-agreement, editable copy —
     // not a reference to the shared constant, so editing one lead's wording
     // never touches another's.

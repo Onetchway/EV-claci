@@ -210,20 +210,51 @@ export interface EoiVersion extends EoiDoc {
   archivedBy: Actor;
 }
 
+/** One priced line on the Agreement's Schedule II, Part A (Charging Station) or Part B (Infrastructure Works) — auto-seeded from the lead's own quotation (which already splits each charger into an Equipment line and an Electrical & Civil Work line), then freely editable. */
+export interface AgreementBomRow {
+  id: string;
+  description: string;
+  /** Make/model/serial number — blank at draft time; filled in at delivery, same as the source template's own [Serial No.] placeholder. */
+  serialNo: string;
+  qty: number;
+  /** GST-exclusive. */
+  value: number;
+  gstPct: number;
+}
+
+/** One row of Schedule II, Part C — the payment milestones for the Franchisee Assets. Amount is GST-inclusive, same convention as EoiScheduleRow. */
+export interface AgreementInstalmentRow {
+  id: string;
+  label: string;
+  amount: number;
+}
+
 /**
- * The Franchise Agreement. Unlike EoiDoc, the 20 clause bodies are fixed
- * legal language (src/lib/agreement-template.ts) never edited per lead —
- * only Schedule I (the site/commercial specifics) varies deal to deal, kept
- * here as a plain key/value map keyed by AgreementScheduleKey.
+ * The Franchise and Operation Agreement. The 27 clause bodies and recitals
+ * are the fixed legal language of the standard template
+ * (src/lib/agreement-template.ts), seeded as an editable per-lead copy;
+ * Schedule I (site/commercial particulars) and Schedule II (the Bill of
+ * Material, consideration and payment instalments) vary deal to deal.
+ * Schedules III and IV (AMC/O&M scope and warranty terms) are fixed
+ * boilerplate, never edited per lead, so they aren't modelled as data here —
+ * see AGREEMENT_SCHEDULE_III / AGREEMENT_SCHEDULE_IV in agreement-template.ts.
  */
 export interface AgreementDoc {
   number: string;
   status: AgreementStatus;
   issuedDate: TS;
+  /** Which Site Scenario this Agreement is drawn under — Scenario A (Livanto's own site) or Scenario B (the Franchisee's site). Several clauses and Schedule I, Part B read differently depending on this. */
+  scenario: "A" | "B";
   /** Recitals and clause text, seeded from the standard template at draft time but editable per lead thereafter — falls back to the compiled template (agreement-template.ts) when unset, for agreements drafted before this existed. */
   recitals?: string[];
   clauses?: AgreementClause[];
   scheduleI: Partial<Record<AgreementScheduleKey, string>>;
+  /** Schedule II, Part A — the Charging Station (charger equipment) items. */
+  chargingStationItems: AgreementBomRow[];
+  /** Schedule II, Part B — the Infrastructure Works items (civil, electrical, DISCOM, installation, statutory, signage). */
+  infrastructureItems: AgreementBomRow[];
+  /** Schedule II, Part C — payment milestones. */
+  instalments: AgreementInstalmentRow[];
   createdAt: TS;
   createdBy?: Actor;
   updatedAt?: TS;
