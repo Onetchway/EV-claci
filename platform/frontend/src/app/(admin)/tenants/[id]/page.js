@@ -9,7 +9,7 @@ import {
 
 import {
   tenantsApi, featuresApi, billingPlansApi, invoicesApi, usageApi, provisioningApi,
-  addOnsApi, couponsApi, creditsApi, opsApi,
+  addOnsApi, couponsApi, creditsApi, opsApi, paymentsApi,
 } from '@/lib/api';
 
 const STATUS_BADGE = {
@@ -59,6 +59,7 @@ export default function TenantDetailPage() {
   const [couponCatalog, setCouponCatalog] = useState([]);
   const [tenantCoupons, setTenantCoupons] = useState([]);
   const [credits, setCredits] = useState({ data: [], balance: 0 });
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [tenantHealth, setTenantHealth] = useState(null);
@@ -122,7 +123,7 @@ export default function TenantDetailPage() {
     try {
       const [
         tenantRes, featuresRes, plansRes, invoicesRes, usageRes,
-        addOnCatalogRes, tenantAddOnsRes, couponCatalogRes, tenantCouponsRes, creditsRes,
+        addOnCatalogRes, tenantAddOnsRes, couponCatalogRes, tenantCouponsRes, creditsRes, paymentMethodsRes,
       ] = await Promise.all([
         tenantsApi.get(id),
         featuresApi.forTenant(id),
@@ -134,6 +135,7 @@ export default function TenantDetailPage() {
         couponsApi.list(),
         couponsApi.forTenant(id),
         creditsApi.forTenant(id),
+        paymentsApi.paymentMethods(id),
       ]);
       setTenant(tenantRes);
       setFeatures(featuresRes.data);
@@ -145,6 +147,7 @@ export default function TenantDetailPage() {
       setCouponCatalog(couponCatalogRes.data);
       setTenantCoupons(tenantCouponsRes.data);
       setCredits(creditsRes);
+      setPaymentMethods(paymentMethodsRes.data);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -279,6 +282,17 @@ export default function TenantDetailPage() {
     try {
       await couponsApi.unassignFromTenant(id, tenantCouponId);
       toast.success('Coupon unassigned.');
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const removePaymentMethod = async (methodId) => {
+    if (!window.confirm('Remove this saved card? Future invoices will no longer auto-charge.')) return;
+    try {
+      await paymentsApi.removePaymentMethod(methodId);
+      toast.success('Payment method removed.');
       load();
     } catch (err) {
       toast.error(err.message);
@@ -540,6 +554,29 @@ export default function TenantDetailPage() {
                     API key set first (see &quot;Rotate tenant API key&quot;).
                   </p>
                 </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <p className="card-title">Saved payment methods</p>
+                <p className="card-subtitle">Set by the tenant checking &quot;save card&quot; during checkout — enables auto-charge on future invoices.</p>
+              </div>
+            </div>
+            <div className="card-pad">
+              {paymentMethods.length === 0 ? (
+                <p className="text-sm text-ink-400">No saved card on file — invoices are billed via a payment link.</p>
+              ) : (
+                <ul className="divide-y divide-ink-100">
+                  {paymentMethods.map((m) => (
+                    <li key={m.id} className="flex items-center justify-between py-2 text-sm">
+                      <span className="text-ink-700 capitalize">{m.card_network || m.gateway} •••• {m.card_last4 || '····'}</span>
+                      <button className="text-danger-600 hover:underline" onClick={() => removePaymentMethod(m.id)}>Remove</button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </div>

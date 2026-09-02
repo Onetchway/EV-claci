@@ -14,5 +14,7 @@ router.get('/invoices/:invoiceId', ctrl.listForInvoice);
 router.post('/invoices/:invoiceId/order', requireRole('super_admin', 'billing_ops'), ctrl.createOrder);
 router.post('/:id/refund', requireRole('super_admin', 'billing_ops'), ctrl.refund);
 router.get('/:id/receipt', ctrl.receipt);
+router.get('/tenants/:tenantId/payment-methods', ctrl.listPaymentMethods);
+router.delete('/payment-methods/:id', requireRole('super_admin', 'billing_ops'), ctrl.deactivatePaymentMethod);
 
 module.exports = router;

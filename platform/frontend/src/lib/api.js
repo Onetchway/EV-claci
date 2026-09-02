@@ -109,6 +109,8 @@ export const paymentsApi = {
   createOrder: (invoiceId) => client.post(`/payments/invoices/${invoiceId}/order`),
   refund: (paymentId) => client.post(`/payments/${paymentId}/refund`),
   receipt: (paymentId) => client.get(`/payments/${paymentId}/receipt`),
+  paymentMethods: (tenantId) => client.get(`/payments/tenants/${tenantId}/payment-methods`),
+  removePaymentMethod: (id) => client.delete(`/payments/payment-methods/${id}`),
 };
 
 export const usageApi = {

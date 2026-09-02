@@ -3,6 +3,7 @@
 require('dotenv').config();
 const { query } = require('../config/database');
 const invoicesService = require('../services/invoices.service');
+const paymentsService = require('../services/payments.service');
 
 // Runs daily. For every active tenant whose billing_day matches today,
 // generates the invoice for the month that just ended — automatically,
@@ -25,6 +26,15 @@ async function run() {
       const invoice = await invoicesService.generateForTenant(tenant.id, periodStart, periodEnd, null);
       results.push({ tenant: tenant.name, invoice_number: invoice.invoice_number, total_amount: invoice.total_amount });
       console.log(`[invoices] Generated ${invoice.invoice_number} for ${tenant.name} (${invoice.total_amount})`);
+
+      // Best-effort: if this tenant has a saved card on file, try to bill it
+      // immediately rather than waiting for them to pay the link manually.
+      // Never blocks invoice generation -- see chargeSavedMethod's own comment.
+      const tenantRes = await query(`SELECT * FROM tenants WHERE id = $1`, [tenant.id]);
+      const chargeResult = await paymentsService.chargeSavedMethod(invoice, tenantRes.rows[0]).catch((err) => ({ attempted: true, ok: false, reason: err.message }));
+      if (chargeResult.attempted) {
+        console.log(`[invoices] Auto-charge for ${invoice.invoice_number}: ${chargeResult.ok ? chargeResult.status : `failed (${chargeResult.reason})`}`);
+      }
     } catch (err) {
       console.error(`[invoices] Failed to generate invoice for ${tenant.name}:`, err.message);
     }

@@ -112,6 +112,19 @@ const handleWebhook = async (rawBody, signature) => {
     getReceipt(payment.id)
       .then(sendReceiptEmail)
       .catch((err) => console.error(`[payments] Failed to email receipt for payment ${payment.id}:`, err.message));
+
+    // When the tenant checked "save card" during Checkout, Razorpay puts
+    // token_id/customer_id straight on the captured payment entity — no
+    // separate token.captured event needed. Recording it here is what lets
+    // chargeSavedMethod bill this tenant automatically next period.
+    if (payload.token_id && payload.customer_id) {
+      await query(
+        `INSERT INTO tenant_payment_methods (tenant_id, gateway, gateway_customer_id, gateway_token_id, card_last4, card_network, active)
+         VALUES ($1,'razorpay',$2,$3,$4,$5,true)
+         ON CONFLICT (tenant_id, gateway_token_id) DO UPDATE SET active = true`,
+        [payment.tenant_id, payload.customer_id, payload.token_id, payload.card?.last4 || null, payload.card?.network || null]
+      ).catch((err) => console.error(`[payments] Failed to save payment method for tenant ${payment.tenant_id}:`, err.message));
+    }
   } else if (event.event === 'payment.failed') {
     await query(
       `UPDATE payments SET status = 'failed', gateway_payment_id = $1, failure_reason = $2, updated_at = NOW() WHERE id = $3`,
@@ -188,4 +201,95 @@ const getReceipt = async (paymentId) => {
   };
 };
 
-module.exports = { createOrderForInvoice, listForInvoice, handleWebhook, refund, razorpayConfigured, getReceipt };
+const listPaymentMethods = async (tenantId) => {
+  const res = await query(
+    `SELECT id, gateway, card_last4, card_network, active, created_at
+     FROM tenant_payment_methods WHERE tenant_id = $1 AND active ORDER BY created_at DESC`,
+    [tenantId]
+  );
+  return res.rows;
+};
+
+const deactivatePaymentMethod = async (id, actor) => {
+  const res = await query(
+    `UPDATE tenant_payment_methods SET active = false WHERE id = $1 RETURNING tenant_id`,
+    [id]
+  );
+  if (!res.rows[0]) { const e = new Error('Payment method not found'); e.status = 404; throw e; }
+  await audit.log({ superAdminId: actor?.id, tenantId: res.rows[0].tenant_id, action: 'payment_method.removed', details: { payment_method_id: id } });
+  return { ok: true };
+};
+
+// Best-effort recurring charge against a tenant's saved card (spec section
+// 41's auto-charge). Never throws -- a tenant with no saved method, or a
+// declined/erroring charge, should fall back to the normal "invoice sits as
+// issued, tenant pays via the link" flow rather than blocking invoice
+// generation. Razorpay's saved-card recurring charge (POST /payments/create/
+// recurring) needs a live RAZORPAY_KEY_ID/SECRET and a real saved token to
+// actually exercise -- this cannot be verified against a live gateway in
+// this environment, so treat the gateway call itself as unverified even
+// though the surrounding bookkeeping (order/payment rows, status handling)
+// follows the exact same pattern as createOrderForInvoice/handleWebhook,
+// which *are* verified.
+const chargeSavedMethod = async (invoice, tenant) => {
+  if (!razorpayConfigured()) return { attempted: false, reason: 'razorpay_not_configured' };
+
+  const methodRes = await query(
+    `SELECT * FROM tenant_payment_methods WHERE tenant_id = $1 AND active ORDER BY created_at DESC LIMIT 1`,
+    [invoice.tenant_id]
+  );
+  const method = methodRes.rows[0];
+  if (!method) return { attempted: false, reason: 'no_saved_method' };
+
+  const amountPaise = Math.round(Number(invoice.total_amount) * 100);
+  let order;
+  try {
+    order = await razorpayRequest('/orders', {
+      amount: amountPaise,
+      currency: invoice.currency,
+      receipt: invoice.invoice_number,
+      notes: { invoice_id: invoice.id, tenant_id: invoice.tenant_id, auto_charge: '1' },
+    });
+  } catch (err) {
+    return { attempted: true, ok: false, reason: `order_creation_failed: ${err.message}` };
+  }
+
+  const paymentRow = await query(
+    `INSERT INTO payments (invoice_id, tenant_id, gateway, gateway_order_id, amount, currency, status, auto_charged)
+     VALUES ($1,$2,'razorpay',$3,$4,$5,'created',true) RETURNING *`,
+    [invoice.id, invoice.tenant_id, order.id, invoice.total_amount, invoice.currency]
+  );
+
+  try {
+    const charge = await razorpayRequest('/payments/create/recurring', {
+      email: tenant.contact_email,
+      contact: tenant.contact_phone || undefined,
+      amount: amountPaise,
+      currency: invoice.currency,
+      order_id: order.id,
+      customer_id: method.gateway_customer_id,
+      token: method.gateway_token_id,
+      recurring: '1',
+    });
+
+    if (charge.status === 'captured') {
+      await query(`UPDATE payments SET status = 'paid', gateway_payment_id = $1, updated_at = NOW() WHERE id = $2`, [charge.id, paymentRow.rows[0].id]);
+      await invoices.setStatus(invoice.id, 'paid', null);
+      await audit.log({ tenantId: invoice.tenant_id, action: 'payment.auto_charged', details: { invoice_id: invoice.id, payment_id: charge.id } });
+      getReceipt(paymentRow.rows[0].id).then(sendReceiptEmail).catch(() => {});
+      return { attempted: true, ok: true, status: 'captured' };
+    }
+    // Not immediately captured (e.g. pending) -- the payment.captured
+    // webhook will finalize it via gateway_order_id, same as a manual pay.
+    return { attempted: true, ok: true, status: charge.status };
+  } catch (err) {
+    await query(`UPDATE payments SET status = 'failed', failure_reason = $1, updated_at = NOW() WHERE id = $2`, [err.message, paymentRow.rows[0].id]);
+    await notifications.emit({ type: 'auto_charge_failed', title: `Auto-charge failed: ${invoice.invoice_number}`, message: err.message, tenantId: invoice.tenant_id });
+    return { attempted: true, ok: false, reason: err.message };
+  }
+};
+
+module.exports = {
+  createOrderForInvoice, listForInvoice, handleWebhook, refund, razorpayConfigured, getReceipt,
+  listPaymentMethods, deactivatePaymentMethod, chargeSavedMethod,
+};

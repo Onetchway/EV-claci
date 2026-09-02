@@ -20,6 +20,16 @@ exports.receipt = async (req, res, next) => {
   catch (e) { next(e); }
 };
 
+exports.listPaymentMethods = async (req, res, next) => {
+  try { res.json({ data: await svc.listPaymentMethods(req.params.tenantId) }); }
+  catch (e) { next(e); }
+};
+
+exports.deactivatePaymentMethod = async (req, res, next) => {
+  try { res.json(await svc.deactivatePaymentMethod(req.params.id, req.superAdmin)); }
+  catch (e) { next(e); }
+};
+
 // Public: Razorpay calls this directly, authenticated by its own signature
 // header (see payments.service.js's verifyWebhookSignature), not a bearer
 // token -- there's no signed-in super admin on an inbound gateway callback.
