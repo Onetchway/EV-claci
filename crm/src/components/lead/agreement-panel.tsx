@@ -230,9 +230,36 @@ export function AgreementLetterArticle({
         <h2 className="mt-1 text-center text-sm font-bold uppercase tracking-wide text-ink-700">Franchise and Commercial Partnership Agreement</h2>
         <p className="mt-4 text-sm text-ink-700">
           This Franchise and Commercial Partnership Agreement (&ldquo;Agreement&rdquo;) is entered into on this{" "}
-          {agreement.issuedDate ? formatDate(agreement.issuedDate) : "____"} (&ldquo;Effective Date&rdquo;), at Lucknow, Uttar Pradesh, by and between{" "}
-          <strong>Livanto Green Infra Private Limited</strong> (&ldquo;Livanto&rdquo; or the &ldquo;Franchisor&rdquo;) and{" "}
-          <strong>{agreement.scheduleI.clientName || "[CLIENT NAME]"}</strong> (&ldquo;Franchisee&rdquo;), collectively the &ldquo;Parties&rdquo;.
+          {agreement.issuedDate ? formatDate(agreement.issuedDate) : "____"} (&ldquo;Effective Date&rdquo;), at Lucknow, Uttar Pradesh.
+        </p>
+
+        <p className="mt-4 text-center text-sm font-bold text-ink-900">BY AND BETWEEN</p>
+
+        <p className="mt-3 text-sm leading-relaxed text-ink-700">
+          <strong>Livanto Green Infra Private Limited</strong>, a company incorporated under the Companies Act, 2013,
+          bearing CIN: U35100UP2025PTC232160, having its registered office at 3 Millennium Palace, Sushant Golf City,
+          Lucknow, Uttar Pradesh &ndash; 226030, represented by its authorised signatory (hereinafter referred to as
+          &ldquo;Livanto&rdquo; or the &ldquo;Franchisor&rdquo;, which expression shall, unless repugnant to the
+          context or meaning thereof, include its successors, permitted assigns and authorised representatives), of
+          the <strong>First Part</strong>;
+        </p>
+
+        <p className="mt-3 text-center text-sm font-bold text-ink-900">AND</p>
+
+        <p className="mt-3 text-sm leading-relaxed text-ink-700">
+          <strong>{agreement.scheduleI.clientName || "[CLIENT NAME]"}</strong>, a{" "}
+          <strong>{agreement.scheduleI.entityType || "[individual / proprietorship / partnership firm / private limited company]"}</strong>,
+          having <strong>registered office / residential address</strong> at{" "}
+          <strong>{agreement.scheduleI.registeredAddress || "[COMPLETE ADDRESS]"}</strong>, represented by its authorised
+          representative/signatory [NAME], [Designation, if applicable] (hereinafter referred to as the
+          &ldquo;Franchisee&rdquo;, which expression shall, unless repugnant to the context or meaning thereof,
+          include its successors, permitted assigns, heirs, executors and authorised representatives), of the{" "}
+          <strong>Second Part</strong>;
+        </p>
+
+        <p className="mt-3 text-sm leading-relaxed text-ink-700">
+          (Livanto and the Franchisee shall hereinafter be collectively referred to as the &ldquo;Parties&rdquo; and
+          individually as a &ldquo;Party&rdquo;.)
         </p>
 
         <h3 className="mt-5 text-sm font-bold text-ink-900">RECITALS</h3>
@@ -285,6 +312,10 @@ export function AgreementLetterArticle({
 
         <h3 className="mt-8 text-center text-sm font-bold text-ink-900">SCHEDULE I</h3>
         <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Site, Charger, Tenure and Commercial Details</p>
+        <p className="mt-2 text-sm text-ink-700">
+          The Parties confirm that the details set out in this Schedule I are accurate as of the date of execution
+          of the Agreement and form an integral part thereof.
+        </p>
         <table className="mt-3 w-full border-collapse text-sm">
           <thead>
             <tr>

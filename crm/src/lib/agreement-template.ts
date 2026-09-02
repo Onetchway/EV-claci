@@ -33,7 +33,7 @@ export const AGREEMENT_CLAUSES: AgreementClause[] = [
       "1.9 “Public Selling Rate” means the rate per unit (kWh) charged to end-users at the Charging Station, as specified in Schedule I, subject to revision by Livanto from time to time in accordance with Clause 5.4.",
       "1.10 “Site” means the premises described in Recital B and Schedule I, where the Charging Station is installed and operated.",
       "1.11 “Tenure” or “Term” means the period specified in Schedule I, commencing from the Commercial Commissioning Date, subject to renewal or extension in accordance with Clause 13.",
-      "1.12 “Buyback Price” means the price payable for the purchase of the charger by Livanto from the Franchisee upon exercise of the Exit and Buyback option under Clause 14, computed on the basis of the Original Equipment Cost less accumulated depreciation calculated on a straight-line basis at the Depreciation Rate specified in Schedule I, for the period from the Commercial Commissioning Date up to the date of the Exit Notice.",
+      "1.12 “Buyback Price” means the price payable for the purchase of the charger by the Livanto from Franchisee upon exercise of the Exit and Buyback option under Clause 14, computed on the basis of the Original Equipment Cost less accumulated depreciation calculated on a straight-line basis at the Depreciation Rate specified in Schedule I, for the period from the Commercial Commissioning Date up to the date of the Exit Notice.",
       "1.13 “Original Equipment Cost” means the cost of procurement and installation of the charger unit alone (excluding civil works, canopy, cabling, metering infrastructure, and other Site-related setup costs), as specified in Schedule I.",
       "1.14 “Exit Notice” means the written notice issued by the Franchisee to Livanto under Clause 14, evidencing the Franchisee’s intention to exit this Agreement and exercise the Buyback Option.",
     ],
@@ -120,14 +120,18 @@ export const AGREEMENT_CLAUSES: AgreementClause[] = [
     ],
   },
   {
+    // Clauses 14.2–14.4 are absent in Livanto's source template (it jumps
+    // 14.1 straight to 14.5) — reproduced as-is rather than inventing the
+    // missing buyback mechanics.
     number: "14", heading: "EXIT OPTION AND BUYBACK OF CHARGING STATION", paragraphs: [
-      "14.1 The Buyback Price shall be computed as the Original Equipment Cost less accumulated depreciation calculated on a straight-line basis at the Depreciation Rate specified in Schedule I, for the period from the Commercial Commissioning Date up to the date of the Exit Notice, subject to the Buyback Floor Value specified in Schedule I.",
+      "14.1 [X]% per annum (or as mutually agreed)",
       "14.5 Save as expressly provided in this Clause 14, the Franchisee shall have no right to purchase or otherwise acquire title to the Charging Station equipment or any other asset of Livanto at the Site under any other provision of this Agreement.",
     ],
   },
   {
+    // The source template leaves this clause as a placeholder stub.
     number: "15", heading: "TRANSFER OF SITE BY FRANCHISEE TO THIRD PARTY", paragraphs: [
-      "15.1 Any transfer of the Site (including sale, lease, or transfer of possession) by the Franchisee to a third party during the Tenure, and the treatment of this Agreement and the Charging Station on such transfer, shall be as mutually agreed in writing between the Parties at the relevant time.",
+      "15.1 to be mutually agreed",
     ],
   },
   {
