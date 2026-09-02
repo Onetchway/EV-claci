@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3, Battery, Boxes, Building2, CalendarCheck, CalendarClock, CalendarDays, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
-  Gauge, Globe, HardHat, Handshake, IdCard, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
+  Gauge, Gavel, Globe, HardHat, Handshake, IdCard, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, Mail, MapPin, Menu, MessageSquareWarning, Package, Percent, Plug, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
   Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, X,
 } from "lucide-react";
@@ -63,6 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operations",
     items: [
+      { href: "/tenders", label: "Tenders", icon: Gavel, featureKey: "tenders" },
       { href: "/projects", label: "Project Management", icon: HardHat, featureKey: "projects" },
       { href: "/vendors", label: "Vendor Management", icon: Truck, featureKey: "vendors" },
       { href: "/purchase-orders", label: "Purchase Orders", icon: FileText, featureKey: "purchase_orders" },

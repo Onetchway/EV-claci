@@ -197,6 +197,10 @@ export const canManageQuotations = (viewer: Viewer) =>
 export const canManageProformaInvoices = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "OPERATIONS");
 
+// Tenders (EPC/Construction) — org-wide bid pursuit, same bar as proforma invoices: Sales raises it, Operations delivers it.
+export const canManageTenders = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "OPERATIONS");
+
 // Charger fault tickets and RFID allow-listing — same bar as chargers themselves.
 export const canManageTickets = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");

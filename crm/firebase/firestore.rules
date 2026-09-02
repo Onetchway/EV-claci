@@ -566,6 +566,17 @@ service cloud.firestore {
       allow delete: if isSuperAdmin() && sameOrgExisting();
     }
 
+    // Tenders (EPC / Construction) — government/institutional bid tracking,
+    // upstream of a lead's own quotation/project once won. Org-wide visible
+    // like quotations/POs rather than owner-scoped like leads: a tender is a
+    // shared pursuit, not one rep's book.
+    match /tenders/{tenderId} {
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'] && sameOrgIncoming();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'] && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'] && sameOrgExisting();
+    }
+
     // ------------------------------------------------------------------ HRMS
 
     // Office/geofence config — org-wide policy, admin only.
@@ -1055,7 +1066,7 @@ service cloud.firestore {
     // (shown on each document's own detail page) is too.
     match /changeLog/{entryId} {
       allow read: if isAdmin()
-                  || (signedIn() && resource.data.entityType in ['QUOTATION', 'PROFORMA_INVOICE', 'PURCHASE_ORDER']);
+                  || (signedIn() && resource.data.entityType in ['QUOTATION', 'PROFORMA_INVOICE', 'PURCHASE_ORDER', 'TENDER']);
       allow create: if signedIn() && actorIsSelf('actor');
       allow update, delete: if false;
     }

@@ -12,7 +12,7 @@ import type {
   ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
   TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
-  WebhookEvent, WeekDay, Workstream,
+  WebhookEvent, WeekDay, Workstream, TenderStatus,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -1830,4 +1830,35 @@ export interface LeaveRequest {
   decidedAt?: TS | null;
   decidedBy?: Actor | null;
   decisionNote?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Tenders (EPC / Construction)
+// ---------------------------------------------------------------------------
+
+export interface Tender {
+  id: string;
+  tenderCode: string;
+  tenderNumber?: string;
+  title: string;
+  /** An existing Lead this tender's client corresponds to, if any -- optional since a tender is often prospected before a lead record exists. */
+  leadId?: string | null;
+  clientName: string;
+  department?: string;
+  authority?: string;
+  location?: string;
+  tenderValue?: number;
+  emdAmount?: number;
+  tenderFee?: number;
+  submissionDate?: TS;
+  openingDate?: TS;
+  status: TenderStatus;
+  notes?: string;
+  orgId?: string | null;
+  deletedAt?: TS | null;
+  deletedBy?: Actor | null;
+  search: string[];
+  createdAt: TS;
+  updatedAt?: TS;
+  createdBy?: Actor;
 }
