@@ -4,14 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
-import { tenantsApi, featuresApi } from '@/lib/api';
+import { tenantsApi, featuresApi, businessCategoriesApi } from '@/lib/api';
 
-const STEPS = ['Organization', 'Plan', 'Features', 'Branding', 'Review'];
+const STEPS = ['Organization', 'Category', 'Plan', 'Modules', 'Branding', 'Review'];
 
 const emptyForm = {
   name: '', contact_name: '', contact_email: '', contact_phone: '',
   deployment_mode: 'shared', billing_plan_id: '', billing_day: 1,
-  logo_url: '', primary_color_hex: '#4f46e5',
+  logo_url: '', primary_color_hex: '#4f46e5', business_category: '',
 };
 
 export default function CreateOrgWizard({ plans, onClose, onCreated }) {
@@ -19,8 +19,15 @@ export default function CreateOrgWizard({ plans, onClose, onCreated }) {
   const [form, setForm] = useState(emptyForm);
   const [catalog, setCatalog] = useState([]);
   // key -> enabled; starts from each feature's catalog default, only
-  // touched entries are sent as an override after creation.
+  // touched entries are sent as an override after creation. Picking a
+  // business category (step 1) resets this to that category's
+  // recommendation (core -> on, optional -> off) -- anything the category
+  // has no opinion on keeps its catalog default either way.
   const [featureState, setFeatureState] = useState({});
+  const [categories, setCategories] = useState([]);
+  // key -> 'core' | 'optional' | undefined, for the selected category —
+  // drives the badges shown on the Modules step.
+  const [recommendation, setRecommendation] = useState({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -28,7 +35,25 @@ export default function CreateOrgWizard({ plans, onClose, onCreated }) {
       setCatalog(res.data);
       setFeatureState(Object.fromEntries(res.data.map((f) => [f.key, f.is_default_enabled])));
     }).catch((err) => toast.error(err.message));
+    businessCategoriesApi.list().then((res) => setCategories(res.data)).catch((err) => toast.error(err.message));
   }, []);
+
+  function pickCategory(key) {
+    set('business_category', key);
+    if (!key) { setRecommendation({}); return; }
+    businessCategoriesApi.recommendations(key).then(({ features }) => {
+      const rec = Object.fromEntries(features.filter((f) => f.recommendation).map((f) => [f.key, f.recommendation]));
+      setRecommendation(rec);
+      setFeatureState((prev) => {
+        const next = { ...prev };
+        for (const f of features) {
+          if (f.recommendation === 'core') next[f.key] = true;
+          else if (f.recommendation === 'optional') next[f.key] = false;
+        }
+        return next;
+      });
+    }).catch((err) => toast.error(err.message));
+  }
 
   const selectedPlan = plans.find((p) => p.id === form.billing_plan_id);
   const grouped = useMemo(() => {
@@ -45,6 +70,7 @@ export default function CreateOrgWizard({ plans, onClose, onCreated }) {
     2: true,
     3: true,
     4: true,
+    5: true,
   }[step];
 
   async function create() {
@@ -52,6 +78,7 @@ export default function CreateOrgWizard({ plans, onClose, onCreated }) {
     try {
       const created = await tenantsApi.create({
         ...form,
+        business_category: form.business_category || null,
         billing_plan_id: form.billing_plan_id || null,
         logo_url: form.logo_url || null,
         primary_color_hex: form.primary_color_hex || null,
@@ -141,6 +168,54 @@ export default function CreateOrgWizard({ plans, onClose, onCreated }) {
 
           {step === 1 && (
             <div className="space-y-4">
+              <p className="text-sm text-ink-500">
+                Picking a category pre-fills the Modules step with a recommended starting configuration for that
+                kind of business — every checkbox stays fully editable afterward.
+              </p>
+              <div className="grid gap-2">
+                {categories.map((c) => (
+                  <label
+                    key={c.key}
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 transition-colors ${
+                      form.business_category === c.key ? 'border-brand-500 bg-brand-50/60' : 'border-ink-200 hover:bg-ink-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="business_category"
+                      className="mt-1"
+                      checked={form.business_category === c.key}
+                      onChange={() => pickCategory(c.key)}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-ink-900">{c.name}</p>
+                      {c.description && <p className="mt-0.5 text-xs text-ink-500">{c.description}</p>}
+                    </div>
+                  </label>
+                ))}
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 transition-colors ${
+                    !form.business_category ? 'border-brand-500 bg-brand-50/60' : 'border-ink-200 hover:bg-ink-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="business_category"
+                    className="mt-1"
+                    checked={!form.business_category}
+                    onChange={() => pickCategory('')}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-ink-900">Other / not sure yet</p>
+                    <p className="mt-0.5 text-xs text-ink-500">Skip the preset — every module and feature starts at its plan default, same as before.</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
               <div>
                 <label className="label">Billing plan</label>
                 <select className="select" value={form.billing_plan_id} onChange={(e) => set('billing_plan_id', e.target.value)}>
@@ -171,15 +246,19 @@ export default function CreateOrgWizard({ plans, onClose, onCreated }) {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <div className="space-y-5">
-              <p className="text-sm text-ink-500">Every feature starts at its plan default — toggle anything this tenant needs different.</p>
+              <p className="text-sm text-ink-500">
+                {form.business_category
+                  ? 'Pre-filled from the selected category — recommended items are marked below. Toggle anything this tenant needs different.'
+                  : 'Every feature starts at its plan default — toggle anything this tenant needs different.'}
+              </p>
               {Object.entries(grouped).map(([category, items]) => (
                 <div key={category}>
                   <div className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2">{category}</div>
                   <div className="grid grid-cols-2 gap-2.5">
                     {items.map((f) => (
-                      <label key={f.key} className="flex items-center gap-2.5 text-sm text-ink-700">
+                      <label key={f.key} className="flex items-center gap-2 text-sm text-ink-700">
                         <input
                           type="checkbox"
                           className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500"
@@ -187,6 +266,12 @@ export default function CreateOrgWizard({ plans, onClose, onCreated }) {
                           onChange={(e) => setFeatureState((s) => ({ ...s, [f.key]: e.target.checked }))}
                         />
                         {f.name}
+                        {recommendation[f.key] === 'core' && (
+                          <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-medium text-brand-700">recommended</span>
+                        )}
+                        {recommendation[f.key] === 'optional' && (
+                          <span className="rounded-full bg-ink-100 px-1.5 py-0.5 text-[10px] font-medium text-ink-500">optional</span>
+                        )}
                       </label>
                     ))}
                   </div>
@@ -195,7 +280,7 @@ export default function CreateOrgWizard({ plans, onClose, onCreated }) {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="space-y-4">
               <p className="text-sm text-ink-500">
                 Shown from this tenant&apos;s very first login — logo on their sign-in page, accent color throughout their CRM.
@@ -215,11 +300,12 @@ export default function CreateOrgWizard({ plans, onClose, onCreated }) {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div className="space-y-4">
               <div className="card card-pad space-y-2.5 text-sm">
                 <div className="flex justify-between"><span className="text-ink-500">Company</span><span className="font-medium text-ink-900">{form.name}</span></div>
                 <div className="flex justify-between"><span className="text-ink-500">Admin</span><span className="text-ink-800">{form.contact_name} · {form.contact_email}</span></div>
+                <div className="flex justify-between"><span className="text-ink-500">Category</span><span className="text-ink-800">{categories.find((c) => c.key === form.business_category)?.name || 'Not set'}</span></div>
                 <div className="flex justify-between"><span className="text-ink-500">Deployment</span><span className="capitalize text-ink-800">{form.deployment_mode}</span></div>
                 <div className="flex justify-between"><span className="text-ink-500">Plan</span><span className="text-ink-800">{selectedPlan?.name || 'unassigned'}</span></div>
                 <div className="flex justify-between"><span className="text-ink-500">Features overridden</span><span className="text-ink-800">{catalog.filter((f) => featureState[f.key] !== f.is_default_enabled).length}</span></div>

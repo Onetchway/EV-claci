@@ -34,7 +34,7 @@ const list = async (filters) => {
     `SELECT t.id, t.name, t.slug, t.contact_name, t.contact_email, t.contact_phone,
             t.deployment_mode, t.custom_domain, t.status, t.billing_plan_id, t.billing_day,
             t.billing_model_override, t.fixed_monthly_amount_override, t.per_employee_amount_override,
-            t.trial_ends_at, t.created_at, t.updated_at,
+            t.trial_ends_at, t.created_at, t.updated_at, t.business_category,
             bp.name AS billing_plan_name,
             COALESCE(latest_usage.employee_count, 0) AS users,
             CASE
@@ -150,8 +150,8 @@ const create = async (data, actor) => {
   const res = await query(
     `INSERT INTO tenants
        (name, slug, contact_name, contact_email, contact_phone, deployment_mode,
-        custom_domain, status, billing_plan_id, billing_day, api_key, trial_ends_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        custom_domain, status, billing_plan_id, billing_day, api_key, trial_ends_at, business_category)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING *`,
     [
       data.name,
@@ -166,6 +166,7 @@ const create = async (data, actor) => {
       data.billing_day || 1,
       apiKey,
       data.trial_ends_at || null,
+      data.business_category || null,
     ]
   );
 
@@ -200,7 +201,7 @@ const ALLOWED_UPDATE_FIELDS = [
   'name', 'slug', 'contact_name', 'contact_email', 'contact_phone', 'deployment_mode',
   'custom_domain', 'billing_plan_id', 'billing_model_override',
   'fixed_monthly_amount_override', 'per_employee_amount_override', 'billing_day',
-  'trial_ends_at', 'retention_days',
+  'trial_ends_at', 'retention_days', 'business_category',
 ];
 
 const update = async (id, data, actor) => {

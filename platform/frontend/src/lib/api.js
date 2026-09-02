@@ -62,6 +62,11 @@ export const featuresApi = {
 
 export const billingPlansApi = { ...resource('/billing-plans') };
 
+export const businessCategoriesApi = {
+  list: () => client.get('/business-categories'),
+  recommendations: (key) => client.get(`/business-categories/${key}/recommendations`),
+};
+
 export const modulesApi = {
   catalog: () => client.get('/modules/catalog'),
   updateCatalog: (key, data) => client.put(`/modules/catalog/${key}`, data),

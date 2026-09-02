@@ -9,7 +9,7 @@ import {
 
 import {
   tenantsApi, featuresApi, billingPlansApi, invoicesApi, usageApi, provisioningApi,
-  addOnsApi, couponsApi, creditsApi, opsApi, paymentsApi,
+  addOnsApi, couponsApi, creditsApi, opsApi, paymentsApi, businessCategoriesApi,
 } from '@/lib/api';
 
 const STATUS_BADGE = {
@@ -48,6 +48,7 @@ export default function TenantDetailPage() {
   const [tenant, setTenant] = useState(null);
   const [features, setFeatures] = useState([]);
   const [plans, setPlans] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [usage, setUsage] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -157,6 +158,7 @@ export default function TenantDetailPage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [id]);
+  useEffect(() => { businessCategoriesApi.list().then((res) => setCategories(res.data)).catch(() => {}); }, []);
 
   const toggleFeature = async (featureKey, enabled) => {
     setFeatures((prev) => prev.map((f) => (f.key === featureKey ? { ...f, enabled } : f)));
@@ -439,6 +441,7 @@ export default function TenantDetailPage() {
               <div className="flex justify-between"><dt className="text-ink-500">Email</dt><dd className="text-ink-800">{tenant.contact_email}</dd></div>
               <div className="flex justify-between"><dt className="text-ink-500">Phone</dt><dd className="text-ink-800">{tenant.contact_phone || '—'}</dd></div>
               <div className="flex justify-between"><dt className="text-ink-500">Deployment</dt><dd className="text-ink-800 capitalize">{tenant.deployment_mode}</dd></div>
+              <div className="flex justify-between"><dt className="text-ink-500">Category</dt><dd className="text-ink-800">{categories.find((c) => c.key === tenant.business_category)?.name || '—'}</dd></div>
               <div className="flex justify-between"><dt className="text-ink-500">Created</dt><dd className="text-ink-800">{new Date(tenant.created_at).toLocaleDateString()}</dd></div>
             </dl>
           </div>
