@@ -83,77 +83,83 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen w-full place-items-center bg-ink-50 px-6 py-14">
-      <div className="w-full max-w-md">
+    <main className="relative grid min-h-screen w-full place-items-center overflow-hidden bg-ink-50 px-6 py-14">
+      <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 h-96 w-96 -translate-x-[65%] rounded-full bg-brand-200/50 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-48 left-1/2 h-96 w-96 -translate-x-[35%] rounded-full bg-navy-200/40 blur-3xl" />
+
+      <div className="relative w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           {branding.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logoUrl} alt={branding.name} className="h-12 max-w-[220px] object-contain" />
+            <img src={branding.logoUrl} alt={branding.name} className="h-14 max-w-[220px] object-contain drop-shadow-sm" />
           ) : (
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500 text-white">
-              <Building2 className="h-6 w-6" />
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/30">
+              <Building2 className="h-7 w-7" />
             </span>
           )}
-          <p className="text-lg font-semibold text-ink-900">{branding.name}</p>
+          <p className="text-lg font-semibold tracking-tight text-ink-900">{branding.name}</p>
         </div>
 
-        <div className="rounded-2xl border border-ink-100 bg-white p-8 shadow-sm">
-          <h1 className="text-2xl font-bold text-ink-900">Sign in</h1>
-          <p className="mt-1 text-sm text-ink-500">Enter the email and password your administrator set up for you.</p>
+        <div className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-xl shadow-ink-900/5">
+          <div className="h-1.5 w-full bg-gradient-to-r from-brand-500 via-brand-400 to-navy-500" />
+          <div className="p-8">
+            <h1 className="text-2xl font-bold text-ink-900">Sign in</h1>
+            <p className="mt-1 text-sm text-ink-500">Enter the email and password your administrator set up for you.</p>
 
-          <div className="mt-8">
-            {!configured ? (
-              <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
-                <p className="font-semibold">Firebase is not configured</p>
-                <p className="mt-1">
-                  Copy <code className="rounded bg-amber-100 px-1">.env.example</code> to{" "}
-                  <code className="rounded bg-amber-100 px-1">.env.local</code> and fill in your
-                  Firebase web-app keys, then restart the dev server.
-                </p>
-              </div>
-            ) : loading ? (
-              <div className="flex justify-center py-8 text-ink-400">
-                <Spinner className="h-6 w-6" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <form className="space-y-3" onSubmit={(e) => void onEmailSignIn(e)}>
-                  <Input
-                    type="email"
-                    autoComplete="username"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); setResetSent(false); }}
-                  />
-                  <Input
-                    type="password"
-                    autoComplete="current-password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <Button type="submit" loading={busy} disabled={!email.trim() || !password} className="w-full py-3">
-                    Sign in
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={() => void onForgotPassword()}
-                    className="text-xs text-ink-500 underline decoration-dotted hover:text-ink-700"
-                  >
-                    Forgot password?
-                  </button>
-                  {resetSent && (
-                    <p className="text-xs text-emerald-700">Password reset email sent — check your inbox.</p>
-                  )}
-                </form>
-
-                {error && (
-                  <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
-                    {error}
+            <div className="mt-8">
+              {!configured ? (
+                <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
+                  <p className="font-semibold">Firebase is not configured</p>
+                  <p className="mt-1">
+                    Copy <code className="rounded bg-amber-100 px-1">.env.example</code> to{" "}
+                    <code className="rounded bg-amber-100 px-1">.env.local</code> and fill in your
+                    Firebase web-app keys, then restart the dev server.
                   </p>
-                )}
-              </div>
-            )}
+                </div>
+              ) : loading ? (
+                <div className="flex justify-center py-8 text-ink-400">
+                  <Spinner className="h-6 w-6" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <form className="space-y-3" onSubmit={(e) => void onEmailSignIn(e)}>
+                    <Input
+                      type="email"
+                      autoComplete="username"
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setResetSent(false); }}
+                    />
+                    <Input
+                      type="password"
+                      autoComplete="current-password"
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <Button type="submit" loading={busy} disabled={!email.trim() || !password} className="w-full py-3">
+                      Sign in
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => void onForgotPassword()}
+                      className="text-xs text-ink-500 underline decoration-dotted hover:text-ink-700"
+                    >
+                      Forgot password?
+                    </button>
+                    {resetSent && (
+                      <p className="text-xs text-emerald-700">Password reset email sent — check your inbox.</p>
+                    )}
+                  </form>
+
+                  {error && (
+                    <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+                      {error}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -126,6 +126,8 @@ write_env platform/frontend/.env.local \
 write_env crm/.env.local \
   "FIRESTORE_EMULATOR_HOST=localhost:8080" \
   "FIREBASE_AUTH_EMULATOR_HOST=localhost:9099" \
+  "NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST=localhost:8080" \
+  "NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST=localhost:9099" \
   "GCLOUD_PROJECT=demo-livanto" \
   "NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-livanto" \
   "NEXT_PUBLIC_FIREBASE_API_KEY=demo-api-key" \

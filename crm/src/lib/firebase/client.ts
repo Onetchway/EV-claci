@@ -1,8 +1,8 @@
 "use client";
 
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { initializeFirestore, type Firestore } from "firebase/firestore";
+import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
+import { connectFirestoreEmulator, initializeFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const config = {
@@ -31,8 +31,23 @@ function ensureApp(): FirebaseApp {
   return app;
 }
 
+// Local dev against the Firebase emulator suite (see scripts/dev-setup-crm.sh)
+// instead of a real Firebase project. The Admin SDK auto-detects its own
+// *_EMULATOR_HOST env vars server-side, but the browser-side SDK used here
+// has no such auto-detection — without this, the browser silently tries to
+// reach real Firebase servers with the emulator's fake API key and fails
+// with "auth/api-key-not-valid". NEXT_PUBLIC_-prefixed so it's readable in
+// the browser bundle; unset in every real deployment.
+const AUTH_EMULATOR_HOST = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST;
+const FIRESTORE_EMULATOR_HOST = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST;
+
 export function getFirebaseAuth(): Auth {
-  if (!authInstance) authInstance = getAuth(ensureApp());
+  if (!authInstance) {
+    authInstance = getAuth(ensureApp());
+    if (AUTH_EMULATOR_HOST) {
+      connectAuthEmulator(authInstance, `http://${AUTH_EMULATOR_HOST}`, { disableWarnings: true });
+    }
+  }
   return authInstance;
 }
 
@@ -43,7 +58,13 @@ export function getDb(): Firestore {
   // value: undefined") rather than just omitting the field. This setting
   // makes it behave the sane way everywhere, instead of requiring every
   // call site to manually strip undefined keys before writing.
-  if (!dbInstance) dbInstance = initializeFirestore(ensureApp(), { ignoreUndefinedProperties: true });
+  if (!dbInstance) {
+    dbInstance = initializeFirestore(ensureApp(), { ignoreUndefinedProperties: true });
+    if (FIRESTORE_EMULATOR_HOST) {
+      const [host, port] = FIRESTORE_EMULATOR_HOST.split(":");
+      connectFirestoreEmulator(dbInstance, host, Number(port));
+    }
+  }
   return dbInstance;
 }
 
