@@ -55,6 +55,8 @@ interface ChargerInfo {
   estimatedRatePerKwh: number | null;
   reviewAverage: number | null;
   reviewCount: number;
+  companyName: string | null;
+  companyLogoUrl: string | null;
 }
 
 const CONNECTOR_STATUS_LABEL: Record<string, string> = {
@@ -183,7 +185,7 @@ export default function QrChargePage() {
         amount: order.amount,
         currency: order.currency,
         order_id: order.orderId,
-        name: "Livanto Green",
+        name: info.companyName || "Charge",
         description: info.label,
         theme: { color: "#047857" },
         prefill: { contact: phone.trim() },
@@ -261,7 +263,7 @@ export default function QrChargePage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-md shadow-emerald-900/10">
             <Zap className="h-5 w-5" fill="currentColor" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-ink-900">Livanto Green</span>
+          <span className="text-xl font-bold tracking-tight text-ink-900">{info?.companyName || "Charge"}</span>
         </div>
 
         {banner && (
@@ -485,9 +487,9 @@ export default function QrChargePage() {
           </div>
         )}
 
-        <AppStoreBadges />
+        {/^livanto/i.test(info?.companyName ?? "") && <AppStoreBadges />}
 
-        <p className="mt-6 text-center text-xs text-ink-400">© {new Date().getFullYear()} Livanto Green · app.livantogreen.com</p>
+        <p className="mt-6 text-center text-xs text-ink-400">© {new Date().getFullYear()} {info?.companyName || "Charge"}</p>
       </div>
     </div>
   );

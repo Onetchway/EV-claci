@@ -41,7 +41,22 @@ export async function GET(req: Request) {
   const reviewCount = ratings.length;
   const reviewAverage = reviewCount > 0 ? Math.round((ratings.reduce((a, b) => a + b, 0) / reviewCount) * 100) / 100 : null;
 
+  // The QR-scan landing page is unauthenticated and shows before any org
+  // context exists client-side, so it resolves the owning tenant's own
+  // name/logo here (same doc Settings → Company writes to) rather than
+  // hardcoding Livanto's branding for every tenant's chargers.
+  let companyName: string | null = null;
+  let companyLogoUrl: string | null = null;
+  if (reg.orgId) {
+    const settingsSnap = await db.collection("settings").doc(reg.orgId).get();
+    const company = settingsSnap.data()?.company as { shortName?: string; logoUrl?: string } | undefined;
+    companyName = company?.shortName?.trim() || null;
+    companyLogoUrl = company?.logoUrl?.trim() || null;
+  }
+
   return NextResponse.json({
+    companyName,
+    companyLogoUrl,
     label: reg.label,
     location: reg.location,
     chargerPowerType: reg.chargerPowerType,

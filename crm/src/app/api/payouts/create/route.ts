@@ -113,6 +113,16 @@ export async function POST(req: Request) {
 
     await zoneRef.set({ razorpayContactId: contactId, razorpayFundAccountId: fundAccountId, razorpayFundAccountBankKey: bankKey }, { merge: true });
 
+    // Shown on the recipient's own bank statement, so it names the
+    // issuing tenant, not a hardcoded one -- same settings/{orgId} doc
+    // Settings → Company writes to.
+    let narrationCompany = "Settlement";
+    if (caller.orgId) {
+      const settingsSnap = await db.collection("settings").doc(caller.orgId).get();
+      const shortName = (settingsSnap.data()?.company?.shortName as string | undefined)?.trim();
+      if (shortName) narrationCompany = shortName;
+    }
+
     const payout = await razorpayFetch("/payouts", keyId, keySecret, {
       account_number: accountNumber,
       fund_account_id: fundAccountId,
@@ -122,7 +132,7 @@ export async function POST(req: Request) {
       purpose: "payout",
       queue_if_low_balance: true,
       reference_id: `settlement-${body.zoneId}-${Date.now()}`,
-      narration: "Livanto Green settlement",
+      narration: `${narrationCompany} settlement`,
     });
 
     const batch = db.batch();
