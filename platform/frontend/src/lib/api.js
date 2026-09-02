@@ -54,6 +54,7 @@ export const featuresApi = {
   catalog: () => client.get('/features/catalog'),
   forTenant: (tenantId) => client.get(`/features/tenants/${tenantId}`),
   setForTenant: (tenantId, featureKey, enabled) => client.put(`/features/tenants/${tenantId}/${featureKey}`, { enabled }),
+  bulkSetForTenant: (tenantId, features) => client.put(`/features/tenants/${tenantId}`, { features }),
 };
 
 export const billingPlansApi = { ...resource('/billing-plans') };

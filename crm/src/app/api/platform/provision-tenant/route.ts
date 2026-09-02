@@ -39,6 +39,9 @@ const Body = z.object({
    * still works for a platform build that hasn't wired this through yet.
    */
   tenantApiKey: z.string().min(1).max(200).optional(),
+  /** From the super admin's org-creation wizard's branding step — written onto the org doc so it's live from this tenant's very first login. Only ever set on first creation, never overwritten on a re-provision (a tenant may have since customized it in their own Settings). */
+  logoUrl: z.string().url().max(2000).optional(),
+  primaryColorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/, "must be a hex color like #4f46e5").optional(),
 });
 
 function randomPassword(): string {
@@ -73,6 +76,8 @@ export async function POST(req: Request) {
         name: body.name,
         slug: body.slug,
         active: true,
+        ...(body.logoUrl ? { logoUrl: body.logoUrl } : {}),
+        ...(body.primaryColorHex ? { primaryColorHex: body.primaryColorHex } : {}),
         createdAt: FieldValue.serverTimestamp(),
         createdBy: null,
       });

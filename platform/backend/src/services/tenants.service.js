@@ -34,9 +34,28 @@ const list = async (filters) => {
             t.deployment_mode, t.custom_domain, t.status, t.billing_plan_id, t.billing_day,
             t.billing_model_override, t.fixed_monthly_amount_override, t.per_employee_amount_override,
             t.trial_ends_at, t.created_at, t.updated_at,
-            bp.name AS billing_plan_name
+            bp.name AS billing_plan_name,
+            COALESCE(latest_usage.employee_count, 0) AS users,
+            CASE
+              WHEN COALESCE(t.billing_model_override, bp.billing_model) = 'fixed_monthly'
+                THEN COALESCE(t.fixed_monthly_amount_override, bp.fixed_monthly_amount, 0)
+              WHEN COALESCE(t.billing_model_override, bp.billing_model) = 'per_employee'
+                THEN COALESCE(t.per_employee_amount_override, bp.per_employee_amount, 0) * COALESCE(latest_usage.employee_count, 0)
+              ELSE 0
+            END AS mrr,
+            -- Next billing date: the next occurrence of billing_day, this
+            -- month if it hasn't passed yet, else next month. Same
+            -- day-of-month logic jobs/generateInvoices.js already runs on.
+            (date_trunc('month', NOW()) + ((t.billing_day - 1) || ' days')::interval
+              + CASE WHEN date_trunc('month', NOW()) + ((t.billing_day - 1) || ' days')::interval < NOW()
+                     THEN INTERVAL '1 month' ELSE INTERVAL '0' END
+            ) AS next_billing_at
      FROM tenants t
      LEFT JOIN billing_plans bp ON bp.id = t.billing_plan_id
+     LEFT JOIN LATERAL (
+       SELECT employee_count FROM tenant_usage_snapshots
+       WHERE tenant_id = t.id ORDER BY period_month DESC LIMIT 1
+     ) latest_usage ON true
      ${where}
      ORDER BY t.created_at DESC
      LIMIT $${idx} OFFSET $${idx + 1}`,
@@ -48,9 +67,27 @@ const list = async (filters) => {
 
 const getOne = async (id) => {
   const res = await query(
-    `SELECT t.*, bp.name AS billing_plan_name
+    `SELECT t.*, bp.name AS billing_plan_name, bp.billing_model AS plan_billing_model,
+            bp.currency, bp.per_employee_amount AS plan_per_employee_amount,
+            bp.fixed_monthly_amount AS plan_fixed_monthly_amount,
+            COALESCE(latest_usage.employee_count, 0) AS users,
+            CASE
+              WHEN COALESCE(t.billing_model_override, bp.billing_model) = 'fixed_monthly'
+                THEN COALESCE(t.fixed_monthly_amount_override, bp.fixed_monthly_amount, 0)
+              WHEN COALESCE(t.billing_model_override, bp.billing_model) = 'per_employee'
+                THEN COALESCE(t.per_employee_amount_override, bp.per_employee_amount, 0) * COALESCE(latest_usage.employee_count, 0)
+              ELSE 0
+            END AS mrr,
+            (date_trunc('month', NOW()) + ((t.billing_day - 1) || ' days')::interval
+              + CASE WHEN date_trunc('month', NOW()) + ((t.billing_day - 1) || ' days')::interval < NOW()
+                     THEN INTERVAL '1 month' ELSE INTERVAL '0' END
+            ) AS next_billing_at
      FROM tenants t
      LEFT JOIN billing_plans bp ON bp.id = t.billing_plan_id
+     LEFT JOIN LATERAL (
+       SELECT employee_count FROM tenant_usage_snapshots
+       WHERE tenant_id = t.id ORDER BY period_month DESC LIMIT 1
+     ) latest_usage ON true
      WHERE t.id = $1`,
     [id]
   );
@@ -119,6 +156,12 @@ const create = async (data, actor) => {
           // key) instead of failing open to "everything enabled" until
           // someone manually pastes it in later.
           tenantApiKey: tenant.api_key,
+          // Optional, set from the org-creation wizard's branding step —
+          // written onto this org's Firestore doc at creation time so the
+          // tenant's CRM (and login page) reflect it from their very
+          // first sign-in, not just once someone visits Settings later.
+          logoUrl: data.logo_url || undefined,
+          primaryColorHex: data.primary_color_hex || undefined,
         }),
       });
       if (response.ok) {

@@ -2,40 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --sidebar-width: 240px; }
+:root { --sidebar-width: 260px; }
 
-body { @apply bg-gray-50 text-gray-900; }
+* { font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif; }
 
-.card { @apply bg-white rounded-xl border border-gray-200 shadow-sm; }
+body { @apply bg-ink-50 text-ink-900 antialiased; }
 
+/* ------------------------------------------------------------- buttons */
 .btn-primary {
   @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 text-white
-         font-medium text-sm hover:bg-brand-700 transition-colors disabled:opacity-50;
+         font-medium text-sm shadow-sm hover:bg-brand-700 active:bg-brand-800
+         transition-colors disabled:opacity-50 disabled:pointer-events-none;
 }
 .btn-secondary {
-  @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300
-         text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors;
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-ink-200 bg-white
+         text-ink-700 font-medium text-sm hover:bg-ink-50 active:bg-ink-100
+         transition-colors disabled:opacity-50 disabled:pointer-events-none;
+}
+.btn-ghost {
+  @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-ink-600 font-medium text-sm
+         hover:bg-ink-100 active:bg-ink-200 transition-colors disabled:opacity-50;
 }
 .btn-danger {
-  @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white
-         font-medium text-sm hover:bg-red-700 transition-colors;
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-danger-600 text-white
+         font-medium text-sm shadow-sm hover:bg-danger-700 transition-colors disabled:opacity-50;
 }
 
+/* -------------------------------------------------------------- inputs */
 .input {
-  @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
-         focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent;
+  @apply block w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900
+         placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40
+         focus:border-brand-500 transition-shadow;
 }
-.label { @apply block text-sm font-medium text-gray-700 mb-1; }
+.select { @apply input pr-8 appearance-none bg-no-repeat; }
+.label { @apply block text-xs font-semibold uppercase tracking-wide text-ink-500 mb-1.5; }
+.hint { @apply mt-1 text-xs text-ink-400; }
 
-.badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
-.badge-green  { @apply bg-green-100 text-green-700; }
-.badge-yellow { @apply bg-yellow-100 text-yellow-700; }
-.badge-red    { @apply bg-red-100 text-red-700; }
-.badge-gray   { @apply bg-gray-100 text-gray-700; }
+/* --------------------------------------------------------------- cards */
+.card { @apply bg-white rounded-xl border border-ink-100 shadow-card; }
+.card-pad { @apply p-5; }
+.card-header { @apply flex items-center justify-between px-5 py-4 border-b border-ink-100; }
+.card-title { @apply text-sm font-semibold text-ink-900; }
+.card-subtitle { @apply text-xs text-ink-500 mt-0.5; }
 
-.table-wrapper { @apply overflow-x-auto rounded-xl border border-gray-200; }
+/* -------------------------------------------------------------- badges */
+.badge { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset; }
+.badge-green  { @apply bg-success-50 text-success-700 ring-success-100; }
+.badge-yellow { @apply bg-warn-50 text-warn-700 ring-warn-100; }
+.badge-red    { @apply bg-danger-50 text-danger-700 ring-danger-100; }
+.badge-gray   { @apply bg-ink-100 text-ink-600 ring-ink-200; }
+.badge-brand  { @apply bg-brand-50 text-brand-700 ring-brand-100; }
+
+/* --------------------------------------------------------------- chips */
+.chip {
+  @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+         ring-1 ring-inset transition-colors;
+}
+
+/* -------------------------------------------------------------- tables */
+.table-wrapper { @apply overflow-x-auto rounded-xl border border-ink-100 bg-white shadow-card; }
 table { @apply w-full text-sm; }
-thead { @apply bg-gray-50; }
-th { @apply px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider; }
-td { @apply px-4 py-3 border-t border-gray-100; }
-tr:hover td { @apply bg-gray-50; }
+thead { @apply bg-ink-50/60; }
+th { @apply px-4 py-3 text-left text-xs font-semibold text-ink-500 uppercase tracking-wide; }
+td { @apply px-4 py-3.5 border-t border-ink-100 text-ink-800; }
+tbody tr { @apply transition-colors; }
+tbody tr:hover { @apply bg-ink-50/70; }
+
+/* ---------------------------------------------------------------- tabs */
+.tab-list { @apply flex items-center gap-1 border-b border-ink-100 overflow-x-auto; }
+.tab {
+  @apply px-3.5 py-2.5 text-sm font-medium text-ink-500 border-b-2 border-transparent
+         whitespace-nowrap hover:text-ink-800 transition-colors;
+}
+.tab-active { @apply text-brand-700 border-brand-600; }
+
+/* --------------------------------------------------------------- stats */
+.stat-card { @apply card card-pad flex flex-col gap-1; }
+.stat-label { @apply text-xs font-medium text-ink-500; }
+.stat-value { @apply text-2xl font-semibold text-ink-900 tabular-nums; }
+.stat-sub { @apply text-xs text-ink-400; }
+
+/* --------------------------------------------------------- empty state */
+.empty-state { @apply flex flex-col items-center justify-center gap-2 py-14 text-center; }
+.empty-state-title { @apply text-sm font-medium text-ink-700; }
+.empty-state-text { @apply text-xs text-ink-400 max-w-sm; }
+
+/* --------------------------------------------------------------- modal */
+.modal-backdrop { @apply fixed inset-0 bg-ink-950/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4; }
+.modal-panel { @apply card w-full max-h-[90vh] overflow-y-auto; }

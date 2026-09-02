@@ -1,5 +1,9 @@
+import { Inter } from 'next/font/google';
+
 import './globals.css';
 import Providers from './providers';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata = {
   title: 'Alpha Platform — Super Admin',
@@ -8,7 +12,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         <Providers>{children}</Providers>
       </body>
