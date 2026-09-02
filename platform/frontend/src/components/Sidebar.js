@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import {
-  Activity, Blocks, Building2, LayoutGrid, LayoutDashboard, ListChecks, Receipt, ScrollText, ShieldCheck, Tag, Wallet,
+  Activity, Blocks, Building2, KeyRound, LayoutGrid, LayoutDashboard, ListChecks, Receipt, ScrollText, ShieldCheck, Tag, Wallet,
 } from 'lucide-react';
 
 // Grouped per Alpha's own nav spec (Overview / Customers / Product /
@@ -46,7 +46,10 @@ const GROUPS = [
   },
   {
     label: 'Alpha Admin',
-    items: [{ href: '/admins', label: 'Administrators', icon: ShieldCheck }],
+    items: [
+      { href: '/admins', label: 'Administrators', icon: ShieldCheck },
+      { href: '/roles-permissions', label: 'Roles & Permissions', icon: KeyRound },
+    ],
   },
 ];
 
