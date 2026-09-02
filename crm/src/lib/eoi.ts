@@ -16,8 +16,8 @@
  */
 
 import {
-  COMPANY, DEFAULT_PAYOUT_MONTHS, DEFAULT_SCOPE_ITEMS, DEFAULT_TENURE_YEARS,
-  LAND_TYPE_LABEL, LOCATION_PROVIDER_LABEL, SITE_COMPENSATION_TYPE_LABEL,
+  DEFAULT_PAYOUT_MONTHS, DEFAULT_SCOPE_ITEMS, DEFAULT_TENURE_YEARS,
+  LAND_TYPE_LABEL, locationProviderLabel, SITE_COMPENSATION_TYPE_LABEL,
 } from "./constants";
 import {
   amountInWords, DEFAULT_CLOSING, defaultIntro, defaultSubject, LOI_CLAUSES,
@@ -80,9 +80,20 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
   // The site's own manually-agreed payout period (if set) beats every
   // computed/default fallback — same reasoning as tenureYears above.
   const payoutMonths = opts.payoutMonths ?? lead.site?.payoutMonths ?? opts.settings?.loi.payoutMonths ?? DEFAULT_PAYOUT_MONTHS;
-  const shortName = opts.settings?.company.shortName?.trim() || COMPANY.shortName;
+  // Issuing tenant's own identity, from their Settings → Company/Letter of
+  // Intent -- blank (not Livanto's own identity) until they configure it,
+  // per withDefaults' isTenantScoped fallback in lib/db/settings.ts.
+  const shortName = opts.settings?.company.shortName?.trim() ?? "";
+  const legalName = opts.settings?.company.legalName?.trim() ?? "";
   const scopeItems = opts.settings?.loi.scopeItems?.length ? opts.settings.loi.scopeItems : DEFAULT_SCOPE_ITEMS;
-  const signatory = opts.settings?.loi.signatory?.trim() || COMPANY.signatory;
+  const signatory = opts.settings?.loi.signatory?.trim() ?? "";
+  const arbitrationSeat = opts.settings?.loi.arbitrationSeat?.trim() ?? "";
+  const jurisdiction = opts.settings?.loi.jurisdiction?.trim() ?? "";
+  const model = opts.settings?.loi.model?.trim() ?? "";
+  // A short tag out of the model text, e.g. "FOCO" out of
+  // `Franchise-Owned, Company-Operated ("FOCO")` -- used in the LOI's
+  // subject line. Blank model (not yet configured) means no abbreviation.
+  const modelAbbreviation = model.match(/["“]([A-Z]{2,})["”]/)?.[1] ?? "";
   const closing = opts.settings?.loi.closing?.trim() || DEFAULT_CLOSING;
 
   const siteName =
@@ -91,7 +102,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     [lead.client?.city, lead.client?.state].filter(Boolean).join(", ") ||
     "the Investor's premises";
 
-  const siteLocationProvider = lead.site?.locationProvider ? LOCATION_PROVIDER_LABEL[lead.site.locationProvider] : "";
+  const siteLocationProvider = lead.site?.locationProvider ? locationProviderLabel(lead.site.locationProvider, shortName) : "";
   const siteMapsLink = lead.site?.mapsLink?.trim() ?? "";
   const siteLandType = lead.site?.landType ? LAND_TYPE_LABEL[lead.site.landType] : "";
   const siteCompensation =
@@ -176,6 +187,8 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     siteName,
     pronounSubject: pronoun.subject,
     kw: capacityLabel,
+    arbitrationSeat,
+    jurisdiction,
   };
 
   return {
@@ -203,8 +216,8 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     b2bRatePerKwh,
     capacityLabel,
     extraEquipment: opts.extraEquipment ?? "",
-    subject: defaultSubject(capacityLabel, siteName, opts.extraEquipment),
-    intro: defaultIntro(capacityLabel, opts.extraEquipment),
+    subject: defaultSubject(capacityLabel, siteName, modelAbbreviation, opts.extraEquipment),
+    intro: defaultIntro(capacityLabel, legalName, model, opts.extraEquipment),
     schedule,
     totalAmount: quote.grandTotal,
     gstShownSeparately: false,

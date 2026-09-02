@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/utils";
 
 const inputClass = "w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500";
 
-function LivantoBankDetails({ bank }: { bank: AppSettings["bank"] }) {
+function CompanyBankDetails({ bank }: { bank: AppSettings["bank"] }) {
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
       <div>
@@ -38,7 +38,13 @@ function LivantoBankDetails({ bank }: { bank: AppSettings["bank"] }) {
   );
 }
 
-export function PortalBankDetailsCard({ leadId, companyBank }: { leadId: string; companyBank: AppSettings["bank"] }) {
+export function PortalBankDetailsCard({
+  leadId, companyBank, companyName,
+}: {
+  leadId: string;
+  companyBank: AppSettings["bank"];
+  companyName: string;
+}) {
   const [details, setDetails] = useState<InvestorBankDetails | null | undefined>(undefined);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ accountHolderName: "", bankName: "", accountNumber: "", ifsc: "", branch: "" });
@@ -88,8 +94,8 @@ export function PortalBankDetailsCard({ leadId, companyBank }: { leadId: string;
       </h2>
 
       <div className="mb-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Pay Livanto Green</p>
-        <LivantoBankDetails bank={companyBank} />
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Pay {companyName || "the company"}</p>
+        <CompanyBankDetails bank={companyBank} />
       </div>
 
       <div className="border-t border-ink-100 pt-4">

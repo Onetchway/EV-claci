@@ -8,8 +8,6 @@
  * vs included, complimentary AC charger, and so on).
  */
 
-import { COMPANY } from "./constants";
-
 export interface LoiClause {
   key: string;
   heading: string;
@@ -23,6 +21,7 @@ export interface LoiClause {
  *   {{scheduleSentence}} {{tenureYears}}        {{payoutMonths}}
  *   {{minMonthlyPayout}} {{maxAggregate}}       {{siteName}}
  *   {{pronounSubject}}  {{kw}}                  {{company}}
+ *   {{arbitrationSeat}} {{jurisdiction}}
  */
 export const LOI_CLAUSES: LoiClause[] = [
   {
@@ -128,8 +127,8 @@ export const LOI_CLAUSES: LoiClause[] = [
     heading: "Governing Law and Disputes",
     body:
       `Disputes will be resolved by arbitration under the Arbitration and Conciliation Act, 1996, before a sole arbitrator appointed ` +
-      `by {{company}}, seated at ${COMPANY.arbitrationSeat}. This LOI is governed by Indian law, subject to the exclusive ` +
-      `jurisdiction of the courts at ${COMPANY.jurisdiction}.`,
+      `by {{company}}, seated at {{arbitrationSeat}}. This LOI is governed by Indian law, subject to the exclusive ` +
+      `jurisdiction of the courts at {{jurisdiction}}.`,
   },
   {
     key: "general",
@@ -144,22 +143,26 @@ export const DEFAULT_CLOSING =
   "Kindly sign and return a copy of this Letter to enable us to proceed. On receipt of the Advance, we will commence site feasibility " +
   "and preparatory work, following which the Charging Station shall be handed over and made operational.";
 
-export function defaultIntro(kwLabel: string, extraEquipment?: string): string {
+/** legalName/model come from the issuing tenant's own Settings → Company/Letter of Intent — see eoi.ts's buildEoiFromLead. */
+export function defaultIntro(kwLabel: string, legalName: string, model: string, extraEquipment?: string): string {
   const extra = extraEquipment ? `, along with ${extraEquipment}` : "";
+  const modelClause = model ? ` under our ${model} model,` : "";
   return (
-    `Thank you for your interest in ${COMPANY.legalName}'s EV charging infrastructure investment opportunities. We are pleased to ` +
-    `share this Letter of Intent for your commercial participation, under our ${COMPANY.model} model, in the establishment and ` +
+    `Thank you for your interest in ${legalName}'s EV charging infrastructure investment opportunities. We are pleased to ` +
+    `share this Letter of Intent for your commercial participation,${modelClause} in the establishment and ` +
     `operation of a ${kwLabel} DC EV Charging Station${extra}, along with the payment structure, indicative monthly payout and the ` +
     `terms and conditions governing this participation, as detailed below.`
   );
 }
 
-export function defaultSubject(kwLabel: string, siteName: string, extraEquipment?: string): string {
+/** modelAbbreviation is a short tag pulled from the model text, e.g. "FOCO" out of `Franchise-Owned, Company-Operated ("FOCO")`. */
+export function defaultSubject(kwLabel: string, siteName: string, modelAbbreviation: string, extraEquipment?: string): string {
   const extra = extraEquipment ? ` (with ${extraEquipment})` : "";
   const at = siteName ? ` at ${siteName}` : "";
+  const modelClause = modelAbbreviation ? ` under the ${modelAbbreviation} Model` : "";
   return (
     `Letter of Intent cum Expression of Interest for Commercial Participation in a ${kwLabel} DC EV Charging Station` +
-    `${extra} under the FOCO Model${at}`
+    `${extra}${modelClause}${at}`
   );
 }
 

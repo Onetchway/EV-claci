@@ -91,15 +91,12 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 /**
- * A recreated text wordmark — the actual logo file has only ever been
- * pasted inline in chat, never uploaded, so there's no image asset to
- * embed. This is styled to match closely: the triangle stands in for the
- * "a" in "livanto" (as it does in the source mark), and the "green."
- * period is a filled dot rather than a literal "." glyph. Once a real
- * logo file exists at Settings → Company → Logo URL (settings.company.logoUrl,
- * e.g. an upload to /public/logo.png), the sidebar prefers that automatically
- * — see the logoUrl check in AppLayout below — so this component stops
- * being used without any further code change.
+ * Livanto's own recreated text wordmark — its actual logo file has only
+ * ever been pasted inline in chat, never uploaded, so there's no image
+ * asset to embed for that org specifically. Only rendered for Livanto's
+ * own org (see the name check where this is used below); any other
+ * tenant without a logo instead falls back to their plain org name via
+ * TextWordmark, so a different tenant is never shown Livanto's mark.
  */
 function LivantoWordmark() {
   return (
@@ -117,6 +114,11 @@ function LivantoWordmark() {
       </span>
     </div>
   );
+}
+
+/** Plain-text wordmark for any tenant without a logo uploaded yet, using their own org/company name rather than a graphic mark. */
+function TextWordmark({ name }: { name: string }) {
+  return <span className="text-[16px] font-extrabold tracking-tight text-navy-900">{name}</span>;
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -232,9 +234,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <img src={org.logoUrl} alt="" className="h-9 w-9 rounded-lg object-contain" />
         ) : settings.company.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={settings.company.logoUrl} alt="Livanto Green" className="h-8 max-w-[150px] object-contain object-left" />
-        ) : (
+          <img src={settings.company.logoUrl} alt={org?.name || settings.company.shortName || "Company logo"} className="h-8 max-w-[150px] object-contain object-left" />
+        ) : /^livanto/i.test(org?.name ?? settings.company.shortName ?? "") ? (
           <LivantoWordmark />
+        ) : (
+          <TextWordmark name={org?.name || settings.company.shortName || "CRM"} />
         )}
         {org && (
           <div className="min-w-0">
@@ -299,7 +303,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setNavOpen(true)} className="rounded-lg p-1.5 text-ink-600 hover:bg-ink-100 lg:hidden" aria-label="Open navigation">
             <Menu className="h-5 w-5" />
           </button>
-          <span className="text-sm font-semibold text-ink-900 lg:hidden">Livanto Green CRM</span>
+          <span className="text-sm font-semibold text-ink-900 lg:hidden">{org?.name || settings.company.shortName || "CRM"}</span>
           <div className="hidden flex-1 lg:block">
             <GlobalSearch />
           </div>

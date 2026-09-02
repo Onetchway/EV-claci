@@ -524,10 +524,16 @@ export const CLIENT_ENTITY_TYPE_LABEL: Record<ClientEntityType, string> = {
 
 export const LOCATION_PROVIDERS = ["SELF", "LIVANTO"] as const;
 export type LocationProvider = (typeof LOCATION_PROVIDERS)[number];
-export const LOCATION_PROVIDER_LABEL: Record<LocationProvider, string> = {
-  SELF: "Self — the client's own site",
-  LIVANTO: "Livanto — sourced/arranged by us",
-};
+/**
+ * The "LIVANTO" value is a stable stored enum key (unchanged so existing
+ * data keeps meaning "sourced/arranged by the operating company"), but its
+ * label names the actual issuing tenant, so pass their own short name from
+ * Settings → Company rather than reading a fixed Record.
+ */
+export function locationProviderLabel(provider: LocationProvider, companyShortName: string): string {
+  if (provider === "SELF") return "Self — the client's own site";
+  return `${companyShortName || "The company"} — sourced/arranged by us`;
+}
 
 export const SITE_COMPENSATION_TYPES = ["RENTAL", "REVENUE_SHARE"] as const;
 export type SiteCompensationType = (typeof SITE_COMPENSATION_TYPES)[number];

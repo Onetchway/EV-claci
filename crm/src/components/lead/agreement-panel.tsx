@@ -193,10 +193,12 @@ function EditableParagraph({
 
 /** The letter itself — shared between the live editable draft and a read-only archived version, and reused verbatim by the investor portal. */
 export function AgreementLetterArticle({
-  agreement, company, readOnly, onPatch,
+  agreement, company, arbitrationSeat, readOnly, onPatch,
 }: {
   agreement: AgreementDoc;
   company: AppSettings["company"];
+  /** From the issuing tenant's own Settings → Letter of Intent — where this Agreement is executed, for the opening recital. */
+  arbitrationSeat: string;
   readOnly?: boolean;
   /** When set, Schedule I, recitals and clause text all become editable directly on the letter — mirrors how the Letter of Intent stays editable inline. */
   onPatch?: (p: Partial<AgreementDoc>) => void;
@@ -230,8 +232,9 @@ export function AgreementLetterArticle({
         <h2 className="mt-1 text-center text-sm font-bold uppercase tracking-wide text-ink-700">Franchise and Commercial Partnership Agreement</h2>
         <p className="mt-4 text-sm text-ink-700">
           This Franchise and Commercial Partnership Agreement (&ldquo;Agreement&rdquo;) is entered into on this{" "}
-          {agreement.issuedDate ? formatDate(agreement.issuedDate) : "____"} (&ldquo;Effective Date&rdquo;), at Lucknow, Uttar Pradesh, by and between{" "}
-          <strong>Livanto Green Infra Private Limited</strong> (&ldquo;Livanto&rdquo; or the &ldquo;Franchisor&rdquo;) and{" "}
+          {agreement.issuedDate ? formatDate(agreement.issuedDate) : "____"} (&ldquo;Effective Date&rdquo;)
+          {arbitrationSeat ? `, at ${arbitrationSeat},` : ","} by and between{" "}
+          <strong>{company.legalName || "[COMPANY NAME]"}</strong> (&ldquo;{company.shortName || "the Company"}&rdquo; or the &ldquo;Franchisor&rdquo;) and{" "}
           <strong>{agreement.scheduleI.clientName || "[CLIENT NAME]"}</strong> (&ldquo;Franchisee&rdquo;), collectively the &ldquo;Parties&rdquo;.
         </p>
 
@@ -268,7 +271,7 @@ export function AgreementLetterArticle({
 
         <div className="mt-6 grid grid-cols-2 gap-8 text-sm text-ink-700">
           <div>
-            <p className="font-semibold text-ink-900">For Livanto Green Infra Private Limited</p>
+            <p className="font-semibold text-ink-900">For {company.legalName || "the Company"}</p>
             <p className="mt-4">Signature: ____________________________</p>
             <p className="mt-2">Name: ____________________________</p>
             <p className="mt-2">Designation: ____________________________</p>
@@ -501,7 +504,7 @@ export function AgreementPanel({
         <p className="text-xs text-ink-500">
           {canEdit && current.status !== "SIGNED"
             ? "Click any line below — recitals, clauses or Schedule I — to edit it directly, then Save changes."
-            : "Recitals, clauses and Schedule I are seeded from Livanto's standard template and can be edited per lead."}
+            : "Recitals, clauses and Schedule I are seeded from the standard template and can be edited per lead."}
           {current.issuedDate && ` Issued ${formatDateTime(current.issuedDate)}.`}
         </p>
       </Card>
@@ -510,6 +513,7 @@ export function AgreementPanel({
         <AgreementLetterArticle
           agreement={current}
           company={company}
+          arbitrationSeat={settings.loi.arbitrationSeat}
           readOnly={!canEdit || current.status === "SIGNED"}
           onPatch={canEdit ? patch : undefined}
         />
@@ -601,7 +605,14 @@ export function AgreementPanel({
         footer={<Button onClick={() => setViewingVersion(null)}>Close</Button>}
         wide
       >
-        {viewingVersion && <AgreementLetterArticle agreement={viewingVersion} company={company} readOnly />}
+        {viewingVersion && (
+          <AgreementLetterArticle
+            agreement={viewingVersion}
+            company={company}
+            arbitrationSeat={settings.loi.arbitrationSeat}
+            readOnly
+          />
+        )}
       </Modal>
     </div>
   );

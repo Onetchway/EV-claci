@@ -1606,6 +1606,8 @@ export interface AppSettings {
     signatory: string;
     arbitrationSeat: string;
     jurisdiction: string;
+    /** The participation model named in the LOI intro, e.g. "Franchise-Owned, Company-Operated (\"FOCO\")". */
+    model: string;
     scopeItems: string[];
     closing: string;
   };

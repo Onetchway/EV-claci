@@ -12,7 +12,7 @@ import {
 import {
   FOLLOWUP_TYPE_LABEL, FOLLOWUP_TYPES, GST_SLABS, INDIAN_STATES, type FollowupType,
 } from "@/lib/constants";
-import { defaultSettings, saveSettings, subscribeSettings } from "@/lib/db/settings";
+import { blankSettings, saveSettings, subscribeSettings } from "@/lib/db/settings";
 import { saveSequence, subscribeSequences } from "@/lib/db/tasks";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isSuperAdmin, viewerIsAdmin } from "@/lib/permissions";
@@ -83,7 +83,7 @@ export default function SettingsPage() {
   const { busy, run } = useAsyncAction();
 
   const [stored, setStored] = useState<AppSettings | null>(null);
-  const [form, setForm] = useState<AppSettings>(defaultSettings());
+  const [form, setForm] = useState<AppSettings>(blankSettings());
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("Company");
 
@@ -351,6 +351,9 @@ export default function SettingsPage() {
               </Field>
               <Field label="Jurisdiction (courts at)">
                 <Input value={form.loi.jurisdiction} onChange={(e) => set("loi", { ...form.loi, jurisdiction: e.target.value })} />
+              </Field>
+              <Field label="Participation model" hint='Named in the LOI intro, e.g. Franchise-Owned, Company-Operated ("FOCO")'>
+                <Input value={form.loi.model} onChange={(e) => set("loi", { ...form.loi, model: e.target.value })} />
               </Field>
             </div>
           </Card>

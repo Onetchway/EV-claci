@@ -64,7 +64,7 @@ export default function PortalAgreementPage() {
         </button>
       </div>
 
-      <AgreementLetterArticle agreement={lead.agreement} company={settings.company} readOnly />
+      <AgreementLetterArticle agreement={lead.agreement} company={settings.company} arbitrationSeat={settings.loi.arbitrationSeat} readOnly />
     </main>
   );
 }

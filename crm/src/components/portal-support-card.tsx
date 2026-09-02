@@ -3,6 +3,7 @@
 import { Loader2, MessageCircleQuestion, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useSettings } from "@/hooks/use-settings";
 import { subscribeLeadSupportRequests, submitSupportRequest } from "@/lib/db/support-requests";
 import type { Lead, PortalSupportRequest } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
@@ -10,6 +11,7 @@ import { formatDateTime } from "@/lib/utils";
 const inputClass = "w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500";
 
 export function PortalSupportCard({ lead }: { lead: Lead }) {
+  const { settings } = useSettings();
   const [requests, setRequests] = useState<PortalSupportRequest[]>([]);
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState("");
@@ -101,7 +103,7 @@ export function PortalSupportCard({ lead }: { lead: Lead }) {
               <p className="mt-1 text-[11px] text-ink-400">{formatDateTime(r.createdAt)}</p>
               {r.reply && (
                 <div className="mt-2 rounded-lg bg-brand-50 px-3 py-2">
-                  <p className="text-xs font-semibold text-brand-800">Reply from Livanto Green</p>
+                  <p className="text-xs font-semibold text-brand-800">Reply from {settings.company.shortName || "us"}</p>
                   <p className="mt-0.5 text-sm text-brand-900">{r.reply}</p>
                 </div>
               )}

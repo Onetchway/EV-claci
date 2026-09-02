@@ -12,12 +12,13 @@ import {
   Button, Card, Checkbox, Field, Input, Modal, Select, Textarea, useToast,
 } from "@/components/ui";
 import { useAgents } from "@/hooks/use-leads";
+import { useSettings } from "@/hooks/use-settings";
 import {
   BANKS, CHARGER_OEMS, CLIENT_ENTITY_TYPE_LABEL, CLIENT_ENTITY_TYPES,
   COMMERCIAL_MODEL_LABEL, COMMERCIAL_MODELS,
   COMMERCIAL_MODEL_TYPES, FUNDING_MODES, FUNDING_MODE_LABEL, INDIAN_STATES,
   LAND_TYPES, LAND_TYPE_LABEL, LEAD_TYPES, LEAD_TYPE_LABEL,
-  LOCATION_PROVIDER_LABEL, LOCATION_PROVIDERS, LOCATION_TYPES,
+  locationProviderLabel, LOCATION_PROVIDERS, LOCATION_TYPES,
   LOCATION_TYPE_LABEL, OWNERSHIP_LABEL, OWNERSHIP_TYPES, OWNER_TYPES,
   OWNER_TYPE_LABEL, POWER_LOADS, POWER_LOAD_LABEL,
   SITE_COMPENSATION_TYPE_LABEL, SITE_COMPENSATION_TYPES, SOURCES, SOURCE_LABEL,
@@ -145,6 +146,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
   const { profile, role } = useAuth();
   const { users } = useAgents();
   const { push } = useToast();
+  const { settings } = useSettings();
 
   const [values, setValues] = useState<LeadFormValues>(
     () => initial ?? emptyValues(profile?.uid ?? "", profile?.name ?? ""),
@@ -514,7 +516,7 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                 placeholder="Select"
                 value={values.site.locationProvider ?? ""}
                 onChange={(e) => setSite({ locationProvider: (e.target.value || null) as LocationProvider | null })}
-                options={LOCATION_PROVIDERS.map((p) => ({ value: p, label: LOCATION_PROVIDER_LABEL[p] }))}
+                options={LOCATION_PROVIDERS.map((p) => ({ value: p, label: locationProviderLabel(p, settings.company.shortName) }))}
               />
             </Field>
             <Field label="Site compensation">

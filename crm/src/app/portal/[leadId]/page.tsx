@@ -464,7 +464,7 @@ export default function PortalLeadDetailPage() {
           )}
         </SectionCard>
 
-        <PortalBankDetailsCard leadId={lead.id} companyBank={settings.bank} />
+        <PortalBankDetailsCard leadId={lead.id} companyBank={settings.bank} companyName={settings.company.shortName} />
 
         {financing && (
           <SectionCard title="Loan / financing" icon={Landmark}>
