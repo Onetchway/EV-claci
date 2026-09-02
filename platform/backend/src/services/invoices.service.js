@@ -6,6 +6,9 @@ const { nextInvoiceNumber } = require('../utils/invoiceNumber');
 const audit = require('./audit.service');
 const { sendInvoiceEmail } = require('./email.service');
 const { proratedEmployeeCharge } = require('./usage.service');
+const addOns = require('./addOns.service');
+const coupons = require('./coupons.service');
+const credits = require('./credits.service');
 
 const list = async (filters) => {
   const { page, limit, skip } = paginate(filters);
@@ -58,27 +61,9 @@ const resolveBillingTerms = (tenant, plan) => ({
   tax_percent: plan?.tax_percent ?? 18,
 });
 
-// Generates one invoice for a tenant covering [periodStart, periodEnd).
-// Idempotent per (tenant, period) — re-running for a period that already
-// has an invoice is a no-op and returns the existing one.
-const generateForTenant = async (tenantId, periodStart, periodEnd, actor) => {
-  const tenantRes = await query(`SELECT * FROM tenants WHERE id = $1`, [tenantId]);
-  const tenant = tenantRes.rows[0];
-  if (!tenant) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
-  if (tenant.status !== 'active') { const e = new Error('Only active tenants can be invoiced.'); e.status = 400; throw e; }
-
-  const existing = await query(
-    `SELECT * FROM invoices WHERE tenant_id = $1 AND period_start = $2 AND period_end = $3`,
-    [tenantId, periodStart.toISOString().slice(0, 10), periodEnd.toISOString().slice(0, 10)]
-  );
-  if (existing.rows[0]) return existing.rows[0];
-
-  const planRes = tenant.billing_plan_id
-    ? await query(`SELECT * FROM billing_plans WHERE id = $1`, [tenant.billing_plan_id])
-    : { rows: [] };
-  const terms = resolveBillingTerms(tenant, planRes.rows[0]);
-  if (!terms.billing_model) { const e = new Error('Tenant has no billing plan or override configured.'); e.status = 400; throw e; }
-
+// Computes the base plan/employee charge for a tenant's period, shared by
+// generateForTenant and previewForTenant so the two never diverge.
+const computeBaseCharge = async (tenantId, tenant, terms, periodStart, periodEnd) => {
   let employeeCount = null;
   let unitAmount = 0;
   let subtotal = 0;
@@ -114,53 +99,161 @@ const generateForTenant = async (tenantId, periodStart, periodEnd, actor) => {
     description = `Fixed monthly subscription — ${terms.currency} ${unitAmount}`;
   }
 
-  const taxAmount = +(subtotal * (Number(terms.tax_percent) / 100)).toFixed(2);
-  const totalAmount = +(subtotal + taxAmount).toFixed(2);
+  return { employeeCount, unitAmount, subtotal, description };
+};
+
+// Computes the full breakdown for a tenant's period — base charge, add-ons,
+// coupon discount, tax, and available credit — without persisting anything.
+// Shared by generateForTenant (which then writes it) and previewForTenant
+// (which just returns it).
+const computeInvoiceBreakdown = async (tenantId, periodStart, periodEnd) => {
+  const tenantRes = await query(`SELECT * FROM tenants WHERE id = $1`, [tenantId]);
+  const tenant = tenantRes.rows[0];
+  if (!tenant) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
+
+  const planRes = tenant.billing_plan_id
+    ? await query(`SELECT * FROM billing_plans WHERE id = $1`, [tenant.billing_plan_id])
+    : { rows: [] };
+  const terms = resolveBillingTerms(tenant, planRes.rows[0]);
+  if (!terms.billing_model) { const e = new Error('Tenant has no billing plan or override configured.'); e.status = 400; throw e; }
+
+  const base = await computeBaseCharge(tenantId, tenant, terms, periodStart, periodEnd);
+
+  const addOnCharges = await addOns.activeChargesForTenant(tenantId);
+  const addOnAmount = +addOnCharges.reduce((sum, a) => sum + Number(a.amount), 0).toFixed(2);
+  const preDiscountSubtotal = +(base.subtotal + addOnAmount).toFixed(2);
+
+  const coupon = await coupons.activeCouponForTenant(tenantId, preDiscountSubtotal);
+  const discountAmount = coupon ? coupon.discount : 0;
+  const discountedSubtotal = +(preDiscountSubtotal - discountAmount).toFixed(2);
+
+  const taxAmount = +(discountedSubtotal * (Number(terms.tax_percent) / 100)).toFixed(2);
+  const totalBeforeCredit = +(discountedSubtotal + taxAmount).toFixed(2);
+
+  const creditBalance = await credits.balanceForTenant(tenantId);
+  const creditApplicable = Math.max(0, Math.min(creditBalance, totalBeforeCredit));
+  const totalAmount = +(totalBeforeCredit - creditApplicable).toFixed(2);
+
+  return {
+    tenant, terms, base, addOnCharges, addOnAmount, preDiscountSubtotal,
+    coupon, discountAmount, discountedSubtotal, taxAmount, totalBeforeCredit,
+    creditBalance, creditApplicable, totalAmount,
+  };
+};
+
+// Computes the same breakdown as generateForTenant would produce, but
+// persists nothing — for the "preview next invoice" UI (spec section 31).
+const previewForTenant = async (tenantId, periodStart, periodEnd) => {
+  const b = await computeInvoiceBreakdown(tenantId, periodStart, periodEnd);
+  return {
+    period_start: periodStart.toISOString().slice(0, 10),
+    period_end: periodEnd.toISOString().slice(0, 10),
+    billing_model: b.terms.billing_model,
+    employee_count: b.base.employeeCount,
+    unit_amount: b.base.unitAmount,
+    base_subtotal: b.base.subtotal,
+    add_ons: b.addOnCharges,
+    add_on_amount: b.addOnAmount,
+    subtotal: b.preDiscountSubtotal,
+    coupon_code: b.coupon?.code || null,
+    discount_amount: b.discountAmount,
+    tax_percent: b.terms.tax_percent,
+    tax_amount: b.taxAmount,
+    total_before_credit: b.totalBeforeCredit,
+    credit_balance: b.creditBalance,
+    credit_applied: b.creditApplicable,
+    total_amount: b.totalAmount,
+    currency: b.terms.currency,
+  };
+};
+
+// Generates one invoice for a tenant covering [periodStart, periodEnd).
+// Idempotent per (tenant, period) — re-running for a period that already
+// has an invoice is a no-op and returns the existing one.
+const generateForTenant = async (tenantId, periodStart, periodEnd, actor) => {
+  const tenantRes = await query(`SELECT * FROM tenants WHERE id = $1`, [tenantId]);
+  const tenant = tenantRes.rows[0];
+  if (!tenant) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
+  if (tenant.status !== 'active') { const e = new Error('Only active tenants can be invoiced.'); e.status = 400; throw e; }
+
+  const existing = await query(
+    `SELECT * FROM invoices WHERE tenant_id = $1 AND period_start = $2 AND period_end = $3`,
+    [tenantId, periodStart.toISOString().slice(0, 10), periodEnd.toISOString().slice(0, 10)]
+  );
+  if (existing.rows[0]) return existing.rows[0];
+
+  const b = await computeInvoiceBreakdown(tenantId, periodStart, periodEnd);
+  const { terms, base } = b;
+
   const invoiceNumber = await nextInvoiceNumber(periodStart);
   const dueAt = new Date(periodEnd);
   dueAt.setDate(dueAt.getDate() + 15);
 
   const client = await getClient();
+  let invoice;
   try {
     await client.query('BEGIN');
     const invRes = await client.query(
       `INSERT INTO invoices
          (tenant_id, invoice_number, period_start, period_end, billing_model, employee_count,
-          unit_amount, subtotal, tax_percent, tax_amount, total_amount, currency, status, due_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'issued',$13)
+          unit_amount, subtotal, add_on_amount, discount_amount, coupon_code,
+          tax_percent, tax_amount, total_amount, currency, status, due_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'issued',$16)
        RETURNING *`,
       [
         tenantId, invoiceNumber, periodStart.toISOString().slice(0, 10), periodEnd.toISOString().slice(0, 10),
-        terms.billing_model, employeeCount, unitAmount, subtotal, terms.tax_percent, taxAmount, totalAmount,
-        terms.currency, dueAt.toISOString(),
+        terms.billing_model, base.employeeCount, base.unitAmount, base.subtotal, b.addOnAmount, b.discountAmount,
+        b.coupon?.code || null, terms.tax_percent, b.taxAmount, b.totalBeforeCredit, terms.currency, dueAt.toISOString(),
       ]
     );
-    const invoice = invRes.rows[0];
+    invoice = invRes.rows[0];
 
     await client.query(
       `INSERT INTO invoice_line_items (invoice_id, description, quantity, unit_amount, amount)
        VALUES ($1,$2,$3,$4,$5)`,
-      [invoice.id, description, employeeCount ?? 1, unitAmount, subtotal]
+      [invoice.id, base.description, base.employeeCount ?? 1, base.unitAmount, base.subtotal]
     );
+    for (const addOn of b.addOnCharges) {
+      await client.query(
+        `INSERT INTO invoice_line_items (invoice_id, description, quantity, unit_amount, amount)
+         VALUES ($1,$2,1,$3,$3)`,
+        [invoice.id, `Add-on — ${addOn.name}`, Number(addOn.amount)]
+      );
+    }
 
     await client.query('COMMIT');
-
-    await audit.log({
-      superAdminId: actor?.id,
-      tenantId,
-      action: 'invoice.generated',
-      details: { invoice_number: invoiceNumber, total_amount: totalAmount },
-    });
-
-    sendInvoiceEmail(invoice, tenant).catch((err) => console.error(`[invoices] Failed to email ${invoiceNumber}:`, err.message));
-
-    return invoice;
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
   } finally {
     client.release();
   }
+
+  // Credit consumption needs the invoice's real id, so it runs after the
+  // invoice row is committed; coupon usage is recorded here too since both
+  // are best-effort bookkeeping, not part of the invoice's own atomicity.
+  if (b.coupon) {
+    await coupons.recordCouponApplied(b.coupon.tenant_coupon_id);
+  }
+  const creditApplied = await credits.consumeForInvoice(tenantId, invoice.id, invoice.total_amount);
+  if (creditApplied > 0) {
+    const updated = await query(
+      `UPDATE invoices SET credit_applied = $1, total_amount = total_amount - $1 WHERE id = $2 RETURNING *`,
+      [creditApplied, invoice.id]
+    );
+    invoice = updated.rows[0];
+  }
+
+  await audit.log({
+    superAdminId: actor?.id,
+    tenantId,
+    action: 'invoice.generated',
+    details: { invoice_number: invoiceNumber, total_amount: invoice.total_amount },
+  });
+
+  sendInvoiceEmail(invoice, tenant).catch((err) => console.error(`[invoices] Failed to email ${invoiceNumber}:`, err.message));
+
+  return invoice;
 };
 
 const setStatus = async (id, status, actor) => {
@@ -174,4 +267,4 @@ const setStatus = async (id, status, actor) => {
   return res.rows[0];
 };
 
-module.exports = { list, getOne, generateForTenant, setStatus, resolveBillingTerms };
+module.exports = { list, getOne, generateForTenant, previewForTenant, setStatus, resolveBillingTerms };

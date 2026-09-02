@@ -22,6 +22,7 @@ import "server-only";
 import { adminDb } from "./firebase/admin";
 
 type FeatureRow = { key: string; category: string; enabled: boolean };
+type ModuleRow = { key: string; enabled: boolean };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, { categories: Set<string>; keys: Set<string>; expiresAt: number }>();
@@ -33,16 +34,17 @@ async function getOrgPlatformKey(orgId: string | null): Promise<string | null> {
 }
 
 /**
- * This org's enabled feature categories (every category with at least one
- * enabled feature) and enabled feature keys (platform/database/schema.sql's
- * feature_catalog.key/category), fetched together since they come from the
- * same platform call. `null` for both means "not onboarded onto the
- * platform, or the platform is unreachable" — everything is implicitly
- * enabled in that case (fail-open, same rule the old isFeatureEnabled used
- * per-key): categories gate whole nav groups (a coarse first pass, e.g. no
- * "hr" category enabled hides the whole HRMS group), keys gate individual
- * nav items within a group the super admin left on but turned one feature
- * of off (e.g. HR stays on but Attendance specifically is disabled).
+ * This org's enabled modules (platform/database/schema.sql's `modules` —
+ * an explicit, coarser on/off gate over a whole nav group, e.g. "hr" — see
+ * GET /modules/me) and enabled individual feature keys (feature_catalog.key
+ * — a finer gate within a module, e.g. "attendance" specifically). `null`
+ * for both means "not onboarded onto the platform, or the platform is
+ * unreachable" — everything is implicitly enabled in that case (fail
+ * open, same rule the old isFeatureEnabled used per-key). Field is still
+ * named `categories` for backward compat with existing callers (the
+ * portal route's category check) — semantically it's now module keys,
+ * which happen to share the same string values as feature_catalog's
+ * category column by design (see modules migration).
  */
 export async function getEnabledFeatures(
   orgId: string | null,
@@ -57,16 +59,16 @@ export async function getEnabledFeatures(
   if (!apiKey) return null;
 
   try {
-    const response = await fetch(`${apiUrl}/features/me`, {
-      headers: { "X-Tenant-Api-Key": apiKey },
-      cache: "no-store",
-    });
-    if (!response.ok) return cached ?? null;
-    const { data } = (await response.json()) as { data: FeatureRow[] };
-    const enabled = data.filter((f) => f.enabled);
+    const [featuresRes, modulesRes] = await Promise.all([
+      fetch(`${apiUrl}/features/me`, { headers: { "X-Tenant-Api-Key": apiKey }, cache: "no-store" }),
+      fetch(`${apiUrl}/modules/me`, { headers: { "X-Tenant-Api-Key": apiKey }, cache: "no-store" }),
+    ]);
+    if (!featuresRes.ok || !modulesRes.ok) return cached ?? null;
+    const { data: featureData } = (await featuresRes.json()) as { data: FeatureRow[] };
+    const { data: moduleData } = (await modulesRes.json()) as { data: ModuleRow[] };
     const result = {
-      categories: new Set(enabled.map((f) => f.category)),
-      keys: new Set(enabled.map((f) => f.key)),
+      categories: new Set(moduleData.filter((m) => m.enabled).map((m) => m.key)),
+      keys: new Set(featureData.filter((f) => f.enabled).map((f) => f.key)),
       expiresAt: Date.now() + CACHE_TTL_MS,
     };
     cache.set(cacheKey, result);

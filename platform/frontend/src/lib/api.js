@@ -59,12 +59,45 @@ export const featuresApi = {
 
 export const billingPlansApi = { ...resource('/billing-plans') };
 
+export const modulesApi = {
+  catalog: () => client.get('/modules/catalog'),
+  updateCatalog: (key, data) => client.put(`/modules/catalog/${key}`, data),
+  forTenant: (tenantId) => client.get(`/modules/tenants/${tenantId}`),
+  setForTenant: (tenantId, moduleKey, enabled) => client.put(`/modules/tenants/${tenantId}/${moduleKey}`, { enabled }),
+  bulkSetForTenant: (tenantId, modules) => client.put(`/modules/tenants/${tenantId}`, { modules }),
+};
+
 export const invoicesApi = {
   list: (params) => client.get(`/invoices${buildQuery(params) ? `?${buildQuery(params)}` : ''}`),
   get: (id) => client.get(`/invoices/${id}`),
+  preview: (tenantId, params) => client.get(`/invoices/tenants/${tenantId}/preview${buildQuery(params) ? `?${buildQuery(params)}` : ''}`),
   generate: (tenantId, data) => client.post(`/invoices/tenants/${tenantId}/generate`, data),
   markPaid: (id) => client.patch(`/invoices/${id}/paid`),
   void: (id) => client.patch(`/invoices/${id}/void`),
+};
+
+export const addOnsApi = {
+  catalog: () => client.get('/add-ons/catalog'),
+  createCatalog: (data) => client.post('/add-ons/catalog', data),
+  updateCatalog: (id, data) => client.put(`/add-ons/catalog/${id}`, data),
+  removeCatalog: (id) => client.delete(`/add-ons/catalog/${id}`),
+  forTenant: (tenantId) => client.get(`/add-ons/tenants/${tenantId}`),
+  attachToTenant: (tenantId, addOnId, amountOverride) => client.post(`/add-ons/tenants/${tenantId}`, { add_on_id: addOnId, amount_override: amountOverride }),
+  detachFromTenant: (tenantId, addOnId) => client.delete(`/add-ons/tenants/${tenantId}/${addOnId}`),
+};
+
+export const couponsApi = {
+  list: () => client.get('/coupons'),
+  create: (data) => client.post('/coupons', data),
+  update: (id, data) => client.put(`/coupons/${id}`, data),
+  forTenant: (tenantId) => client.get(`/coupons/tenants/${tenantId}`),
+  assignToTenant: (tenantId, couponId) => client.post(`/coupons/tenants/${tenantId}`, { coupon_id: couponId }),
+  unassignFromTenant: (tenantId, tenantCouponId) => client.delete(`/coupons/tenants/${tenantId}/${tenantCouponId}`),
+};
+
+export const creditsApi = {
+  forTenant: (tenantId) => client.get(`/credits/tenants/${tenantId}`),
+  addCredit: (tenantId, amount, reason) => client.post(`/credits/tenants/${tenantId}`, { amount, reason }),
 };
 
 export const usageApi = {

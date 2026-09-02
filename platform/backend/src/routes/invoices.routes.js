@@ -9,6 +9,7 @@ router.use(authenticate);
 
 router.get('/', ctrl.list);
 router.get('/:id', ctrl.getOne);
+router.get('/tenants/:tenantId/preview', ctrl.preview);
 router.post('/tenants/:tenantId/generate', requireRole('super_admin', 'billing_ops'), ctrl.generate);
 router.patch('/:id/paid', requireRole('super_admin', 'billing_ops'), ctrl.markPaid);
 router.patch('/:id/void', requireRole('super_admin'), ctrl.void);

@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
-import { Building2, LayoutGrid, LayoutDashboard, Receipt } from 'lucide-react';
+import {
+  Blocks, Building2, LayoutGrid, LayoutDashboard, Receipt, ShieldCheck, Tag, Wallet,
+} from 'lucide-react';
 
 // Grouped per Alpha's own nav spec (Overview / Customers / Product /
 // Revenue / Configuration / Platform / Alpha Admin) -- only groups with
@@ -21,11 +23,22 @@ const GROUPS = [
   },
   {
     label: 'Product',
-    items: [{ href: '/billing', label: 'Plans', icon: LayoutGrid }],
+    items: [
+      { href: '/billing', label: 'Plans', icon: LayoutGrid },
+      { href: '/modules', label: 'Modules', icon: Blocks },
+      { href: '/add-ons', label: 'Add-ons', icon: Wallet },
+    ],
   },
   {
     label: 'Revenue',
-    items: [{ href: '/invoices', label: 'Invoices', icon: Receipt }],
+    items: [
+      { href: '/invoices', label: 'Invoices', icon: Receipt },
+      { href: '/coupons', label: 'Coupons', icon: Tag },
+    ],
+  },
+  {
+    label: 'Alpha Admin',
+    items: [{ href: '/admins', label: 'Administrators', icon: ShieldCheck }],
   },
 ];
 

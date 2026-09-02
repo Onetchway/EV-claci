@@ -7,7 +7,10 @@ import {
   Building2, IndianRupee, Key, Receipt, RefreshCw, Users,
 } from 'lucide-react';
 
-import { tenantsApi, featuresApi, billingPlansApi, invoicesApi, usageApi, provisioningApi } from '@/lib/api';
+import {
+  tenantsApi, featuresApi, billingPlansApi, invoicesApi, usageApi, provisioningApi,
+  addOnsApi, couponsApi, creditsApi,
+} from '@/lib/api';
 
 const STATUS_BADGE = {
   active: 'badge-green',
@@ -16,8 +19,8 @@ const STATUS_BADGE = {
   cancelled: 'badge-gray',
 };
 
-const money = (n, currency = 'INR') =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n || 0);
+const money = (n, currency) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: currency || 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
 const TABS = ['Overview', 'Billing', 'Features', 'Domains'];
 
@@ -32,21 +35,42 @@ export default function TenantDetailPage() {
   const [provisioning, setProvisioning] = useState(false);
   const [tab, setTab] = useState('Overview');
 
+  const [addOnCatalog, setAddOnCatalog] = useState([]);
+  const [tenantAddOns, setTenantAddOns] = useState([]);
+  const [couponCatalog, setCouponCatalog] = useState([]);
+  const [tenantCoupons, setTenantCoupons] = useState([]);
+  const [credits, setCredits] = useState({ data: [], balance: 0 });
+  const [preview, setPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   const load = async () => {
     setLoading(true);
     try {
-      const [tenantRes, featuresRes, plansRes, invoicesRes, usageRes] = await Promise.all([
+      const [
+        tenantRes, featuresRes, plansRes, invoicesRes, usageRes,
+        addOnCatalogRes, tenantAddOnsRes, couponCatalogRes, tenantCouponsRes, creditsRes,
+      ] = await Promise.all([
         tenantsApi.get(id),
         featuresApi.forTenant(id),
         billingPlansApi.list(),
         invoicesApi.list({ tenant_id: id }),
         usageApi.forTenant(id),
+        addOnsApi.catalog(),
+        addOnsApi.forTenant(id),
+        couponsApi.list(),
+        couponsApi.forTenant(id),
+        creditsApi.forTenant(id),
       ]);
       setTenant(tenantRes);
       setFeatures(featuresRes.data);
       setPlans(plansRes.data);
       setInvoices(invoicesRes.data);
       setUsage(usageRes.data);
+      setAddOnCatalog(addOnCatalogRes.data);
+      setTenantAddOns(tenantAddOnsRes.data);
+      setCouponCatalog(couponCatalogRes.data);
+      setTenantCoupons(tenantCouponsRes.data);
+      setCredits(creditsRes);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -87,6 +111,85 @@ export default function TenantDetailPage() {
         period_end: periodEnd.toISOString().slice(0, 10),
       });
       toast.success('Invoice generated.');
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const currentPeriod = () => {
+    const now = new Date();
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), 1),
+      end: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+    };
+  };
+
+  const loadPreview = async () => {
+    const { start, end } = currentPeriod();
+    setPreviewLoading(true);
+    try {
+      const data = await invoicesApi.preview(id, {
+        period_start: start.toISOString().slice(0, 10),
+        period_end: end.toISOString().slice(0, 10),
+      });
+      setPreview(data);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const attachAddOn = async (addOnId) => {
+    if (!addOnId) return;
+    try {
+      await addOnsApi.attachToTenant(id, addOnId);
+      toast.success('Add-on attached.');
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const detachAddOn = async (addOnId) => {
+    try {
+      await addOnsApi.detachFromTenant(id, addOnId);
+      toast.success('Add-on removed.');
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const assignCoupon = async (couponId) => {
+    if (!couponId) return;
+    try {
+      await couponsApi.assignToTenant(id, couponId);
+      toast.success('Coupon assigned.');
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const unassignCoupon = async (tenantCouponId) => {
+    try {
+      await couponsApi.unassignFromTenant(id, tenantCouponId);
+      toast.success('Coupon unassigned.');
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const addCredit = async () => {
+    const amount = window.prompt('Credit amount (use a negative number to deduct):');
+    if (!amount || Number.isNaN(Number(amount))) return;
+    const reason = window.prompt('Reason (optional):') || undefined;
+    try {
+      await creditsApi.addCredit(id, Number(amount), reason);
+      toast.success('Credit recorded.');
       load();
     } catch (err) {
       toast.error(err.message);
@@ -271,6 +374,119 @@ export default function TenantDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header"><p className="card-title">Add-ons</p></div>
+            <div className="card-pad space-y-3">
+              <select className="select" value="" onChange={(e) => attachAddOn(e.target.value)}>
+                <option value="">+ Attach an add-on…</option>
+                {addOnCatalog
+                  .filter((a) => a.is_active && !tenantAddOns.some((t) => t.add_on_id === a.id && t.active))
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>{a.name} — {a.currency} {a.amount}/mo</option>
+                  ))}
+              </select>
+              {tenantAddOns.filter((t) => t.active).length === 0 ? (
+                <p className="text-sm text-ink-400">No add-ons attached.</p>
+              ) : (
+                <ul className="divide-y divide-ink-100">
+                  {tenantAddOns.filter((t) => t.active).map((t) => (
+                    <li key={t.id} className="flex items-center justify-between py-2 text-sm">
+                      <span className="text-ink-700">{t.name}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium text-ink-900">{t.currency} {t.effective_amount}/mo</span>
+                        <button className="text-danger-600 hover:underline" onClick={() => detachAddOn(t.add_on_id)}>Remove</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header"><p className="card-title">Coupons</p></div>
+            <div className="card-pad space-y-3">
+              <select className="select" value="" onChange={(e) => assignCoupon(e.target.value)}>
+                <option value="">+ Assign a coupon…</option>
+                {couponCatalog
+                  .filter((c) => c.is_active && !tenantCoupons.some((t) => t.coupon_id === c.id && t.active))
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>{c.code} — {c.discount_type === 'percent' ? `${c.amount}% off` : `${c.amount} off`}</option>
+                  ))}
+              </select>
+              {tenantCoupons.filter((t) => t.active).length === 0 ? (
+                <p className="text-sm text-ink-400">No coupons assigned.</p>
+              ) : (
+                <ul className="divide-y divide-ink-100">
+                  {tenantCoupons.filter((t) => t.active).map((t) => (
+                    <li key={t.id} className="flex items-center justify-between py-2 text-sm">
+                      <span className="font-mono text-ink-700">{t.code}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-ink-500">
+                          {t.duration_invoices ? `${t.invoices_applied}/${t.duration_invoices} used` : `${t.invoices_applied} used`}
+                        </span>
+                        <button className="text-danger-600 hover:underline" onClick={() => unassignCoupon(t.id)}>Unassign</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <p className="card-title">Credits</p>
+                <p className="card-subtitle">Balance: {money(credits.balance, tenant.currency)}</p>
+              </div>
+              <button className="btn-secondary" onClick={addCredit}>+ Adjust</button>
+            </div>
+            <div className="card-pad">
+              {credits.data.length === 0 ? (
+                <p className="text-sm text-ink-400">No credit activity yet.</p>
+              ) : (
+                <ul className="divide-y divide-ink-100">
+                  {credits.data.slice(0, 8).map((c) => (
+                    <li key={c.id} className="flex items-center justify-between py-2 text-sm">
+                      <span className="text-ink-500">{new Date(c.created_at).toLocaleDateString()} — {c.reason || (c.amount < 0 ? 'Applied to invoice' : 'Manual credit')}</span>
+                      <span className={`font-medium ${c.amount < 0 ? 'text-danger-600' : 'text-success-600'}`}>
+                        {c.amount < 0 ? '-' : '+'}{money(Math.abs(c.amount), tenant.currency)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="card lg:col-span-2">
+            <div className="card-header">
+              <p className="card-title">Preview next invoice</p>
+              <button className="btn-secondary" onClick={loadPreview} disabled={previewLoading}>
+                {previewLoading ? 'Calculating…' : 'Calculate this month'}
+              </button>
+            </div>
+            {preview && (
+              <div className="card-pad">
+                <dl className="space-y-1.5 text-sm max-w-sm">
+                  <div className="flex justify-between"><dt className="text-ink-500">Base charge</dt><dd className="text-ink-800">{money(preview.base_subtotal, preview.currency)}</dd></div>
+                  {preview.add_on_amount > 0 && (
+                    <div className="flex justify-between"><dt className="text-ink-500">Add-ons</dt><dd className="text-ink-800">{money(preview.add_on_amount, preview.currency)}</dd></div>
+                  )}
+                  {preview.discount_amount > 0 && (
+                    <div className="flex justify-between"><dt className="text-ink-500">Coupon ({preview.coupon_code})</dt><dd className="text-danger-600">-{money(preview.discount_amount, preview.currency)}</dd></div>
+                  )}
+                  <div className="flex justify-between"><dt className="text-ink-500">Tax ({preview.tax_percent}%)</dt><dd className="text-ink-800">{money(preview.tax_amount, preview.currency)}</dd></div>
+                  {preview.credit_applied > 0 && (
+                    <div className="flex justify-between"><dt className="text-ink-500">Credit applied</dt><dd className="text-danger-600">-{money(preview.credit_applied, preview.currency)}</dd></div>
+                  )}
+                  <div className="flex justify-between pt-2 border-t border-ink-100 font-semibold"><dt className="text-ink-900">Total</dt><dd className="text-ink-900">{money(preview.total_amount, preview.currency)}</dd></div>
+                </dl>
+              </div>
+            )}
           </div>
         </div>
       )}
