@@ -48,6 +48,7 @@ export const tenantsApi = {
   ...resource('/tenants'),
   setStatus: (id, status) => client.patch(`/tenants/${id}/status`, { status }),
   rotateApiKey: (id) => client.post(`/tenants/${id}/rotate-key`),
+  updateBranding: (id, data) => client.put(`/tenants/${id}/branding`, data),
 };
 
 export const featuresApi = {
@@ -102,6 +103,12 @@ export const creditsApi = {
 
 export const usageApi = {
   forTenant: (tenantId) => client.get(`/usage/tenants/${tenantId}`),
+};
+
+export const adminsApi = {
+  list: () => client.get('/admins'),
+  create: (data) => client.post('/admins', data),
+  update: (id, data) => client.put(`/admins/${id}`, data),
 };
 
 export const provisioningApi = {

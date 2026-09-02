@@ -196,6 +196,27 @@ export default function TenantDetailPage() {
     }
   };
 
+  const [branding, setBranding] = useState({ logo_url: '', primary_color_hex: '' });
+  const [brandingSaving, setBrandingSaving] = useState(false);
+
+  useEffect(() => {
+    if (tenant) setBranding({ logo_url: tenant.logo_url || '', primary_color_hex: tenant.primary_color_hex || '' });
+  }, [tenant]);
+
+  const saveBranding = async () => {
+    setBrandingSaving(true);
+    try {
+      const { crmSync } = await tenantsApi.updateBranding(id, branding);
+      if (crmSync?.ok) toast.success('Branding updated — synced to the tenant’s CRM.');
+      else if (crmSync?.configured) toast.error('Saved, but could not sync to the tenant’s CRM — check the platform backend logs.');
+      else toast.success('Branding saved.');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBrandingSaving(false);
+    }
+  };
+
   const rotateKey = async () => {
     try {
       const { api_key, crmSync } = await tenantsApi.rotateApiKey(id);
@@ -515,7 +536,46 @@ export default function TenantDetailPage() {
       )}
 
       {tab === 'Domains' && (
-        <div className="card card-pad space-y-4">
+        <div className="space-y-4">
+          <div className="card card-pad space-y-4">
+            <div>
+              <p className="card-title">Branding</p>
+              <p className="text-sm text-ink-500 mt-0.5">
+                Shown on this tenant&apos;s CRM login page and sidebar. Values here overwrite whatever the
+                tenant has set themselves — leave a field blank to clear it.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label">Logo URL</label>
+                <input
+                  className="input"
+                  placeholder="https://…/logo.png"
+                  value={branding.logo_url}
+                  onChange={(e) => setBranding({ ...branding, logo_url: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">Primary color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    className="input"
+                    placeholder="#4f46e5"
+                    value={branding.primary_color_hex}
+                    onChange={(e) => setBranding({ ...branding, primary_color_hex: e.target.value })}
+                  />
+                  {/^#[0-9a-fA-F]{6}$/.test(branding.primary_color_hex) && (
+                    <span className="h-9 w-9 shrink-0 rounded-lg border border-ink-200" style={{ backgroundColor: branding.primary_color_hex }} />
+                  )}
+                </div>
+              </div>
+            </div>
+            <button className="btn-secondary" disabled={brandingSaving} onClick={saveBranding}>
+              {brandingSaving ? 'Saving…' : 'Save branding'}
+            </button>
+          </div>
+
+          <div className="card card-pad space-y-4">
           <p className="text-sm text-ink-500">
             Only used in <strong>shared</strong> deployment mode — one CRM instance resolves which
             tenant an inbound request belongs to by its subdomain or custom domain. Dedicated/isolated
@@ -559,6 +619,7 @@ export default function TenantDetailPage() {
               )}
             </div>
           )}
+          </div>
         </div>
       )}
     </div>

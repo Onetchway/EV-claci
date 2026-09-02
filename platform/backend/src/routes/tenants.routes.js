@@ -21,6 +21,7 @@ router.get('/:id', ctrl.getOne);
 router.put('/:id', requireRole('super_admin'), ctrl.update);
 router.patch('/:id/status', requireRole('super_admin'), ctrl.setStatus);
 router.post('/:id/rotate-key', requireRole('super_admin'), ctrl.rotateApiKey);
+router.put('/:id/branding', requireRole('super_admin'), ctrl.updateBranding);
 router.delete('/:id', requireRole('super_admin'), ctrl.remove);
 
 module.exports = router;

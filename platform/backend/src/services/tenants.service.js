@@ -259,6 +259,40 @@ const rotateApiKey = async (id, actor) => {
   return { id: tenant.id, api_key: tenant.api_key, crmSync };
 };
 
+// Edits a tenant's branding after creation -- unlike create()'s one-time
+// logoUrl/primaryColorHex (never overwritten on re-provision), this is a
+// deliberate super-admin edit and always wins. Best-effort against the
+// tenant's CRM, same as rotateApiKey; never fails if CRM_PROVISION_URL/
+// SECRET aren't configured or that CRM instance is unreachable.
+const updateBranding = async (id, data, actor) => {
+  const tenantRes = await query(`SELECT id, slug FROM tenants WHERE id = $1`, [id]);
+  const tenant = tenantRes.rows[0];
+  if (!tenant) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
+
+  let crmSync = { configured: Boolean(process.env.CRM_PROVISION_URL && process.env.CRM_PROVISION_SECRET) };
+  if (crmSync.configured) {
+    try {
+      const response = await fetch(`${process.env.CRM_PROVISION_URL}/api/platform/update-branding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Provision-Secret': process.env.CRM_PROVISION_SECRET },
+        body: JSON.stringify({
+          slug: tenant.slug,
+          logoUrl: data.logo_url ?? null,
+          primaryColorHex: data.primary_color_hex ?? null,
+        }),
+      });
+      crmSync = { configured: true, ok: response.ok };
+      if (!response.ok) console.error('[tenants] Branding update failed:', response.status, await response.text().catch(() => ''));
+    } catch (err) {
+      console.error('[tenants] Branding update request failed:', err.message);
+      crmSync = { configured: true, ok: false };
+    }
+  }
+
+  await audit.log({ superAdminId: actor?.id, tenantId: id, action: 'tenant.branding_updated', details: data });
+  return { crmSync };
+};
+
 // Domain-based tenant resolution, called by a tenant CRM instance running
 // in "shared" mode (one instance, many tenants) to figure out which
 // tenant a given inbound Host header belongs to — before that request has
@@ -309,4 +343,4 @@ const remove = async (id, actor) => {
   await audit.log({ superAdminId: actor?.id, tenantId: id, action: 'tenant.deleted' });
 };
 
-module.exports = { list, getOne, create, update, setStatus, rotateApiKey, remove, resolveByHost, resolveBySlug };
+module.exports = { list, getOne, create, update, setStatus, rotateApiKey, updateBranding, remove, resolveByHost, resolveBySlug };
