@@ -308,6 +308,19 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
           <Field label={isInstitutional ? "POC name" : "Client name"} required error={errors["client.name"]}>
             <Input value={values.client.name} onChange={(e) => setClient({ name: e.target.value })} placeholder="Shoyeb Khan" />
           </Field>
+          {!isInstitutional && (
+            <Field label="Salutation" hint="Used on the EOI/Agreement letters — never guessed from the name.">
+              <Select
+                value={values.client.salutation ?? "Mr."}
+                onChange={(e) => setClient({ salutation: e.target.value as ClientInfo["salutation"] })}
+                options={[
+                  { value: "Mr.", label: "Mr." },
+                  { value: "Ms.", label: "Ms." },
+                  { value: "Mrs.", label: "Mrs." },
+                ]}
+              />
+            </Field>
+          )}
           <Field label="Phone number" required error={errors["client.phone"]}>
             <Input
               inputMode="numeric"
@@ -562,6 +575,13 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
                     onChange={(e) => setSite({ minMonthlyPayout: e.target.value === "" ? null : Number(e.target.value) })}
                   />
                 </Field>
+                <div className="flex items-end pb-2">
+                  <Checkbox
+                    label="Tenure extendable by mutual written agreement"
+                    checked={values.site.tenureExtendable ?? true}
+                    onChange={(v) => setSite({ tenureExtendable: v })}
+                  />
+                </div>
               </>
             )}
             {(isInstitutional || values.type === "FRANCHISE") && (

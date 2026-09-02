@@ -37,8 +37,8 @@ export const LOI_CLAUSES: LoiClause[] = [
     key: "amount",
     heading: "Total Participation Amount",
     body:
-      "The Investor agrees to contribute {{participationAmount}} ({{participationWords}}) towards the project (“Participation Amount”). " +
-      "GST shall be charged as per the prevailing rate at the time of each payment.",
+      "The Investor agrees to contribute {{participationAmount}} ({{participationWords}}) towards the project (“Participation Amount”), " +
+      "inclusive of applicable GST as reflected in the Payment Schedule below.",
   },
   {
     key: "schedule",

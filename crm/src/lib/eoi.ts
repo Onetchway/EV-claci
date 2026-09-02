@@ -80,6 +80,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
   // The site's own manually-agreed payout period (if set) beats every
   // computed/default fallback — same reasoning as tenureYears above.
   const payoutMonths = opts.payoutMonths ?? lead.site?.payoutMonths ?? opts.settings?.loi.payoutMonths ?? DEFAULT_PAYOUT_MONTHS;
+  const tenureExtendable = lead.site?.tenureExtendable ?? true;
   const shortName = opts.settings?.company.shortName?.trim() || COMPANY.shortName;
   const scopeItems = opts.settings?.loi.scopeItems?.length ? opts.settings.loi.scopeItems : DEFAULT_SCOPE_ITEMS;
   const signatory = opts.settings?.loi.signatory?.trim() || COMPANY.signatory;
@@ -210,6 +211,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     gstShownSeparately: false,
     scopeItems: [...scopeItems],
     tenureYears,
+    tenureExtendable,
     payoutMonths,
     minMonthlyPayout,
     maxAggregateSupport,
@@ -227,7 +229,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
 
 function salutationFor(lead: Lead): string {
   if (lead.client?.company?.trim()) return "M/s";
-  return "Mr.";
+  return lead.client?.salutation ?? "Mr.";
 }
 
 function addressFor(lead: Lead): string {

@@ -1240,6 +1240,8 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
   // everywhere it's used.
   const minMonthlyPayout = lead.site?.minMonthlyPayout ?? eoi?.minMonthlyPayout;
   const payoutMonths = lead.site?.payoutMonths ?? eoi?.payoutMonths;
+  // Same source the EOI itself was built from, so the two never disagree.
+  const tenureExtendable = eoi?.tenureExtendable ?? lead.site?.tenureExtendable ?? true;
   const perKwh = (n?: number) => (n ? `Rs. ${n.toFixed(2)} per kWh` : "");
   return {
     number,
@@ -1251,7 +1253,9 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
       registeredAddress: lead.client?.address ?? "",
       siteAddress: lead.site?.address || lead.site?.locationName || "",
       chargerTypeCapacity: describeCapacity(lead.config),
-      tenure: tenureYears ? `${tenureYears} years from the Commercial Commissioning Date` : "",
+      tenure: tenureYears
+        ? `${tenureYears} years from the Commercial Commissioning Date${tenureExtendable ? ", extendable by mutual written agreement" : ""}`
+        : "",
       minimumAssuredAmount: minMonthlyPayout ? `Rs. ${minMonthlyPayout.toLocaleString("en-IN")} per month` : "",
       payoutPeriod: payoutMonths ? `${payoutMonths} months from the Commercial Commissioning Date` : "",
       livantoFee: perKwh(eoi?.livantoEarningPerKwh),

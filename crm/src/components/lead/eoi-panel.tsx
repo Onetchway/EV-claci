@@ -590,7 +590,7 @@ export function LoiLetterArticle({
           ))}
           <tr className="border-b-2 border-ink-400 font-bold break-inside-avoid">
             <td />
-            <td className="px-2 py-2">Total Participation Amount</td>
+            <td className="px-2 py-2">Total Participation Amount (incl. GST)</td>
             <td className="px-2 py-2 text-right tabular-nums">{formatINR(eoi.totalAmount)}</td>
             {!readOnly && <td className="print:hidden" />}
           </tr>
@@ -853,9 +853,20 @@ export function LoiLetterArticle({
           className="w-14"
           aria-label="Tenure years"
         />{" "}
-        years from the date of commercial commissioning, extendable by mutual written agreement
-        between the parties, and shall be operated exclusively by {company.shortName} throughout the Tenure.
+        years from the date of commercial commissioning
+        {eoi.tenureExtendable && ", extendable by mutual written agreement between the parties,"} and shall be
+        operated exclusively by {company.shortName} throughout the Tenure.
       </p>
+      {!readOnly && (
+        <label className="mt-1 flex items-center gap-1.5 text-xs text-ink-500 print:hidden">
+          <input
+            type="checkbox"
+            checked={eoi.tenureExtendable}
+            onChange={(e) => onPatch({ tenureExtendable: e.target.checked })}
+          />
+          Tenure extendable by mutual written agreement
+        </label>
+      )}
 
       <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Minimum Monthly Payout</h2>
       <table className="mt-2 w-full border-collapse text-sm">

@@ -186,6 +186,8 @@ export interface EoiDoc {
   gstShownSeparately: boolean;
   scopeItems: string[];
   tenureYears: number;
+  /** Whether the Tenure is extendable by mutual written agreement — defaults true, sourced from the lead's site details at generation time. */
+  tenureExtendable: boolean;
   payoutMonths: number;
   minMonthlyPayout: number;
   maxAggregateSupport: number;
@@ -263,6 +265,8 @@ export interface ClientInfo {
   gstin?: string;
   /** Individual investors have no company/PAN/GST to collect; a Firm does. Unset (older leads) is treated as Individual. */
   entityType?: "INDIVIDUAL" | "FIRM";
+  /** Title used on generated letters (Mr./Ms./Mrs.) — never guessed from the name, since that's unreliable. Unset defaults to Mr. */
+  salutation?: "Mr." | "Ms." | "Mrs." | null;
 }
 
 export interface SiteInfo {
@@ -309,6 +313,8 @@ export interface SiteInfo {
   payoutMonths?: number | null;
   /** Manually agreed minimum assured monthly amount (₹) — overrides the pricing engine's computed figure on both the EOI and the Agreement when set. */
   minMonthlyPayout?: number | null;
+  /** Whether the Tenure is extendable by mutual written agreement — feeds the phrasing on both the EOI and the Agreement's Schedule I. Unset defaults to true (the long-standing behaviour). */
+  tenureExtendable?: boolean | null;
 }
 
 /**

@@ -417,10 +417,12 @@ export function describeConfig(items: ConfigItem[] | undefined | null): string {
   return config.map((it) => `${it.qty} × ${getSpec(it.sku)?.label ?? it.sku}`).join(" + ");
 }
 
-/** "60 kW" / "60 kW + 120 kW" — used in the LOI subject line. */
+/** "60 kW" / "4 × 7.4 kW + 120 kW" — used in the LOI/Agreement subject line and Schedule I, so the quantity of each charger has to be visible, not just the distinct capacities. */
 export function describeCapacity(items: ConfigItem[] | undefined | null): string {
   const config = normaliseConfig(items);
   if (!config.length) return "";
-  const labels = [...new Set(config.map((it) => getSpec(it.sku)?.label ?? it.sku))];
-  return labels.join(" + ");
+  return config.map((it) => {
+    const label = getSpec(it.sku)?.label ?? it.sku;
+    return it.qty > 1 ? `${it.qty} × ${label}` : label;
+  }).join(" + ");
 }
