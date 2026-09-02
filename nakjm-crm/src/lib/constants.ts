@@ -142,6 +142,22 @@ export const RFQ_STATUS_META: Record<RfqStatus, { label: string; className: stri
 };
 
 // ---------------------------------------------------------------------------
+// Site Visit — an engineer (or several) dispatched to a client's project
+// site to inspect/survey before or during execution, distinct from a
+// recurring SiteReport (progress update on work already underway).
+// ---------------------------------------------------------------------------
+
+export const SITE_VISIT_STATUSES = ["SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
+export type SiteVisitStatus = (typeof SITE_VISIT_STATUSES)[number];
+
+export const SITE_VISIT_STATUS_META: Record<SiteVisitStatus, { label: string; className: string }> = {
+  SCHEDULED: { label: "Scheduled", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  IN_PROGRESS: { label: "In Progress", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  COMPLETED: { label: "Completed", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  CANCELLED: { label: "Cancelled", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Quotations / BOQ / PO / PI
 // ---------------------------------------------------------------------------
 
@@ -264,7 +280,8 @@ export const TASK_STATUS_META: Record<TaskStatus, { label: string; className: st
 
 export const DOCUMENT_CATEGORIES = [
   "CLIENT_PO", "WORK_ORDER", "TENDER", "BOQ_UPLOAD", "QUOTATION_UPLOAD", "PO_UPLOAD", "DRAWING", "TECHNICAL",
-  "APPROVAL", "DPR", "MEASUREMENT", "PHOTO", "INSPECTION", "SITE_SURVEY", "TEST_REPORT", "HOTO", "COMPLETION", "OTHER",
+  "APPROVAL", "DPR", "MEASUREMENT", "PHOTO", "INSPECTION", "SITE_SURVEY", "TEST_REPORT", "HOTO", "COMPLETION",
+  "SITE_VISIT_REPORT", "OTHER",
 ] as const;
 export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
 
@@ -273,7 +290,7 @@ export const DOCUMENT_CATEGORY_LABEL: Record<DocumentCategory, string> = {
   QUOTATION_UPLOAD: "Quotation", PO_UPLOAD: "Purchase Order", DRAWING: "Drawing", TECHNICAL: "Technical Document", APPROVAL: "Approval",
   DPR: "DPR", MEASUREMENT: "Measurement", PHOTO: "Photo", INSPECTION: "Inspection Report",
   SITE_SURVEY: "Site Survey Report", TEST_REPORT: "Test Report (Earthing/Voltage/IR/Continuity)", HOTO: "HOTO Checklist/Photos",
-  COMPLETION: "Completion Document", OTHER: "Other",
+  COMPLETION: "Completion Document", SITE_VISIT_REPORT: "Site Visit Report/Photos", OTHER: "Other",
 };
 
 // ---------------------------------------------------------------------------
@@ -387,7 +404,7 @@ export const HANDOVER_STAGE_LABEL: Record<HandoverStage, string> = {
 
 export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "RFQ", "QUOTATION", "BOQ", "PURCHASE_ORDER",
-  "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
+  "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "SITE_VISIT", "TEAM_MEMBER", "USER", "ASSET",
   "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
   "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST",
 ] as const;
@@ -406,6 +423,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   CLIENT_PAYMENT: "Client Payment",
   VENDOR_PAYMENT: "Vendor Payment",
   SITE_REPORT: "Site Report",
+  SITE_VISIT: "Site Visit",
   TEAM_MEMBER: "Team Member",
   USER: "User",
   ASSET: "Asset",

@@ -5,7 +5,7 @@ import type {
   ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, EmploymentType,
   HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus, LeaveType, NcrStatus,
   PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus,
-  RfqStatus, Role, RollStatus, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
+  RfqStatus, Role, RollStatus, SiteReportType, SiteVisitStatus, StageStatus, TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -634,6 +634,38 @@ export interface SiteReport {
   createdAt: TS;
 }
 
+export interface SiteVisitEngineer {
+  teamMemberId: string;
+  name: string;
+}
+
+export interface SiteVisit {
+  id: string;
+  visitNo: string;
+  projectId: string;
+  projectName: string;
+  siteName?: string;
+  locationLink?: string;
+  address?: string;
+  pocName?: string;
+  pocContact?: string;
+  pocEmail?: string;
+  chargerType?: string;
+  scheduledDate?: TS;
+  status: SiteVisitStatus;
+  assignedEngineers: SiteVisitEngineer[];
+  managerId?: string;
+  managerName?: string;
+  notes?: string;
+  /** Filled in by the engineer(s) after the visit actually happens. */
+  observations?: string;
+  observedBy?: Actor | null;
+  observedAt?: TS;
+  createdAt: TS;
+  updatedAt: TS;
+  createdBy?: Actor;
+}
+
 export interface Activity {
   id: string;
   entityType: ActivityEntityType;
@@ -650,7 +682,7 @@ export interface NakjmDocument {
   id: string;
   projectId?: string | null;
   /** When set, this document is filed against a specific BOQ/PO/Quotation/PI rather than just the project. */
-  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | "RFQ" | null;
+  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | "RFQ" | "SITE_VISIT" | null;
   linkedEntityId?: string | null;
   docType: DocumentCategory;
   fileName: string;
