@@ -128,7 +128,7 @@ filtered lead queries will report a missing-index error.
 ```bash
 npm install
 npm run seed        # creates the super admin + lead-code counter
-npm run dev         # http://localhost:3100
+npm run dev         # http://localhost:3200
 ```
 
 `npm run seed` prints a temporary password if it created the account. Set

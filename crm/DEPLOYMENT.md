@@ -144,7 +144,7 @@ Now install and check it runs:
 ```bash
 npm install
 npm run verify     # confirms pricing still matches the Excel model
-npm run dev        # http://localhost:3100
+npm run dev        # http://localhost:3200
 ```
 
 You will see the login page. You cannot sign in yet — that is step 8.

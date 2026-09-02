@@ -503,7 +503,7 @@ After a few seconds:
 
 ```
 ▲ Next.js 14.2.35
-- Local:  http://localhost:3100
+- Local:  http://localhost:3200
 ✓ Ready in 2.3s
 ```
 
@@ -514,7 +514,7 @@ After a few seconds:
 In your browser, go to:
 
 ```
-http://localhost:3100
+http://localhost:3200
 ```
 
 You should see the green Livanto Green CRM login screen.

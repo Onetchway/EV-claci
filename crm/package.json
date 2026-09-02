@@ -4,9 +4,9 @@
   "private": true,
   "description": "Livanto Green — EV Charging Franchise CRM (Next.js + Firebase)",
   "scripts": {
-    "dev": "next dev -p 3100",
+    "dev": "next dev -p 3200",
     "build": "next build",
-    "start": "next start -p 3100",
+    "start": "next start -p 3200",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "verify": "tsx scripts/verify-pricing.ts",
