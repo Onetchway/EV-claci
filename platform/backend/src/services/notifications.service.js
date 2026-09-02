@@ -1,11 +1,28 @@
 'use strict';
 
 const { query } = require('../config/database');
+const { emailConfigured, sendEmail } = require('./email.service');
+
+// A subset of notification types worth interrupting a super admin's inbox
+// for -- everything still lands in the in-app bell regardless, this only
+// controls the extra email channel. Routine/informational types (a tenant
+// signed up, a payment succeeded) stay in-app only.
+const EMAIL_WORTHY = new Set([
+  'payment_failed', 'auto_charge_failed', 'provisioning_failure', 'trial_ended', 'payment_retry_needed',
+]);
+
+const emailActiveAdmins = async (title, message) => {
+  const res = await query(`SELECT email FROM super_admins WHERE is_active = true`);
+  const to = res.rows.map((r) => r.email);
+  if (!to.length) return;
+  await sendEmail({ to, subject: `[Alpha] ${title}`, html: `<p>${message || title}</p>` });
+};
 
 // Emits an in-app notification -- called at the same call sites that
 // already audit.log() the same event (tenant created, payment captured/
 // failed, provisioning failure, trial ending, etc). Fire-and-forget:
-// never throws into the caller's own success path.
+// never throws into the caller's own success path. Also emails every
+// active super admin for the EMAIL_WORTHY subset, when SMTP is configured.
 const emit = async ({ type, title, message, tenantId }) => {
   try {
     await query(
@@ -14,6 +31,10 @@ const emit = async ({ type, title, message, tenantId }) => {
     );
   } catch (err) {
     console.error('[notifications] Failed to emit:', err.message);
+  }
+
+  if (EMAIL_WORTHY.has(type) && emailConfigured()) {
+    emailActiveAdmins(title, message).catch((err) => console.error('[notifications] Failed to email admins:', err.message));
   }
 };
 

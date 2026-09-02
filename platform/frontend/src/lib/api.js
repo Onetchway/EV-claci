@@ -78,6 +78,7 @@ export const invoicesApi = {
   markPaid: (id) => client.patch(`/invoices/${id}/paid`),
   void: (id) => client.patch(`/invoices/${id}/void`),
   resendEmail: (id) => client.post(`/invoices/${id}/resend-email`),
+  recalculate: (id) => client.post(`/invoices/${id}/recalculate`),
 };
 
 export const addOnsApi = {
@@ -111,6 +112,7 @@ export const paymentsApi = {
   receipt: (paymentId) => client.get(`/payments/${paymentId}/receipt`),
   paymentMethods: (tenantId) => client.get(`/payments/tenants/${tenantId}/payment-methods`),
   removePaymentMethod: (id) => client.delete(`/payments/payment-methods/${id}`),
+  syncStatus: (paymentId) => client.post(`/payments/${paymentId}/sync`),
 };
 
 export const usageApi = {

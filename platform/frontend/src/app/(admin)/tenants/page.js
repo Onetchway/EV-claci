@@ -48,7 +48,7 @@ function TenantsPageInner() {
   const [tenants, setTenants] = useState([]);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(searchParams.get('new') === '1');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState(searchParams.get('q') || '');
 

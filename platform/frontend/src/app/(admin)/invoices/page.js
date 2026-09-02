@@ -106,6 +106,18 @@ function PaymentsRow({ invoice, onChanged }) {
     }
   };
 
+  const syncStatus = async (paymentId) => {
+    try {
+      const result = await paymentsApi.syncStatus(paymentId);
+      if (result.synced) toast.success(`Synced from Razorpay — now ${result.status}.`);
+      else toast(`Nothing to sync yet (${result.reason.replace(/_/g, ' ')}).`);
+      load();
+      onChanged();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   return (
     <Fragment>
     <tr>
@@ -127,6 +139,9 @@ function PaymentsRow({ invoice, onChanged }) {
                 <div className="flex items-center gap-3">
                   <span className={`badge ${PAYMENT_BADGE[p.status] || 'badge-gray'}`}>{p.status}</span>
                   <span className="font-medium text-ink-800">{p.currency} {p.amount}</span>
+                  {p.status === 'created' && (
+                    <button className="text-ink-500 hover:underline" onClick={() => syncStatus(p.id)}>Sync from Razorpay</button>
+                  )}
                   {p.status === 'paid' && (
                     <>
                       <button className="text-brand-600 hover:underline" onClick={() => setReceiptFor(p.id)}>Receipt</button>
@@ -169,6 +184,11 @@ export default function InvoicesPage() {
     catch (err) { toast.error(err.message); }
   };
 
+  const recalculate = async (id) => {
+    try { await invoicesApi.recalculate(id); toast.success('Recalculated against current pricing.'); load(); }
+    catch (err) { toast.error(err.message); }
+  };
+
   return (
     <div>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
@@ -207,7 +227,10 @@ export default function InvoicesPage() {
                   <td>
                     <div className="flex items-center gap-3">
                       {inv.status === 'issued' && (
-                        <button className="text-brand-600 hover:underline text-sm" onClick={() => markPaid(inv.id)}>Mark paid</button>
+                        <>
+                          <button className="text-brand-600 hover:underline text-sm" onClick={() => markPaid(inv.id)}>Mark paid</button>
+                          <button className="text-ink-500 hover:underline text-sm" onClick={() => recalculate(inv.id)}>Recalculate</button>
+                        </>
                       )}
                       <button className="text-ink-500 hover:underline text-sm" onClick={() => resendEmail(inv.id)}>Resend email</button>
                     </div>

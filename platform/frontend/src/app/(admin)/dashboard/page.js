@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import {
-  AlertTriangle, ArrowUpRight, Building2, Clock, IndianRupee, Users,
+  AlertTriangle, ArrowUpRight, Building2, Clock, IndianRupee, LayoutGrid, Plus, Users,
 } from 'lucide-react';
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -86,9 +86,24 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink-900">Dashboard</h1>
-        <p className="text-sm text-ink-500 mt-0.5">Everything running across every tenant, at a glance.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-ink-900">Dashboard</h1>
+          <p className="text-sm text-ink-500 mt-0.5">Everything running across every tenant, at a glance.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/tenants?new=1" className="btn-secondary">
+            <Plus className="h-4 w-4" /> New organization
+          </Link>
+          <Link href="/billing?new=1" className="btn-secondary">
+            <LayoutGrid className="h-4 w-4" /> New plan
+          </Link>
+          {overdueCount > 0 && (
+            <Link href="/invoices" className="btn-secondary text-danger-600">
+              <AlertTriangle className="h-4 w-4" /> {overdueCount} overdue invoice{overdueCount === 1 ? '' : 's'}
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

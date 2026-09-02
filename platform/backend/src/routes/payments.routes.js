@@ -16,5 +16,6 @@ router.post('/:id/refund', requireRole('super_admin', 'billing_ops'), ctrl.refun
 router.get('/:id/receipt', ctrl.receipt);
 router.get('/tenants/:tenantId/payment-methods', ctrl.listPaymentMethods);
 router.delete('/payment-methods/:id', requireRole('super_admin', 'billing_ops'), ctrl.deactivatePaymentMethod);
+router.post('/:id/sync', requireRole('super_admin', 'billing_ops'), ctrl.syncStatus);
 
 module.exports = router;

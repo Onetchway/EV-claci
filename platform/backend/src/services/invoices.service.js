@@ -286,4 +286,89 @@ const resendEmail = async (id, actor) => {
   return { ok: true };
 };
 
-module.exports = { list, getOne, generateForTenant, previewForTenant, setStatus, resendEmail, resolveBillingTerms };
+// Error-recovery action (spec section 51): re-run this invoice's breakdown
+// against the tenant's *current* config (plan, overrides, add-ons, coupon,
+// credit) and overwrite its totals + line items to match -- for an invoice
+// that was generated before a pricing correction, or that a super admin
+// suspects drifted from reality. Deliberately restricted to 'issued'
+// invoices: a paid or void invoice is a closed financial record and must
+// never be silently rewritten after the fact.
+const recalculate = async (id, actor) => {
+  const invoice = await getOne(id);
+  if (invoice.status !== 'issued') {
+    const e = new Error(`Only an issued invoice can be recalculated (this one is "${invoice.status}").`);
+    e.status = 400;
+    throw e;
+  }
+
+  // consumeForInvoice below isn't idempotent on its own -- reverse any
+  // credit this invoice already consumed first, so recalculating twice
+  // doesn't drain the tenant's credit balance twice.
+  const priorCreditRes = await query(
+    `SELECT COALESCE(SUM(-amount), 0) AS applied FROM tenant_credits WHERE invoice_id = $1 AND amount < 0`,
+    [id]
+  );
+  const priorApplied = Number(priorCreditRes.rows[0].applied);
+  if (priorApplied > 0) {
+    await query(
+      `INSERT INTO tenant_credits (tenant_id, amount, reason, invoice_id) VALUES ($1,$2,$3,$4)`,
+      [invoice.tenant_id, priorApplied, 'Reversed for invoice recalculation', id]
+    );
+  }
+
+  const b = await computeInvoiceBreakdown(invoice.tenant_id, new Date(invoice.period_start), new Date(invoice.period_end));
+  const { terms, base } = b;
+
+  const client = await getClient();
+  let updated;
+  try {
+    await client.query('BEGIN');
+    const res = await client.query(
+      `UPDATE invoices SET
+         billing_model = $1, employee_count = $2, unit_amount = $3, subtotal = $4,
+         add_on_amount = $5, discount_amount = $6, coupon_code = $7,
+         tax_percent = $8, tax_amount = $9, total_amount = $10, credit_applied = 0
+       WHERE id = $11 RETURNING *`,
+      [
+        terms.billing_model, base.employeeCount, base.unitAmount, base.subtotal,
+        b.addOnAmount, b.discountAmount, b.coupon?.code || null,
+        terms.tax_percent, b.taxAmount, b.totalBeforeCredit, id,
+      ]
+    );
+    updated = res.rows[0];
+
+    await client.query(`DELETE FROM invoice_line_items WHERE invoice_id = $1`, [id]);
+    await client.query(
+      `INSERT INTO invoice_line_items (invoice_id, description, quantity, unit_amount, amount)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [id, base.description, base.employeeCount ?? 1, base.unitAmount, base.subtotal]
+    );
+    for (const addOn of b.addOnCharges) {
+      await client.query(
+        `INSERT INTO invoice_line_items (invoice_id, description, quantity, unit_amount, amount)
+         VALUES ($1,$2,1,$3,$3)`,
+        [id, `Add-on — ${addOn.name}`, Number(addOn.amount)]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  const creditApplied = await credits.consumeForInvoice(invoice.tenant_id, id, updated.total_amount);
+  if (creditApplied > 0) {
+    const res2 = await query(
+      `UPDATE invoices SET credit_applied = $1, total_amount = total_amount - $1 WHERE id = $2 RETURNING *`,
+      [creditApplied, id]
+    );
+    updated = res2.rows[0];
+  }
+
+  await audit.log({ superAdminId: actor?.id, tenantId: invoice.tenant_id, action: 'invoice.recalculated', details: { invoice_id: id, total_amount: updated.total_amount } });
+  return getOne(id);
+};
+
+module.exports = { list, getOne, generateForTenant, previewForTenant, setStatus, resendEmail, resolveBillingTerms, recalculate };

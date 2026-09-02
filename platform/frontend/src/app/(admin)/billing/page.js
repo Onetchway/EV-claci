@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { billingPlansApi } from '@/lib/api';
 
@@ -78,9 +79,18 @@ function PlanForm({ plan, onClose, onSaved }) {
 }
 
 export default function BillingPlansPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-ink-400">Loading…</div>}>
+      <BillingPlansPageInner />
+    </Suspense>
+  );
+}
+
+function BillingPlansPageInner() {
+  const searchParams = useSearchParams();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(searchParams.get('new') === '1');
   const [editing, setEditing] = useState(null);
 
   const load = async () => {

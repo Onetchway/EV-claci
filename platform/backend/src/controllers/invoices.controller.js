@@ -28,3 +28,4 @@ exports.preview = async (req, res, next) => {
 exports.markPaid = async (req, res, next) => { try { res.json(await svc.setStatus(req.params.id, 'paid', req.superAdmin)); } catch (e) { next(e); } };
 exports.void = async (req, res, next) => { try { res.json(await svc.setStatus(req.params.id, 'void', req.superAdmin)); } catch (e) { next(e); } };
 exports.resendEmail = async (req, res, next) => { try { res.json(await svc.resendEmail(req.params.id, req.superAdmin)); } catch (e) { next(e); } };
+exports.recalculate = async (req, res, next) => { try { res.json(await svc.recalculate(req.params.id, req.superAdmin)); } catch (e) { next(e); } };

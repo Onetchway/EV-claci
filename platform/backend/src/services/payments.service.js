@@ -28,6 +28,20 @@ const razorpayRequest = async (path, body) => {
   return data;
 };
 
+const razorpayGet = async (path) => {
+  const auth = Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
+  const res = await fetch(`https://api.razorpay.com/v1${path}`, {
+    headers: { Authorization: `Basic ${auth}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(data?.error?.description || `Razorpay request failed (${res.status}).`);
+    e.status = 502;
+    throw e;
+  }
+  return data;
+};
+
 // Creates a Razorpay order for a tenant's issued invoice and records the
 // attempt. Returns what the frontend's Razorpay Checkout widget needs
 // (order_id, amount, currency, key_id) -- the actual card/UPI flow happens
@@ -201,6 +215,43 @@ const getReceipt = async (paymentId) => {
   };
 };
 
+// Error-recovery action (spec section 51): a substitute for "retry the
+// webhook" -- Razorpay doesn't let us replay a past webhook delivery on
+// demand, so instead this asks Razorpay directly what actually happened to
+// this order's payments and reconciles our row to match, for a payment
+// stuck at 'created' because its webhook delivery was lost, delayed, or
+// arrived before RAZORPAY_WEBHOOK_SECRET was configured.
+const syncPaymentStatus = async (paymentId, actor) => {
+  if (!razorpayConfigured()) {
+    const e = new Error('Razorpay is not configured on this platform backend (RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET).');
+    e.status = 503;
+    throw e;
+  }
+  const res = await query(`SELECT * FROM payments WHERE id = $1`, [paymentId]);
+  const payment = res.rows[0];
+  if (!payment) { const e = new Error('Payment not found'); e.status = 404; throw e; }
+  if (!payment.gateway_order_id) { const e = new Error('This payment has no gateway order to look up.'); e.status = 400; throw e; }
+  if (payment.status !== 'created') return { synced: false, reason: 'already_finalized', status: payment.status };
+
+  const orderPayments = await razorpayGet(`/orders/${payment.gateway_order_id}/payments`);
+  const latest = (orderPayments.items || []).sort((a, b) => b.created_at - a.created_at)[0];
+  if (!latest) return { synced: false, reason: 'no_payment_attempts_yet' };
+
+  if (latest.status === 'captured') {
+    await query(`UPDATE payments SET status = 'paid', gateway_payment_id = $1, updated_at = NOW() WHERE id = $2`, [latest.id, paymentId]);
+    await invoices.setStatus(payment.invoice_id, 'paid', actor);
+    await audit.log({ superAdminId: actor?.id, tenantId: payment.tenant_id, action: 'payment.synced', details: { invoice_id: payment.invoice_id, payment_id: latest.id, status: 'captured' } });
+    getReceipt(paymentId).then(sendReceiptEmail).catch(() => {});
+    return { synced: true, status: 'paid' };
+  }
+  if (latest.status === 'failed') {
+    await query(`UPDATE payments SET status = 'failed', gateway_payment_id = $1, failure_reason = $2, updated_at = NOW() WHERE id = $3`, [latest.id, latest.error_description || 'Payment failed', paymentId]);
+    await audit.log({ superAdminId: actor?.id, tenantId: payment.tenant_id, action: 'payment.synced', details: { invoice_id: payment.invoice_id, payment_id: latest.id, status: 'failed' } });
+    return { synced: true, status: 'failed' };
+  }
+  return { synced: false, reason: `gateway_status_${latest.status}` };
+};
+
 const listPaymentMethods = async (tenantId) => {
   const res = await query(
     `SELECT id, gateway, card_last4, card_network, active, created_at
@@ -291,5 +342,5 @@ const chargeSavedMethod = async (invoice, tenant) => {
 
 module.exports = {
   createOrderForInvoice, listForInvoice, handleWebhook, refund, razorpayConfigured, getReceipt,
-  listPaymentMethods, deactivatePaymentMethod, chargeSavedMethod,
+  listPaymentMethods, deactivatePaymentMethod, chargeSavedMethod, syncPaymentStatus,
 };
