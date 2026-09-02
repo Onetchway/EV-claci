@@ -15,5 +15,6 @@ router.use('/payments',      require('./payments.routes'));
 router.use('/ops',           require('./operations.routes'));
 router.use('/usage',         require('./usage.routes'));
 router.use('/provisioning',  require('./provisioning.routes'));
+router.use('/billing',       require('./billingMe.routes'));
 
 module.exports = router;

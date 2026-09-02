@@ -15,6 +15,11 @@ exports.refund = async (req, res, next) => {
   catch (e) { next(e); }
 };
 
+exports.receipt = async (req, res, next) => {
+  try { res.json(await svc.getReceipt(req.params.id)); }
+  catch (e) { next(e); }
+};
+
 // Public: Razorpay calls this directly, authenticated by its own signature
 // header (see payments.service.js's verifyWebhookSignature), not a bearer
 // token -- there's no signed-in super admin on an inbound gateway callback.

@@ -13,5 +13,6 @@ router.use(authenticate);
 router.get('/invoices/:invoiceId', ctrl.listForInvoice);
 router.post('/invoices/:invoiceId/order', requireRole('super_admin', 'billing_ops'), ctrl.createOrder);
 router.post('/:id/refund', requireRole('super_admin', 'billing_ops'), ctrl.refund);
+router.get('/:id/receipt', ctrl.receipt);
 
 module.exports = router;

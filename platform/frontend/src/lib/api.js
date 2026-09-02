@@ -108,6 +108,7 @@ export const paymentsApi = {
   forInvoice: (invoiceId) => client.get(`/payments/invoices/${invoiceId}`),
   createOrder: (invoiceId) => client.post(`/payments/invoices/${invoiceId}/order`),
   refund: (paymentId) => client.post(`/payments/${paymentId}/refund`),
+  receipt: (paymentId) => client.get(`/payments/${paymentId}/receipt`),
 };
 
 export const usageApi = {

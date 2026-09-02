@@ -5,6 +5,7 @@ const { query } = require('../config/database');
 const audit = require('./audit.service');
 const invoices = require('./invoices.service');
 const notifications = require('./notifications.service');
+const { sendReceiptEmail } = require('./email.service');
 
 // Talks to Razorpay's plain REST API directly (Basic auth, key_id:key_secret)
 // instead of pulling in their SDK -- this integration only needs "create an
@@ -108,6 +109,9 @@ const handleWebhook = async (rawBody, signature) => {
     await invoices.setStatus(payment.invoice_id, 'paid', null);
     await audit.log({ tenantId: payment.tenant_id, action: 'payment.captured', details: { invoice_id: payment.invoice_id, payment_id: payload.id } });
     await notifications.emit({ type: 'payment_received', title: 'Payment received', message: `${payment.currency} ${payment.amount}`, tenantId: payment.tenant_id });
+    getReceipt(payment.id)
+      .then(sendReceiptEmail)
+      .catch((err) => console.error(`[payments] Failed to email receipt for payment ${payment.id}:`, err.message));
   } else if (event.event === 'payment.failed') {
     await query(
       `UPDATE payments SET status = 'failed', gateway_payment_id = $1, failure_reason = $2, updated_at = NOW() WHERE id = $3`,
@@ -150,4 +154,38 @@ const refund = async (paymentId, actor) => {
   return updated.rows[0];
 };
 
-module.exports = { createOrderForInvoice, listForInvoice, handleWebhook, refund, razorpayConfigured };
+// A printable receipt for one successful payment — tied to the gateway's
+// own payment id when we have one (a real Razorpay capture), falling back
+// to our own payment row id for a manually-recorded / refund-adjacent case.
+const getReceipt = async (paymentId) => {
+  const res = await query(
+    `SELECT p.*, i.invoice_number, i.period_start, i.period_end,
+            t.name AS tenant_name, t.contact_name, t.contact_email
+     FROM payments p
+     JOIN invoices i ON i.id = p.invoice_id
+     JOIN tenants t ON t.id = p.tenant_id
+     WHERE p.id = $1`,
+    [paymentId]
+  );
+  const payment = res.rows[0];
+  if (!payment) { const e = new Error('Payment not found'); e.status = 404; throw e; }
+  if (payment.status !== 'paid') { const e = new Error('Only a paid payment has a receipt.'); e.status = 400; throw e; }
+
+  return {
+    receipt_number: `RCPT-${(payment.gateway_payment_id || payment.id).slice(-10).toUpperCase()}`,
+    payment_id: payment.id,
+    gateway_payment_id: payment.gateway_payment_id,
+    auto_charged: payment.auto_charged,
+    amount: payment.amount,
+    currency: payment.currency,
+    paid_at: payment.updated_at,
+    invoice_number: payment.invoice_number,
+    period_start: payment.period_start,
+    period_end: payment.period_end,
+    tenant_name: payment.tenant_name,
+    contact_name: payment.contact_name,
+    contact_email: payment.contact_email,
+  };
+};
+
+module.exports = { createOrderForInvoice, listForInvoice, handleWebhook, refund, razorpayConfigured, getReceipt };

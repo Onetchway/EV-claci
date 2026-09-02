@@ -21,9 +21,48 @@ const PAYMENT_BADGE = {
   refunded: 'badge-yellow',
 };
 
+function ReceiptModal({ paymentId, onClose }) {
+  const [receipt, setReceipt] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    paymentsApi.receipt(paymentId).then(setReceipt).catch((err) => setError(err.message));
+  }, [paymentId]);
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div className="card p-6 w-full max-w-sm space-y-4">
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        {!error && !receipt && <p className="text-sm text-ink-400">Loading…</p>}
+        {receipt && (
+          <>
+            <div>
+              <h2 className="text-lg font-semibold text-ink-900">Payment receipt</h2>
+              <p className="text-xs text-ink-400 font-mono mt-0.5">{receipt.receipt_number}</p>
+            </div>
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between"><dt className="text-ink-500">Organization</dt><dd className="text-ink-800">{receipt.tenant_name}</dd></div>
+              <div className="flex justify-between"><dt className="text-ink-500">Invoice</dt><dd className="text-ink-800 font-mono text-xs">{receipt.invoice_number}</dd></div>
+              <div className="flex justify-between"><dt className="text-ink-500">Period</dt><dd className="text-ink-800">{receipt.period_start.slice(0, 10)} – {receipt.period_end.slice(0, 10)}</dd></div>
+              <div className="flex justify-between"><dt className="text-ink-500">Paid on</dt><dd className="text-ink-800">{new Date(receipt.paid_at).toLocaleString()}</dd></div>
+              <div className="flex justify-between"><dt className="text-ink-500">Method</dt><dd className="text-ink-800">{receipt.auto_charged ? 'Auto-charged' : 'Manual'}</dd></div>
+              <div className="flex justify-between pt-2 border-t border-ink-100 font-semibold"><dt className="text-ink-900">Amount paid</dt><dd className="text-ink-900">{receipt.currency} {receipt.amount}</dd></div>
+            </dl>
+          </>
+        )}
+        <div className="flex justify-end gap-2 pt-2">
+          {receipt && <button className="btn-secondary" onClick={() => window.print()}>Print</button>}
+          <button className="btn-primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PaymentsRow({ invoice, onChanged }) {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [receiptFor, setReceiptFor] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -68,6 +107,7 @@ function PaymentsRow({ invoice, onChanged }) {
   };
 
   return (
+    <Fragment>
     <tr>
       <td colSpan={7} className="bg-ink-50/50 px-8 py-3">
         {invoice.status === 'issued' && (
@@ -88,7 +128,10 @@ function PaymentsRow({ invoice, onChanged }) {
                   <span className={`badge ${PAYMENT_BADGE[p.status] || 'badge-gray'}`}>{p.status}</span>
                   <span className="font-medium text-ink-800">{p.currency} {p.amount}</span>
                   {p.status === 'paid' && (
-                    <button className="text-danger-600 hover:underline" onClick={() => refund(p.id)}>Refund</button>
+                    <>
+                      <button className="text-brand-600 hover:underline" onClick={() => setReceiptFor(p.id)}>Receipt</button>
+                      <button className="text-danger-600 hover:underline" onClick={() => refund(p.id)}>Refund</button>
+                    </>
                   )}
                 </div>
               </li>
@@ -97,6 +140,8 @@ function PaymentsRow({ invoice, onChanged }) {
         )}
       </td>
     </tr>
+    {receiptFor && <ReceiptModal paymentId={receiptFor} onClose={() => setReceiptFor(null)} />}
+    </Fragment>
   );
 }
 

@@ -58,4 +58,19 @@ async function sendInvoiceEmail(invoice, tenant) {
   await sendEmail({ to: tenant.contact_email, subject: `Invoice ${invoice.invoice_number} — ${tenant.name}`, html });
 }
 
-module.exports = { emailConfigured, sendEmail, sendInvoiceEmail };
+async function sendReceiptEmail(receipt) {
+  const html = `
+    <p>Hi ${receipt.contact_name},</p>
+    <p>We've received your payment for invoice <strong>${receipt.invoice_number}</strong>.</p>
+    <table cellpadding="6" style="border-collapse:collapse">
+      <tr><td>Receipt number</td><td><strong>${receipt.receipt_number}</strong></td></tr>
+      <tr><td>Amount paid</td><td><strong>${receipt.currency} ${receipt.amount}</strong></td></tr>
+      <tr><td>Billing period</td><td>${receipt.period_start} – ${receipt.period_end}</td></tr>
+      <tr><td>Paid on</td><td>${new Date(receipt.paid_at).toDateString()}</td></tr>
+    </table>
+    <p>Thanks for using Alpha.</p>
+  `;
+  await sendEmail({ to: receipt.contact_email, subject: `Payment receipt ${receipt.receipt_number} — ${receipt.tenant_name}`, html });
+}
+
+module.exports = { emailConfigured, sendEmail, sendInvoiceEmail, sendReceiptEmail };

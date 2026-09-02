@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, Landmark, Plus, Settings as SettingsIcon, Trash2 } from "lucide-react";
+import { Building2, Landmark, Plus, Receipt, Settings as SettingsIcon, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -13,14 +13,15 @@ import {
   FOLLOWUP_TYPE_LABEL, FOLLOWUP_TYPES, GST_SLABS, INDIAN_STATES, type FollowupType,
 } from "@/lib/constants";
 import { blankSettings, saveSettings, subscribeSettings } from "@/lib/db/settings";
+import type { BillingInvoice, BillingOverview, BillingReceipt } from "@/lib/platform-billing";
 import { saveSequence, subscribeSequences } from "@/lib/db/tasks";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isSuperAdmin, viewerIsAdmin } from "@/lib/permissions";
 import type { AppSettings, FollowupSequence } from "@/lib/types";
-import { cn, formatDateTime } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 const TABS = [
-  "Company", "Bank", "Letter of Intent", "Finance", "Dropdown lists", "Follow-up sequences", "Investor portal",
+  "Company", "Bank", "Letter of Intent", "Finance", "Billing", "Dropdown lists", "Follow-up sequences", "Investor portal",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -501,10 +502,197 @@ export default function SettingsPage() {
         </p>
       )}
 
+      {tab === "Billing" && <BillingTab />}
+
       {tab === "Follow-up sequences" && <SequencesEditor actor={actor!} />}
 
       {tab === "Investor portal" && <InvestorPortalTab isSuperAdmin={isSuperAdmin(viewer.role)} />}
     </>
+  );
+}
+
+const INVOICE_STATUS_BADGE: Record<string, string> = {
+  issued: "bg-amber-50 text-amber-700 ring-amber-200",
+  paid: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  overdue: "bg-rose-50 text-rose-700 ring-rose-200",
+  void: "bg-ink-100 text-ink-600 ring-ink-200",
+};
+
+/** Authenticated fetch against this CRM's own /api/billing/* routes — never calls the platform directly from the browser (that would need the tenant API key client-side). */
+async function billingFetch<T>(path: string): Promise<T> {
+  const current = getFirebaseAuth().currentUser;
+  if (!current) throw new Error("Your session expired. Sign in again.");
+  const token = await current.getIdToken();
+  const res = await fetch(path, { headers: { authorization: `Bearer ${token}` } });
+  const body = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw new Error((body as { error?: string }).error ?? `Request failed (${res.status}).`);
+  return body;
+}
+
+/** This org's own plan, MRR, next billing date and invoice/receipt history — read-only, sourced live from the Alpha platform (see lib/platform-billing.ts). Nothing here is editable from the CRM side; billing terms are set by the platform's super admin. */
+function BillingTab() {
+  const [overview, setOverview] = useState<BillingOverview | null>(null);
+  const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<BillingReceipt | null>(null);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [ov, inv] = await Promise.all([
+          billingFetch<{ data: BillingOverview | null }>("/api/billing/overview"),
+          billingFetch<{ data: BillingInvoice[] }>("/api/billing/invoices"),
+        ]);
+        if (cancelled) return;
+        setOverview(ov.data);
+        setInvoices(inv.data);
+      } catch (err) {
+        if (!cancelled) setError((err as Error).message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const viewReceipt = async (invoiceId: string) => {
+    setReceiptError(null);
+    try {
+      const { data } = await billingFetch<{ data: BillingReceipt }>(`/api/billing/invoices/${invoiceId}/receipt`);
+      setReceipt(data);
+    } catch (err) {
+      setReceiptError((err as Error).message);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card title="Billing">
+        <div className="flex justify-center py-10"><Spinner /></div>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card title="Billing">
+        <p className="text-sm text-rose-600">{error}</p>
+      </Card>
+    );
+  }
+
+  if (!overview) {
+    return (
+      <Card title="Billing">
+        <EmptyState
+          icon={<Receipt className="h-6 w-6" />}
+          title="Not connected to the Alpha billing platform"
+          description="This organization has no platform billing key configured yet. A Livanto Super Admin can set one up from the Alpha super-admin console."
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card title="Subscription" subtitle="Set by the Alpha platform — reach out to Livanto to change your plan.">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div>
+            <p className="text-xs text-ink-500">Plan</p>
+            <p className="text-sm font-semibold text-ink-900">{overview.billing_plan_name ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-xs text-ink-500">Status</p>
+            <p className="text-sm font-semibold capitalize text-ink-900">{overview.status.replace("_", " ")}</p>
+          </div>
+          <div>
+            <p className="text-xs text-ink-500">Monthly amount</p>
+            <p className="text-sm font-semibold text-ink-900">{formatINR(Number(overview.mrr))}</p>
+          </div>
+          <div>
+            <p className="text-xs text-ink-500">Next billing date</p>
+            <p className="text-sm font-semibold text-ink-900">
+              {overview.next_billing_at ? formatDate(overview.next_billing_at) : "—"}
+            </p>
+          </div>
+        </div>
+        {Number(overview.credit_balance) !== 0 && (
+          <p className="mt-3 text-xs text-ink-500">
+            Credit balance: <span className="font-medium text-ink-800">{formatINR(Number(overview.credit_balance))}</span>
+          </p>
+        )}
+      </Card>
+
+      <Card title="Invoice history">
+        {invoices.length === 0 ? (
+          <EmptyState icon={<Receipt className="h-6 w-6" />} title="No invoices yet" description="Invoices appear here once your first billing period closes." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-ink-400">
+                  <th className="pb-2 pr-4">Invoice #</th>
+                  <th className="pb-2 pr-4">Period</th>
+                  <th className="pb-2 pr-4">Amount</th>
+                  <th className="pb-2 pr-4">Status</th>
+                  <th className="pb-2"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {invoices.map((inv) => (
+                  <tr key={inv.id}>
+                    <td className="py-2 pr-4 font-mono text-xs text-ink-700">{inv.invoice_number}</td>
+                    <td className="py-2 pr-4 text-ink-600">{inv.period_start.slice(0, 10)} – {inv.period_end.slice(0, 10)}</td>
+                    <td className="py-2 pr-4 font-medium text-ink-900">{formatINR(Number(inv.total_amount))}</td>
+                    <td className="py-2 pr-4">
+                      <span className={cn("chip", INVOICE_STATUS_BADGE[inv.status] ?? "bg-ink-100 text-ink-600 ring-ink-200")}>
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td className="py-2 text-right">
+                      {inv.status === "paid" && (
+                        <button type="button" className="text-brand-600 hover:underline" onClick={() => viewReceipt(inv.id)}>
+                          Receipt
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {(receipt || receiptError) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm space-y-4 rounded-xl bg-white p-6 shadow-xl">
+            {receiptError && <p className="text-sm text-rose-600">{receiptError}</p>}
+            {receipt && (
+              <>
+                <div>
+                  <h2 className="text-lg font-semibold text-ink-900">Payment receipt</h2>
+                  <p className="mt-0.5 font-mono text-xs text-ink-400">{receipt.receipt_number}</p>
+                </div>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between"><dt className="text-ink-500">Invoice</dt><dd className="font-mono text-xs text-ink-800">{receipt.invoice_number}</dd></div>
+                  <div className="flex justify-between"><dt className="text-ink-500">Period</dt><dd className="text-ink-800">{receipt.period_start.slice(0, 10)} – {receipt.period_end.slice(0, 10)}</dd></div>
+                  <div className="flex justify-between"><dt className="text-ink-500">Paid on</dt><dd className="text-ink-800">{formatDate(receipt.paid_at)}</dd></div>
+                  <div className="flex justify-between border-t border-ink-100 pt-2 font-semibold"><dt className="text-ink-900">Amount paid</dt><dd className="text-ink-900">{formatINR(Number(receipt.amount))}</dd></div>
+                </dl>
+              </>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              {receipt && <Button variant="secondary" onClick={() => window.print()}>Print</Button>}
+              <Button onClick={() => { setReceipt(null); setReceiptError(null); }}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
