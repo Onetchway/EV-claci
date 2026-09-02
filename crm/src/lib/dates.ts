@@ -23,6 +23,11 @@ export function mondayOf(d: Date): string {
   return ymd(addDays(d, diff));
 }
 
+/** Which WeekDay `d` falls on — WEEK_DAYS is Monday-first, so this re-indexes JS's Sunday-first getDay(). */
+export function weekDayOf(d: Date): WeekDay {
+  return WEEK_DAYS[(d.getDay() + 6) % 7]!;
+}
+
 export const WEEK_DAY_LABEL: Record<WeekDay, string> = {
   MON: "Mon", TUE: "Tue", WED: "Wed", THU: "Thu", FRI: "Fri", SAT: "Sat", SUN: "Sun",
 };

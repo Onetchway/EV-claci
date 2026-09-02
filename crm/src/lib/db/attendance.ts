@@ -30,6 +30,7 @@ function punchFrom(nearest: NearestOffice): Omit<AttendancePunch, "at"> {
 
 export async function checkIn(
   uid: string, userName: string, coords: { lat: number; lng: number } | null, nearest: NearestOffice, actor: Actor,
+  computed: { status: AttendanceStatus; lateMinutes: number },
 ): Promise<void> {
   const date = ymd(new Date());
   const ref = doc(getDb(), ATTENDANCE, attendanceId(uid, date));
@@ -42,7 +43,8 @@ export async function checkIn(
     ref,
     {
       uid, userName, date, orgId,
-      status: "PRESENT" satisfies AttendanceStatus,
+      status: computed.status,
+      lateMinutes: computed.lateMinutes,
       checkIn: { ...punchFrom(nearest), lat: coords?.lat ?? null, lng: coords?.lng ?? null, at: serverTimestamp() },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),

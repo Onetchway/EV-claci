@@ -6,12 +6,13 @@ import { Building2, Landmark, Plus, Receipt, Settings as SettingsIcon, Trash2 } 
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Button, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, Textarea,
+  Button, Card, Checkbox, EmptyState, Field, Input, PageHeader, Select, Spinner, Textarea,
   useAsyncAction,
 } from "@/components/ui";
 import {
-  FOLLOWUP_TYPE_LABEL, FOLLOWUP_TYPES, GST_SLABS, INDIAN_STATES, type FollowupType,
+  FOLLOWUP_TYPE_LABEL, FOLLOWUP_TYPES, GST_SLABS, INDIAN_STATES, WEEK_DAYS, type FollowupType, type WeekDay,
 } from "@/lib/constants";
+import { WEEK_DAY_LABEL } from "@/lib/dates";
 import { blankSettings, saveSettings, subscribeSettings } from "@/lib/db/settings";
 import type { BillingInvoice, BillingOverview, BillingReceipt } from "@/lib/platform-billing";
 import { saveSequence, subscribeSequences } from "@/lib/db/tasks";
@@ -21,7 +22,7 @@ import type { AppSettings, FollowupSequence } from "@/lib/types";
 import { cn, formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 const TABS = [
-  "Company", "Bank", "Letter of Intent", "Finance", "Billing", "Dropdown lists", "Follow-up sequences", "Investor portal",
+  "Company", "Bank", "Letter of Intent", "Finance", "Attendance", "Billing", "Dropdown lists", "Follow-up sequences", "Investor portal",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -452,6 +453,99 @@ export default function SettingsPage() {
             deliberately not editable here — <code>npm run verify</code> checks them against that
             workbook on every build. Individual deals can still override a price on the quotation.
           </p>
+        </Card>
+      )}
+
+      {tab === "Attendance" && (
+        <Card
+          title="Shift timing & lateness rules"
+          subtitle="Applies to everyone, whether they're on a weekly Roster or the standard flat shift below with no roster to fill in."
+        >
+          <div className="space-y-5">
+            <Field
+              label="Default scheduling mode"
+              hint="A person's own override (set from HRMS → Employees) always wins; this is just what a new employee gets."
+            >
+              <Select
+                value={form.attendance.defaultMode}
+                onChange={(e) => set("attendance", { ...form.attendance, defaultMode: e.target.value as "ROSTER" | "FLAT_SHIFT" })}
+                options={[
+                  { value: "ROSTER", label: "Roster — working/week-off days set per week from the Roster page" },
+                  { value: "FLAT_SHIFT", label: "Flat weekly shift — standard working days below, no roster needed" },
+                ]}
+              />
+            </Field>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label="Shift start">
+                <Input
+                  type="time"
+                  value={form.attendance.shiftStart}
+                  onChange={(e) => set("attendance", { ...form.attendance, shiftStart: e.target.value })}
+                />
+              </Field>
+              <Field label="Shift end">
+                <Input
+                  type="time"
+                  value={form.attendance.shiftEnd}
+                  onChange={(e) => set("attendance", { ...form.attendance, shiftEnd: e.target.value })}
+                />
+              </Field>
+              <Field label="Grace period (minutes)" hint="Check in within this many minutes of shift start and it still counts on-time.">
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.attendance.graceMinutes}
+                  onChange={(e) => set("attendance", { ...form.attendance, graceMinutes: Number(e.target.value) || 0 })}
+                />
+              </Field>
+              <Field label="Half day after (minutes late)" hint="Later than grace, up to this many minutes — marked Half Day.">
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.attendance.halfDayAfterMinutes}
+                  onChange={(e) => set("attendance", { ...form.attendance, halfDayAfterMinutes: Number(e.target.value) || 0 })}
+                />
+              </Field>
+              <Field label="Full absent after (minutes late)" hint="Later than this — marked Absent, even though they did check in.">
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.attendance.absentAfterMinutes}
+                  onChange={(e) => set("attendance", { ...form.attendance, absentAfterMinutes: Number(e.target.value) || 0 })}
+                />
+              </Field>
+            </div>
+
+            <Field
+              label="Standard working days"
+              hint="Used only for employees on the flat weekly shift (Roster-mode employees use their own weekly roster instead)."
+            >
+              <div className="flex flex-wrap gap-4">
+                {WEEK_DAYS.map((d: WeekDay) => (
+                  <Checkbox
+                    key={d}
+                    label={WEEK_DAY_LABEL[d]}
+                    checked={form.attendance.workingDays.includes(d)}
+                    onChange={(checked) =>
+                      set("attendance", {
+                        ...form.attendance,
+                        workingDays: checked
+                          ? [...form.attendance.workingDays, d]
+                          : form.attendance.workingDays.filter((x) => x !== d),
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            </Field>
+
+            <p className="rounded-lg bg-ink-50 px-3 py-2.5 text-xs text-ink-600">
+              Example with the defaults above: shift starts 09:30, a 10-minute grace period means check-ins up to
+              09:40 stay Present; 09:41–10:30 is marked Half Day; after 12:30 (180 minutes late) it's marked Absent
+              even if they did eventually check in.
+            </p>
+          </div>
         </Card>
       )}
 

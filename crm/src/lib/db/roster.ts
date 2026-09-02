@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, getDocs, onSnapshot, query, serverTimestamp, setDoc, where,
+  collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, where,
 } from "firebase/firestore";
 
 import { WEEK_DAYS, type WeekDay } from "../constants";
@@ -46,6 +46,12 @@ export async function saveRosterWeek(
     },
     { merge: true },
   );
+}
+
+/** One-shot fetch for an action that isn't a mounted React component (e.g. check-in), so it doesn't need to manage a snapshot subscription just to look up today's roster entry. */
+export async function getRosterWeek(uid: string, weekStart: string): Promise<RosterWeek | null> {
+  const snap = await getDoc(doc(getDb(), ROSTERS, rosterId(uid, weekStart)));
+  return snap.exists() ? mapRoster(snap.id, snap.data()) : null;
 }
 
 export function subscribeMyRosterWeek(

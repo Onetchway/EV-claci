@@ -1,17 +1,37 @@
 "use client";
 
-import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 
 import { COMPANY, DEFAULT_PAYOUT_MONTHS, DEFAULT_SCOPE_ITEMS, DEFAULT_TENURE_YEARS } from "../constants";
 import { DEFAULT_CLOSING } from "../loi-template";
 import { getDb } from "../firebase/client";
 import { getCurrentTenantId } from "../tenant";
-import type { Actor, AppSettings } from "../types";
+import type { Actor, AppSettings, AttendanceRules } from "../types";
 import { logActivitySafe } from "./activity";
 
 export const SETTINGS = "settings";
 /** The default (Livanto's own) org's settings document — unchanged for backward compatibility with existing data. Every other org gets its own doc, keyed by orgId (see settingsDocId below). */
 export const SETTINGS_DOC = "app";
+
+/**
+ * Operational, not legal/financial identity — same starting point for
+ * Livanto's own doc and every new tenant, unlike company/bank/LOI.
+ * ROSTER as the default mode keeps existing behavior unchanged for any org
+ * that's already filling in weekly rosters; switch to FLAT_SHIFT (or
+ * override per-employee from HRMS → Employees) for a standard weekly
+ * schedule with no roster to maintain.
+ */
+export function defaultAttendanceRules(): AttendanceRules {
+  return {
+    defaultMode: "ROSTER",
+    shiftStart: "09:30",
+    shiftEnd: "18:30",
+    graceMinutes: 10,
+    halfDayAfterMinutes: 60,
+    absentAfterMinutes: 180,
+    workingDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT"],
+  };
+}
 
 /**
  * Multi-tenant isolation: each org's company details/bank/LOI defaults are
@@ -72,6 +92,7 @@ export function defaultSettings(): AppSettings {
     },
     lists: { chargerOems: [], banks: [], discoms: [], vendors: [] },
     ocpp: { serverHost: "" },
+    attendance: defaultAttendanceRules(),
   };
 }
 
@@ -110,6 +131,7 @@ export function blankSettings(): AppSettings {
     },
     lists: { chargerOems: [], banks: [], discoms: [], vendors: [] },
     ocpp: { serverHost: "" },
+    attendance: defaultAttendanceRules(),
   };
 }
 
@@ -134,9 +156,17 @@ export function withDefaults(stored: Partial<AppSettings> | undefined, isTenantS
     finance: { ...base.finance, ...stored.finance },
     lists: { ...base.lists, ...stored.lists },
     ocpp: { ...base.ocpp, ...stored.ocpp },
+    attendance: { ...base.attendance, ...stored.attendance },
     updatedAt: stored.updatedAt ?? null,
     updatedBy: stored.updatedBy,
   };
+}
+
+/** One-shot fetch for an action that isn't a mounted React component (e.g. check-in), so it doesn't need to manage a snapshot subscription just to read the current attendance rules. */
+export async function getSettingsOnce(): Promise<AppSettings> {
+  const { docId, isTenantScoped } = await settingsDocId();
+  const snap = await getDoc(doc(getDb(), SETTINGS, docId));
+  return withDefaults(snap.exists() ? (snap.data() as AppSettings) : undefined, isTenantScoped);
 }
 
 export function subscribeSettings(

@@ -30,6 +30,8 @@ const PatchUser = z.object({
   hrmsAdmin: z.boolean().optional(),
   /** Whether this person is expected to check in/out at all. Omitted/true = required (the default for a normal employee). */
   attendanceRequired: z.boolean().optional(),
+  /** Per-employee override of Settings → Attendance's org-wide default scheduling mode. Null clears back to the org default. */
+  scheduleMode: z.enum(["ROSTER", "FLAT_SHIFT"]).nullable().optional(),
 });
 
 /** Rank-based (not a literal "ADMIN" check) so PLATFORM_ADMIN/CPO_ADMIN — same rank as ADMIN, just a clearer label — grant/revoke exactly what an ADMIN could. */
@@ -84,7 +86,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "region", "managerId", "designation", "departmentId", "officeLocationId", "active", "orgId", "pageAccessOverrides", "bypassGeofence", "hrmsAdmin", "attendanceRequired"] as const) {
+    for (const key of ["name", "phone", "region", "managerId", "designation", "departmentId", "officeLocationId", "active", "orgId", "pageAccessOverrides", "bypassGeofence", "hrmsAdmin", "attendanceRequired", "scheduleMode"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
     if (nextRoles && nextPrimary) {

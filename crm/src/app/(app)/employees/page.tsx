@@ -355,6 +355,27 @@ export default function EmployeesPage() {
               />
             </Field>
 
+            <Field
+              label="Scheduling mode"
+              hint="Overrides Settings → Attendance's org default for this person specifically."
+            >
+              <Select
+                value={editing.scheduleMode ?? ""}
+                onChange={(e) =>
+                  void run(async () => {
+                    const scheduleMode = (e.target.value || null) as "ROSTER" | "FLAT_SHIFT" | null;
+                    await patchUser(editing.uid, { scheduleMode });
+                    setEditing({ ...editing, scheduleMode });
+                  }, "Saved.")
+                }
+                options={[
+                  { value: "ROSTER", label: "Roster — set weekly from the Roster page" },
+                  { value: "FLAT_SHIFT", label: "Flat weekly shift — standard working days, no roster" },
+                ]}
+                placeholder="Use the org default"
+              />
+            </Field>
+
             {(() => {
               const reports = activeUsers.filter((u) => u.managerId === editing.uid);
               return reports.length > 0 ? (

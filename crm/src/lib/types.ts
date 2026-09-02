@@ -54,6 +54,8 @@ export interface AppUser {
   hrmsAdmin?: boolean;
   /** Whether this person is expected to check in/out at all — off by default is wrong for a normal employee, so undefined means required. Turn off for someone HRMS genuinely doesn't apply to (a channel partner contact, a board member with CRM access, etc.); they drop out of the header check-in control and the Team/Roster/leave-quota views. */
   attendanceRequired?: boolean;
+  /** Per-employee override of Settings → Attendance's org-wide default scheduling mode — leave unset to use the org default. ROSTER means this person's working/week-off days come from their weekly Roster; FLAT_SHIFT means they follow the org's standard weekly working days with no roster to fill in. */
+  scheduleMode?: ScheduleMode | null;
   /** Set when this account was deleted (DELETE /api/users/[uid]) — the Firebase Auth credential is gone, but the profile row is kept so historical leads/activity still show a real owner name. Hidden from Team & Roles' main list by default. */
   deletedAt?: TS | null;
   createdAt: TS;
@@ -1629,8 +1631,29 @@ export interface AppSettings {
     /** Host only, no scheme — e.g. "livanto-ocpp-35nnljms4q-as.a.run.app". */
     serverHost: string;
   };
+  /** Org-wide shift timing and lateness rules — the same thresholds apply whether an employee is on a weekly Roster or the standard FLAT_SHIFT with no roster at all; see lib/attendance-rules.ts. */
+  attendance: AttendanceRules;
   updatedAt?: TS;
   updatedBy?: Actor;
+}
+
+/** ROSTER = this person's working/week-off days come from their weekly Roster grid. FLAT_SHIFT = they follow the org's standard weekly working days below, with no roster to fill in. */
+export type ScheduleMode = "ROSTER" | "FLAT_SHIFT";
+
+export interface AttendanceRules {
+  /** Scheduling mode an employee gets when their own AppUser.scheduleMode is unset. */
+  defaultMode: ScheduleMode;
+  /** Expected shift start, 24-hour "HH:mm" local time — every threshold below is measured from this. */
+  shiftStart: string;
+  shiftEnd: string;
+  /** Minutes after shiftStart still counted on-time (status stays PRESENT). */
+  graceMinutes: number;
+  /** Minutes after shiftStart beyond which a check-in is marked HALF_DAY instead of PRESENT. */
+  halfDayAfterMinutes: number;
+  /** Minutes after shiftStart beyond which a check-in is marked ABSENT instead of HALF_DAY. */
+  absentAfterMinutes: number;
+  /** Working days for anyone on FLAT_SHIFT mode. ROSTER-mode employees use their own weekly roster instead. */
+  workingDays: WeekDay[];
 }
 
 /**
@@ -1743,6 +1766,8 @@ export interface AttendanceRecord {
   /** yyyy-mm-dd, the employee's local calendar day. */
   date: string;
   status: AttendanceStatus;
+  /** Minutes after the org's configured shiftStart this check-in landed (0 or negative = on time/early) — set when the status came from an employee's own punch, absent on a manager-marked record. */
+  lateMinutes?: number;
   checkIn?: AttendancePunch | null;
   checkOut?: AttendancePunch | null;
   /** Set when an admin/manager marked this record by hand instead of the employee punching in themselves. */

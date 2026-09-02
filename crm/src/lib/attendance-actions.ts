@@ -1,7 +1,11 @@
 "use client";
 
+import { evaluateCheckIn } from "./attendance-rules";
 import type { Role } from "./constants";
 import { checkIn, checkOut } from "./db/attendance";
+import { getRosterWeek } from "./db/roster";
+import { getSettingsOnce } from "./db/settings";
+import { mondayOf } from "./dates";
 import { getCurrentCoords, nearestOffice, type Coords, type NearestOffice } from "./geo";
 import { isAdmin } from "./permissions";
 import type { Actor, AppUser, OfficeLocation } from "./types";
@@ -46,7 +50,14 @@ export async function performCheckIn(
         : `You're too far from any registered office to check in${accuracyNote}.`,
     );
   }
-  await checkIn(profile.uid, profile.name, coords, bypass ? { ...nearest, withinGeofence: true } : nearest, actor);
+  const now = new Date();
+  const rules = await getSettingsOnce().then((s) => s.attendance);
+  const roster = await getRosterWeek(profile.uid, mondayOf(now));
+  const evaluated = evaluateCheckIn(now, profile.scheduleMode, roster, rules);
+  await checkIn(
+    profile.uid, profile.name, coords, bypass ? { ...nearest, withinGeofence: true } : nearest, actor,
+    evaluated ?? { status: "PRESENT", lateMinutes: 0 },
+  );
 }
 
 export async function performCheckOut(

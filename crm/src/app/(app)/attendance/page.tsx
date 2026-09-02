@@ -297,6 +297,11 @@ function MyAttendanceTab() {
                             Manager marked
                           </span>
                         )}
+                        {!r.markedBy && typeof r.lateMinutes === "number" && r.lateMinutes > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                            {r.lateMinutes}m late
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="td text-ink-600">{r.checkIn?.at ? formatDateTime(r.checkIn.at) : "—"}</td>
@@ -463,6 +468,11 @@ function TeamTab() {
                               className="inline-flex items-center rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 ring-1 ring-inset ring-sky-200"
                             >
                               Manager marked
+                            </span>
+                          )}
+                          {r && !r.markedBy && typeof r.lateMinutes === "number" && r.lateMinutes > 0 && (
+                            <span className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                              {r.lateMinutes}m late
                             </span>
                           )}
                         </div>
