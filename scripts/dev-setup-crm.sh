@@ -164,6 +164,11 @@ free_port 5100
 (cd platform/backend && nohup npm run dev > /tmp/alpha-platform-backend.log 2>&1 &)
 wait_for_port 5100 /tmp/alpha-platform-backend.log
 
+echo "==> Starting platform/frontend on :3100..."
+free_port 3100
+(cd platform/frontend && nohup npm run dev > /tmp/alpha-platform-frontend.log 2>&1 &)
+wait_for_port 3100 /tmp/alpha-platform-frontend.log
+
 echo "==> Starting crm/ on :3200..."
 free_port 3200
 (cd crm && nohup npx next dev -p 3200 > /tmp/alpha-crm.log 2>&1 &)
