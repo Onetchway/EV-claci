@@ -196,6 +196,13 @@ if [ -n "$EXISTING_TENANT" ]; then
   CRM_TEMP_PASSWORD=$(curl_json_field 'JSON.parse(require("fs").readFileSync(0,"utf8")).temporaryPassword' \
     -X POST http://localhost:3200/api/platform/provision-tenant -H 'Content-Type: application/json' -H "X-Provision-Secret: ${PROVISION_SECRET}" \
     -d "{\"slug\":\"$TENANT_SLUG\",\"name\":\"$TENANT_NAME\",\"adminEmail\":\"$TENANT_CONTACT_EMAIL\",\"adminName\":\"$TENANT_CONTACT_NAME\"}")
+  # A tenant re-provisioned this way (not freshly created) has no
+  # platform key stored in its CRM unless something already set one —
+  # rotating pushes a fresh key AND re-syncs it there (see tenants.
+  # service.js's rotateApiKey), which is what actually makes feature
+  # toggles and per-employee billing take effect for a tenant created
+  # before that sync existed. Safe to repeat every run.
+  curl -s -X POST "http://localhost:5100/api/tenants/${EXISTING_TENANT}/rotate-key" -H "Authorization: Bearer $TOKEN" > /dev/null
 else
   RESPONSE=$(curl -s -X POST http://localhost:5100/api/tenants -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
     -d "{\"name\":\"$TENANT_NAME\",\"slug\":\"$TENANT_SLUG\",\"contact_name\":\"$TENANT_CONTACT_NAME\",\"contact_email\":\"$TENANT_CONTACT_EMAIL\",\"deployment_mode\":\"shared\"}")

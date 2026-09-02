@@ -204,16 +204,22 @@ export default function TenantDetailPage() {
           <button className="btn-secondary" onClick={generateInvoice}>Generate invoice for last month</button>
           <button className="btn-secondary" onClick={rotateKey}>Rotate tenant API key</button>
 
-          {usage.length > 0 && (
-            <div>
-              <div className="label mt-2">Reported employee counts (self-reported by tenant)</div>
+          <div>
+            <div className="label mt-2">Reported employee counts (self-reported by tenant)</div>
+            {usage.length > 0 ? (
               <ul className="text-sm text-gray-600 space-y-0.5">
                 {usage.map((u) => (
                   <li key={u.id}>{u.period_month.slice(0, 7)}: {u.employee_count} employees</li>
                 ))}
               </ul>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-gray-400">
+                Nothing reported yet. This fills in once the tenant&apos;s CRM calls its usage-reporting
+                endpoint (automatic if it&apos;s on a schedule, or run manually via <code>npm run report-usage</code>)
+                — it needs this tenant&apos;s API key set in their CRM first (see &quot;Rotate tenant API key&quot; above).
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="card p-5">
