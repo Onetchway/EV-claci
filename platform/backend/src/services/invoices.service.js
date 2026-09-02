@@ -5,6 +5,7 @@ const { paginate, paginatedResponse } = require('../utils/pagination');
 const { nextInvoiceNumber } = require('../utils/invoiceNumber');
 const audit = require('./audit.service');
 const { sendInvoiceEmail } = require('./email.service');
+const { proratedEmployeeCharge } = require('./usage.service');
 
 const list = async (filters) => {
   const { page, limit, skip } = paginate(filters);
@@ -84,15 +85,29 @@ const generateForTenant = async (tenantId, periodStart, periodEnd, actor) => {
   let description;
 
   if (terms.billing_model === 'per_employee') {
-    const usageRes = await query(
-      `SELECT employee_count FROM tenant_usage_snapshots
-       WHERE tenant_id = $1 AND period_month = $2`,
-      [tenantId, periodStart.toISOString().slice(0, 10)]
-    );
-    employeeCount = usageRes.rows[0]?.employee_count ?? 0;
     unitAmount = Number(terms.per_employee_amount);
-    subtotal = employeeCount * unitAmount;
-    description = `Per-employee billing — ${employeeCount} employee(s) × ${terms.currency} ${unitAmount}`;
+
+    // Prorated by join/leave date when the tenant's CRM has reported that
+    // detail (see usage.service.js's reportEmployees/proratedEmployeeCharge
+    // -- Google Workspace style: a seat added mid-period is only charged
+    // for the days it existed). Falls back to a flat headcount * rate from
+    // tenant_usage_snapshots for a tenant that only ever called the
+    // simpler POST /usage/report (or hasn't reported at all this period).
+    const prorated = await proratedEmployeeCharge(tenantId, periodStart, periodEnd, unitAmount);
+    if (prorated.employeeCount > 0) {
+      employeeCount = prorated.employeeCount;
+      subtotal = prorated.subtotal;
+      description = `Per-employee billing (prorated by join/leave date) — ${employeeCount} employee(s) touched this period × ${terms.currency} ${unitAmount}`;
+    } else {
+      const usageRes = await query(
+        `SELECT employee_count FROM tenant_usage_snapshots
+         WHERE tenant_id = $1 AND period_month = $2`,
+        [tenantId, periodStart.toISOString().slice(0, 10)]
+      );
+      employeeCount = usageRes.rows[0]?.employee_count ?? 0;
+      subtotal = employeeCount * unitAmount;
+      description = `Per-employee billing — ${employeeCount} employee(s) × ${terms.currency} ${unitAmount}`;
+    }
   } else {
     unitAmount = Number(terms.fixed_monthly_amount);
     subtotal = unitAmount;

@@ -77,8 +77,18 @@ export default function TenantDetailPage() {
 
   const rotateKey = async () => {
     try {
-      const { api_key } = await tenantsApi.rotateApiKey(id);
+      const { api_key, crmSync } = await tenantsApi.rotateApiKey(id);
       toast.success(`New API key: ${api_key}`, { duration: 10000 });
+      // Only meaningful when CRM_PROVISION_URL/SECRET are configured on
+      // this platform backend — see tenants.service.js's rotateApiKey().
+      // Re-syncs this tenant's feature access into their CRM, so this is
+      // also the fix for "I disabled a feature but the tenant's CRM still
+      // shows it" on a tenant provisioned before that wiring existed.
+      if (crmSync?.ok) {
+        toast.success('Synced to the tenant’s CRM — their feature access is now up to date.', { duration: 8000 });
+      } else if (crmSync?.configured) {
+        toast.error('Could not sync the new key to the tenant’s CRM — check the platform backend logs.', { duration: 8000 });
+      }
     } catch (err) {
       toast.error(err.message);
     }

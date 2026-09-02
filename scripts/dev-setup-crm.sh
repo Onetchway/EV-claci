@@ -133,7 +133,8 @@ write_env crm/.env.local \
   "NEXT_PUBLIC_FIREBASE_API_KEY=demo-api-key" \
   "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=demo-livanto.firebaseapp.com" \
   "PLATFORM_API_URL=http://localhost:5100/api" \
-  "PLATFORM_PROVISION_SECRET=${PROVISION_SECRET}"
+  "PLATFORM_PROVISION_SECRET=${PROVISION_SECRET}" \
+  "CRON_SECRET=${PROVISION_SECRET}"
 
 echo "==> Installing dependencies (skips a package if node_modules already exists)..."
 for dir in platform/backend platform/frontend crm; do
@@ -202,6 +203,10 @@ else
   CRM_TEMP_PASSWORD=$(echo "$RESPONSE" | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).crmProvisioning.temporaryPassword')
   echo "    created tenant, CRM login provisioned."
 fi
+
+echo "==> Reporting this tenant's employee count to the platform (proves the per-employee billing loop end-to-end)..."
+USAGE_REPORT=$(curl -s -X POST http://localhost:3200/api/cron/report-usage -H "X-Cron-Secret: ${PROVISION_SECRET}")
+echo "    $USAGE_REPORT"
 
 echo ""
 echo "All set. Logs: /tmp/alpha-*.log, /tmp/alpha-firebase-emulators.log"

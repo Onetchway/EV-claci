@@ -1,25 +1,46 @@
 /**
- * Reports this CRM's current employee count to the Alpha platform's
+ * Reports which of this CRM's users are active to the Alpha platform's
  * super-admin control plane, for per-employee billing — the tenant-side
  * counterpart to backend/src/jobs/reportUsage.js, adapted for this app's
  * Firebase Admin SDK instead of Postgres.
  *
- * This is the ONLY data this tenant CRM sends to the platform. No employee
- * names, no leads, no operational data — a single count, pushed by this
- * app, never pulled by the platform (see platform/README.md's "Why the
- * super admin can't see tenant data").
+ * Nothing about this tenant's leads, operational data, or who their
+ * employees actually are crosses this line — no name, no email, no role.
+ * Each user is reported only as their opaque Firestore uid (meaningless
+ * outside this tenant's own CRM) plus whether they're currently active,
+ * so the platform can track *when* each seat joined/left and prorate the
+ * bill accordingly (Google Workspace style: a seat added mid-month is
+ * billed only for the days it existed) instead of just counting heads at
+ * month end. Pushed by this app on its own schedule, never pulled by the
+ * platform (see tenantAuth.js's own comment on the receiving end). Set
+ * PLATFORM_REPORT_COUNT_ONLY=1 to fall back to sharing just a flat active
+ * count instead, with no join-date proration.
+ *
+ * This one CRM deployment can serve MANY tenants at once (see
+ * src/lib/tenant.ts) — so this reports once PER ORG, never the whole
+ * `users` collection as a single blob: each org's own users are counted
+ * separately and sent under that org's own platform API key (Firestore's
+ * organizationPlatformKeys/{orgId}, same key api/organizations/[id]/
+ * platform-key sets — see lib/platform-features.ts's getOrgPlatformKey
+ * for the read side of that same collection). The one org with no orgId
+ * at all (a standalone/non-white-label deploy) instead uses this whole
+ * instance's own PLATFORM_TENANT_API_KEY env var. An org with neither is
+ * silently skipped — it isn't onboarded onto the platform.
  *
  *   npm run report-usage
  *
- * Meant to be cron'd daily. No-ops if PLATFORM_API_URL /
- * PLATFORM_TENANT_API_KEY aren't set, so a standalone deploy (not running
- * under the Alpha platform) is unaffected.
+ * Meant to be cron'd daily — see crm/src/app/api/cron/report-usage/route.ts
+ * for the HTTP-triggerable equivalent (what an external scheduler, e.g.
+ * Vercel Cron / Cloud Scheduler, should actually hit in a real deploy).
+ * No-ops entirely if PLATFORM_API_URL isn't set.
  */
 
 import { applicationDefault, cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
+import { reportAllOrgsUsage } from "../src/lib/platform-usage-report";
 
 function loadEnv() {
   for (const file of [".env.local", ".env"]) {
@@ -68,29 +89,22 @@ function init() {
 
 async function main() {
   const apiUrl = process.env.PLATFORM_API_URL;
-  const apiKey = process.env.PLATFORM_TENANT_API_KEY;
-  if (!apiUrl || !apiKey) {
-    console.log("[report-usage] PLATFORM_API_URL / PLATFORM_TENANT_API_KEY not set — skipping (not running under the Alpha platform).");
+  if (!apiUrl) {
+    console.log("[report-usage] PLATFORM_API_URL not set — skipping (not running under the Alpha platform).");
     return;
   }
 
   init();
   const db = getFirestore();
-  const usersSnap = await db.collection("users").where("active", "==", true).get();
-  const employeeCount = usersSnap.size;
+  const results = await reportAllOrgsUsage(db, apiUrl, process.env.PLATFORM_TENANT_API_KEY, process.env.PLATFORM_REPORT_COUNT_ONLY === "1");
 
-  const res = await fetch(`${apiUrl}/usage/report`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Tenant-Api-Key": apiKey },
-    body: JSON.stringify({ employee_count: employeeCount }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Platform rejected usage report (${res.status}): ${body}`);
+  if (results.length === 0) {
+    console.log("[report-usage] No org has a platform API key configured — nothing to report.");
+    return;
   }
-
-  console.log(`[report-usage] Reported ${employeeCount} active users to the platform.`);
+  for (const r of results) {
+    console.log(`[report-usage] ${r.orgLabel}: reported ${r.reportedUsers} users (${r.activeUsers} active)${r.mode === "count_only" ? " (count only)" : ""}.`);
+  }
 }
 
 main().catch((err) => {

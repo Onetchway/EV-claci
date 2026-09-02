@@ -178,12 +178,42 @@ const setStatus = async (id, status, actor) => update(id, { status }, actor);
 const rotateApiKey = async (id, actor) => {
   const apiKey = generateApiKey();
   const res = await query(
-    `UPDATE tenants SET api_key = $1, updated_at = NOW() WHERE id = $2 RETURNING id, api_key`,
+    `UPDATE tenants SET api_key = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, slug, contact_name, contact_email, api_key`,
     [apiKey, id]
   );
-  if (!res.rows[0]) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
+  const tenant = res.rows[0];
+  if (!tenant) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
   await audit.log({ superAdminId: actor?.id, tenantId: id, action: 'tenant.api_key_rotated' });
-  return res.rows[0];
+
+  // Re-sync the new key into this tenant's CRM (organizationPlatformKeys) so
+  // its feature-gated nav actually reflects whatever the super admin has
+  // set, instead of silently failing open to "everything enabled" -- the
+  // fate of any tenant that was provisioned before this key hand-off
+  // existed, or whose key was rotated without this. Idempotent and
+  // best-effort, same as create()'s own provisioning call; never fails the
+  // rotation itself.
+  let crmSync = { configured: Boolean(process.env.CRM_PROVISION_URL && process.env.CRM_PROVISION_SECRET) };
+  if (crmSync.configured) {
+    try {
+      const response = await fetch(`${process.env.CRM_PROVISION_URL}/api/platform/provision-tenant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Provision-Secret': process.env.CRM_PROVISION_SECRET },
+        body: JSON.stringify({
+          slug: tenant.slug,
+          name: tenant.name,
+          adminEmail: tenant.contact_email,
+          adminName: tenant.contact_name,
+          tenantApiKey: apiKey,
+        }),
+      });
+      crmSync = { configured: true, ok: response.ok };
+    } catch (err) {
+      console.error('[tenants] CRM key re-sync failed:', err.message);
+      crmSync = { configured: true, ok: false };
+    }
+  }
+
+  return { id: tenant.id, api_key: tenant.api_key, crmSync };
 };
 
 // Domain-based tenant resolution, called by a tenant CRM instance running
