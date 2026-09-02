@@ -18,7 +18,7 @@ import {
   buildQuote, describeCapacity, normaliseConfig, normaliseExtras, type ConfigItem, type ExtraItem,
 } from "../pricing";
 import type {
-  Actor, AgreementBomRow, AgreementDoc, AgreementInstalmentRow, AgreementVersion, ClientInfo, EoiDoc, EoiVersion,
+  Actor, AgreementBomRow, AgreementDoc, AgreementVersion, ClientInfo, EoiDoc, EoiVersion,
   FinancingInfo, Lead, MergedLeadRef, SiteInfo,
 } from "../types";
 import { buildSearchTokens, formatINR, normalisePhone, toDate, toE164India } from "../utils";
@@ -1240,10 +1240,15 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
   // everywhere it's used.
   const minMonthlyPayout = lead.site?.minMonthlyPayout ?? eoi?.minMonthlyPayout;
   const payoutMonths = lead.site?.payoutMonths ?? eoi?.payoutMonths;
-  // Same source the EOI itself was built from, so the two never disagree.
-  const tenureExtendable = eoi?.tenureExtendable ?? lead.site?.tenureExtendable ?? true;
   const perKwh = (n?: number) => (n ? `Rs. ${n.toFixed(2)} per kWh` : "");
-  const scenario: "A" | "B" = "A";
+  // A Livanto-sourced site defaults to Livanto as Site Holder; a site the
+  // investor is bringing themselves defaults to the Franchisee — the same
+  // signal the EOI's own "Location Provider" field already carries.
+  const siteHolder: AgreementDoc["siteHolder"] = lead.site?.locationProvider === "SELF" ? "FRANCHISEE" : "LIVANTO";
+  // Revenue-share compensation on the site maps to Payment Model B (the
+  // Minimum Assured Amount, if any, riding along as downside protection); a
+  // flat rental or an unspecified basis defaults to the simpler Model A.
+  const paymentModel: AgreementDoc["paymentModel"] = lead.site?.compensationType === "REVENUE_SHARE" ? "B" : "A";
 
   // Schedule II, Parts A & B — auto-seeded from the same quote engine the
   // quotation/EOI already run, splitting each charger's own Equipment line
@@ -1268,64 +1273,46 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
   const originalEquipmentCost = chargingStationItems.reduce((a, r) => a + r.value, 0);
   const infrastructureWorksCost = infrastructureItems.reduce((a, r) => a + r.value, 0);
 
-  // Schedule II, Part C — the four payment milestones, derived from the
-  // quote's own 3-stage advance/civil/equipment split (the same split the
-  // EOI's Participation Summary uses): the civil-work stage is divided in
-  // two, for commencement of site works and for DISCOM submission +
-  // completion of civil works respectively.
-  const [advanceMs, civilMs, equipMs] = quote.milestones;
-  const civilHalf = Math.round((civilMs?.total ?? 0) / 2);
-  const instalments: AgreementInstalmentRow[] = [
-    { id: "i1", label: "Instalment 1 — on execution", amount: advanceMs?.total ?? 0 },
-    { id: "i2", label: "Instalment 2 — on commencement of site works", amount: civilHalf },
-    { id: "i3", label: "Instalment 3 — on submission of DISCOM application and completion of civil works", amount: (civilMs?.total ?? 0) - civilHalf },
-    { id: "i4", label: "Instalment 4 — on COD and execution of the Annexure A certificate", amount: equipMs?.total ?? 0 },
-  ];
-
   return {
     number,
     status: "DRAFT",
     issuedDate: null,
-    scenario,
+    siteHolder,
+    paymentModel,
     scheduleI: {
       franchiseeName: lead.client?.name ?? "",
       entityType: lead.client?.entityType === "FIRM" ? "Firm / Company" : "Individual",
+      authorisedSignatory: lead.client?.name ?? "",
       panCinLlpin: lead.client?.pan ?? "",
       gstin: lead.client?.gstin ?? "",
       registeredAddress: lead.client?.address ?? "",
-      authorisedSignatory: lead.client?.name ?? "",
       franchiseeContact: [lead.client?.email, lead.client?.phone].filter(Boolean).join(" / "),
       franchiseeBankDetails: "",
-      livantoNoticeAddress: "3 Millennium Palace, Sushant Golf City, Lucknow, Uttar Pradesh – 226030",
-      livantoContact: "info@livantogreen.com",
       siteName: lead.site?.locationName ?? "",
       siteAddress: lead.site?.address || lead.site?.locationName || "",
-      siteHolder: scenario === "A" ? "Livanto" : "the Franchisee",
-      siteDocuments: "",
-      ownerLessor: "",
-      maxChargingStations: "2",
-      nonCompeteRadius: "",
+      siteAgreementParticulars: "",
       arbitrationSeat: "Lucknow, Uttar Pradesh",
       chargerTypeCapacity: describeCapacity(lead.config),
       numberOfChargingPoints: quote.unitCount ? String(quote.unitCount) : "",
-      targetCodPeriod: "4 months from the Effective Date",
+      scheduledCod: "4 months from the Effective Date",
       longStopDate: "",
-      tenure: tenureYears
-        ? `${tenureYears} years from the Commercial Commissioning Date${tenureExtendable ? ", extendable by mutual written agreement" : ""}`
-        : "",
-      publicSellingRate: perKwh(eoi?.sellingRatePerKwh),
-      electricityCost: "At DISCOM actuals — pure pass-through, no mark-up",
-      landUsageFee: perKwh(eoi?.siteOwnerSharePerKwh),
-      livantoFee: perKwh(eoi?.livantoEarningPerKwh),
-      franchiseeEarning: perKwh(eoi?.franchiseEarningPerKwh),
-      minimumAssuredAmount: minMonthlyPayout ? `Rs. ${minMonthlyPayout.toLocaleString("en-IN")} per month` : "",
-      payoutPeriod: payoutMonths ? `${payoutMonths} months from the Commercial Commissioning Date` : "",
+      initialTerm: tenureYears ? `${tenureYears} years from the COD` : "",
+      extensionPeriod: tenureExtendableLabel(tenureYears, eoi?.tenureExtendable ?? lead.site?.tenureExtendable ?? true),
+      totalTenureIfExtended: "",
+      fixedMonthlyAmount: minMonthlyPayout && paymentModel !== "B" ? `Rs. ${minMonthlyPayout.toLocaleString("en-IN")} per month` : "",
+      fixedPaymentPeriod: "",
+      fixedPaymentAggregate: "",
+      landUsageFeeRate: perKwh(eoi?.siteOwnerSharePerKwh),
+      landUsageFeePayee: siteHolder === "FRANCHISEE" ? "the Franchisee" : "Livanto",
+      livantoFeeRate: perKwh(eoi?.livantoEarningPerKwh),
+      minimumAssuredAmount: paymentModel !== "A" && minMonthlyPayout ? `Rs. ${minMonthlyPayout.toLocaleString("en-IN")} per month` : "",
+      payoutPeriod: paymentModel !== "A" && payoutMonths ? `${payoutMonths} months from the COD` : "",
       maxAggregateCap: "",
+      publicSellingRate: perKwh(eoi?.sellingRatePerKwh),
       settlementDate: "On or before the 10th day of each calendar month, for the preceding Settlement Period",
       interestRate: "12% per annum simple, from the due date until payment",
       uptimeStandard: "90% average monthly uptime per Charging Point, best-effort",
-      liquidatedDamages: "",
-      insurancePremiumBorne: "Livanto",
+      liquidatedDamages: "Rs. 5,000 per affected Charging Point per week or part thereof, capped monthly",
       subsidySharing: "",
       warrantyPeriod: "24 months from the COD",
       amcPeriod: tenureYears ? `${tenureYears} years from the COD` : "",
@@ -1338,7 +1325,6 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
     },
     chargingStationItems,
     infrastructureItems,
-    instalments,
     // Seeded from the standard template as a per-agreement, editable copy —
     // not a reference to the shared constant, so editing one lead's wording
     // never touches another's.
@@ -1346,6 +1332,12 @@ export function buildAgreementFromLead(lead: Lead, number: string): AgreementDoc
     clauses: AGREEMENT_CLAUSES.map((c) => ({ ...c, paragraphs: [...c.paragraphs] })),
     createdAt: null,
   };
+}
+
+/** Schedule I, Part B's "Extension Period" field — phrased from the same tenure-extendable signal the EOI itself uses. */
+function tenureExtendableLabel(tenureYears: number | null | undefined, extendable: boolean): string {
+  if (!tenureYears) return "";
+  return extendable ? `${tenureYears} years following the initial Term, by mutual written agreement` : "Not extendable";
 }
 
 export async function saveAgreement(lead: Lead, agreement: AgreementDoc, actor: Actor): Promise<void> {

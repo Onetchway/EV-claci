@@ -11,15 +11,16 @@ import {
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  AGREEMENT_SCENARIO_LABEL, AGREEMENT_SCENARIOS, AGREEMENT_SCHEDULE_FIELDS, AGREEMENT_STATUSES,
+  AGREEMENT_PAYMENT_MODEL_LABEL, AGREEMENT_PAYMENT_MODELS, AGREEMENT_SCHEDULE_FIELDS,
+  AGREEMENT_SITE_HOLDER_LABEL, AGREEMENT_SITE_HOLDERS, AGREEMENT_STATUSES,
   AGREEMENT_STATUS_COLOR, AGREEMENT_STATUS_LABEL,
-  type AgreementScenario, type AgreementScheduleKey, type AgreementStatus,
+  type AgreementPaymentModel, type AgreementScheduleKey, type AgreementSiteHolder, type AgreementStatus,
 } from "@/lib/constants";
 import {
   AGREEMENT_ANNEXURE_A_HEADING, AGREEMENT_ANNEXURE_A_INTRO, AGREEMENT_ANNEXURE_A_PARAGRAPHS,
   AGREEMENT_ANNEXURE_A_SUBTITLE, AGREEMENT_CLAUSES, AGREEMENT_OPERATIVE_WORDS, AGREEMENT_PREAMBLE,
-  AGREEMENT_RECITALS, AGREEMENT_SCENARIO_MATRIX, AGREEMENT_SCHEDULE_II_PART_D_NOTE, AGREEMENT_SCHEDULE_III,
-  AGREEMENT_SCHEDULE_IV, AGREEMENT_SITE_SCENARIO_NOTE, AGREEMENT_TITLE,
+  AGREEMENT_RECITALS, AGREEMENT_SCHEDULE_II_PART_D_NOTE, AGREEMENT_SCHEDULE_III,
+  AGREEMENT_SCHEDULE_IV, AGREEMENT_TITLE,
 } from "@/lib/agreement-template";
 import { deleteDocument, subscribeDocuments, uploadDocument, validateFile } from "@/lib/db/documents";
 import {
@@ -29,7 +30,7 @@ import {
 } from "@/lib/db/leads";
 import { canDeleteDocument, canDeleteEoi, canIssueEoi, type Viewer } from "@/lib/permissions";
 import type {
-  Actor, AgreementBomRow, AgreementDoc, AgreementInstalmentRow, AgreementVersion, AppSettings, Lead, LeadDocument,
+  Actor, AgreementBomRow, AgreementDoc, AgreementVersion, AppSettings, Lead, LeadDocument,
 } from "@/lib/types";
 import { cn, formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
@@ -223,15 +224,33 @@ function ScheduleCell({
   );
 }
 
+/** Part C keys that only apply under the Fixed Payment side of the selected Payment Model (A or C). */
+const FIXED_PAYMENT_KEYS: AgreementScheduleKey[] = ["fixedMonthlyAmount", "fixedPaymentPeriod", "fixedPaymentAggregate"];
+/** Part C keys that only apply under the Revenue Share side of the selected Payment Model (B or C). */
+const REVENUE_SHARE_KEYS: AgreementScheduleKey[] = [
+  "landUsageFeeRate", "landUsageFeePayee", "livantoFeeRate", "minimumAssuredAmount", "payoutPeriod", "maxAggregateCap",
+];
+
+/** Schedule I, Part C's own field list, narrowed to what the Selected Payment Model actually makes operative — Model A shows Fixed Payment fields only, Model B shows Revenue Share fields only, Model C shows both in sequence (Clause 9.2), and "Fixed Payment Period" itself only ever applies to Model C (Model A's fixed period is simply the whole Term). */
+function partCFields(paymentModel: AgreementPaymentModel) {
+  return AGREEMENT_SCHEDULE_FIELDS.filter((f) => {
+    if (f.part !== "C") return false;
+    if (f.key === "fixedPaymentPeriod") return paymentModel === "C";
+    if (FIXED_PAYMENT_KEYS.includes(f.key)) return paymentModel === "A" || paymentModel === "C";
+    if (REVENUE_SHARE_KEYS.includes(f.key)) return paymentModel === "B" || paymentModel === "C";
+    return true;
+  });
+}
+
 function SchedulePartTable({
   part, agreement, readOnly, onPatch,
 }: {
-  part: "A" | "C" | "D";
+  part: "A" | "B" | "C" | "D";
   agreement: AgreementDoc;
   readOnly: boolean;
   onPatch: (key: AgreementScheduleKey, value: string) => void;
 }) {
-  const fields = AGREEMENT_SCHEDULE_FIELDS.filter((f) => f.part === part);
+  const fields = part === "C" ? partCFields(agreement.paymentModel) : AGREEMENT_SCHEDULE_FIELDS.filter((f) => f.part === part);
   return (
     <table className="mt-3 w-full border-collapse text-sm">
       <thead>
@@ -252,30 +271,6 @@ function SchedulePartTable({
                 label={f.label}
               />
             </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-/** Schedule I, Part B — the fixed Scenario A vs B reference matrix. Never edited per lead. */
-function ScenarioMatrixTable() {
-  return (
-    <table className="mt-3 w-full border-collapse text-xs">
-      <thead>
-        <tr>
-          <th className="border border-ink-300 bg-brand-700 px-2 py-1.5 text-left font-semibold text-white">Parameter</th>
-          <th className="border border-ink-300 bg-brand-700 px-2 py-1.5 text-left font-semibold text-white">Scenario A — Livanto Site</th>
-          <th className="border border-ink-300 bg-brand-700 px-2 py-1.5 text-left font-semibold text-white">Scenario B — Franchisee Site</th>
-        </tr>
-      </thead>
-      <tbody>
-        {AGREEMENT_SCENARIO_MATRIX.map((row, i) => (
-          <tr key={row.parameter} className={i % 2 === 0 ? "bg-ink-50" : "bg-white"}>
-            <td className="border border-ink-300 px-2 py-1.5 font-medium text-ink-800">{row.parameter}</td>
-            <td className="border border-ink-300 px-2 py-1.5 text-ink-700">{row.scenarioA}</td>
-            <td className="border border-ink-300 px-2 py-1.5 text-ink-700">{row.scenarioB}</td>
           </tr>
         ))}
       </tbody>
@@ -410,87 +405,6 @@ function BomTable({
   );
 }
 
-/** Schedule II, Part C — the payment instalments table. Amounts are GST-inclusive, same convention as the EOI's own Participation Summary. */
-function InstalmentsTable({
-  instalments, readOnly, onChange,
-}: {
-  instalments: AgreementInstalmentRow[];
-  readOnly: boolean;
-  onChange: (rows: AgreementInstalmentRow[]) => void;
-}) {
-  function patchRow(id: string, p: Partial<AgreementInstalmentRow>) {
-    onChange(instalments.map((r) => (r.id === id ? { ...r, ...p } : r)));
-  }
-  const total = instalments.reduce((a, r) => a + r.amount, 0);
-
-  return (
-    <>
-      <table className="mt-3 w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-y border-ink-300 bg-ink-50">
-            <th className="px-2 py-1.5 text-left font-semibold">Particulars</th>
-            <th className="w-40 px-2 py-1.5 text-right font-semibold">Amount (Rs.)</th>
-            {!readOnly && <th className="w-8 print:hidden" />}
-          </tr>
-        </thead>
-        <tbody>
-          {instalments.map((row, i) => (
-            <tr key={row.id} className="border-b border-ink-200 align-top">
-              <td className="px-2 py-1.5">
-                {readOnly ? row.label : (
-                  <input
-                    value={row.label}
-                    onChange={(e) => patchRow(row.id, { label: e.target.value })}
-                    className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none print:border-0"
-                    aria-label={`Label for instalment ${i + 1}`}
-                  />
-                )}
-              </td>
-              <td className="px-2 py-1.5 text-right tabular-nums">
-                {readOnly ? formatINR(row.amount) : (
-                  <input
-                    type="number"
-                    value={row.amount || ""}
-                    onChange={(e) => patchRow(row.id, { amount: Number(e.target.value) || 0 })}
-                    className="w-full rounded border border-transparent bg-transparent px-1 text-right hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none print:border-0"
-                    aria-label={`Amount for instalment ${i + 1}`}
-                  />
-                )}
-              </td>
-              {!readOnly && (
-                <td className="px-1 py-1.5 print:hidden">
-                  <button
-                    type="button"
-                    onClick={() => onChange(instalments.filter((r) => r.id !== row.id))}
-                    className="rounded p-1 text-ink-400 hover:bg-rose-50 hover:text-rose-600"
-                    aria-label={`Remove instalment ${i + 1}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </td>
-              )}
-            </tr>
-          ))}
-          <tr className="border-b-2 border-ink-400 font-bold">
-            <td className="px-2 py-2">Total Payable (incl. GST)</td>
-            <td className="px-2 py-2 text-right tabular-nums">{formatINR(total)}</td>
-            {!readOnly && <td className="print:hidden" />}
-          </tr>
-        </tbody>
-      </table>
-      {!readOnly && (
-        <button
-          type="button"
-          onClick={() => onChange([...instalments, { id: `i${Date.now()}`, label: "", amount: 0 }])}
-          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline print:hidden"
-        >
-          <Plus className="h-3 w-3" /> Add a row
-        </button>
-      )}
-    </>
-  );
-}
-
 /** The letter itself — shared between the live editable draft and a read-only archived version, and reused verbatim by the investor portal. */
 export function AgreementLetterArticle({
   agreement, company, readOnly, onPatch,
@@ -505,7 +419,6 @@ export function AgreementLetterArticle({
   const clauses = agreement.clauses ?? AGREEMENT_CLAUSES;
   const chargingStationItems = agreement.chargingStationItems ?? [];
   const infrastructureItems = agreement.infrastructureItems ?? [];
-  const instalments = agreement.instalments ?? [];
   const editable = Boolean(onPatch) && !readOnly;
 
   function patchSchedule(key: AgreementScheduleKey, value: string) {
@@ -539,21 +452,31 @@ export function AgreementLetterArticle({
         {AGREEMENT_PREAMBLE.map((p, i) => (
           <p key={i} className="mt-3 text-sm leading-relaxed text-ink-700">{p}</p>
         ))}
-        <p className="mt-3 text-sm italic leading-relaxed text-ink-600">{AGREEMENT_SITE_SCENARIO_NOTE}</p>
 
         {editable && (
-          <div className="mt-3 flex items-center gap-2 print:hidden">
-            <span className="text-xs font-semibold text-ink-700">Selected Scenario:</span>
-            <Select
-              value={agreement.scenario}
-              onChange={(e) => onPatch?.({ scenario: e.target.value as AgreementScenario })}
-              className="w-auto"
-              options={AGREEMENT_SCENARIOS.map((s) => ({ value: s, label: AGREEMENT_SCENARIO_LABEL[s] }))}
-            />
+          <div className="mt-3 flex flex-wrap items-center gap-4 print:hidden">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-ink-700">Site Holder (Schedule I, Part A):</span>
+              <Select
+                value={agreement.siteHolder}
+                onChange={(e) => onPatch?.({ siteHolder: e.target.value as AgreementSiteHolder })}
+                className="w-auto"
+                options={AGREEMENT_SITE_HOLDERS.map((s) => ({ value: s, label: AGREEMENT_SITE_HOLDER_LABEL[s] }))}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-ink-700">Selected Payment Model (Schedule I, Part C):</span>
+              <Select
+                value={agreement.paymentModel}
+                onChange={(e) => onPatch?.({ paymentModel: e.target.value as AgreementPaymentModel })}
+                className="w-auto"
+                options={AGREEMENT_PAYMENT_MODELS.map((m) => ({ value: m, label: AGREEMENT_PAYMENT_MODEL_LABEL[m] }))}
+              />
+            </div>
           </div>
         )}
         <p className="hidden text-sm font-semibold text-ink-800 print:block">
-          Selected Scenario: {AGREEMENT_SCENARIO_LABEL[agreement.scenario]}
+          Site Holder: {AGREEMENT_SITE_HOLDER_LABEL[agreement.siteHolder]} · Selected Payment Model: {AGREEMENT_PAYMENT_MODEL_LABEL[agreement.paymentModel]}
         </p>
 
         <h3 className="mt-5 text-sm font-bold text-ink-900">RECITALS</h3>
@@ -614,14 +537,20 @@ export function AgreementLetterArticle({
           of this Agreement and form an integral part thereof.
         </p>
 
-        <h4 className="mt-4 text-sm font-bold text-ink-900">Part A — Parties, Site and Site Scenario</h4>
+        <h4 className="mt-4 text-sm font-bold text-ink-900">Part A — Parties and Site</h4>
+        <p className="mt-1 text-xs text-ink-600">
+          Site Holder (tick one): {AGREEMENT_SITE_HOLDER_LABEL[agreement.siteHolder]} — see Clauses 2.3, 5.6, 7.1, 7.6 and 21.9.
+        </p>
         <SchedulePartTable part="A" agreement={agreement} readOnly={!editable} onPatch={patchSchedule} />
 
-        <h4 className="mt-5 text-sm font-bold text-ink-900">Part B — Operating Model Matrix</h4>
-        <p className="mt-1 text-xs text-ink-600">The column corresponding to the Selected Scenario above is the operative column for this Agreement.</p>
-        <ScenarioMatrixTable />
+        <h4 className="mt-5 text-sm font-bold text-ink-900">Part B — Charging Station and Tenure</h4>
+        <SchedulePartTable part="B" agreement={agreement} readOnly={!editable} onPatch={patchSchedule} />
 
-        <h4 className="mt-5 text-sm font-bold text-ink-900">Part C — Charging Station, Tenure and Commercial Terms</h4>
+        <h4 className="mt-5 text-sm font-bold text-ink-900">Part C — Commercial Terms</h4>
+        <p className="mt-1 text-xs text-ink-600">
+          Selected Payment Model (tick one): {AGREEMENT_PAYMENT_MODEL_LABEL[agreement.paymentModel]}. The rows below are narrowed
+          to the fields that Model makes operative — Model C shows both the Fixed Payment and Revenue Share fields, in sequence.
+        </p>
         <SchedulePartTable part="C" agreement={agreement} readOnly={!editable} onPatch={patchSchedule} />
 
         <h4 className="mt-5 text-sm font-bold text-ink-900">Part D — Buyback Particulars</h4>
@@ -656,7 +585,7 @@ export function AgreementLetterArticle({
           onChange={(rows) => onPatch?.({ infrastructureItems: rows })}
         />
 
-        <h4 className="mt-5 text-sm font-bold text-ink-900">Part C — Total Consideration and Payment Milestones</h4>
+        <h4 className="mt-5 text-sm font-bold text-ink-900">Part C — Total Consideration</h4>
         <table className="mt-2 w-full max-w-md border-collapse text-sm">
           <tbody>
             <tr className="border-b border-ink-200">
@@ -673,7 +602,6 @@ export function AgreementLetterArticle({
             </tr>
           </tbody>
         </table>
-        <InstalmentsTable instalments={instalments} readOnly={!editable} onChange={(rows) => onPatch?.({ instalments: rows })} />
 
         <h4 className="mt-5 text-sm font-bold text-ink-900">Part D — Warranty and AMC Included in the Consideration</h4>
         <p className="mt-2 text-sm text-ink-700">{AGREEMENT_SCHEDULE_II_PART_D_NOTE}</p>
@@ -693,8 +621,8 @@ export function AgreementLetterArticle({
         <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">{AGREEMENT_SCHEDULE_IV.heading}</p>
         {AGREEMENT_SCHEDULE_IV.paragraphs.map((p, pi) => <p key={pi} className="mt-2 text-sm leading-relaxed text-ink-700">{p}</p>)}
 
-        {/* Annexure A */}
-        <h3 className="mt-8 text-center text-sm font-bold text-ink-900 break-before-page">ANNEXURE A</h3>
+        {/* Annexure */}
+        <h3 className="mt-8 text-center text-sm font-bold text-ink-900 break-before-page">ANNEXURE</h3>
         <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">{AGREEMENT_ANNEXURE_A_HEADING}</p>
         <p className="mt-1 text-center text-xs italic text-ink-500">{AGREEMENT_ANNEXURE_A_SUBTITLE}</p>
         <p className="mt-3 text-sm leading-relaxed text-ink-700">{AGREEMENT_ANNEXURE_A_INTRO}</p>
@@ -770,11 +698,19 @@ export function AgreementPanel({
     });
   }
 
-  function patchScenario(scenario: AgreementScenario) {
+  function patchSiteHolder(siteHolder: AgreementSiteHolder) {
     setDraft((d) => {
       const base = d ?? lead.agreement;
       if (!base) return d;
-      return { ...base, scenario };
+      return { ...base, siteHolder };
+    });
+  }
+
+  function patchPaymentModel(paymentModel: AgreementPaymentModel) {
+    setDraft((d) => {
+      const base = d ?? lead.agreement;
+      if (!base) return d;
+      return { ...base, paymentModel };
     });
   }
 
@@ -820,7 +756,8 @@ export function AgreementPanel({
           draft={draft}
           onClose={() => { setCreateOpen(false); setDraft(null); }}
           onPatch={patchSchedule}
-          onScenario={patchScenario}
+          onSiteHolder={patchSiteHolder}
+          onPaymentModel={patchPaymentModel}
           onFetch={fetchFromLead}
           busy={busy}
           onSave={() =>
@@ -843,7 +780,7 @@ export function AgreementPanel({
       <Card
         className="print:hidden"
         title="Franchise Agreement"
-        subtitle={`${current.number} · ${AGREEMENT_STATUS_LABEL[current.status]} · ${AGREEMENT_SCENARIO_LABEL[current.scenario]}${dirty ? " · Unsaved changes" : ""}`}
+        subtitle={`${current.number} · ${AGREEMENT_STATUS_LABEL[current.status]} · Site Holder: ${AGREEMENT_SITE_HOLDER_LABEL[current.siteHolder]} · ${AGREEMENT_PAYMENT_MODEL_LABEL[current.paymentModel]}${dirty ? " · Unsaved changes" : ""}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={AGREEMENT_STATUS_COLOR[current.status]}>{AGREEMENT_STATUS_LABEL[current.status]}</Badge>
@@ -957,7 +894,7 @@ export function AgreementPanel({
           </>
         }
       >
-        <ScheduleForm draft={draft} onPatch={patchSchedule} onScenario={patchScenario} onFetch={fetchFromLead} />
+        <ScheduleForm draft={draft} onPatch={patchSchedule} onSiteHolder={patchSiteHolder} onPaymentModel={patchPaymentModel} onFetch={fetchFromLead} />
       </Modal>
 
       <Modal
@@ -1022,14 +959,16 @@ export function AgreementPanel({
 }
 
 function ScheduleForm({
-  draft, onPatch, onScenario, onFetch,
+  draft, onPatch, onSiteHolder, onPaymentModel, onFetch,
 }: {
   draft: AgreementDoc | null;
   onPatch: (key: AgreementScheduleKey, value: string) => void;
-  onScenario: (scenario: AgreementScenario) => void;
+  onSiteHolder: (siteHolder: AgreementSiteHolder) => void;
+  onPaymentModel: (paymentModel: AgreementPaymentModel) => void;
   onFetch?: () => void;
 }) {
   if (!draft) return null;
+  const fields = AGREEMENT_SCHEDULE_FIELDS.filter((f) => f.part !== "C" || partCFields(draft.paymentModel).includes(f));
   return (
     <div className="space-y-4">
       {onFetch && (
@@ -1037,15 +976,24 @@ function ScheduleForm({
           <Download className="h-3.5 w-3.5" /> Fetch from EOI / lead
         </Button>
       )}
-      <Field label="Site Scenario">
-        <Select
-          value={draft.scenario}
-          onChange={(e) => onScenario(e.target.value as AgreementScenario)}
-          options={AGREEMENT_SCENARIOS.map((s) => ({ value: s, label: AGREEMENT_SCENARIO_LABEL[s] }))}
-        />
-      </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        {AGREEMENT_SCHEDULE_FIELDS.map((f) => (
+        <Field label="Site Holder (Schedule I, Part A)">
+          <Select
+            value={draft.siteHolder}
+            onChange={(e) => onSiteHolder(e.target.value as AgreementSiteHolder)}
+            options={AGREEMENT_SITE_HOLDERS.map((s) => ({ value: s, label: AGREEMENT_SITE_HOLDER_LABEL[s] }))}
+          />
+        </Field>
+        <Field label="Selected Payment Model (Schedule I, Part C)">
+          <Select
+            value={draft.paymentModel}
+            onChange={(e) => onPaymentModel(e.target.value as AgreementPaymentModel)}
+            options={AGREEMENT_PAYMENT_MODELS.map((m) => ({ value: m, label: AGREEMENT_PAYMENT_MODEL_LABEL[m] }))}
+          />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {fields.map((f) => (
           <Field key={f.key} label={f.label}>
             <Input
               value={draft.scheduleI[f.key] ?? ""}
@@ -1059,13 +1007,14 @@ function ScheduleForm({
 }
 
 function CreateModal({
-  open, draft, onClose, onPatch, onScenario, onFetch, onSave, busy,
+  open, draft, onClose, onPatch, onSiteHolder, onPaymentModel, onFetch, onSave, busy,
 }: {
   open: boolean;
   draft: AgreementDoc | null;
   onClose: () => void;
   onPatch: (key: AgreementScheduleKey, value: string) => void;
-  onScenario: (scenario: AgreementScenario) => void;
+  onSiteHolder: (siteHolder: AgreementSiteHolder) => void;
+  onPaymentModel: (paymentModel: AgreementPaymentModel) => void;
   onFetch?: () => void;
   onSave: () => void;
   busy: boolean;
@@ -1075,7 +1024,7 @@ function CreateModal({
       open={open}
       onClose={onClose}
       title="Draft the Franchise Agreement"
-      description="Fill in Schedule I and pick the Site Scenario — the 27 standard clauses need no editing, and Schedule II is auto-seeded from the quote."
+      description="Fill in Schedule I, pick the Site Holder and Payment Model — the 27 standard clauses need no editing, and Schedule II is auto-seeded from the quote."
       wide
       footer={
         <>
@@ -1086,7 +1035,7 @@ function CreateModal({
         </>
       }
     >
-      <ScheduleForm draft={draft} onPatch={onPatch} onScenario={onScenario} onFetch={onFetch} />
+      <ScheduleForm draft={draft} onPatch={onPatch} onSiteHolder={onSiteHolder} onPaymentModel={onPaymentModel} onFetch={onFetch} />
     </Modal>
   );
 }

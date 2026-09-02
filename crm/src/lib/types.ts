@@ -1,7 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 import type { AgreementClause } from "./agreement-template";
 import type {
-  ActivityType, AgreementScheduleKey, AgreementStatus, AssetCategory, AssetStatus, ChargingScheduleStatus,
+  ActivityType, AgreementPaymentModel, AgreementScheduleKey, AgreementSiteHolder, AgreementStatus, AssetCategory, AssetStatus, ChargingScheduleStatus,
   CommercialModel, CommissionStatus,
   ComplaintCategory, ComplaintPriority, ComplaintStatus,
   ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EoiStatus,
@@ -222,39 +222,32 @@ export interface AgreementBomRow {
   gstPct: number;
 }
 
-/** One row of Schedule II, Part C — the payment milestones for the Franchisee Assets. Amount is GST-inclusive, same convention as EoiScheduleRow. */
-export interface AgreementInstalmentRow {
-  id: string;
-  label: string;
-  amount: number;
-}
-
 /**
  * The Franchise and Operation Agreement. The 27 clause bodies and recitals
  * are the fixed legal language of the standard template
  * (src/lib/agreement-template.ts), seeded as an editable per-lead copy;
  * Schedule I (site/commercial particulars) and Schedule II (the Bill of
- * Material, consideration and payment instalments) vary deal to deal.
- * Schedules III and IV (AMC/O&M scope and warranty terms) are fixed
- * boilerplate, never edited per lead, so they aren't modelled as data here —
- * see AGREEMENT_SCHEDULE_III / AGREEMENT_SCHEDULE_IV in agreement-template.ts.
+ * Material and Total Consideration) vary deal to deal. Schedules III and IV
+ * (AMC/O&M scope and warranty terms) are fixed boilerplate, never edited per
+ * lead, so they aren't modelled as data here — see AGREEMENT_SCHEDULE_III /
+ * AGREEMENT_SCHEDULE_IV in agreement-template.ts.
  */
 export interface AgreementDoc {
   number: string;
   status: AgreementStatus;
   issuedDate: TS;
-  /** Which Site Scenario this Agreement is drawn under — Scenario A (Livanto's own site) or Scenario B (the Franchisee's site). Several clauses and Schedule I, Part B read differently depending on this. */
-  scenario: "A" | "B";
+  /** Schedule I, Part A's Site Holder tick-box — who owns/leases/controls the Site. Governs Clauses 2.3, 5.6, 7.1, 7.6, 8.1, 18.2, 19.2, 19.3 and 21.9, all of which are drafted to read correctly under either value without needing per-scenario clause text. */
+  siteHolder: AgreementSiteHolder;
+  /** Schedule I, Part C's Selected Payment Model tick-box — Model A (Fixed Payment, Clause 9.3 only), Model B (Revenue Share, Clause 9.4, with Clause 9.5 if a Minimum Assured Amount is set) or Model C (Fixed Payment then Revenue Share, both clauses in sequence). */
+  paymentModel: AgreementPaymentModel;
   /** Recitals and clause text, seeded from the standard template at draft time but editable per lead thereafter — falls back to the compiled template (agreement-template.ts) when unset, for agreements drafted before this existed. */
   recitals?: string[];
   clauses?: AgreementClause[];
   scheduleI: Partial<Record<AgreementScheduleKey, string>>;
   /** Schedule II, Part A — the Charging Station (charger equipment) items. */
   chargingStationItems: AgreementBomRow[];
-  /** Schedule II, Part B — the Infrastructure Works items (civil, electrical, DISCOM, installation, statutory, signage). */
+  /** Schedule II, Part B — the Infrastructure Works items (civil, electrical, DISCOM, installation, statutory, signage), funded by and belonging to the Franchisee. */
   infrastructureItems: AgreementBomRow[];
-  /** Schedule II, Part C — payment milestones. */
-  instalments: AgreementInstalmentRow[];
   createdAt: TS;
   createdBy?: Actor;
   updatedAt?: TS;

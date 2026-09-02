@@ -1321,11 +1321,29 @@ export const AGREEMENT_STATUS_COLOR: Record<AgreementStatus, string> = {
   SUPERSEDED: "bg-amber-100 text-amber-800 ring-amber-200",
 };
 
-export const AGREEMENT_SCENARIOS = ["A", "B"] as const;
-export type AgreementScenario = (typeof AGREEMENT_SCENARIOS)[number];
-export const AGREEMENT_SCENARIO_LABEL: Record<AgreementScenario, string> = {
-  A: "Scenario A — Livanto Site",
-  B: "Scenario B — Franchisee Site",
+/** Who holds/owns/leases the Site — a simple tick-box (Schedule I, Part A) that governs Clauses 2.3, 5.6, 7.1, 7.6, 8.1, 18.2, 19.2, 19.3 and 21.9, replacing the earlier Scenario A/B clause-applicability toggle. */
+export const AGREEMENT_SITE_HOLDERS = ["LIVANTO", "FRANCHISEE"] as const;
+export type AgreementSiteHolder = (typeof AGREEMENT_SITE_HOLDERS)[number];
+export const AGREEMENT_SITE_HOLDER_LABEL: Record<AgreementSiteHolder, string> = {
+  LIVANTO: "Livanto",
+  FRANCHISEE: "the Franchisee",
+};
+
+/**
+ * How the Franchisee is paid, selected in Schedule I, Part C. Model A is a
+ * flat Fixed Monthly Amount for the whole Term (Clause 9.3); Model B is a
+ * per-kWh Revenue Share for the whole Term (Clause 9.4), optionally topped
+ * up by a Minimum Assured Amount downside-protection floor (Clause 9.5);
+ * Model C runs Fixed Payment for a stated Fixed Payment Period and then
+ * Revenue Share for the remainder of the Term (Clauses 9.3 and 9.4 in
+ * sequence).
+ */
+export const AGREEMENT_PAYMENT_MODELS = ["A", "B", "C"] as const;
+export type AgreementPaymentModel = (typeof AGREEMENT_PAYMENT_MODELS)[number];
+export const AGREEMENT_PAYMENT_MODEL_LABEL: Record<AgreementPaymentModel, string> = {
+  A: "Model A — Fixed Payment for the whole Term",
+  B: "Model B — Revenue Share for the whole Term",
+  C: "Model C — Fixed Payment for a stated period, then Revenue Share",
 };
 
 /**
@@ -1334,49 +1352,48 @@ export const AGREEMENT_SCENARIO_LABEL: Record<AgreementScenario, string> = {
  * and are never edited per lead. `key` is the field's storage key in
  * AgreementDoc.scheduleI; order here is the order both the editable form
  * and the printed Schedule I table use, grouped by the source template's
- * own Parts A (parties/site), C (charger/tenure/commercial) and D (buyback)
- * — Part B is a fixed Scenario A vs B reference matrix, not per-lead data,
- * so it's rendered as static text rather than modelled here.
+ * own Parts A (parties/site), B (charger/tenure), C (payment-model
+ * commercial terms) and D (buyback). Site Holder and Payment Model are
+ * modelled as their own typed AgreementDoc fields rather than as text rows
+ * here, since the panel needs to branch on them.
  */
 export const AGREEMENT_SCHEDULE_FIELDS = [
-  // Part A — Parties, Site and Site Scenario
+  // Part A — Parties and Site
   { key: "franchiseeName", label: "Franchisee Name", part: "A" },
   { key: "entityType", label: "Entity Type", part: "A" },
+  { key: "authorisedSignatory", label: "Authorised Signatory", part: "A" },
   { key: "panCinLlpin", label: "PAN / CIN / LLPIN", part: "A" },
   { key: "gstin", label: "GSTIN (if registered)", part: "A" },
-  { key: "registeredAddress", label: "Registered / Residential Address", part: "A" },
-  { key: "authorisedSignatory", label: "Authorised Signatory", part: "A" },
+  { key: "registeredAddress", label: "Registered / Principal Address", part: "A" },
   { key: "franchiseeContact", label: "Franchisee Notice Email / Mobile", part: "A" },
   { key: "franchiseeBankDetails", label: "Franchisee Bank Account for Settlement", part: "A" },
-  { key: "livantoNoticeAddress", label: "Livanto Notice Address", part: "A" },
-  { key: "livantoContact", label: "Livanto Notice Email / Mobile", part: "A" },
   { key: "siteName", label: "Site / Location Name", part: "A" },
   { key: "siteAddress", label: "Site Address (complete, with PIN)", part: "A" },
-  { key: "siteHolder", label: "Site Holder", part: "A" },
-  { key: "siteDocuments", label: "Site Documents (title / lease / licence)", part: "A" },
-  { key: "ownerLessor", label: "Owner / Lessor of the Site (if leased)", part: "A" },
-  { key: "maxChargingStations", label: "Maximum charging stations permitted at the Site", part: "A" },
-  { key: "nonCompeteRadius", label: "Non-compete radius", part: "A" },
+  { key: "siteAgreementParticulars", label: "Site Agreement particulars (nature / date / counterparty / term)", part: "A" },
   { key: "arbitrationSeat", label: "Arbitration seat and jurisdiction", part: "A" },
-  // Part C — Charging Station, Tenure and Commercial Terms
-  { key: "chargerTypeCapacity", label: "Charger Type & Capacity", part: "C" },
-  { key: "numberOfChargingPoints", label: "Number of Charging Points", part: "C" },
-  { key: "targetCodPeriod", label: "Target period for COD", part: "C" },
-  { key: "longStopDate", label: "Long-Stop Date for COD", part: "C" },
-  { key: "tenure", label: "Term", part: "C" },
+  // Part B — Charging Station and Tenure
+  { key: "chargerTypeCapacity", label: "Charger Type & Capacity", part: "B" },
+  { key: "numberOfChargingPoints", label: "Number of Charging Points", part: "B" },
+  { key: "scheduledCod", label: "Scheduled COD", part: "B" },
+  { key: "longStopDate", label: "Long-Stop Date for COD", part: "B" },
+  { key: "initialTerm", label: "Initial Term (from the COD)", part: "B" },
+  { key: "extensionPeriod", label: "Extension Period", part: "B" },
+  { key: "totalTenureIfExtended", label: "Total tenure if extended", part: "B" },
+  // Part C — Commercial Terms
+  { key: "fixedMonthlyAmount", label: "Fixed Monthly Amount (Models A & C)", part: "C" },
+  { key: "fixedPaymentPeriod", label: "Fixed Payment Period (Model C only)", part: "C" },
+  { key: "fixedPaymentAggregate", label: "Aggregate over the Fixed Payment Period", part: "C" },
+  { key: "landUsageFeeRate", label: "Land Usage Fee (per kWh, Models B & C)", part: "C" },
+  { key: "landUsageFeePayee", label: "Land Usage Fee retained by / payable to", part: "C" },
+  { key: "livantoFeeRate", label: "Livanto Fee (per kWh, Models B & C)", part: "C" },
+  { key: "minimumAssuredAmount", label: "Minimum Assured Amount (Model B, optional)", part: "C" },
+  { key: "payoutPeriod", label: "Payout Period for the Minimum Assured Amount", part: "C" },
+  { key: "maxAggregateCap", label: "Maximum aggregate cap on the Minimum Assured Amount", part: "C" },
   { key: "publicSellingRate", label: "Public Selling Rate (per kWh)", part: "C" },
-  { key: "electricityCost", label: "Electricity Cost (per kWh)", part: "C" },
-  { key: "landUsageFee", label: "Land Usage Fee (per kWh)", part: "C" },
-  { key: "livantoFee", label: "Livanto Fee (per kWh)", part: "C" },
-  { key: "franchiseeEarning", label: "Franchisee Earning (per kWh)", part: "C" },
-  { key: "minimumAssuredAmount", label: "Minimum Assured Amount", part: "C" },
-  { key: "payoutPeriod", label: "Payout Period", part: "C" },
-  { key: "maxAggregateCap", label: "Maximum aggregate cap on Minimum Assured Amount", part: "C" },
   { key: "settlementDate", label: "Settlement Date", part: "C" },
   { key: "interestRate", label: "Interest on delayed payment", part: "C" },
   { key: "uptimeStandard", label: "Uptime standard", part: "C" },
   { key: "liquidatedDamages", label: "Liquidated damages for downtime", part: "C" },
-  { key: "insurancePremiumBorne", label: "Insurance premium borne by", part: "C" },
   { key: "subsidySharing", label: "Subsidy sharing", part: "C" },
   { key: "warrantyPeriod", label: "Warranty period", part: "C" },
   { key: "amcPeriod", label: "AMC and O&M period", part: "C" },
