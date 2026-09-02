@@ -9,7 +9,7 @@ import {
 
 import {
   tenantsApi, featuresApi, billingPlansApi, invoicesApi, usageApi, provisioningApi,
-  addOnsApi, couponsApi, creditsApi,
+  addOnsApi, couponsApi, creditsApi, opsApi,
 } from '@/lib/api';
 
 const STATUS_BADGE = {
@@ -22,7 +22,7 @@ const STATUS_BADGE = {
 const money = (n, currency) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: currency || 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
-const TABS = ['Overview', 'Billing', 'Features', 'Domains'];
+const TABS = ['Overview', 'Billing', 'Features', 'Domains', 'Support'];
 
 export default function TenantDetailPage() {
   const { id } = useParams();
@@ -42,6 +42,61 @@ export default function TenantDetailPage() {
   const [credits, setCredits] = useState({ data: [], balance: 0 });
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [tenantHealth, setTenantHealth] = useState(null);
+  const [supportSessions, setSupportSessions] = useState([]);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [retryingProvisioning, setRetryingProvisioning] = useState(false);
+
+  const loadSupport = async () => {
+    setSupportLoading(true);
+    try {
+      const [health, sessions] = await Promise.all([opsApi.tenantHealth(id), opsApi.supportSessions(id)]);
+      setTenantHealth(health);
+      setSupportSessions(sessions.data);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSupportLoading(false);
+    }
+  };
+
+  const startSupportSession = async () => {
+    const reason = window.prompt('Reason for this support session:');
+    if (!reason || !reason.trim()) return;
+    const duration = window.prompt('Duration in minutes (max 480):', '30');
+    if (!duration) return;
+    try {
+      await opsApi.startSupportSession(id, reason.trim(), Number(duration));
+      toast.success('Support session started.');
+      loadSupport();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const endSupportSession = async (sessionId) => {
+    try {
+      await opsApi.endSupportSession(sessionId);
+      toast.success('Support session ended.');
+      loadSupport();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const retryProvisioning = async () => {
+    setRetryingProvisioning(true);
+    try {
+      const result = await tenantsApi.retryProvisioning(id);
+      if (result.ok) toast.success('Provisioning succeeded.');
+      else if (result.configured) toast.error(`Provisioning failed: ${result.error || 'unknown error'}`);
+      else toast.error('CRM provisioning is not configured on this platform backend.');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setRetryingProvisioning(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -300,7 +355,11 @@ export default function TenantDetailPage() {
 
       <div className="tab-list">
         {TABS.map((t) => (
-          <button key={t} className={`tab ${tab === t ? 'tab-active' : ''}`} onClick={() => setTab(t)}>{t}</button>
+          <button
+            key={t}
+            className={`tab ${tab === t ? 'tab-active' : ''}`}
+            onClick={() => { setTab(t); if (t === 'Support' && !tenantHealth) loadSupport(); }}
+          >{t}</button>
         ))}
       </div>
 
@@ -363,6 +422,9 @@ export default function TenantDetailPage() {
               </button>
               <button className="btn-secondary" onClick={rotateKey}>
                 <Key className="h-4 w-4" /> Rotate tenant API key
+              </button>
+              <button className="btn-secondary" disabled={retryingProvisioning} onClick={retryProvisioning}>
+                <RefreshCw className={`h-4 w-4 ${retryingProvisioning ? 'animate-spin' : ''}`} /> {retryingProvisioning ? 'Retrying…' : 'Retry CRM provisioning'}
               </button>
             </div>
           </div>
@@ -620,6 +682,71 @@ export default function TenantDetailPage() {
             </div>
           )}
           </div>
+        </div>
+      )}
+
+      {tab === 'Support' && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="card">
+            <div className="card-header"><p className="card-title">Tenant Health</p></div>
+            {supportLoading && !tenantHealth ? (
+              <div className="card-pad text-sm text-ink-400">Loading…</div>
+            ) : tenantHealth ? (
+              <dl className="card-pad space-y-2.5 text-sm">
+                <div className="flex justify-between"><dt className="text-ink-500">Provisioning</dt><dd className="text-ink-800 capitalize">{tenantHealth.provisioning.replace('_', ' ')}</dd></div>
+                <div className="flex justify-between"><dt className="text-ink-500">Billing</dt><dd className="text-ink-800 capitalize">{tenantHealth.billing}</dd></div>
+                <div className="flex justify-between"><dt className="text-ink-500">Usage reported</dt><dd className="text-ink-800">{tenantHealth.usage_reported ? 'Yes' : 'No'}</dd></div>
+                <div className="flex justify-between"><dt className="text-ink-500">Overdue invoices</dt><dd className={tenantHealth.overdue_invoices > 0 ? 'text-danger-600 font-medium' : 'text-ink-800'}>{tenantHealth.overdue_invoices}</dd></div>
+                <div className="flex justify-between"><dt className="text-ink-500">Failed payments</dt><dd className={tenantHealth.failed_payments > 0 ? 'text-danger-600 font-medium' : 'text-ink-800'}>{tenantHealth.failed_payments}</dd></div>
+              </dl>
+            ) : (
+              <div className="card-pad text-sm text-ink-400">Nothing loaded yet.</div>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <p className="card-title">Support Access</p>
+              <button className="btn-secondary" onClick={startSupportSession}>Start Support Session</button>
+            </div>
+            <div className="card-pad">
+              {supportSessions.length === 0 ? (
+                <p className="text-sm text-ink-400">No support sessions recorded.</p>
+              ) : (
+                <ul className="divide-y divide-ink-100">
+                  {supportSessions.map((s) => (
+                    <li key={s.id} className="py-2.5 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-ink-800">{s.reason}</span>
+                        {!s.ended_at ? (
+                          <button className="text-danger-600 hover:underline text-xs" onClick={() => endSupportSession(s.id)}>End now</button>
+                        ) : (
+                          <span className="badge badge-gray">ended</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-ink-400 mt-0.5">
+                        {s.super_admin_name || 'system'} · {new Date(s.started_at).toLocaleString()} · {s.duration_minutes} min
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {tenantHealth?.recent_activity?.length > 0 && (
+            <div className="card lg:col-span-2">
+              <div className="card-header"><p className="card-title">Recent activity</p></div>
+              <ul className="divide-y divide-ink-100">
+                {tenantHealth.recent_activity.map((a, i) => (
+                  <li key={i} className="flex items-center justify-between px-5 py-2.5 text-sm">
+                    <span className="font-mono text-xs text-ink-700">{a.action}</span>
+                    <span className="text-xs text-ink-400">{new Date(a.created_at).toLocaleString()}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

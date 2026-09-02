@@ -12,6 +12,7 @@ router.use('/credits',       require('./credits.routes'));
 router.use('/billing-plans', require('./billingPlans.routes'));
 router.use('/invoices',      require('./invoices.routes'));
 router.use('/payments',      require('./payments.routes'));
+router.use('/ops',           require('./operations.routes'));
 router.use('/usage',         require('./usage.routes'));
 router.use('/provisioning',  require('./provisioning.routes'));
 

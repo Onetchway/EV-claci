@@ -4,7 +4,7 @@ const { query, getClient } = require('../config/database');
 const { paginate, paginatedResponse } = require('../utils/pagination');
 const { nextInvoiceNumber } = require('../utils/invoiceNumber');
 const audit = require('./audit.service');
-const { sendInvoiceEmail } = require('./email.service');
+const { sendInvoiceEmail, emailConfigured } = require('./email.service');
 const { proratedEmployeeCharge } = require('./usage.service');
 const addOns = require('./addOns.service');
 const coupons = require('./coupons.service');
@@ -267,4 +267,23 @@ const setStatus = async (id, status, actor) => {
   return res.rows[0];
 };
 
-module.exports = { list, getOne, generateForTenant, previewForTenant, setStatus, resolveBillingTerms };
+// Error-recovery action (spec section 51): re-send an invoice email
+// on demand, for a tenant whose original delivery bounced or never sent
+// (e.g. SMTP wasn't configured yet at generation time).
+const resendEmail = async (id, actor) => {
+  if (!emailConfigured()) {
+    const e = new Error('Email delivery is not configured on this platform backend (SMTP_HOST/SMTP_USER/SMTP_PASS).');
+    e.status = 503;
+    throw e;
+  }
+  const invoice = await getOne(id);
+  const tenantRes = await query(`SELECT * FROM tenants WHERE id = $1`, [invoice.tenant_id]);
+  const tenant = tenantRes.rows[0];
+  if (!tenant) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
+
+  await sendInvoiceEmail(invoice, tenant);
+  await audit.log({ superAdminId: actor?.id, tenantId: invoice.tenant_id, action: 'invoice.email_resent', details: { invoice_id: id } });
+  return { ok: true };
+};
+
+module.exports = { list, getOne, generateForTenant, previewForTenant, setStatus, resendEmail, resolveBillingTerms };

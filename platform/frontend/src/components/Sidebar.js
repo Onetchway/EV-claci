@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import {
-  Blocks, Building2, LayoutGrid, LayoutDashboard, Receipt, ShieldCheck, Tag, Wallet,
+  Activity, Blocks, Building2, LayoutGrid, LayoutDashboard, ListChecks, Receipt, ScrollText, ShieldCheck, Tag, Wallet,
 } from 'lucide-react';
 
 // Grouped per Alpha's own nav spec (Overview / Customers / Product /
@@ -34,6 +34,14 @@ const GROUPS = [
     items: [
       { href: '/invoices', label: 'Invoices', icon: Receipt },
       { href: '/coupons', label: 'Coupons', icon: Tag },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { href: '/audit', label: 'Audit Log', icon: ScrollText },
+      { href: '/jobs', label: 'Jobs', icon: ListChecks },
+      { href: '/system-health', label: 'System Health', icon: Activity },
     ],
   },
   {

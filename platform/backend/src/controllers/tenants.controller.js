@@ -9,4 +9,5 @@ exports.update = async (req, res, next) => { try { res.json(await svc.update(req
 exports.setStatus = async (req, res, next) => { try { res.json(await svc.setStatus(req.params.id, req.body.status, req.superAdmin)); } catch (e) { next(e); } };
 exports.rotateApiKey = async (req, res, next) => { try { res.json(await svc.rotateApiKey(req.params.id, req.superAdmin)); } catch (e) { next(e); } };
 exports.updateBranding = async (req, res, next) => { try { res.json(await svc.updateBranding(req.params.id, req.body, req.superAdmin)); } catch (e) { next(e); } };
+exports.retryProvisioning = async (req, res, next) => { try { res.json(await svc.retryProvisioning(req.params.id, req.superAdmin)); } catch (e) { next(e); } };
 exports.remove = async (req, res, next) => { try { await svc.remove(req.params.id, req.superAdmin); res.status(204).end(); } catch (e) { next(e); } };

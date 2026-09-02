@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { query } = require('../config/database');
 const audit = require('./audit.service');
 const invoices = require('./invoices.service');
+const notifications = require('./notifications.service');
 
 // Talks to Razorpay's plain REST API directly (Basic auth, key_id:key_secret)
 // instead of pulling in their SDK -- this integration only needs "create an
@@ -106,12 +107,14 @@ const handleWebhook = async (rawBody, signature) => {
     );
     await invoices.setStatus(payment.invoice_id, 'paid', null);
     await audit.log({ tenantId: payment.tenant_id, action: 'payment.captured', details: { invoice_id: payment.invoice_id, payment_id: payload.id } });
+    await notifications.emit({ type: 'payment_received', title: 'Payment received', message: `${payment.currency} ${payment.amount}`, tenantId: payment.tenant_id });
   } else if (event.event === 'payment.failed') {
     await query(
       `UPDATE payments SET status = 'failed', gateway_payment_id = $1, failure_reason = $2, updated_at = NOW() WHERE id = $3`,
       [payload.id, payload.error_description || 'Payment failed', payment.id]
     );
     await audit.log({ tenantId: payment.tenant_id, action: 'payment.failed', details: { invoice_id: payment.invoice_id, reason: payload.error_description } });
+    await notifications.emit({ type: 'payment_failed', title: 'Payment failed', message: payload.error_description || 'Payment failed', tenantId: payment.tenant_id });
   }
 
   return { ok: true };

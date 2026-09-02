@@ -49,6 +49,7 @@ export const tenantsApi = {
   setStatus: (id, status) => client.patch(`/tenants/${id}/status`, { status }),
   rotateApiKey: (id) => client.post(`/tenants/${id}/rotate-key`),
   updateBranding: (id, data) => client.put(`/tenants/${id}/branding`, data),
+  retryProvisioning: (id) => client.post(`/tenants/${id}/retry-provisioning`),
 };
 
 export const featuresApi = {
@@ -75,6 +76,7 @@ export const invoicesApi = {
   generate: (tenantId, data) => client.post(`/invoices/tenants/${tenantId}/generate`, data),
   markPaid: (id) => client.patch(`/invoices/${id}/paid`),
   void: (id) => client.patch(`/invoices/${id}/void`),
+  resendEmail: (id) => client.post(`/invoices/${id}/resend-email`),
 };
 
 export const addOnsApi = {
@@ -115,6 +117,21 @@ export const adminsApi = {
   list: () => client.get('/admins'),
   create: (data) => client.post('/admins', data),
   update: (id, data) => client.put(`/admins/${id}`, data),
+};
+
+export const opsApi = {
+  audit: (params) => client.get(`/ops/audit${buildQuery(params) ? `?${buildQuery(params)}` : ''}`),
+  notifications: () => client.get('/ops/notifications'),
+  markNotificationRead: (id) => client.patch(`/ops/notifications/${id}/read`),
+  markAllNotificationsRead: () => client.patch('/ops/notifications/read-all'),
+  jobs: () => client.get('/ops/jobs'),
+  jobHistory: (name) => client.get(`/ops/jobs/${name}/history`),
+  runJob: (name) => client.post(`/ops/jobs/${name}/run`),
+  health: () => client.get('/ops/health'),
+  tenantHealth: (tenantId) => client.get(`/ops/tenants/${tenantId}/health`),
+  supportSessions: (tenantId) => client.get(`/ops/tenants/${tenantId}/support-sessions`),
+  startSupportSession: (tenantId, reason, durationMinutes) => client.post(`/ops/tenants/${tenantId}/support-sessions`, { reason, duration_minutes: durationMinutes }),
+  endSupportSession: (id) => client.patch(`/ops/support-sessions/${id}/end`),
 };
 
 export const provisioningApi = {

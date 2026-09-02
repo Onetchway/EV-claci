@@ -119,6 +119,11 @@ export default function InvoicesPage() {
     catch (err) { toast.error(err.message); }
   };
 
+  const resendEmail = async (id) => {
+    try { await invoicesApi.resendEmail(id); toast.success('Invoice email sent.'); }
+    catch (err) { toast.error(err.message); }
+  };
+
   return (
     <div>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
@@ -155,9 +160,12 @@ export default function InvoicesPage() {
                   <td>{inv.currency} {inv.total_amount}</td>
                   <td><span className={`badge ${STATUS_BADGE[inv.status] || 'badge-gray'}`}>{inv.status}</span></td>
                   <td>
-                    {inv.status === 'issued' && (
-                      <button className="text-brand-600 hover:underline text-sm" onClick={() => markPaid(inv.id)}>Mark paid</button>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {inv.status === 'issued' && (
+                        <button className="text-brand-600 hover:underline text-sm" onClick={() => markPaid(inv.id)}>Mark paid</button>
+                      )}
+                      <button className="text-ink-500 hover:underline text-sm" onClick={() => resendEmail(inv.id)}>Resend email</button>
+                    </div>
                   </td>
                 </tr>
                 {expanded === inv.id && <PaymentsRow invoice={inv} onChanged={load} />}

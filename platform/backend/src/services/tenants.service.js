@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { query } = require('../config/database');
 const { paginate, paginatedResponse } = require('../utils/pagination');
 const audit = require('./audit.service');
+const notifications = require('./notifications.service');
 
 const slugify = (name) =>
   name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -97,6 +98,46 @@ const getOne = async (id) => {
   return tenant;
 };
 
+// Provisions (or re-provisions -- idempotent by slug, see provision-tenant/
+// route.ts) this tenant's CRM login. Shared by create() and
+// retryProvisioning() so "try again" runs the exact same call, not a
+// diverging copy. Never throws -- always returns a status object.
+const provisionCrm = async (tenant, { logoUrl, primaryColorHex } = {}, actor) => {
+  const configured = Boolean(process.env.CRM_PROVISION_URL && process.env.CRM_PROVISION_SECRET);
+  if (!configured) return { configured: false };
+
+  try {
+    const response = await fetch(`${process.env.CRM_PROVISION_URL}/api/platform/provision-tenant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Provision-Secret': process.env.CRM_PROVISION_SECRET },
+      body: JSON.stringify({
+        slug: tenant.slug,
+        name: tenant.name,
+        adminEmail: tenant.contact_email,
+        adminName: tenant.contact_name,
+        tenantApiKey: tenant.api_key,
+        logoUrl: logoUrl || undefined,
+        primaryColorHex: primaryColorHex || undefined,
+      }),
+    });
+    if (response.ok) {
+      const body = await response.json();
+      await audit.log({ superAdminId: actor?.id, tenantId: tenant.id, action: 'tenant.crm_provisioned', details: { orgId: body.orgId } });
+      return { configured: true, ok: true, orgId: body.orgId, loginEmail: tenant.contact_email, temporaryPassword: body.temporaryPassword };
+    }
+    const errorText = await response.text().catch(() => '');
+    console.error('[tenants] CRM provisioning failed:', response.status, errorText);
+    await audit.log({ superAdminId: actor?.id, tenantId: tenant.id, action: 'tenant.crm_provisioning_failed', details: { status: response.status, error: errorText.slice(0, 500) } });
+    await notifications.emit({ type: 'provisioning_failure', title: `CRM provisioning failed for ${tenant.name}`, message: errorText.slice(0, 500) || `HTTP ${response.status}`, tenantId: tenant.id });
+    return { configured: true, ok: false, error: errorText.slice(0, 500) || `HTTP ${response.status}` };
+  } catch (err) {
+    console.error('[tenants] CRM provisioning request failed:', err.message);
+    await audit.log({ superAdminId: actor?.id, tenantId: tenant.id, action: 'tenant.crm_provisioning_failed', details: { error: err.message } });
+    await notifications.emit({ type: 'provisioning_failure', title: `CRM provisioning failed for ${tenant.name}`, message: err.message, tenantId: tenant.id });
+    return { configured: true, ok: false, error: err.message };
+  }
+};
+
 const create = async (data, actor) => {
   const required = ['name', 'contact_name', 'contact_email'];
   for (const f of required) {
@@ -131,6 +172,7 @@ const create = async (data, actor) => {
   const tenant = res.rows[0];
 
   await audit.log({ superAdminId: actor?.id, tenantId: tenant.id, action: 'tenant.created', details: { name: tenant.name } });
+  await notifications.emit({ type: 'tenant_created', title: `New organization: ${tenant.name}`, tenantId: tenant.id });
 
   // Provisions this tenant's actual CRM login — see crm/src/app/api/
   // platform/provision-tenant/route.ts. Best-effort: a provisioning
@@ -140,46 +182,7 @@ const create = async (data, actor) => {
   // Only meaningful for a tenant onboarded onto the shared crm/ CRM (see
   // README's deployment_mode table); a dedicated/isolated tenant running
   // its own separate instance provisions itself some other way.
-  let crmProvisioning = { configured: Boolean(process.env.CRM_PROVISION_URL && process.env.CRM_PROVISION_SECRET) };
-  if (crmProvisioning.configured) {
-    try {
-      const response = await fetch(`${process.env.CRM_PROVISION_URL}/api/platform/provision-tenant`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Provision-Secret': process.env.CRM_PROVISION_SECRET },
-        body: JSON.stringify({
-          slug: tenant.slug,
-          name: tenant.name,
-          adminEmail: tenant.contact_email,
-          adminName: tenant.contact_name,
-          // Lets the CRM immediately look up this tenant's own enabled
-          // features (GET /api/features/me, authenticated by this same
-          // key) instead of failing open to "everything enabled" until
-          // someone manually pastes it in later.
-          tenantApiKey: tenant.api_key,
-          // Optional, set from the org-creation wizard's branding step —
-          // written onto this org's Firestore doc at creation time so the
-          // tenant's CRM (and login page) reflect it from their very
-          // first sign-in, not just once someone visits Settings later.
-          logoUrl: data.logo_url || undefined,
-          primaryColorHex: data.primary_color_hex || undefined,
-        }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        crmProvisioning = {
-          configured: true, ok: true,
-          orgId: data.orgId, loginEmail: tenant.contact_email, temporaryPassword: data.temporaryPassword,
-        };
-        await audit.log({ superAdminId: actor?.id, tenantId: tenant.id, action: 'tenant.crm_provisioned', details: { orgId: data.orgId } });
-      } else {
-        console.error('[tenants] CRM provisioning failed:', response.status, await response.text().catch(() => ''));
-        crmProvisioning = { configured: true, ok: false };
-      }
-    } catch (err) {
-      console.error('[tenants] CRM provisioning request failed:', err.message);
-      crmProvisioning = { configured: true, ok: false };
-    }
-  }
+  const crmProvisioning = await provisionCrm(tenant, { logoUrl: data.logo_url, primaryColorHex: data.primary_color_hex }, actor);
 
   // Return the API key exactly once, at creation — the tenant's own
   // backend needs it to authenticate self-reported usage. It is never
@@ -343,10 +346,20 @@ const resolveBySlug = async (slug) => {
   return res.rows[0];
 };
 
+// Error-recovery action (spec section 51): re-run this tenant's CRM
+// provisioning without touching anything else. Idempotent by slug on the
+// CRM side, so safe to call as many times as needed.
+const retryProvisioning = async (id, actor) => {
+  const tenantRes = await query(`SELECT * FROM tenants WHERE id = $1`, [id]);
+  const tenant = tenantRes.rows[0];
+  if (!tenant) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
+  return provisionCrm(tenant, { logoUrl: tenant.logo_url, primaryColorHex: tenant.primary_color_hex }, actor);
+};
+
 const remove = async (id, actor) => {
   const res = await query(`DELETE FROM tenants WHERE id = $1 RETURNING id`, [id]);
   if (!res.rows[0]) { const e = new Error('Tenant not found'); e.status = 404; throw e; }
   await audit.log({ superAdminId: actor?.id, tenantId: id, action: 'tenant.deleted' });
 };
 
-module.exports = { list, getOne, create, update, setStatus, rotateApiKey, updateBranding, remove, resolveByHost, resolveBySlug };
+module.exports = { list, getOne, create, update, setStatus, rotateApiKey, updateBranding, retryProvisioning, remove, resolveByHost, resolveBySlug };
