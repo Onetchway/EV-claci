@@ -1870,7 +1870,7 @@ export interface PayrollProfile {
   /** Employee-side ESIC deduction %, applied to gross earning. Unset/0 = not ESIC-applicable (typical once gross crosses the ESIC wage threshold). */
   esicEmployeePct?: number;
   esicEmployerAmount?: number;
-  /** Flat monthly TDS to prefill on a new payslip — this codebase doesn't run an income-tax slab engine, so it's a manual figure, always editable per payslip before it's finalized. */
+  /** Monthly TDS to prefill on a new payslip. The Salary form's "Auto-fill from CTC" button computes this from India's New Tax Regime slabs (see lib/payroll-tax.ts) off the CTC field — a one-way convenience fill, always a plain manually editable number afterward, per payslip, before it's finalized. */
   tdsMonthly?: number;
   gratuityMonthly?: number;
   bonusMonthly?: number;
@@ -1907,19 +1907,26 @@ export interface Payslip {
   month: number;
   year: number;
   monthDays: number;
-  /** Attendance-driven, editable by an operator before finalizing — see computePaidDays in db/attendance.ts. */
+  /** Derived display value: monthDays − absentDays − halfDays×0.5 — see computeAttendanceBreakdown in db/attendance.ts. Not an independent input; edit absentDays/halfDays instead. */
   paidDays: number;
+  /** Full-absent days this month, editable by an operator before finalizing. Drives the lossOfPay deduction — see computeLossOfPay in db/payroll.ts. */
+  absentDays: number;
+  /** Half-days this month (each counts as 0.5 of a paid day), editable before finalizing. */
+  halfDays: number;
   basic: number;
   hra: number;
   ta: number;
   others: number;
   misc: number;
+  /** Full monthly salary structure total (not prorated) — days not worked are deducted explicitly via lossOfPay instead, see computePayslipMoney in db/payroll.ts. */
   grossEarning: number;
   epfEmployee: number;
   esicEmployee: number;
   tds: number;
   otherDeduction: number;
   miscDeduction: number;
+  /** Loss-of-Pay for absentDays/halfDays, itemized as its own deduction line — computed by default (computeLossOfPay) but directly overridable, same as tds/otherDeduction/miscDeduction. */
+  lossOfPay: number;
   totalDeductions: number;
   netPay: number;
   /** "Additional (ER)" block — employer contributions, informational, not netted against pay. */

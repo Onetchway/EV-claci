@@ -2,34 +2,39 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Printer } from "lucide-react";
+import { Printer, RefreshCw, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
-import { SimpleDocumentFooter, SimpleDocumentHeader, type Company } from "@/components/simple-document";
+import { PayslipDocument } from "@/components/payslip-document";
 import {
-  Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, useAsyncAction,
+  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, useAsyncAction,
 } from "@/components/ui";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useSettings } from "@/hooks/use-settings";
 import {
   MONTH_LABEL, PAYSLIP_STATUSES, PAYSLIP_STATUS_COLOR, PAYSLIP_STATUS_LABEL, type PayslipStatus,
 } from "@/lib/constants";
-import { subscribePayslip, updatePayslipDraft, updatePayslipStatus } from "@/lib/db/payroll";
-import { canManagePayroll } from "@/lib/permissions";
+import {
+  computeLossOfPay, deletePayslip, regeneratePayslip, subscribePayslip, updatePayslipDraft, updatePayslipStatus,
+} from "@/lib/db/payroll";
+import { canManagePayroll, isSuperAdmin } from "@/lib/permissions";
 import type { Payslip } from "@/lib/types";
-import { cn, formatINR } from "@/lib/utils";
+import { formatINR } from "@/lib/utils";
 
 export default function PayslipDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { actor } = useAuth();
+  const { actor, role } = useAuth();
   const viewer = useViewer();
   const { settings } = useSettings();
   const { busy, run } = useAsyncAction();
 
   const [payslip, setPayslip] = useState<Payslip | null | undefined>(undefined);
   const [printMode, setPrintMode] = useState(false);
-  const [paidDays, setPaidDays] = useState(0);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [absentDays, setAbsentDays] = useState(0);
+  const [halfDays, setHalfDays] = useState(0);
+  const [lossOfPay, setLossOfPay] = useState(0);
   const [tds, setTds] = useState(0);
   const [otherDeduction, setOtherDeduction] = useState(0);
   const [miscDeduction, setMiscDeduction] = useState(0);
@@ -37,14 +42,16 @@ export default function PayslipDetailPage() {
   useEffect(() => subscribePayslip(id, (row) => {
     setPayslip(row);
     if (row) {
-      setPaidDays(row.paidDays); setTds(row.tds);
-      setOtherDeduction(row.otherDeduction); setMiscDeduction(row.miscDeduction);
+      setAbsentDays(row.absentDays); setHalfDays(row.halfDays); setLossOfPay(row.lossOfPay);
+      setTds(row.tds); setOtherDeduction(row.otherDeduction); setMiscDeduction(row.miscDeduction);
     }
   }), [id]);
   useDocumentTitle(payslip ? `Payslip · ${payslip.number}` : undefined);
 
   const canManage = canManagePayroll(viewer);
+  const superAdmin = !!role && isSuperAdmin(role);
   const isDraft = payslip?.status === "DRAFT";
+  const canDelete = payslip ? (payslip.status === "DRAFT" || superAdmin) : false;
 
   if (!canManage) {
     return <EmptyState title="Finance / management access only" description="Payroll is visible to Finance and Admins only." />;
@@ -56,17 +63,31 @@ export default function PayslipDetailPage() {
     return <PayslipDocument payslip={payslip} company={settings.company} onClose={() => setPrintMode(false)} />;
   }
 
-  const previewTotalDeductions = payslip.epfEmployee + payslip.esicEmployee + tds + otherDeduction + miscDeduction;
+  const previewPaidDays = Math.max(0, payslip.monthDays - absentDays - halfDays * 0.5);
+  const previewTotalDeductions = payslip.epfEmployee + payslip.esicEmployee + tds + otherDeduction + miscDeduction + lossOfPay;
   const previewNetPay = payslip.grossEarning - previewTotalDeductions;
 
   async function saveDraft() {
     if (!payslip || !actor) return;
-    await run(() => updatePayslipDraft(payslip, { paidDays, tds, otherDeduction, miscDeduction }, actor), "Payslip updated.");
+    await run(() => updatePayslipDraft(payslip, { absentDays, halfDays, lossOfPay, tds, otherDeduction, miscDeduction }, actor), "Payslip updated.");
   }
 
   async function changeStatus(status: PayslipStatus) {
     if (!payslip || !actor) return;
     await run(() => updatePayslipStatus(payslip, status, actor), `Marked ${PAYSLIP_STATUS_LABEL[status]}.`);
+  }
+
+  async function regenerate() {
+    if (!payslip || !actor) return;
+    await run(() => regeneratePayslip(payslip, actor), "Payslip regenerated from current attendance & salary profile.");
+  }
+
+  async function confirmDelete() {
+    if (!payslip || !actor) return;
+    await run(async () => {
+      await deletePayslip(payslip, actor);
+      router.push("/payroll");
+    }, "Payslip deleted.");
   }
 
   return (
@@ -77,6 +98,16 @@ export default function PayslipDetailPage() {
         actions={
           <>
             <Button onClick={() => setPrintMode(true)}><Printer className="h-4 w-4" /> Print / PDF</Button>
+            {isDraft && (
+              <Button loading={busy} title="Recompute from current attendance & salary profile" onClick={() => void regenerate()}>
+                <RefreshCw className="h-4 w-4" /> Regenerate
+              </Button>
+            )}
+            {canDelete && (
+              <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            )}
             <Select
               value={payslip.status}
               onChange={(e) => void changeStatus(e.target.value as PayslipStatus)}
@@ -99,16 +130,20 @@ export default function PayslipDetailPage() {
             </dl>
           </Card>
 
-          <Card title="Attendance" subtitle="Paid days drives every earning below by proration — correct it here before finalizing.">
-            <div className="grid gap-3 sm:grid-cols-2">
+          <Card title="Attendance" subtitle="Absent and half-day counts drive the Loss-of-Pay deduction below — correct them here before finalizing.">
+            <div className="grid gap-3 sm:grid-cols-3">
               <Field label="Month days"><Input value={payslip.monthDays} disabled /></Field>
-              <Field label="Paid days" hint="Editable while the payslip is a draft.">
-                <Input type="number" min={0} max={payslip.monthDays} step={0.5} value={paidDays} onChange={(e) => setPaidDays(Number(e.target.value))} disabled={!isDraft} />
+              <Field label="Absent days" hint="Editable while the payslip is a draft.">
+                <Input type="number" min={0} max={payslip.monthDays} step={1} value={absentDays} onChange={(e) => setAbsentDays(Number(e.target.value))} disabled={!isDraft} />
+              </Field>
+              <Field label="Half days" hint="Each counts as 0.5 of a paid day.">
+                <Input type="number" min={0} max={payslip.monthDays} step={1} value={halfDays} onChange={(e) => setHalfDays(Number(e.target.value))} disabled={!isDraft} />
               </Field>
             </div>
+            <p className="mt-2 text-xs text-ink-500">Paid days: <span className="tabular-nums font-medium text-ink-800">{isDraft ? previewPaidDays : payslip.paidDays}</span> / {payslip.monthDays}</p>
           </Card>
 
-          <Card title="Earnings">
+          <Card title="Earnings" subtitle="Full monthly salary structure — days not worked are deducted below as Loss of Pay, not prorated away here.">
             <div className="overflow-x-auto scroll-thin">
               <table className="w-full text-sm">
                 <thead className="border-b border-ink-200"><tr><th className="th">Component</th><th className="th text-right">Salary structure</th><th className="th text-right">Payout</th></tr></thead>
@@ -125,10 +160,20 @@ export default function PayslipDetailPage() {
             </div>
           </Card>
 
-          <Card title="Deductions" subtitle="EPF/ESIC are computed from the salary profile; TDS and other/misc are editable while draft.">
+          <Card title="Deductions" subtitle="EPF/ESIC are computed from the salary profile; Loss of Pay, TDS and other/misc are editable while draft.">
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="E.P.F."><Input value={formatINR(payslip.epfEmployee)} disabled /></Field>
               <Field label="E.S.I.C."><Input value={formatINR(payslip.esicEmployee)} disabled /></Field>
+              <Field label="Loss of Pay" hint="Computed from absent/half days above — directly overridable.">
+                <div className="flex gap-2">
+                  <Input type="number" min={0} value={lossOfPay} onChange={(e) => setLossOfPay(Number(e.target.value))} disabled={!isDraft} className="flex-1" />
+                  {isDraft && (
+                    <Button type="button" onClick={() => setLossOfPay(computeLossOfPay(payslip.grossEarning, payslip.monthDays, absentDays, halfDays))} title="Recompute from absent/half days">
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </Field>
               <Field label="TDS"><Input type="number" min={0} value={tds} onChange={(e) => setTds(Number(e.target.value))} disabled={!isDraft} /></Field>
               <Field label="Other"><Input type="number" min={0} value={otherDeduction} onChange={(e) => setOtherDeduction(Number(e.target.value))} disabled={!isDraft} /></Field>
               <Field label="Misc"><Input type="number" min={0} value={miscDeduction} onChange={(e) => setMiscDeduction(Number(e.target.value))} disabled={!isDraft} /></Field>
@@ -160,6 +205,9 @@ export default function PayslipDetailPage() {
             </dl>
             <div className="mt-4 border-t border-ink-100 pt-3">
               <Badge className={PAYSLIP_STATUS_COLOR[payslip.status]}>{PAYSLIP_STATUS_LABEL[payslip.status]}</Badge>
+              {payslip.status === "DRAFT" && (
+                <p className="mt-2 text-xs text-ink-500">Only visible to Finance/Admin until finalized — mark it Finalized or Paid above to publish it to the employee's own "My Payslips" view.</p>
+              )}
             </div>
           </Card>
         </div>
@@ -168,144 +216,27 @@ export default function PayslipDetailPage() {
       <div className="mt-4">
         <Button onClick={() => router.push("/payroll")}>&larr; Back to Payroll</Button>
       </div>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete this payslip?"
+        description={
+          payslip.status !== "DRAFT"
+            ? "This payslip is already finalized/paid — deleting it removes an issued record permanently. It cannot be recovered."
+            : "This permanently removes the draft payslip. It cannot be recovered."
+        }
+        footer={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button variant="danger" loading={busy} onClick={() => void confirmDelete()}>
+              <Trash2 className="h-4 w-4" /> Delete payslip
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-700">{payslip.number} — {payslip.employeeName}, {formatINR(payslip.netPay)}</p>
+      </Modal>
     </>
-  );
-}
-
-const gridCell = "border border-ink-400 px-2 py-1.5";
-const gridLabel = "text-[10px] text-ink-500";
-
-function PayslipDocument({ payslip, company, onClose }: { payslip: Payslip; company: Company; onClose: () => void }) {
-  return (
-    <div>
-      <div className="mb-4 flex items-center justify-between print:hidden">
-        <Button onClick={onClose}>&larr; Back</Button>
-        <Button variant="primary" onClick={() => window.print()}>
-          <Printer className="h-4 w-4" /> Print / Save as PDF
-        </Button>
-      </div>
-
-      <article className="mx-auto max-w-3xl bg-white p-4 text-[11px] leading-snug text-ink-900 print:p-0">
-        <SimpleDocumentHeader company={company} docLabel="Payslip" docNumber={payslip.number} />
-
-        <p className="mb-2 text-center text-sm font-semibold">
-          Payslip for the month of {MONTH_LABEL[payslip.month - 1]} {payslip.year}
-        </p>
-
-        <div className="grid grid-cols-2 border border-ink-400">
-          <div className={cn(gridCell, "border-r-0")}><p className={gridLabel}>Employee ID</p><p className="font-medium">{payslip.uid.slice(0, 10)}</p></div>
-          <div className={gridCell}><p className={gridLabel}>Name</p><p className="font-medium">{payslip.employeeName}</p></div>
-          <div className={cn(gridCell, "border-r-0 border-t-0")}><p className={gridLabel}>Department</p><p>{payslip.departmentName || "—"}</p></div>
-          <div className={cn(gridCell, "border-t-0")}><p className={gridLabel}>Designation</p><p>{payslip.designation || "—"}</p></div>
-          <div className={cn(gridCell, "border-r-0 border-t-0")}><p className={gridLabel}>PF No.</p><p>{payslip.pfNo || "—"}</p></div>
-          <div className={cn(gridCell, "border-t-0")}><p className={gridLabel}>UAN No.</p><p>{payslip.uanNo || "—"}</p></div>
-          <div className={cn(gridCell, "border-r-0 border-t-0")}><p className={gridLabel}>E.S.I No.</p><p>{payslip.esiNo || "—"}</p></div>
-          <div className={cn(gridCell, "border-t-0")}><p className={gridLabel}>Salary Account No.</p><p>{payslip.bankAccountNo || "—"}</p></div>
-        </div>
-
-        <div className={cn(gridCell, "border-t-0")}>
-          <p className={gridLabel}>Attendance details</p>
-          <p>Month Days: <span className="font-medium">{payslip.monthDays}</span> &nbsp;|&nbsp; Paid Days: <span className="font-medium">{payslip.paidDays}</span></p>
-        </div>
-
-        <p className="mt-3 mb-1 font-semibold">Payout details (Amount in Rupees)</p>
-        <table className="w-full border-collapse border border-ink-400">
-          <thead>
-            <tr className="text-left">
-              <th className={gridCell}>Additions</th>
-              <th className={cn(gridCell, "text-right")}>Salary Structure</th>
-              <th className={cn(gridCell, "text-right")}>Payout</th>
-              <th className={gridCell}>Deduction</th>
-              <th className={cn(gridCell, "text-right")}>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className={gridCell}>Basic</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.basic)}</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.basic)}</td>
-              <td className={gridCell}>E.P.F.</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.epfEmployee ? formatINR(payslip.epfEmployee) : "—"}</td>
-            </tr>
-            <tr>
-              <td className={gridCell}>H.R.A.</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.hra)}</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.hra)}</td>
-              <td className={gridCell}>E.S.I.C.</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.esicEmployee ? formatINR(payslip.esicEmployee) : "—"}</td>
-            </tr>
-            <tr>
-              <td className={gridCell}>T.A.</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.ta)}</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.ta)}</td>
-              <td className={gridCell}>TDS</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.tds ? formatINR(payslip.tds) : "—"}</td>
-            </tr>
-            <tr>
-              <td className={gridCell}>Others</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.others)}</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.others)}</td>
-              <td className={gridCell}>OTHER</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.otherDeduction ? formatINR(payslip.otherDeduction) : "—"}</td>
-            </tr>
-            <tr>
-              <td className={gridCell}>Misc.</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.misc ? formatINR(payslip.misc) : "—"}</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.misc ? formatINR(payslip.misc) : "—"}</td>
-              <td className={gridCell}>Misc.</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.miscDeduction ? formatINR(payslip.miscDeduction) : "—"}</td>
-            </tr>
-            <tr>
-              <td className={gridCell} /><td className={gridCell} /><td className={gridCell} />
-              <td className={cn(gridCell, "font-medium")}>ADDITIONAL (ER)</td><td className={gridCell} />
-            </tr>
-            <tr>
-              <td className={gridCell} /><td className={gridCell} /><td className={gridCell} />
-              <td className={gridCell}>E.P.F.</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.epfEmployer ? formatINR(payslip.epfEmployer) : "—"}</td>
-            </tr>
-            <tr>
-              <td className={gridCell} /><td className={gridCell} /><td className={gridCell} />
-              <td className={gridCell}>E.S.I.C.</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.esicEmployer ? formatINR(payslip.esicEmployer) : "—"}</td>
-            </tr>
-            <tr>
-              <td className={gridCell} /><td className={gridCell} /><td className={gridCell} />
-              <td className={gridCell}>Gratuity</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.gratuity ? formatINR(payslip.gratuity) : "—"}</td>
-            </tr>
-            <tr>
-              <td className={gridCell} /><td className={gridCell} /><td className={gridCell} />
-              <td className={gridCell}>Bonus</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.bonus ? formatINR(payslip.bonus) : "—"}</td>
-            </tr>
-            <tr>
-              <td className={gridCell} /><td className={gridCell} /><td className={gridCell} />
-              <td className={gridCell}>Health</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{payslip.health ? formatINR(payslip.health) : "—"}</td>
-            </tr>
-            <tr className="font-semibold">
-              <td className={gridCell}>Total</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.grossEarning)}</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.grossEarning)}</td>
-              <td className={gridCell}>Total</td>
-              <td className={cn(gridCell, "text-right tabular-nums")}>{formatINR(payslip.totalDeductions)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div className={cn(gridCell, "border-t-0 flex flex-wrap justify-between gap-3")}>
-          <p>Gross Salary: <span className="font-semibold">{formatINR(payslip.grossEarning)}</span></p>
-          <p>Net Salary/Payout: <span className="font-semibold">{formatINR(payslip.netPay)}</span></p>
-        </div>
-        <div className={cn(gridCell, "border-t-0")}>
-          <p>CTC: <span className="font-semibold">{formatINR(payslip.ctc)}</span></p>
-        </div>
-
-        <p className="mt-4 text-center text-[10px] text-ink-500">This is a computer generated payslip and does not require any signature</p>
-
-        <SimpleDocumentFooter company={company} />
-      </article>
-    </div>
   );
 }

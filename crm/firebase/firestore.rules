@@ -452,8 +452,18 @@ service cloud.firestore {
       allow read, write: if canManagePayroll();
     }
 
+    // An employee may also read their OWN payslip once it's left DRAFT —
+    // the "My Payslips" self-service view (src/app/(app)/my-payslips) —
+    // never a still-draft one (even their own) and never anyone else's.
+    // Delete is a DRAFT-vs-locked two-tier bar mirroring deleteEoi/
+    // deletePurchaseOrder: canManagePayroll() may delete a DRAFT, but a
+    // FINALIZED/PAID payslip is an issued record and needs SUPER_ADMIN —
+    // see deletePayslip in src/lib/db/payroll.ts.
     match /payslips/{payslipId} {
-      allow read, write: if canManagePayroll();
+      allow read: if canManagePayroll()
+        || (signedIn() && resource.data.uid == request.auth.uid && resource.data.status != 'DRAFT');
+      allow create, update: if canManagePayroll();
+      allow delete: if canManagePayroll() && (resource.data.status == 'DRAFT' || isSuperAdmin());
     }
 
     match /purchaseOrders/{poId} {

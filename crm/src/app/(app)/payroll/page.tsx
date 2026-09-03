@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Play, Wallet } from "lucide-react";
+import { Play, RefreshCw, Trash2, Wallet } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
-  Badge, Button, Card, EmptyState, Field, PageHeader, Select, Spinner, StatCard, useAsyncAction, useToast,
+  Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select, Spinner, StatCard, useAsyncAction, useToast,
 } from "@/components/ui";
 import { MONTH_LABEL, PAYSLIP_STATUS_COLOR, PAYSLIP_STATUS_LABEL } from "@/lib/constants";
-import { generatePayrollForMonth, subscribePayslips } from "@/lib/db/payroll";
-import { canManagePayroll } from "@/lib/permissions";
+import { deletePayslip, generatePayrollForMonth, regeneratePayslip, subscribePayslips } from "@/lib/db/payroll";
+import { canManagePayroll, isSuperAdmin } from "@/lib/permissions";
 import type { Payslip } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -21,17 +21,20 @@ const YEARS = (() => {
 
 export default function PayrollPage() {
   const viewer = useViewer();
-  const { actor } = useAuth();
+  const { actor, role } = useAuth();
   const { push } = useToast();
   const { busy, run } = useAsyncAction();
+  const { busy: rowBusy, run: runRow } = useAsyncAction();
   const now = new Date();
 
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<Payslip | null>(null);
 
   const canManage = canManagePayroll(viewer);
+  const superAdmin = !!role && isSuperAdmin(role);
 
   useEffect(() => {
     if (!canManage) return;
@@ -73,6 +76,19 @@ export default function PayrollPage() {
         "success",
       );
     }
+  }
+
+  async function regenerate(p: Payslip) {
+    if (!actor) return;
+    await runRow(() => regeneratePayslip(p, actor), `${p.number} regenerated from current attendance & salary.`);
+  }
+
+  async function confirmDelete() {
+    if (!actor || !deleting) return;
+    await run(async () => {
+      await deletePayslip(deleting, actor);
+      setDeleting(null);
+    }, "Payslip deleted.");
   }
 
   return (
@@ -122,6 +138,7 @@ export default function PayrollPage() {
                   <th className="th text-right">Deductions</th>
                   <th className="th text-right">Net pay</th>
                   <th className="th">Status</th>
+                  <th className="th" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
@@ -139,11 +156,25 @@ export default function PayrollPage() {
                     <td className="td text-right tabular-nums text-rose-600">−{formatINR(p.totalDeductions)}</td>
                     <td className="td text-right tabular-nums font-semibold">{formatINR(p.netPay)}</td>
                     <td className="td"><Badge className={PAYSLIP_STATUS_COLOR[p.status]}>{PAYSLIP_STATUS_LABEL[p.status]}</Badge></td>
+                    <td className="td">
+                      <div className="flex justify-end gap-1.5">
+                        {p.status === "DRAFT" && (
+                          <Button size="sm" loading={rowBusy} title="Recompute from current attendance & salary profile" onClick={() => void regenerate(p)}>
+                            <RefreshCw className="h-3.5 w-3.5" /> Regenerate
+                          </Button>
+                        )}
+                        {(p.status === "DRAFT" || superAdmin) && (
+                          <Button size="sm" variant="danger" onClick={() => setDeleting(p)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {payslips.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="td py-14 text-center text-ink-400">
+                    <td colSpan={8} className="td py-14 text-center text-ink-400">
                       <Wallet className="mx-auto mb-2 h-6 w-6 text-ink-300" />
                       No payslips generated for {MONTH_LABEL[month - 1]} {year} yet.
                     </td>
@@ -154,6 +185,27 @@ export default function PayrollPage() {
           </div>
         </Card>
       )}
+
+      <Modal
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title="Delete this payslip?"
+        description={
+          deleting && deleting.status !== "DRAFT"
+            ? "This payslip is already finalized/paid — deleting it removes an issued record permanently. It cannot be recovered."
+            : "This permanently removes the draft payslip. It cannot be recovered."
+        }
+        footer={
+          <>
+            <Button onClick={() => setDeleting(null)}>Cancel</Button>
+            <Button variant="danger" loading={busy} onClick={() => void confirmDelete()}>
+              <Trash2 className="h-4 w-4" /> Delete payslip
+            </Button>
+          </>
+        }
+      >
+        {deleting && <p className="text-sm text-ink-700">{deleting.number} — {deleting.employeeName}, {formatINR(deleting.netPay)}</p>}
+      </Modal>
     </>
   );
 }

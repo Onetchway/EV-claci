@@ -43,6 +43,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Dashboard",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/my-payslips", label: "My Payslips", icon: Wallet },
       { href: "/agents", label: "Team Performance", icon: BarChart3, adminOnly: true },
     ],
   },

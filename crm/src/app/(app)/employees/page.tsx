@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, IndianRupee, MapPin, Plus, Settings2, Trash2, UserPlus } from "lucide-react";
+import { Building2, IndianRupee, MapPin, Plus, Settings2, Sparkles, Trash2, UserPlus } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -12,11 +12,12 @@ import {
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/constants";
 import { subscribeDepartments } from "@/lib/db/departments";
 import { subscribeOfficeLocations } from "@/lib/db/office-locations";
-import { getPayrollProfile, setPayrollProfile, type PayrollProfileDraft } from "@/lib/db/payroll";
+import { getPayrollProfile, setPayrollProfile, splitCtcMonthly, type PayrollProfileDraft } from "@/lib/db/payroll";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { canAssignRole, canManageHrms, canManagePayroll, canSeeAllHrms, isAdmin, isSuperAdmin } from "@/lib/permissions";
 import type { AppUser, Department, OfficeLocation } from "@/lib/types";
+import { computeMonthlyTdsFromCtc } from "@/lib/payroll-tax";
 
 function emptySalaryForm(): PayrollProfileDraft {
   return {
@@ -572,15 +573,27 @@ export default function EmployeesPage() {
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Salary structure (monthly, ₹)</p>
               <div className="grid gap-3 sm:grid-cols-3">
+                <Field
+                  label="CTC (target, monthly)"
+                  hint="Not printed as-is on a payslip — see the payslip's own computed CTC."
+                  className="sm:col-span-3"
+                >
+                  <div className="flex gap-2">
+                    <Input type="number" min={0} value={salaryForm.ctc} onChange={(e) => setSalaryForm({ ...salaryForm, ctc: Number(e.target.value) })} className="flex-1" />
+                    <Button type="button" onClick={() => setSalaryForm({ ...salaryForm, ...splitCtcMonthly(salaryForm.ctc), tdsMonthly: computeMonthlyTdsFromCtc(salaryForm.ctc) })}>
+                      <Sparkles className="h-3.5 w-3.5" /> Auto-fill from CTC
+                    </Button>
+                  </div>
+                </Field>
                 <Field label="Basic"><Input type="number" min={0} value={salaryForm.basic} onChange={(e) => setSalaryForm({ ...salaryForm, basic: Number(e.target.value) })} /></Field>
                 <Field label="HRA"><Input type="number" min={0} value={salaryForm.hra} onChange={(e) => setSalaryForm({ ...salaryForm, hra: Number(e.target.value) })} /></Field>
                 <Field label="TA"><Input type="number" min={0} value={salaryForm.ta} onChange={(e) => setSalaryForm({ ...salaryForm, ta: Number(e.target.value) })} /></Field>
                 <Field label="Others / allowances"><Input type="number" min={0} value={salaryForm.others} onChange={(e) => setSalaryForm({ ...salaryForm, others: Number(e.target.value) })} /></Field>
                 <Field label="Misc"><Input type="number" min={0} value={salaryForm.misc ?? 0} onChange={(e) => setSalaryForm({ ...salaryForm, misc: Number(e.target.value) })} /></Field>
-                <Field label="CTC (target, reference only)" hint="Not printed as-is on a payslip — see the payslip's own computed CTC.">
-                  <Input type="number" min={0} value={salaryForm.ctc} onChange={(e) => setSalaryForm({ ...salaryForm, ctc: Number(e.target.value) })} />
-                </Field>
               </div>
+              <p className="mt-2 text-xs text-ink-500">
+                Auto-fill splits CTC as Basic 50% / HRA 25% / TA 10% / Others 10% / Misc 5%, and estimates TDS below from the New Tax Regime slabs — a one-time convenience fill. Every field stays freely editable afterward; re-click to re-apply it.
+              </p>
             </div>
 
             <div>
@@ -623,7 +636,7 @@ export default function EmployeesPage() {
                   <Input type="number" min={0} max={100} value={salaryForm.esicEmployeePct ?? 0} onChange={(e) => setSalaryForm({ ...salaryForm, esicEmployeePct: Number(e.target.value) })} />
                 </Field>
                 <Field label="ESIC — employer amount (₹)"><Input type="number" min={0} value={salaryForm.esicEmployerAmount ?? 0} onChange={(e) => setSalaryForm({ ...salaryForm, esicEmployerAmount: Number(e.target.value) })} /></Field>
-                <Field label="TDS (₹/month)" hint="A flat prefill — always editable per payslip before finalizing.">
+                <Field label="TDS (₹/month)" hint="Auto-filled from CTC using New Tax Regime slabs — always editable per payslip before finalizing.">
                   <Input type="number" min={0} value={salaryForm.tdsMonthly ?? 0} onChange={(e) => setSalaryForm({ ...salaryForm, tdsMonthly: Number(e.target.value) })} />
                 </Field>
                 <Field label="Gratuity (₹/month)"><Input type="number" min={0} value={salaryForm.gratuityMonthly ?? 0} onChange={(e) => setSalaryForm({ ...salaryForm, gratuityMonthly: Number(e.target.value) })} /></Field>
