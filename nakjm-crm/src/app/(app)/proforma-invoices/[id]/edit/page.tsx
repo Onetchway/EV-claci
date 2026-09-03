@@ -10,8 +10,9 @@ import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import type { GstType } from "@/lib/constants";
 import { getProformaInvoice, updateProformaInvoice } from "@/lib/db/proforma-invoices";
+import { subscribeProject } from "@/lib/db/projects";
 import { computeLineTotals } from "@/lib/db/quotations";
-import type { ProformaInvoice } from "@/lib/types";
+import type { ProformaInvoice, Project } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 export default function EditProformaInvoicePage() {
@@ -33,6 +34,12 @@ export default function EditProformaInvoicePage() {
   const [shipToAddress, setShipToAddress] = useState("");
   const [clientPoNumber, setClientPoNumber] = useState("");
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
+  const [milestoneBasis, setMilestoneBasis] = useState<"PERCENT" | "AMOUNT">("PERCENT");
+  const [milestoneValue, setMilestoneValue] = useState("");
+  const [milestoneGst, setMilestoneGst] = useState<"WITH" | "WITHOUT">("WITH");
+  const [milestoneTaxTreatment, setMilestoneTaxTreatment] = useState<"EXCLUSIVE" | "INCLUSIVE">("EXCLUSIVE");
+  const [milestoneGstPercent, setMilestoneGstPercent] = useState("18");
 
   useEffect(() => {
     void getProformaInvoice(id).then((row) => {
@@ -52,6 +59,8 @@ export default function EditProformaInvoicePage() {
     });
   }, [id]);
 
+  useEffect(() => { if (pi?.projectId) return subscribeProject(pi.projectId, setProject); }, [pi?.projectId]);
+
   if (pi === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (pi === null) return <EmptyState title="Proforma invoice not found" action={<Link href="/proforma-invoices"><Button>Back to proforma invoices</Button></Link>} />;
 
@@ -60,6 +69,28 @@ export default function EditProformaInvoicePage() {
   const igst = gstType === "IGST" ? tax : 0;
   const cgst = gstType === "CGST_SGST" ? tax / 2 : 0;
   const sgst = gstType === "CGST_SGST" ? tax / 2 : 0;
+
+  const milestoneBaseAmount = milestoneBasis === "PERCENT"
+    ? ((project?.contractValue ?? 0) * (Number(milestoneValue) || 0)) / 100
+    : Number(milestoneValue) || 0;
+
+  function applyMilestone() {
+    if (!milestoneBaseAmount) return;
+    let rate = milestoneBaseAmount;
+    let tax = 0;
+    if (milestoneGst === "WITH") {
+      const gstPct = Number(milestoneGstPercent) || 0;
+      if (milestoneTaxTreatment === "INCLUSIVE") {
+        rate = milestoneBaseAmount / (1 + gstPct / 100);
+        tax = milestoneBaseAmount - rate;
+      } else {
+        tax = (milestoneBaseAmount * gstPct) / 100;
+      }
+    }
+    setItems([{ description: milestone.trim() || "Milestone payment", unit: "LS", qty: 1, rate: Number(rate.toFixed(2)) }]);
+    setTaxAmount(tax.toFixed(2));
+    push("Line item and tax updated from the milestone.", "success");
+  }
 
   async function onSave() {
     if (!piNo.trim()) {
@@ -97,6 +128,45 @@ export default function EditProformaInvoicePage() {
               <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
             </div>
+          </Card>
+
+          <Card title="Bill by milestone" subtitle="Optional — compute this PI's amount from the client PO's payment schedule (e.g. 30% advance, balance at delivery, final with tax) instead of entering line items by hand.">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Basis">
+                <div className="flex items-center gap-4 pt-2 text-sm">
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneBasis === "PERCENT"} onChange={() => setMilestoneBasis("PERCENT")} /> % of contract value</label>
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneBasis === "AMOUNT"} onChange={() => setMilestoneBasis("AMOUNT")} /> Fixed amount (₹)</label>
+                </div>
+              </Field>
+              <Field label={milestoneBasis === "PERCENT" ? "Percentage (%)" : "Amount (₹)"}>
+                <Input type="number" value={milestoneValue} onChange={(e) => setMilestoneValue(e.target.value)} />
+              </Field>
+              {milestoneBasis === "PERCENT" && (
+                <p className="col-span-2 -mt-2 text-xs text-ink-500">
+                  {project
+                    ? `${milestoneValue || 0}% of contract value ${formatINR(project.contractValue)} = ${formatINR(milestoneBaseAmount)}`
+                    : "Loading the project's contract value…"}
+                </p>
+              )}
+              <Field label="GST">
+                <div className="flex items-center gap-4 pt-2 text-sm">
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneGst === "WITH"} onChange={() => setMilestoneGst("WITH")} /> With GST</label>
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneGst === "WITHOUT"} onChange={() => setMilestoneGst("WITHOUT")} /> Without GST</label>
+                </div>
+              </Field>
+              {milestoneGst === "WITH" && (
+                <Field label="GST %"><Input type="number" value={milestoneGstPercent} onChange={(e) => setMilestoneGstPercent(e.target.value)} /></Field>
+              )}
+              {milestoneGst === "WITH" && (
+                <Field label="Entered value is" className="col-span-2">
+                  <div className="flex items-center gap-4 pt-2 text-sm">
+                    <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneTaxTreatment === "EXCLUSIVE"} onChange={() => setMilestoneTaxTreatment("EXCLUSIVE")} /> Without tax (GST added on top)</label>
+                    <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneTaxTreatment === "INCLUSIVE"} onChange={() => setMilestoneTaxTreatment("INCLUSIVE")} /> With tax (already includes GST)</label>
+                  </div>
+                </Field>
+              )}
+            </div>
+            <Button className="mt-3" variant="secondary" disabled={!milestoneBaseAmount} onClick={applyMilestone}>Apply to line item &amp; tax below</Button>
           </Card>
 
           <Card title="Line items">
