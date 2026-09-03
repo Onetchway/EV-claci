@@ -9,6 +9,7 @@ import { getClient } from "@/lib/db/clients";
 import { getProject } from "@/lib/db/projects";
 import { getProformaInvoice } from "@/lib/db/proforma-invoices";
 import { defaultSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
+import { billedGstinForProject } from "@/lib/constants";
 import type { Client, ProformaInvoice, Project } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
@@ -28,9 +29,9 @@ export default function ProformaInvoicePrintPage() {
   }, [id, piid]);
   useEffect(() => subscribeSettings(setSettings), []);
 
-  // The project's billed-under GSTIN (state-specific, set at project creation/edit) is what the tax
-  // type was computed from -- fall back to the client's default GSTIN only if the project has none.
-  const billedGstin = project?.billingGstin || client?.gstin;
+  // Always a live match against the project's current site state, so this tracks state edits
+  // without depending on the project's stored billingGstin having been re-synced.
+  const billedGstin = billedGstinForProject(client, project);
   useDocumentTitle(pi ? `NAKJM PI ${pi.piNo}` : undefined);
 
   if (pi === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;

@@ -9,14 +9,15 @@ import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, 
 import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { useCompanyInfo } from "@/components/print-document";
-import { gstTypeForCounterparty, type GstType } from "@/lib/constants";
+import { billedGstinForProject, gstTypeForCounterparty, type GstType } from "@/lib/constants";
 import { getBoq } from "@/lib/db/boq";
+import { getClient } from "@/lib/db/clients";
 import { uploadDocument } from "@/lib/db/documents";
 import { createQuotation, computeLineTotals, nextQuotationNo, nextQuotationVersion } from "@/lib/db/quotations";
 import { parseLineItemFile } from "@/lib/lineitem-parser";
 import { subscribeProjects } from "@/lib/db/projects";
 import { getRfq, markRfqConverted } from "@/lib/db/rfqs";
-import type { Project } from "@/lib/types";
+import type { Client, Project } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 export default function NewQuotationPage() {
@@ -102,9 +103,14 @@ function NewQuotationForm() {
   const totals = computeLineTotals(items, Number(taxPercent) || 0, gstType);
   const project = projects.find((p) => p.id === projectId);
 
+  const [client, setClient] = useState<Client | null>(null);
+  useEffect(() => { void (project?.clientId ? getClient(project.clientId) : Promise.resolve(null)).then(setClient); }, [project?.clientId]);
+  // Live match against the project's current site state -- not just the billingGstin stored at creation.
+  const billedGstin = billedGstinForProject(client, project);
+
   useEffect(() => {
-    if (project?.billingGstin) setGstType(gstTypeForCounterparty(company.gstin, project.billingGstin));
-  }, [project?.billingGstin, company.gstin]);
+    if (billedGstin) setGstType(gstTypeForCounterparty(company.gstin, billedGstin));
+  }, [billedGstin, company.gstin]);
 
   async function onCreate() {
     if (!projectId || !project) {
@@ -157,9 +163,9 @@ function NewQuotationForm() {
               <Field label="Valid Until"><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
               <Field label="Tax %"><Input type="number" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} /></Field>
               <GstTypeField value={gstType} onChange={setGstType} className="col-span-2" />
-              {project?.billingGstin && (
+              {billedGstin && (
                 <p className="col-span-2 -mt-2 text-xs text-ink-500">
-                  Billing GSTIN: {project.billingGstin}{project.billingState ? ` (${project.billingState})` : ""} — GST type auto-set from this, override above if needed.
+                  Billing GSTIN: {billedGstin} — GST type auto-set from this, override above if needed.
                 </p>
               )}
               <ShipToField enabled={shipToDifferent} onEnabledChange={setShipToDifferent} address={shipToAddress} onAddressChange={setShipToAddress} className="col-span-2" />

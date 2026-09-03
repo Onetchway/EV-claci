@@ -9,13 +9,14 @@ import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, 
 import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, PI_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { useCompanyInfo } from "@/components/print-document";
-import { gstTypeForCounterparty, type GstType } from "@/lib/constants";
+import { billedGstinForProject, gstTypeForCounterparty, type GstType } from "@/lib/constants";
+import { getClient } from "@/lib/db/clients";
 import { createProformaInvoice } from "@/lib/db/proforma-invoices";
 import { computeLineTotals, getQuotation } from "@/lib/db/quotations";
 import { uploadDocument } from "@/lib/db/documents";
 import { parseLineItemFile } from "@/lib/lineitem-parser";
 import { subscribeProjects } from "@/lib/db/projects";
-import type { Project } from "@/lib/types";
+import type { Client, Project } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 export default function NewProformaInvoicePage() {
@@ -107,9 +108,14 @@ function NewProformaInvoiceForm() {
   const sgst = gstType === "CGST_SGST" ? tax / 2 : 0;
   const project = projects.find((p) => p.id === projectId);
 
+  const [client, setClient] = useState<Client | null>(null);
+  useEffect(() => { void (project?.clientId ? getClient(project.clientId) : Promise.resolve(null)).then(setClient); }, [project?.clientId]);
+  // Live match against the project's current site state -- not just the billingGstin stored at creation.
+  const billedGstin = billedGstinForProject(client, project);
+
   useEffect(() => {
-    if (project?.billingGstin) setGstType(gstTypeForCounterparty(company.gstin, project.billingGstin));
-  }, [project?.billingGstin, company.gstin]);
+    if (billedGstin) setGstType(gstTypeForCounterparty(company.gstin, billedGstin));
+  }, [billedGstin, company.gstin]);
 
   const milestoneBaseAmount = milestoneBasis === "PERCENT"
     ? ((project?.contractValue ?? 0) * (Number(milestoneValue) || 0)) / 100
@@ -177,9 +183,9 @@ function NewProformaInvoiceForm() {
               <Field label="Milestone"><Input value={milestone} onChange={(e) => setMilestone(e.target.value)} /></Field>
               <Field label="Tax Amount (₹)"><Input type="number" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} /></Field>
               <GstTypeField value={gstType} onChange={setGstType} />
-              {project?.billingGstin && (
+              {billedGstin && (
                 <p className="col-span-2 -mt-2 text-xs text-ink-500">
-                  Billing GSTIN: {project.billingGstin}{project.billingState ? ` (${project.billingState})` : ""} — GST type auto-set from this, override above if needed.
+                  Billing GSTIN: {billedGstin} — GST type auto-set from this, override above if needed.
                 </p>
               )}
               <ShipToField enabled={shipToDifferent} onEnabledChange={setShipToDifferent} address={shipToAddress} onAddressChange={setShipToAddress} className="col-span-2" />

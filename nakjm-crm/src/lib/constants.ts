@@ -209,6 +209,20 @@ export function gstTypeForCounterparty(homeGstin: string, counterpartyGstin: str
   return homeGstin.trim().slice(0, 2) === counterpartyGstin.trim().slice(0, 2) ? "CGST_SGST" : "IGST";
 }
 
+/**
+ * The client GSTIN that actually applies to a project: a live match against the client's
+ * state-wise registrations for the project's own site state, so it always tracks state edits
+ * without needing the project's stored billingGstin to be manually re-synced. Falls back to
+ * billingGstin (set at project creation) and then the client's single default GSTIN.
+ */
+export function billedGstinForProject(
+  client: { gstin?: string; gstRegistrations?: { gstin: string; state: string }[] } | null | undefined,
+  project: { site?: { state?: string }; billingGstin?: string | null } | null | undefined,
+): string | undefined {
+  const stateMatch = client?.gstRegistrations?.find((r) => r.state === project?.site?.state)?.gstin;
+  return stateMatch || project?.billingGstin || client?.gstin || undefined;
+}
+
 /** Every Indian state/UT name, alphabetical, for a "State" dropdown -- the same list GST registration is drawn from, minus the old pre-bifurcation Andhra Pradesh code. */
 export const INDIAN_STATES = Object.values(GST_STATE_CODES)
   .filter((s) => s !== "Andhra Pradesh (Old)")

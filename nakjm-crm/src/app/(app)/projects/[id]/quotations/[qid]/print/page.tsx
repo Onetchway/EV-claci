@@ -8,6 +8,7 @@ import { EmptyState, Spinner } from "@/components/ui";
 import { getClient } from "@/lib/db/clients";
 import { getProject } from "@/lib/db/projects";
 import { getQuotation } from "@/lib/db/quotations";
+import { billedGstinForProject } from "@/lib/constants";
 import type { Client, Project, Quotation } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
@@ -26,9 +27,9 @@ export default function QuotationPrintPage() {
   }, [id, qid]);
   useDocumentTitle(q ? `NAKJM Quotation ${q.quotationNo}` : undefined);
 
-  // The project's billed-under GSTIN (state-specific, set at project creation/edit) is what the tax
-  // type was computed from -- fall back to the client's default GSTIN only if the project has none.
-  const billedGstin = project?.billingGstin || client?.gstin;
+  // Always a live match against the project's current site state, so this tracks state edits
+  // without depending on the project's stored billingGstin having been re-synced.
+  const billedGstin = billedGstinForProject(client, project);
 
   if (q === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (q === null) return <EmptyState title="Quotation not found" />;
