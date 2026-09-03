@@ -85,8 +85,7 @@ function NewProformaInvoiceForm() {
       if (!q) return;
       setSourceQuotationNo(q.quotationNo);
       setProjectId((id) => id || q.projectId);
-      // PI line items have no visible Qty field (see PI_ITEM_FIELDS) -- fold the quotation line's qty x rate into a single Amount.
-      setItems(q.items.map((it) => ({ description: it.description, unit: it.unit, qty: 1, rate: (Number(it.qty) || 1) * (Number(it.rate) || 0), hsnCode: it.hsnCode })));
+      setItems(q.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode })));
       setPiNo((n) => n || `${q.quotationNo}-PI`);
       setTaxAmount(String(q.taxAmount));
       setGstType(q.gstType ?? "IGST");

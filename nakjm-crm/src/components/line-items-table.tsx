@@ -94,13 +94,8 @@ export const QUOTATION_ITEM_FIELDS = [
   { key: "rate" as const, label: "Rate (₹)", type: "number" },
   { key: "hsnCode" as const, label: "HSN/SAC" },
 ];
-/** No Qty field -- a PI is often billed as a lump sum (an advance, a milestone %), where quantity is meaningless. Amount = Rate directly (Qty defaults to 1 under the hood). */
-export const PI_ITEM_FIELDS = [
-  { key: "description" as const, label: "Description" },
-  { key: "unit" as const, label: "Unit" },
-  { key: "rate" as const, label: "Amount (₹)", type: "number" },
-  { key: "hsnCode" as const, label: "HSN/SAC" },
-];
+/** Qty is optional, not required -- left blank/0 it defaults to 1 (see computeLineTotals), so a lump-sum line (an advance, a milestone %) just needs a Rate, while a real product quantity can still be entered. */
+export const PI_ITEM_FIELDS = QUOTATION_ITEM_FIELDS;
 export const PO_ITEM_FIELDS = [
   { key: "description" as const, label: "Description" },
   { key: "unit" as const, label: "Unit" },
