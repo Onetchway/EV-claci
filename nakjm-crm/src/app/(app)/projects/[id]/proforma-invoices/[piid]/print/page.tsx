@@ -88,8 +88,9 @@ export default function ProformaInvoicePrintPage() {
                   <td className="break-words py-3 pr-3 align-top">{line.description}</td>
                   <td className="py-3 px-3 align-top text-ink-500">{line.hsnCode || "—"}</td>
                   <td className="py-3 px-3 align-top text-ink-500">{line.unit || "—"}</td>
-                  <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{line.qty}</td>
-                  <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{formatINR(line.rate)}</td>
+                  {/* No GST on this PI -- it's a lump sum (e.g. an advance), so Qty/Rate print blank like a Tally invoice's service line, with only Amount filled in. */}
+                  <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{pi.taxAmount ? line.qty : "—"}</td>
+                  <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{pi.taxAmount ? formatINR(line.rate) : "—"}</td>
                   <td className="whitespace-nowrap py-3 pl-3 text-right align-top tabular-nums">{formatINR(line.amount)}</td>
                 </tr>
               ))}

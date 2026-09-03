@@ -22,7 +22,7 @@ import {
 } from "@/lib/constants";
 import { ItemsTable, ITEM_FIELDS, BOQ_FIELDS, QUOTATION_ITEM_FIELDS, PO_ITEM_FIELDS, type DraftItem, type DraftBoqItem } from "@/components/line-items-table";
 import { computeBoqTotals, createBoq, deleteBoq, subscribeBoqsForProject, updateBoq } from "@/lib/db/boq";
-import { listActiveClients } from "@/lib/db/clients";
+import { getClient, listActiveClients } from "@/lib/db/clients";
 import { deleteDocument, subscribeDocumentsForProject, uploadDocument } from "@/lib/db/documents";
 import { subscribeDrawingsForProject, updateDrawingStatus, uploadDrawing } from "@/lib/db/drawings";
 import {
@@ -60,6 +60,7 @@ export default function ProjectDetailPage() {
   const actor = useActor();
   const viewer = useViewer();
   const [project, setProject] = useState<Project | null>(null);
+  const [billingClient, setBillingClient] = useState<Client | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [editOpen, setEditOpen] = useState(false);
@@ -74,6 +75,7 @@ export default function ProjectDetailPage() {
 
   useEffect(() => subscribeProject(id, setProject), [id]);
   useEffect(() => { void listActiveTeamMembers().then(setTeam); }, []);
+  useEffect(() => { if (project?.clientId) void getClient(project.clientId).then(setBillingClient); }, [project?.clientId]);
 
   if (!project) return <p className="text-sm text-ink-400">Loading…</p>;
 
@@ -96,6 +98,10 @@ export default function ProjectDetailPage() {
     if (!form || !form.name.trim() || !project) return;
     await run(async () => {
       const pm = team.find((t) => t.id === form.projectManagerId);
+      // Re-sync the billing GSTIN to the client's registration for the (possibly just-changed) site state --
+      // otherwise editing the state here silently leaves PIs/POs printing the old state's GSTIN, since billingGstin
+      // is only ever set at project creation and has no other UI to update it from.
+      const stateMatch = billingClient?.gstRegistrations?.find((r) => r.state === form.state);
       await updateProject(project, {
         name: form.name, projectManagerId: pm?.id ?? null, projectManagerName: pm?.name ?? null,
         site: { city: form.city, state: form.state, address: form.address },
@@ -105,6 +111,7 @@ export default function ProjectDetailPage() {
         targetEndDate: form.targetEndDate ? new Date(form.targetEndDate) : null,
         pocName: form.pocName, pocPhone: form.pocPhone, pocEmail: form.pocEmail, notes: form.notes,
         clientRequirements: form.clientRequirements,
+        ...(stateMatch ? { billingGstin: stateMatch.gstin, billingState: stateMatch.state } : {}),
       }, actor);
       setEditOpen(false);
     }, "Project updated.");
