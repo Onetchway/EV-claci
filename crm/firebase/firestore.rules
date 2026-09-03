@@ -438,6 +438,24 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
     }
 
+    // Salary data — deliberately narrower than canManageHrms() above (which
+    // includes a plain Sales Manager): only Finance/Admin/Super Admin can
+    // read or write a salary structure or a generated payslip. Mirrors
+    // canManagePayroll in src/lib/permissions.ts (the hrmsAdmin-flag
+    // carve-out there isn't reproduced here, same as canManageHrms() above —
+    // that flag isn't exposed as a token claim, so rules can't see it).
+    function canManagePayroll() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
+    match /payrollProfiles/{uid} {
+      allow read, write: if canManagePayroll();
+    }
+
+    match /payslips/{payslipId} {
+      allow read, write: if canManagePayroll();
+    }
+
     match /purchaseOrders/{poId} {
       allow read: if signedIn();
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];

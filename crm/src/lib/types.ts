@@ -9,7 +9,7 @@ import type {
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
   EmspUserType, InvoiceBillToType, InvoiceStatus, PaymentStatus, PoStatus, PowerLoad,
-  ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
+  PayslipStatus, ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
   TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
   WebhookEvent, WeekDay, Workstream,
@@ -1825,4 +1825,118 @@ export interface LeaveRequest {
   decidedAt?: TS | null;
   decidedBy?: Actor | null;
   decisionNote?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Payroll — salary structure per employee, and the monthly payslips
+// generated from it. Kept in its own collection (payrollProfiles) rather than
+// bloated onto AppUser, same reasoning as InvestorBankDetails: sensitive
+// money/bank data belongs in its own doc with its own access rule, not
+// mixed into a record every signed-in user can read.
+// ---------------------------------------------------------------------------
+
+/**
+ * One per employee — doc id is the employee's uid. Everything a monthly
+ * payslip run needs: salary structure, statutory numbers, bank details and
+ * the deduction/employer-contribution settings. `ctc` is the HR-entered
+ * target figure (shown for reference on the profile editor); the CTC printed
+ * on an actual payslip is computed from that month's gross earning plus the
+ * employer-side additions, so the two can drift slightly — see
+ * computePayslip in db/payroll.ts.
+ */
+export interface PayrollProfile {
+  id: string;
+  uid: string;
+  panNo?: string;
+  uanNo?: string;
+  pfNo?: string;
+  esiNo?: string;
+  bankAccountName?: string;
+  bankName?: string;
+  bankAccountNo?: string;
+  bankIfsc?: string;
+  dateOfJoining?: TS | null;
+  /** HR-entered target CTC (monthly) — reference only, see the doc comment above. */
+  ctc: number;
+  basic: number;
+  hra: number;
+  ta: number;
+  others: number;
+  misc?: number;
+  /** Employee-side EPF deduction %, applied to basic capped at the ₹15,000 PF wage ceiling. Defaults to 12 when unset. */
+  epfEmployeePct?: number;
+  /** Employer-side EPF contribution (₹/month, informational — "Additional (ER)" on the payslip). Defaults to matching the employee contribution when unset. */
+  epfEmployerAmount?: number;
+  /** Employee-side ESIC deduction %, applied to gross earning. Unset/0 = not ESIC-applicable (typical once gross crosses the ESIC wage threshold). */
+  esicEmployeePct?: number;
+  esicEmployerAmount?: number;
+  /** Flat monthly TDS to prefill on a new payslip — this codebase doesn't run an income-tax slab engine, so it's a manual figure, always editable per payslip before it's finalized. */
+  tdsMonthly?: number;
+  gratuityMonthly?: number;
+  bonusMonthly?: number;
+  healthMonthly?: number;
+  active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+/**
+ * One employee's payslip for one calendar month — doc id is auto-generated,
+ * `number` is the human-friendly LG-PS-000001 reference. Employee identity
+ * and bank/statutory details are snapshotted at generation time (mirrors
+ * buildEoiFromLead/buildAgreementFromLead's snapshot-at-draft-time pattern)
+ * so a later edit to the employee's PayrollProfile never rewrites an
+ * already-issued payslip.
+ */
+export interface Payslip {
+  id: string;
+  /** e.g. LG-PS-000001 */
+  number: string;
+  uid: string;
+  employeeName: string;
+  designation?: string;
+  departmentName?: string;
+  panNo?: string;
+  uanNo?: string;
+  pfNo?: string;
+  esiNo?: string;
+  bankAccountNo?: string;
+  /** 1-12 */
+  month: number;
+  year: number;
+  monthDays: number;
+  /** Attendance-driven, editable by an operator before finalizing — see computePaidDays in db/attendance.ts. */
+  paidDays: number;
+  basic: number;
+  hra: number;
+  ta: number;
+  others: number;
+  misc: number;
+  grossEarning: number;
+  epfEmployee: number;
+  esicEmployee: number;
+  tds: number;
+  otherDeduction: number;
+  miscDeduction: number;
+  totalDeductions: number;
+  netPay: number;
+  /** "Additional (ER)" block — employer contributions, informational, not netted against pay. */
+  epfEmployer: number;
+  esicEmployer: number;
+  gratuity: number;
+  bonus: number;
+  health: number;
+  /** Computed as grossEarning + the employer-additions block above — see the PayrollProfile.ctc doc comment. */
+  ctc: number;
+  status: PayslipStatus;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+  finalizedAt?: TS | null;
+  finalizedBy?: Actor | null;
+  paidAt?: TS | null;
+  paidBy?: Actor | null;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, Timestamp, where,
+  collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, Timestamp, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -117,6 +117,42 @@ export function subscribeMyAttendanceMonth(
     (snap) => cb(snap.docs.map((d) => mapAttendance(d.id, d.data()))),
     (err) => onError?.(err as Error),
   );
+}
+
+/** One-shot equivalent of subscribeMyAttendanceMonth — used by the payroll generator, which computes paid days for a whole month at once rather than staying subscribed. */
+export async function getAttendanceMonth(uid: string, monthStart: string, monthEnd: string): Promise<AttendanceRecord[]> {
+  const snap = await getDocs(
+    query(
+      collection(getDb(), ATTENDANCE),
+      where("uid", "==", uid),
+      where("date", ">=", monthStart),
+      where("date", "<=", monthEnd),
+    ),
+  );
+  return snap.docs.map((d) => mapAttendance(d.id, d.data()));
+}
+
+/**
+ * Paid days for a payslip. Approved leave requests do NOT currently write an
+ * ON_LEAVE attendance row (see lib/db/leave.ts), so this can't lean on
+ * attendance alone to know who was on paid leave — it falls back to the
+ * simplest defensible rule: a day counts as paid unless it's explicitly
+ * marked ABSENT or left unmarked (PRESENT/ON_LEAVE/WEEK_OFF/HOLIDAY all pay
+ * in full, HALF_DAY pays half). This is deliberately a starting point, not a
+ * verdict — the payroll generator surfaces it as an editable field per
+ * employee so an operator can correct it before finalizing a payslip.
+ */
+export function computePaidDays(records: AttendanceRecord[], year: number, month: number, monthDays: number): number {
+  const byDate = new Map(records.map((r) => [r.date, r.status]));
+  const mm = String(month).padStart(2, "0");
+  let paid = 0;
+  for (let day = 1; day <= monthDays; day++) {
+    const status = byDate.get(`${year}-${mm}-${String(day).padStart(2, "0")}`);
+    if (status === "HALF_DAY") paid += 0.5;
+    else if (status === "ABSENT" || status === undefined) paid += 0;
+    else paid += 1; // PRESENT, ON_LEAVE, WEEK_OFF, HOLIDAY
+  }
+  return paid;
 }
 
 /** For managers/admins — every employee's records for one calendar day (the "Team" tab) or a month (exports). */

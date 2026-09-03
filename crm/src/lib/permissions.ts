@@ -247,3 +247,11 @@ export const canSeeAllHrms = (viewer: Viewer) =>
 /** Office/geofence config and the leave-type catalogue are org-wide policy — admin only, same bar as OCPI credentials. */
 export const canManageHrmsSetup = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN");
+
+// ---------------------------------------------------------------------------
+// Payroll — salary data. Deliberately narrower than canManageHrms (which
+// includes a plain Sales Manager): only Finance/Admin, or someone flagged
+// hrmsAdmin, sees or edits salary structures and generates payslips.
+// ---------------------------------------------------------------------------
+export const canManagePayroll = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE") || Boolean(viewer.hrmsAdmin);

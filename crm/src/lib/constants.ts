@@ -1435,6 +1435,28 @@ export const COMPANY = {
   jurisdiction: "Lucknow",
 };
 
+// ------------------------------------------------------------------ payroll
+
+export const PAYSLIP_STATUSES = ["DRAFT", "FINALIZED", "PAID"] as const;
+export type PayslipStatus = (typeof PAYSLIP_STATUSES)[number];
+
+export const PAYSLIP_STATUS_LABEL: Record<PayslipStatus, string> = {
+  DRAFT: "Draft",
+  FINALIZED: "Finalized",
+  PAID: "Paid",
+};
+
+export const PAYSLIP_STATUS_COLOR: Record<PayslipStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  FINALIZED: "bg-sky-100 text-sky-800 ring-sky-200",
+  PAID: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+};
+
+export const MONTH_LABEL = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+] as const;
+
 export const DEFAULT_SCOPE_ITEMS = [
   "Location scouting, site feasibility assessment and EV demand evaluation",
   "Canopy structure installation, electrical infrastructure preparation and the DISCOM connection process",
