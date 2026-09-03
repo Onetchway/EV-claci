@@ -70,8 +70,9 @@ export const DEFAULT_PAGE_ACCESS: Record<string, Role[]> = {
   "/roster": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   "/holidays": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   // Payroll — salary data, deliberately narrower than the rest of HRMS
-  // above (matches canManagePayroll in permissions.ts). An hrmsAdmin-flagged
-  // person outside these roles needs a Super-Admin-set pageAccessOverride.
+  // above (matches canManagePayroll in permissions.ts, which has no
+  // hrmsAdmin-flag carve-out at all for this one — Super Admin/Admin/
+  // Finance only). Anyone else needs a Super-Admin-set pageAccessOverride.
   "/payroll": ["ADMIN", "FINANCE"],
   // Settings (the adminOnly-flagged nav items — /users, /settings, /logs,
   // /developer, /trash, /ocpi, /organizations — are locked to Admin/Super

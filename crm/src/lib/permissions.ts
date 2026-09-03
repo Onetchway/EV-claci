@@ -250,8 +250,11 @@ export const canManageHrmsSetup = (viewer: Viewer) =>
 
 // ---------------------------------------------------------------------------
 // Payroll — salary data. Deliberately narrower than canManageHrms (which
-// includes a plain Sales Manager): only Finance/Admin, or someone flagged
-// hrmsAdmin, sees or edits salary structures and generates payslips.
+// includes a plain Sales Manager) and with NO hrmsAdmin-flag carve-out
+// (unlike most of the rest of HRMS) — only Super Admin/Admin/Finance may
+// see or edit salary structures and payslips, full stop. Exactly mirrors
+// canManagePayroll() in firebase/firestore.rules, which enforces the same
+// bar at the database level regardless of what this function says.
 // ---------------------------------------------------------------------------
 export const canManagePayroll = (viewer: Viewer) =>
-  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE") || Boolean(viewer.hrmsAdmin);
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");
