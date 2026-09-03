@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
+import { AppSwitcher, type AlphaApp } from "@/components/app-switcher";
 import { AttendanceQuickToggle } from "@/components/attendance-quick-toggle";
 import { FollowUpReminders } from "@/components/followup-reminders";
 import { GlobalSearch } from "@/components/global-search";
@@ -91,6 +92,20 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+/**
+ * Presents the shared crm/ codebase as a Zoho-One-style suite of separate
+ * "Alpha X" apps — one launcher tile per NAV_GROUPS group that maps onto a
+ * real business function, even though switching "apps" just links to that
+ * group's first page. Dashboard has no app of its own (it's the shared
+ * home every app returns to).
+ */
+const APP_META: Record<string, Omit<AlphaApp, "key" | "groupLabels">> = {
+  Sales: { name: "Alpha CRM", tagline: "Leads, quotations, catalogue", icon: Users2, accent: "bg-brand-100 text-brand-700", homeHref: "/leads" },
+  Operations: { name: "Alpha Projects", tagline: "Tenders, projects, vendors, POs", icon: HardHat, accent: "bg-amber-100 text-amber-700", homeHref: "/projects" },
+  HRMS: { name: "Alpha People", tagline: "Employees, attendance, roster", icon: Users, accent: "bg-violet-100 text-violet-700", homeHref: "/employees" },
+  Settings: { name: "Alpha Admin", tagline: "Users, settings, audit log", icon: Settings, accent: "bg-ink-100 text-ink-700", homeHref: "/settings" },
+};
 
 /**
  * Livanto's own recreated text wordmark — its actual logo file has only
@@ -228,6 +243,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       && hasPageAccess(n.href, roles, { policyOverrides: rolePolicy, userOverrides: profile?.pageAccessOverrides })),
   })).filter((g) => g.items.length > 0);
 
+  const apps: AlphaApp[] = groups
+    .filter((g) => APP_META[g.label])
+    .map((g) => ({ key: g.label, groupLabels: [g.label], ...APP_META[g.label] }));
+
   const sidebar = (
     <nav className="flex h-full flex-col">
       <div className="flex items-center gap-2 px-4 py-4">
@@ -305,6 +324,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setNavOpen(true)} className="rounded-lg p-1.5 text-ink-600 hover:bg-ink-100 lg:hidden" aria-label="Open navigation">
             <Menu className="h-5 w-5" />
           </button>
+          <AppSwitcher apps={apps} />
           <span className="text-sm font-semibold text-ink-900 lg:hidden">{org?.name || settings.company.shortName || "CRM"}</span>
           <div className="hidden flex-1 lg:block">
             <GlobalSearch />
