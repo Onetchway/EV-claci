@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Printer, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, Printer, ShieldCheck, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
@@ -14,8 +14,10 @@ import {
 import { PAYMENT_MODES, PO_STATUSES, type PaymentMode, type PoStatus } from "@/lib/constants";
 import { recordVendorPayment, subscribeVendorPayments } from "@/lib/db/payments";
 import { approvePurchaseOrder, deletePurchaseOrder, subscribePurchaseOrder, updatePoStatus } from "@/lib/db/purchase-orders";
+import { defaultSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
 import { getVendor } from "@/lib/db/vendors";
 import { canManageProcurement, canTrash } from "@/lib/permissions";
+import { buildPurchaseOrderTallyXml, downloadTallyXml } from "@/lib/tally-export";
 import type { PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
@@ -31,6 +33,7 @@ export default function PurchaseOrderDetailPage() {
   const [po, setPo] = useState<PurchaseOrder | null | undefined>(undefined);
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [payments, setPayments] = useState<VendorPayment[] | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings());
   const [payOpen, setPayOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -41,6 +44,7 @@ export default function PurchaseOrderDetailPage() {
   useEffect(() => subscribePurchaseOrder(id, setPo), [id]);
   useEffect(() => { if (po?.vendorId) void getVendor(po.vendorId).then(setVendor); }, [po?.vendorId]);
   useEffect(() => subscribeVendorPayments({ projectId: po?.projectId }, setPayments), [po?.projectId]);
+  useEffect(() => subscribeSettings(setSettings), []);
 
   if (po === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (po === null) return <EmptyState title="Purchase order not found" action={<Link href="/purchase-orders"><Button>Back to purchase orders</Button></Link>} />;
@@ -71,6 +75,11 @@ export default function PurchaseOrderDetailPage() {
     }, "Payment recorded.");
   }
 
+  function onExportTally() {
+    const xml = buildPurchaseOrderTallyXml(po!, settings.tally, settings.company.name);
+    downloadTallyXml(`${po!.poNo}-tally`, xml);
+  }
+
   const due = Math.max(po.totalAmount - po.paidAmount, 0);
 
   return (
@@ -98,6 +107,9 @@ export default function PurchaseOrderDetailPage() {
             <Link href={`/projects/${po.projectId}/purchase-orders/${po.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
             </Link>
+            {canManageProcurement(viewer) && (
+              <Button onClick={onExportTally}><Download className="h-4 w-4" /> Export to Tally</Button>
+            )}
             {canManageProcurement(viewer) && due > 0 && (
               <Button variant="primary" onClick={() => setPayOpen(true)}><Plus className="h-4 w-4" /> Record payment</Button>
             )}

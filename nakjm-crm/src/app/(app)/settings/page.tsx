@@ -95,6 +95,19 @@ export default function SettingsPage() {
         <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-500"><Landmark className="h-3.5 w-3.5" /> Leave blank to omit the bank block from printed documents.</p>
       </Card>
 
+      <Card title="Tally integration" subtitle="Ledger names used when exporting a PO or PI as a Tally-importable voucher — must match the ledgers in your Tally company exactly.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Purchase account ledger" hint="Used on PO exports."><Input value={form.tally.purchaseLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, purchaseLedger: e.target.value } }))} /></Field>
+          <Field label="Sales account ledger" hint="Used on PI exports."><Input value={form.tally.salesLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, salesLedger: e.target.value } }))} /></Field>
+          <Field label="IGST ledger"><Input value={form.tally.igstLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, igstLedger: e.target.value } }))} /></Field>
+          <Field label="CGST ledger"><Input value={form.tally.cgstLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, cgstLedger: e.target.value } }))} /></Field>
+          <Field label="SGST ledger"><Input value={form.tally.sgstLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, sgstLedger: e.target.value } }))} /></Field>
+        </div>
+        <p className="mt-3 text-xs text-ink-500">
+          The party ledger (vendor or client name) must also already exist in Tally with that exact name. Exported vouchers are ledger-only — line items are listed in the voucher narration for reference, not posted as individual stock items. Import via Tally: Gateway of Tally → Import Data → select the downloaded XML file.
+        </p>
+      </Card>
+
       <Card
         title="Project stage templates"
         subtitle="The default stage sequence a project gets when someone clicks &quot;Generate from template&quot; on its Stages tab. Add, remove, rename or reorder stages per project type."

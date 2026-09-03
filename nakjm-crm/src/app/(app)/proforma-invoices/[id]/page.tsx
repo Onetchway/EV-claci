@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
@@ -15,7 +15,9 @@ import { PAYMENT_MODES, PI_STATUSES, type PaymentMode, type PiStatus } from "@/l
 import { getClient } from "@/lib/db/clients";
 import { recordClientPayment, subscribeClientPayments } from "@/lib/db/payments";
 import { deleteProformaInvoice, subscribeProformaInvoice, updateProformaInvoice } from "@/lib/db/proforma-invoices";
+import { defaultSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
 import { canManageProcurement, canTrash } from "@/lib/permissions";
+import { buildProformaInvoiceTallyXml, downloadTallyXml } from "@/lib/tally-export";
 import type { Client, ClientPayment, ProformaInvoice } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
@@ -29,6 +31,7 @@ export default function ProformaInvoiceDetailPage() {
   const [pi, setPi] = useState<ProformaInvoice | null | undefined>(undefined);
   const [client, setClient] = useState<Client | null>(null);
   const [payments, setPayments] = useState<ClientPayment[] | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings());
   const [payOpen, setPayOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [payForm, setPayForm] = useState({ amount: "", mode: "BANK_TRANSFER" as PaymentMode, referenceNo: "", milestone: "" });
@@ -36,6 +39,7 @@ export default function ProformaInvoiceDetailPage() {
   useEffect(() => subscribeProformaInvoice(id, setPi), [id]);
   useEffect(() => { if (pi?.clientId) void getClient(pi.clientId).then(setClient); }, [pi?.clientId]);
   useEffect(() => subscribeClientPayments({ projectId: pi?.projectId }, setPayments), [pi?.projectId]);
+  useEffect(() => subscribeSettings(setSettings), []);
 
   if (pi === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (pi === null) return <EmptyState title="Proforma invoice not found" action={<Link href="/proforma-invoices"><Button>Back to proforma invoices</Button></Link>} />;
@@ -58,6 +62,11 @@ export default function ProformaInvoiceDetailPage() {
     }, "Payment recorded.");
   }
 
+  function onExportTally() {
+    const xml = buildProformaInvoiceTallyXml({ ...pi!, clientName: client?.name ?? pi!.projectName }, settings.tally, settings.company.name);
+    downloadTallyXml(`${pi!.piNo}-tally`, xml);
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -73,6 +82,9 @@ export default function ProformaInvoiceDetailPage() {
             <Link href={`/projects/${pi.projectId}/proforma-invoices/${pi.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
             </Link>
+            {canManageProcurement(viewer) && (
+              <Button onClick={onExportTally}><Download className="h-4 w-4" /> Export to Tally</Button>
+            )}
             {canManageProcurement(viewer) && pi.status === "DRAFT" && (
               <Link href={`/proforma-invoices/${pi.id}/edit`}><Button><Pencil className="h-4 w-4" /> Edit</Button></Link>
             )}

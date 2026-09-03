@@ -27,9 +27,19 @@ export interface CompanyInfo {
   logoUrl: string;
 }
 
+/** Ledger names in the destination Tally company -- must match exactly, or Tally will flag the voucher's ledger as unrecognized on import. */
+export interface TallySettings {
+  purchaseLedger: string;
+  salesLedger: string;
+  igstLedger: string;
+  cgstLedger: string;
+  sgstLedger: string;
+}
+
 export interface AppSettings {
   bank: BankDetails;
   company: CompanyInfo;
+  tally: TallySettings;
 }
 
 /** Seeded from the deploy-time COMPANY_INFO constant so a fresh install prints correctly before anyone edits Settings. */
@@ -45,6 +55,13 @@ export function defaultSettings(): AppSettings {
       registeredAddress: COMPANY_INFO.registeredAddress,
       officeAddress: COMPANY_INFO.officeAddress,
       logoUrl: "/logo.png",
+    },
+    tally: {
+      purchaseLedger: "Purchase Accounts",
+      salesLedger: "Sales Accounts",
+      igstLedger: "IGST",
+      cgstLedger: "CGST",
+      sgstLedger: "SGST",
     },
   };
 }
