@@ -7,7 +7,7 @@ import { Upload } from "lucide-react";
 import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { GstTypeField, ShipToField } from "@/components/gst-fields";
-import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
+import { ItemsTable, PI_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import { useCompanyInfo } from "@/components/print-document";
 import { gstTypeForCounterparty, type GstType } from "@/lib/constants";
 import { createProformaInvoice } from "@/lib/db/proforma-invoices";
@@ -85,7 +85,8 @@ function NewProformaInvoiceForm() {
       if (!q) return;
       setSourceQuotationNo(q.quotationNo);
       setProjectId((id) => id || q.projectId);
-      setItems(q.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode })));
+      // PI line items have no visible Qty field (see PI_ITEM_FIELDS) -- fold the quotation line's qty x rate into a single Amount.
+      setItems(q.items.map((it) => ({ description: it.description, unit: it.unit, qty: 1, rate: (Number(it.qty) || 1) * (Number(it.rate) || 0), hsnCode: it.hsnCode })));
       setPiNo((n) => n || `${q.quotationNo}-PI`);
       setTaxAmount(String(q.taxAmount));
       setGstType(q.gstType ?? "IGST");
@@ -242,7 +243,7 @@ function NewProformaInvoiceForm() {
               </label>
             }
           >
-            <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
+            <ItemsTable items={items} setItems={setItems} fields={PI_ITEM_FIELDS} />
           </Card>
         </div>
 

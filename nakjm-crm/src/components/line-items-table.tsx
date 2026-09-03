@@ -22,7 +22,7 @@ export function ItemsTable<T extends Record<string, unknown>>({
 }) {
   const descField = fields.find((f) => f.key === "description");
   const otherFields = fields.filter((f) => f.key !== "description");
-  // Qty defaults to 1, not 0 -- a fresh row left at qty 0 silently zeroes out its amount (qty x rate) with no visible warning.
+  // Only show a computed Amount line when Qty is also an editable field -- otherwise (e.g. PI_ITEM_FIELDS) Rate already reads "Amount (₹)" and a repeated line below it would be redundant.
   const showAmount = fields.some((f) => f.key === "qty") && fields.some((f) => f.key === "rate");
 
   const addRow = () => setItems([...items, Object.fromEntries(fields.map((f) => [f.key, f.key === "qty" ? 1 : f.type === "number" ? 0 : ""])) as T]);
@@ -92,6 +92,13 @@ export const QUOTATION_ITEM_FIELDS = [
   { key: "unit" as const, label: "Unit" },
   { key: "qty" as const, label: "Qty", type: "number" },
   { key: "rate" as const, label: "Rate (₹)", type: "number" },
+  { key: "hsnCode" as const, label: "HSN/SAC" },
+];
+/** No Qty field -- a PI is often billed as a lump sum (an advance, a milestone %), where quantity is meaningless. Amount = Rate directly (Qty defaults to 1 under the hood). */
+export const PI_ITEM_FIELDS = [
+  { key: "description" as const, label: "Description" },
+  { key: "unit" as const, label: "Unit" },
+  { key: "rate" as const, label: "Amount (₹)", type: "number" },
   { key: "hsnCode" as const, label: "HSN/SAC" },
 ];
 export const PO_ITEM_FIELDS = [

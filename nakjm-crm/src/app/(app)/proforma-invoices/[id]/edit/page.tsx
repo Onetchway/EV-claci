@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useActor } from "@/components/auth-provider";
 import { Button, Card, EmptyState, Field, Input, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { GstTypeField, ShipToField } from "@/components/gst-fields";
-import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
+import { ItemsTable, PI_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
 import type { GstType } from "@/lib/constants";
 import { getProformaInvoice, updateProformaInvoice } from "@/lib/db/proforma-invoices";
 import { subscribeProject } from "@/lib/db/projects";
@@ -55,7 +55,8 @@ export default function EditProformaInvoicePage() {
       setShipToDifferent(row.shipToDifferent ?? false);
       setShipToAddress(row.shipToAddress ?? "");
       setClientPoNumber(row.clientPoNumber ?? "");
-      setItems(row.items.map((it) => ({ description: it.description, unit: it.unit, qty: it.qty, rate: it.rate, hsnCode: it.hsnCode, gstPercent: it.gstPercent })));
+      // PI line items have no visible Qty field (see PI_ITEM_FIELDS) -- fold any pre-existing qty into rate so the line's actual amount (qty x rate) carries over unchanged as a single "Amount", instead of silently re-multiplying by a hidden qty from here on.
+      setItems(row.items.map((it) => ({ description: it.description, unit: it.unit, qty: 1, rate: (Number(it.qty) || 1) * (Number(it.rate) || 0), hsnCode: it.hsnCode, gstPercent: it.gstPercent })));
     });
   }, [id]);
 
@@ -170,7 +171,7 @@ export default function EditProformaInvoicePage() {
           </Card>
 
           <Card title="Line items">
-            <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
+            <ItemsTable items={items} setItems={setItems} fields={PI_ITEM_FIELDS} />
           </Card>
         </div>
 
