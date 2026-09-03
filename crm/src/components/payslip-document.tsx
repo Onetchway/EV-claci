@@ -35,7 +35,7 @@ export function PayslipDocument({ payslip, company, onClose }: { payslip: Paysli
         </p>
 
         <div className="grid grid-cols-2 border border-ink-400">
-          <div className={cn(gridCell, "border-r-0")}><p className={gridLabel}>Employee ID</p><p className="font-medium">{payslip.uid.slice(0, 10)}</p></div>
+          <div className={cn(gridCell, "border-r-0")}><p className={gridLabel}>Employee ID</p><p className="font-medium">{payslip.employeeCode || "—"}</p></div>
           <div className={gridCell}><p className={gridLabel}>Name</p><p className="font-medium">{payslip.employeeName}</p></div>
           <div className={cn(gridCell, "border-r-0 border-t-0")}><p className={gridLabel}>Department</p><p>{payslip.departmentName || "—"}</p></div>
           <div className={cn(gridCell, "border-t-0")}><p className={gridLabel}>Designation</p><p>{payslip.designation || "—"}</p></div>

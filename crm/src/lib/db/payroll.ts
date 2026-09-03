@@ -33,8 +33,9 @@ import {
 
 import type { PayslipStatus } from "../constants";
 import { computeAttendanceBreakdown, getAttendanceMonth } from "./attendance";
+import { getDepartments } from "./departments";
 import { getDb } from "../firebase/client";
-import type { Actor, AppUser, PayrollProfile, Payslip } from "../types";
+import type { Actor, AppUser, Department, PayrollProfile, Payslip } from "../types";
 import { logChangeSafe } from "./change-log";
 import { getUser } from "./users";
 
@@ -293,6 +294,14 @@ export interface GeneratePayrollResult {
   created: number;
   skippedExisting: string[];
   skippedNoProfile: number;
+  /** uids skipped because their PayrollProfile.dateOfJoining falls after the end of the target month — they hadn't joined yet. */
+  skippedNotYetJoined: string[];
+}
+
+/** departmentId -> name lookup, built once per generation batch (see getDepartments's doc comment) rather than re-read per employee. */
+function departmentNameOf(departments: Department[], departmentId: string | null | undefined): string {
+  if (!departmentId) return "";
+  return departments.find((d) => d.id === departmentId)?.name ?? "";
 }
 
 /**
@@ -317,26 +326,44 @@ async function attendanceBreakdownFor(
 /**
  * One DRAFT payslip per active employee with an active PayrollProfile, for
  * the given month — skipping anyone who already has a payslip for that
- * month (see the module doc comment for why). Attendance is fetched and
- * reduced per employee (no aggregate collection exists yet, see
+ * month (see the module doc comment for why) or who hadn't joined yet as of
+ * that month (PayrollProfile.dateOfJoining after the month's last day; an
+ * unset dateOfJoining is treated as always-eligible, the same lenient
+ * default used elsewhere in this module). Pass `options.uids` to restrict
+ * generation to a specific subset of employees (still applying the same
+ * eligibility checks) instead of every active salary profile — e.g. the
+ * Payroll page's "Generate for selected employees" action. Attendance is
+ * fetched and reduced per employee (no aggregate collection exists yet, see
  * computeAttendanceBreakdown in db/attendance.ts) so this does one query
  * per eligible employee; fine at CRM-scale headcounts, not meant for
- * thousands of rows.
+ * thousands of rows. Department names are resolved once per run (getDepartments)
+ * and mapped locally, not re-read per employee.
  */
-export async function generatePayrollForMonth(month: number, year: number, actor: Actor): Promise<GeneratePayrollResult> {
+export async function generatePayrollForMonth(
+  month: number, year: number, actor: Actor, options?: { uids?: string[] },
+): Promise<GeneratePayrollResult> {
   const monthDays = new Date(year, month, 0).getDate();
+  const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
-  const [profilesSnap, existingSnap] = await Promise.all([
+  const [profilesSnap, existingSnap, departments] = await Promise.all([
     getDocs(query(collection(getDb(), PAYROLL_PROFILES), where("active", "==", true))),
     getDocs(query(collection(getDb(), PAYSLIPS), where("month", "==", month), where("year", "==", year))),
+    getDepartments(),
   ]);
-  const profiles = profilesSnap.docs.map((d) => mapProfile(d.id, d.data()));
+  let profiles = profilesSnap.docs.map((d) => mapProfile(d.id, d.data()));
+  if (options?.uids?.length) {
+    const wanted = new Set(options.uids);
+    profiles = profiles.filter((p) => wanted.has(p.uid));
+  }
   const existingUids = new Set(existingSnap.docs.map((d) => (d.data().uid as string)));
 
-  const result: GeneratePayrollResult = { created: 0, skippedExisting: [], skippedNoProfile: 0 };
+  const result: GeneratePayrollResult = { created: 0, skippedExisting: [], skippedNoProfile: 0, skippedNotYetJoined: [] };
 
   for (const profile of profiles) {
     if (existingUids.has(profile.uid)) { result.skippedExisting.push(profile.uid); continue; }
+
+    const doj = profile.dateOfJoining?.toDate?.();
+    if (doj && doj > monthEnd) { result.skippedNotYetJoined.push(profile.uid); continue; }
 
     const user: AppUser | null = await getUser(profile.uid);
     if (!user) { result.skippedNoProfile++; continue; }
@@ -350,7 +377,9 @@ export async function generatePayrollForMonth(month: number, year: number, actor
       number,
       uid: profile.uid,
       employeeName: user.name,
+      employeeCode: user.employeeCode ?? null,
       designation: user.designation ?? "",
+      departmentName: departmentNameOf(departments, user.departmentId),
       panNo: profile.panNo ?? "",
       uanNo: profile.uanNo ?? "",
       pfNo: profile.pfNo ?? "",
@@ -396,13 +425,15 @@ export async function regeneratePayslip(payslip: Payslip, actor: Actor): Promise
   const profile = await getPayrollProfile(payslip.uid);
   if (!profile) throw new Error("This employee no longer has a salary profile.");
 
-  const user = await getUser(payslip.uid);
+  const [user, departments] = await Promise.all([getUser(payslip.uid), getDepartments()]);
   const { absentDays, halfDays } = await attendanceBreakdownFor(payslip.uid, user?.attendanceRequired, payslip.year, payslip.month, payslip.monthDays);
   const money = computePayslipMoney(profile, payslip.monthDays, absentDays, halfDays);
 
   await updateDoc(doc(getDb(), PAYSLIPS, payslip.id), {
     employeeName: user?.name ?? payslip.employeeName,
+    employeeCode: user?.employeeCode ?? payslip.employeeCode ?? null,
     designation: user?.designation ?? payslip.designation ?? "",
+    departmentName: user ? departmentNameOf(departments, user.departmentId) : (payslip.departmentName ?? ""),
     panNo: profile.panNo ?? "",
     uanNo: profile.uanNo ?? "",
     pfNo: profile.pfNo ?? "",

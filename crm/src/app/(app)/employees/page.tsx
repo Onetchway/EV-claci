@@ -368,6 +368,13 @@ export default function EmployeesPage() {
               />
             </Field>
 
+            <Field label="Employee ID" hint="HR-assigned code, e.g. LG-EMP-001 — printed on their payslip.">
+              <Input
+                defaultValue={editing.employeeCode ?? ""}
+                onBlur={(e) => void run(() => patchUser(editing.uid, { employeeCode: e.target.value.trim() || null }), "Saved.")}
+              />
+            </Field>
+
             <Field label="Department" hint={departments.length ? undefined : "None created yet — use the Departments button on the directory page."}>
               <Select
                 placeholder="No department"

@@ -54,6 +54,8 @@ export interface AppUser {
   hrmsAdmin?: boolean;
   /** Whether this person is expected to check in/out at all — off by default is wrong for a normal employee, so undefined means required. Turn off for someone HRMS genuinely doesn't apply to (a channel partner contact, a board member with CRM access, etc.); they drop out of the header check-in control and the Team/Roster/leave-quota views. */
   attendanceRequired?: boolean;
+  /** HR-assigned employee code, e.g. "LG-EMP-001" — free text, set by hand from Employees, the same way PAN/UAN/PF numbers are set from the Salary form. Printed on the payslip as "Employee ID"; snapshotted onto each Payslip at generation time (see Payslip.employeeCode). */
+  employeeCode?: string | null;
   /** Set when this account was deleted (DELETE /api/users/[uid]) — the Firebase Auth credential is gone, but the profile row is kept so historical leads/activity still show a real owner name. Hidden from Team & Roles' main list by default. */
   deletedAt?: TS | null;
   createdAt: TS;
@@ -1896,6 +1898,8 @@ export interface Payslip {
   number: string;
   uid: string;
   employeeName: string;
+  /** Snapshotted from AppUser.employeeCode at generation time — see that field's doc comment. Printed on the payslip as "Employee ID". */
+  employeeCode?: string | null;
   designation?: string;
   departmentName?: string;
   panNo?: string;
