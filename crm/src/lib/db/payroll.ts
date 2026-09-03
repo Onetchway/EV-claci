@@ -46,15 +46,17 @@ const PF_WAGE_CEILING = 15000;
 const DEFAULT_EPF_PCT = 12;
 
 /**
- * One-way convenience split of a target monthly CTC into the salary
- * structure fields, for the Salary form's "Auto-fill from CTC" button —
+ * One-way convenience split of an ANNUAL CTC (the standard way Indian
+ * payroll quotes a package) into the salary structure fields, which are
+ * themselves MONTHLY — for the Salary form's "Auto-fill from CTC" button.
  * Basic 50%, HRA 25%, and the remaining 25% split TA 10% / Others 10% /
- * Misc 5% (all percentages of CTC). Purely a prefill: the form still lets
- * every field be edited by hand afterward, and nothing re-runs this unless
- * the admin explicitly clicks the button again.
+ * Misc 5% (all percentages of annual CTC), each then divided by 12. Purely
+ * a prefill: the form still lets every field be edited by hand afterward,
+ * and nothing re-runs this unless the admin explicitly clicks the button
+ * again.
  */
-export function splitCtcMonthly(ctc: number): { basic: number; hra: number; ta: number; others: number; misc: number } {
-  const c = Math.max(0, ctc);
+export function splitCtcMonthly(annualCtc: number): { basic: number; hra: number; ta: number; others: number; misc: number } {
+  const c = Math.max(0, annualCtc) / 12;
   return {
     basic: Math.round(c * 0.5),
     hra: Math.round(c * 0.25),

@@ -1856,7 +1856,7 @@ export interface PayrollProfile {
   bankAccountNo?: string;
   bankIfsc?: string;
   dateOfJoining?: TS | null;
-  /** HR-entered target CTC (monthly) — reference only, see the doc comment above. */
+  /** HR-entered target CTC (ANNUAL) — reference only, feeds the "Auto-fill from CTC" split/TDS estimate; see the doc comment above. */
   ctc: number;
   basic: number;
   hra: number;

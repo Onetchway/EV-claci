@@ -2,8 +2,8 @@
  * India — New Tax Regime TDS estimate (FY 2025-26 slabs).
  *
  * This is a payroll-estimate helper, not a full ITR/tax-return calculator:
- * it assumes the employee's annual taxable income is simply their monthly
- * CTC × 12 minus the New Regime's flat ₹75,000 standard deduction, with no
+ * it assumes the employee's annual taxable income is simply their annual
+ * CTC minus the New Regime's flat ₹75,000 standard deduction, with no
  * other exemptions, deductions or income sources modeled. It exists purely
  * to prefill a payslip's TDS figure — the Salary form wires it in as a
  * one-way convenience fill (see the "Auto-fill from CTC" button in
@@ -60,14 +60,14 @@ export function computeAnnualNewRegimeTax(taxableIncome: number): number {
 }
 
 /**
- * Monthly TDS to prefill on a salary profile, from a monthly CTC figure —
- * annualizes it (× 12), applies the standard deduction, runs the New
- * Regime slabs above, and divides by 12 (rounded to the nearest rupee).
- * Always a starting point: the profile/payslip's tdsMonthly stays a plain,
- * manually editable number after this fill.
+ * Monthly TDS to prefill on a salary profile, from an ANNUAL CTC figure —
+ * applies the standard deduction, runs the New Regime slabs above, and
+ * divides by 12 (rounded to the nearest rupee). Always a starting point:
+ * the profile/payslip's tdsMonthly stays a plain, manually editable number
+ * after this fill.
  */
-export function computeMonthlyTdsFromCtc(monthlyCtc: number): number {
-  const annualIncome = Math.max(0, monthlyCtc) * 12;
+export function computeMonthlyTdsFromAnnualCtc(annualCtc: number): number {
+  const annualIncome = Math.max(0, annualCtc);
   const taxableIncome = Math.max(0, annualIncome - STANDARD_DEDUCTION);
   const annualTax = computeAnnualNewRegimeTax(taxableIncome);
   return Math.round(annualTax / 12);

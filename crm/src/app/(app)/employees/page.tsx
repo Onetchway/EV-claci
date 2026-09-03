@@ -17,7 +17,7 @@ import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { canAssignRole, canManageHrms, canManagePayroll, canSeeAllHrms, isAdmin, isSuperAdmin } from "@/lib/permissions";
 import type { AppUser, Department, OfficeLocation } from "@/lib/types";
-import { computeMonthlyTdsFromCtc } from "@/lib/payroll-tax";
+import { computeMonthlyTdsFromAnnualCtc } from "@/lib/payroll-tax";
 
 function emptySalaryForm(): PayrollProfileDraft {
   return {
@@ -571,16 +571,16 @@ export default function EmployeesPage() {
         ) : (
           <div className="space-y-5">
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Salary structure (monthly, ₹)</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Salary structure (₹) — CTC is annual, everything below it is monthly</p>
               <div className="grid gap-3 sm:grid-cols-3">
                 <Field
-                  label="CTC (target, monthly)"
-                  hint="Not printed as-is on a payslip — see the payslip's own computed CTC."
+                  label="CTC (target, annual)"
+                  hint="The usual yearly package figure — not printed as-is on a payslip, see the payslip's own computed CTC."
                   className="sm:col-span-3"
                 >
                   <div className="flex gap-2">
                     <Input type="number" min={0} value={salaryForm.ctc} onChange={(e) => setSalaryForm({ ...salaryForm, ctc: Number(e.target.value) })} className="flex-1" />
-                    <Button type="button" onClick={() => setSalaryForm({ ...salaryForm, ...splitCtcMonthly(salaryForm.ctc), tdsMonthly: computeMonthlyTdsFromCtc(salaryForm.ctc) })}>
+                    <Button type="button" onClick={() => setSalaryForm({ ...salaryForm, ...splitCtcMonthly(salaryForm.ctc), tdsMonthly: computeMonthlyTdsFromAnnualCtc(salaryForm.ctc) })}>
                       <Sparkles className="h-3.5 w-3.5" /> Auto-fill from CTC
                     </Button>
                   </div>
