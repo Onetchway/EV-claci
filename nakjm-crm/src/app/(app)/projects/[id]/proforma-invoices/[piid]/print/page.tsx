@@ -88,8 +88,9 @@ export default function ProformaInvoicePrintPage() {
                   <td className="break-words py-3 pr-3 align-top">{line.description}</td>
                   <td className="py-3 px-3 align-top text-ink-500">{line.hsnCode || "—"}</td>
                   <td className="py-3 px-3 align-top text-ink-500">{line.unit || "—"}</td>
-                  <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{line.qty}</td>
-                  <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums">{formatINR(line.rate)}</td>
+                  {/* A PI has no real Qty/Rate -- it's billed as a lump sum (see PI_ITEM_FIELDS) -- so these print blank, like a Tally invoice's Quantity/Rate columns on a service line, with only Amount filled in. */}
+                  <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums text-ink-400">—</td>
+                  <td className="whitespace-nowrap py-3 px-3 text-right align-top tabular-nums text-ink-400">—</td>
                   <td className="whitespace-nowrap py-3 pl-3 text-right align-top tabular-nums">{formatINR(line.amount)}</td>
                 </tr>
               ))}
