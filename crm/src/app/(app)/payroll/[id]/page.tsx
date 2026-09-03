@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Printer, RefreshCw, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
@@ -47,6 +47,19 @@ export default function PayslipDetailPage() {
     }
   }), [id]);
   useDocumentTitle(payslip ? `Payslip · ${payslip.number}` : undefined);
+
+  // Absent/half-day edits recompute Loss of Pay live, the same way the
+  // "Recompute" button next to it does — but only for edits AFTER the
+  // payslip has loaded, so the saved (possibly hand-overridden) LOP value
+  // on the page isn't silently clobbered the instant it loads.
+  const skipAutoLop = useRef(true);
+  useEffect(() => { skipAutoLop.current = true; }, [payslip?.id]);
+  useEffect(() => {
+    if (skipAutoLop.current) { skipAutoLop.current = false; return; }
+    if (!payslip) return;
+    setLossOfPay(computeLossOfPay(payslip.grossEarning, payslip.monthDays, absentDays, halfDays));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [absentDays, halfDays]);
 
   const canManage = canManagePayroll(viewer);
   const superAdmin = !!role && isSuperAdmin(role);
