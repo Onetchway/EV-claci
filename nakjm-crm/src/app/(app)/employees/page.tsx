@@ -55,8 +55,8 @@ export default function EmployeesPage() {
     return (
       <EmptyState
         title="HR / management access only"
-        description="Employee records are visible to Admins only."
-        action={<Link href="/dashboard"><Button>Back to dashboard</Button></Link>}
+        description="The full employee directory (including everyone's salary) is visible to Admins only — but you can still view your own profile and payroll."
+        action={profile ? <Link href={`/employees/${profile.uid}`}><Button>View my profile</Button></Link> : <Link href="/dashboard"><Button>Back to dashboard</Button></Link>}
       />
     );
   }
