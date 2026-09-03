@@ -1,0 +1,952 @@
+rules_version = '2';
+
+// Livanto Green CRM — Firestore security rules.
+//
+// Model: an AGENT sees and works only their own leads. An ADMIN sees
+// everything. A SUPER_ADMIN additionally manages roles and can delete.
+// Roles are read from the auth token's custom claim, which the /api/users
+// route sets whenever a role changes (and it revokes refresh tokens, so a
+// demotion takes effect on the user's next request).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    // Deliberately excludes an investor-portal principal (see investorSignedIn
+    // below) even though they are a real, authenticated Firebase user —
+    // every existing rule in this file is written assuming "signed in" means
+    // "CRM staff," and role() falls back to 'AGENT' for anyone signed in
+    // without a role claim. Carving investors out here, once, means none of
+    // those rules had to be individually re-audited for the new principal
+    // type; their access is instead an explicit, narrow allowlist further
+    // down (ownsLeadAsInvestor and its call sites).
+    function signedIn() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider != 'phone';
+    }
+
+    // The investor/franchise-partner portal (see /portal in the app) signs
+    // in with phone number + OTP, never with a CRM profile or role — this
+    // is the ONLY thing that principal is allowed to read anywhere in this
+    // file, matched against the lead(s) whose client phone is theirs.
+    function investorSignedIn() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'phone';
+    }
+
+    function investorPhone() {
+      return investorSignedIn() ? request.auth.token.phone_number : null;
+    }
+
+    // For rules evaluated ON the lead document itself (leads/{leadId}'s own
+    // get/list) — compares straight against resource.data with no get()
+    // call. This matters beyond efficiency: Firestore can only prove a
+    // *list* query safe without per-document reads when the rule compares
+    // resource.data directly to the query's own equality filter (which
+    // /portal's investorPhoneE164 == ... query does); routing that same
+    // check through get() — even fetching this exact document — makes it
+    // opaque to that analysis and the whole list is denied. Confirmed
+    // against the Firestore emulator before/after this fix.
+    function ownsLeadDirectlyAsInvestor() {
+      return investorPhone() != null && resource.data.investorPhoneE164 == investorPhone();
+    }
+
+    // For rules evaluated on a DIFFERENT document that needs to check some
+    // lead's ownership by uid (a subcollection under it, or another
+    // top-level doc referencing it by id) — this one has to cross-reference,
+    // so it's the get()-based version, only ever used where there's no
+    // resource.data on the lead itself to compare directly.
+    function ownsLeadAsInvestor(leadId) {
+      return investorPhone() != null
+        && leadId != null
+        && get(/databases/$(database)/documents/leads/$(leadId)).data.investorPhoneE164 == investorPhone();
+    }
+
+    // Login is restricted to Livanto Green's own Google Workspace — this is
+    // the real enforcement boundary, not the login page's UI. Without this,
+    // any successfully-authenticated Google account could self-provision an
+    // active Agent profile via the first-run bootstrap rule below.
+    function fromWorkspace() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower().matches('.*@livantogreen[.]com')
+        && request.auth.token.email_verified == true;
+    }
+
+    function role() {
+      return signedIn() && request.auth.token.role != null
+        ? request.auth.token.role
+        : 'AGENT';
+    }
+
+    function isAdmin() {
+      return role() == 'ADMIN' || role() == 'SUPER_ADMIN';
+    }
+
+    function isSuperAdmin() {
+      return role() == 'SUPER_ADMIN';
+    }
+
+    // Roles that see the whole organisation rather than just their own book.
+    // Mirrors ORG_WIDE_ROLES in src/lib/constants.ts — change both together.
+    function seesAllLeads() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'FINANCE', 'OPERATIONS', 'VIEWER'];
+    }
+
+    // Roles allowed to create or modify lead records.
+    function canWriteLeads() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'AGENT', 'OPERATIONS'];
+    }
+
+    // Roles trusted to confirm that money actually arrived.
+    function canVerifyMoney() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
+    // Roles trusted to verify uploaded KYC documents.
+    function canVerifyDocs() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
+    // Issuing (or deleting) a Letter of Intent commits the company
+    // commercially — mirrors canIssueEoi/canDeleteEoi in src/lib/permissions.ts.
+    function canIssueEoi() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'FINANCE'];
+    }
+
+    // Managers and admins run HRMS: build the roster, correct attendance by
+    // hand, decide leave requests. Mirrors canManageHrms in permissions.ts.
+    function canManageHrms() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // The signed-in user is the owner named on the document.
+    function ownsExisting() {
+      return signedIn() && resource.data.ownerId == uid();
+    }
+
+    function ownsIncoming() {
+      return signedIn() && request.resource.data.ownerId == uid();
+    }
+
+    // The actor block stamped on writes must be the caller — an agent cannot
+    // attribute their own edit to somebody else.
+    function actorIsSelf(field) {
+      return request.resource.data[field].uid == uid();
+    }
+
+    function leadOwnerId(leadId) {
+      return get(/databases/$(database)/documents/leads/$(leadId)).data.ownerId;
+    }
+
+    function canTouchLead(leadId) {
+      return seesAllLeads() || leadOwnerId(leadId) == uid();
+    }
+
+    function canEditLead(leadId) {
+      return canWriteLeads() && (isAdmin() || role() == 'SALES_MANAGER' || leadOwnerId(leadId) == uid());
+    }
+
+    // ------------------------------------------------------------- organizations
+
+    // White-label tenant registry (branding only — see types.ts's Organization
+    // doc comment). Restricted to super admins: this is a tenant-level
+    // business decision, not a day-to-day operational one.
+    match /organizations/{orgId} {
+      allow read: if signedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    // A tenant's own Razorpay key SECRET — deliberately never client-
+    // readable (organizations/{orgId} above is readable by any signed-in
+    // user for branding/logo lookups, which a payment secret can never
+    // share a document with). Only api/organizations/[id]/payment-secret
+    // (Admin SDK) and the order/verify payment routes ever touch this.
+    match /organizationPaymentSecrets/{orgId} {
+      allow read, write: if false;
+    }
+
+    // ------------------------------------------------------------------ users
+
+    match /users/{userId} {
+      // Everyone signed in can read the directory: lead lists show owner names
+      // and the reassign picker needs the roster.
+      allow read: if signedIn();
+
+      // Profiles are created by the /api/users route with the Admin SDK, which
+      // bypasses these rules. The one exception is first-run bootstrap: the
+      // very first account may create its own profile.
+      allow create: if fromWorkspace()
+                    && userId == uid()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.role == 'AGENT'
+                    && request.resource.data.active == true;
+
+      // A user may edit their own contact details, never their own role or
+      // active flag — that would be a self-promotion.
+      allow update: if signedIn()
+                    && userId == uid()
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.active == resource.data.active
+                    && request.resource.data.uid == resource.data.uid;
+
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------- lead codes
+
+    match /counters/{counterId} {
+      allow read, write: if signedIn();
+    }
+
+    // ------------------------------------------------------------------ leads
+
+    match /leads/{leadId} {
+      allow read: if seesAllLeads() || ownsExisting() || ownsLeadDirectlyAsInvestor();
+
+      // A new lead must be attributed to the creator. Admins may assign to
+      // anyone; agents may only create leads for themselves.
+      allow create: if canWriteLeads()
+                    && actorIsSelf('createdBy')
+                    && (isAdmin() || role() == 'SALES_MANAGER' || ownsIncoming())
+                    && request.resource.data.status == 'ACTIVE';
+
+      allow update: if canWriteLeads()
+                    && (isAdmin() || role() == 'SALES_MANAGER'
+                        || (ownsExisting() && resource.data.status != 'REJECTED'))
+                    // Only a manager or admin may hand a lead to another agent.
+                    && (isAdmin() || role() == 'SALES_MANAGER'
+                        || request.resource.data.ownerId == resource.data.ownerId)
+                    // Only an admin may reopen a rejected lead.
+                    && (isAdmin() || request.resource.data.status != 'ACTIVE'
+                        || resource.data.status != 'REJECTED')
+                    && actorIsSelf('updatedBy');
+
+      allow delete: if isSuperAdmin();
+
+      // ------------------------------------------------------------- payments
+
+      match /payments/{paymentId} {
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
+
+        allow create: if canEditLead(leadId)
+                      && actorIsSelf('createdBy')
+                      // Only finance or an admin may mark money as verified.
+                      && (canVerifyMoney() || request.resource.data.status != 'VERIFIED');
+
+        allow update: if (canEditLead(leadId) || canVerifyMoney())
+                      && actorIsSelf('updatedBy')
+                      && (canVerifyMoney() || request.resource.data.status != 'VERIFIED')
+                      // A verified payment is finance's record; agents cannot edit it.
+                      && (canVerifyMoney() || resource.data.status != 'VERIFIED');
+
+        allow delete: if isAdmin();
+      }
+
+      // ------------------------------------------------------------ documents
+
+      match /documents/{documentId} {
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
+
+        allow create: if canEditLead(leadId)
+                      && actorIsSelf('uploadedBy')
+                      && request.resource.data.status == 'PENDING';
+
+        // Verification is an operations/finance decision; the uploader may
+        // only annotate without changing the verification state.
+        allow update: if canVerifyDocs()
+                      || (canEditLead(leadId)
+                          && request.resource.data.status == resource.data.status);
+
+        allow delete: if isAdmin()
+                      || (canEditLead(leadId)
+                          && resource.data.uploadedBy.uid == uid()
+                          && resource.data.status == 'PENDING');
+      }
+
+      // Archived LOI versions — an immutable history, same reasoning as
+      // creditDebitNotes: issue a new one (via regenerateEoi) rather than
+      // editing an old one, so a letter a signatory already saw stays
+      // exactly as it was sent.
+      match /eoiVersions/{versionId} {
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
+        allow create: if canEditLead(leadId) && actorIsSelf('archivedBy');
+        // Deleting an already-archived copy outright (not archiving it
+        // further) is at least as consequential as issuing a letter.
+        allow delete: if canEditLead(leadId) && canIssueEoi();
+      }
+
+      // Archived Franchise Agreement versions — same reasoning as
+      // eoiVersions immediately above.
+      match /agreementVersions/{versionId} {
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
+        allow create: if canEditLead(leadId) && actorIsSelf('archivedBy');
+        allow delete: if canEditLead(leadId) && canIssueEoi();
+      }
+
+      // Bank account the investor gives us for a refund, submitted from
+      // the portal (see types.ts's InvestorBankDetails doc comment for why
+      // this is a separate subcollection rather than fields on the lead
+      // itself). The investor's own write is narrowly validated field-by-
+      // field so this can never become a path to editing anything else on
+      // their lead; staff can read it (to action a refund) and correct it,
+      // never the investor's phone auth is required to write.
+      match /investorBankDetails/{entryId} {
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
+        allow create, update: if (ownsLeadAsInvestor(leadId)
+                                    && request.resource.data.keys().hasOnly([
+                                         'accountHolderName', 'bankName', 'accountNumber', 'ifsc',
+                                         'branch', 'chequeUrl', 'chequeStoragePath', 'submittedAt',
+                                       ])
+                                    && request.resource.data.accountHolderName is string
+                                    && request.resource.data.bankName is string
+                                    && request.resource.data.accountNumber is string
+                                    && request.resource.data.ifsc is string)
+                                  || canEditLead(leadId);
+        allow delete: if isAdmin();
+      }
+
+      // A contact/support request the investor raises from the portal —
+      // create is narrowly validated the same way investorBankDetails is;
+      // update (replying/resolving) is staff-only. See the collection-group
+      // match further below for the CRM Dashboard's "across every lead" view.
+      match /supportRequests/{requestId} {
+        allow read: if canTouchLead(leadId) || ownsLeadAsInvestor(leadId);
+        allow create: if ownsLeadAsInvestor(leadId)
+                      && request.resource.data.keys().hasOnly([
+                           'leadId', 'leadCode', 'ownerId', 'ownerName', 'investorName',
+                           'investorPhone', 'subject', 'message', 'status', 'createdAt',
+                         ])
+                      && request.resource.data.leadId == leadId
+                      && request.resource.data.status == 'OPEN'
+                      && request.resource.data.subject is string
+                      && request.resource.data.message is string;
+        allow update: if canEditLead(leadId);
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Collection-group companion to leads/{leadId}/supportRequests above —
+    // needed specifically for the CRM Dashboard's query across every lead's
+    // requests at once (collectionGroup("supportRequests")). Direct reads
+    // under a specific lead are still governed by the more specific match
+    // block nested under leads/{leadId}; this one only applies to
+    // collection-group queries.
+    match /{path=**}/supportRequests/{requestId} {
+      allow read: if signedIn();
+    }
+
+    // --------------------------------------------------------------- projects
+
+    // Delivery records. Everyone in the org can see them — an agent needs to
+    // know how their customer's station is progressing — but only the roles
+    // that run delivery can change one.
+    match /projects/{projectId} {
+      // Split from a single `allow read` so an investor's access stays a
+      // single-document get() keyed off their own lead — never a list query
+      // that could enumerate every project in the company.
+      allow get: if signedIn()
+                 || (resource.data.sourceLeadId != null && ownsLeadAsInvestor(resource.data.sourceLeadId));
+      allow list: if signedIn();
+
+      allow create: if canWriteLeads() && actorIsSelf('createdBy');
+
+      allow update: if canWriteLeads() && actorIsSelf('updatedBy');
+
+      allow delete: if isSuperAdmin();
+
+      match /documents/{documentId} {
+        allow read: if signedIn();
+        allow create: if canWriteLeads() && actorIsSelf('uploadedBy');
+        allow update: if canVerifyDocs()
+                      || (canWriteLeads() && request.resource.data.status == resource.data.status);
+        allow delete: if isAdmin();
+      }
+
+      // Site-progress photos the project team uploads as work happens —
+      // visible to staff and, read-only, to the investor whose lead this
+      // project came from (same ownership chain as the `get` rule above).
+      match /photos/{photoId} {
+        allow read: if signedIn()
+                    || ownsLeadAsInvestor(get(/databases/$(database)/documents/projects/$(projectId)).data.sourceLeadId);
+        allow create: if canWriteLeads() && actorIsSelf('uploadedBy');
+        allow delete: if isAdmin()
+                      || (canWriteLeads() && resource.data.uploadedBy.uid == uid());
+      }
+    }
+
+    // ------------------------------------------------------------- partners
+
+    // Channel partners and their accrued commission. Readable org-wide (the
+    // lead form needs the roster to attribute a referral); writable by the
+    // same roles that manage franchise leads. Commission status changes
+    // (approve/pay) are a money decision, gated the same as verifying a
+    // payment.
+    match /partners/{partnerId} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+      // Updates also come from commission accrual, which runs automatically
+      // for whichever role recorded the triggering payment — so any signed-in
+      // write is allowed here; the edit *form* itself is still gated to
+      // admins/managers client-side.
+      allow update: if signedIn();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /partnerCommissions/{commissionId} {
+      allow read: if signedIn();
+      // Only accrued by the app's own commission logic (still client-side,
+      // so any signed-in write is allowed) or by finance/admin status changes.
+      allow create: if signedIn();
+      allow update: if canVerifyMoney();
+      allow delete: if isSuperAdmin();
+    }
+
+    // --------------------------------------------------------------- settings
+
+    // One document holding company details, bank account and LOI defaults.
+    // Readable by everyone signed in because the LOI generator needs it;
+    // writable only by admins.
+    match /settings/{docId} {
+      // Also readable by the investor portal — it needs the company name/logo
+      // for its own branding, and the bank details here are the same ones
+      // already printed on every EOI/invoice an investor legitimately sees.
+      allow read: if signedIn() || investorSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ------------------------------------------------------------- catalog
+
+    // Chargers added beyond the six hardcoded DC investment-model options —
+    // readable by everyone signed in (the quote engine needs to resolve
+    // custom skus for any lead), writable by the same bar as overriding a
+    // price. Never hard-deleted — see archiveCustomCharger()'s comment.
+    match /chargerCatalog/{chargerId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
+    // ----------------------------------------------------- vendors & procurement
+
+    // Who Livanto pays to build a station — Operations/Finance manage this,
+    // same bar as the app's canManageVendors().
+    match /vendors/{vendorId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
+    match /purchaseOrders/{poId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+
+      match /payments/{paymentId} {
+        allow read: if signedIn();
+        allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+      }
+    }
+
+    // Asset register — chargers/equipment tracked through their depreciable
+    // life. Same bar as vendors/purchase orders.
+    match /assets/{assetId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
+    // Client-facing quotations (chargers and/or EPC services) — the mirror
+    // image of purchaseOrders, but money coming IN. Same bar as making a
+    // pricing decision (canManageCatalog / discount / price-override).
+    match /quotations/{quotationId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
+    // Proforma Invoices — same shape as quotations, filed under Operations
+    // now (Operations can manage it too, alongside Sales Manager).
+    match /proformaInvoices/{piId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'];
+    }
+
+    // Site Partners — people/companies offering one or more locations for a
+    // charging station. Same bar as leads: an agent's own book is
+    // owner-scoped, everyone else sees the whole list.
+    match /sitePartners/{partnerId} {
+      allow read: if seesAllLeads() || ownsExisting();
+      allow create: if canWriteLeads() && actorIsSelf('createdBy')
+                    && (isAdmin() || role() == 'SALES_MANAGER' || ownsIncoming());
+      allow update: if canWriteLeads()
+                    && (isAdmin() || role() == 'SALES_MANAGER' || ownsExisting())
+                    && actorIsSelf('updatedBy');
+      allow delete: if isSuperAdmin();
+    }
+
+    // ------------------------------------------------------------------ HRMS
+
+    // Office/geofence config — org-wide policy, admin only.
+    match /officeLocations/{officeId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /departments/{departmentId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /holidays/{holidayId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /leaveTypes/{leaveTypeId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // One doc per employee per day (id `${uid}_${date}`). An employee writes
+    // their own check-in/check-out; a manager/admin can mark any day by hand
+    // (the "mark absent" correction), which is exactly what canManageHrms()
+    // gates in the UI.
+    match /attendance/{attendanceId} {
+      allow read: if canManageHrms() || resource.data.uid == uid();
+      allow create: if signedIn()
+                    && (request.resource.data.uid == uid() || canManageHrms());
+      allow update: if canManageHrms()
+                    || (resource.data.uid == uid() && request.resource.data.uid == uid());
+      allow delete: if isAdmin();
+    }
+
+    // One doc per employee per Monday-starting week (id `${uid}_${weekStart}`).
+    // Only managers/admins build it; everyone reads their own.
+    match /rosters/{rosterId} {
+      allow read: if canManageHrms() || resource.data.uid == uid();
+      allow write: if canManageHrms();
+    }
+
+    match /leaveRequests/{leaveRequestId} {
+      allow read: if canManageHrms() || resource.data.uid == uid();
+      // An employee applies for their own leave, starting PENDING.
+      allow create: if signedIn()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.status == 'PENDING';
+      // A manager/admin approves or rejects; the employee themself may only
+      // cancel their own still-pending request.
+      allow update: if (canManageHrms() && request.resource.data.uid == resource.data.uid)
+                    || (resource.data.uid == uid()
+                        && resource.data.status == 'PENDING'
+                        && request.resource.data.status == 'CANCELLED');
+      allow delete: if isAdmin();
+    }
+
+    // --------------------------------------------------------- OCPP / chargers
+
+    // Written only by the standalone OCPP central system (ocpp-server/),
+    // authenticated as its own Cloud Run service identity via the Admin
+    // SDK, which bypasses these rules entirely. The CRM's own users never
+    // write here directly — read-only, so there's exactly one source of
+    // truth for what a charger is actually doing.
+    match /chargePoints/{chargePointId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Written only by the OCPP server (Admin SDK) when a charger reconnects
+    // after an OFFLINE period — feeds MTTR / historical-uptime reporting.
+    match /downtimeEvents/{eventId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /chargeSessions/{sessionId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Persisted Charge Detail Records — written once by the OCPP server
+    // (Admin SDK) at billing time, read by the OCPI /cdrs endpoint.
+    match /cdrs/{cdrId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Raw OCPP protocol message log — written by the OCPP server (Admin
+    // SDK) as each Call/CallResult/CallError crosses the wire, read by the
+    // charger detail page's Logs panel. TTL-cleaned via expireAt.
+    match /ocppMessages/{messageId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Admin-entered charger metadata (label, vendor, site, generated
+    // connection ID) — deliberately a separate collection from
+    // chargePoints/chargeSessions above, which only the OCPP server ever
+    // writes. The OCPP server checks this collection (via the Admin SDK,
+    // bypassing these rules) before accepting a WebSocket connection, so
+    // only chargers registered here — and marked active — can connect.
+    match /chargerRegistry/{chargerId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+      // Self-serve registration (lib/db/charger-registry.ts's
+      // registerOwnCharger) — a SITE_OWNER may create their own charger,
+      // but only inactive and pending review; they can never set `active`
+      // themselves, so it genuinely can't accept a session (ocpp-server's
+      // connect check requires active == true) until Admin/Ops approves it.
+      allow create: if role() == 'SITE_OWNER'
+        && request.resource.data.active == false
+        && request.resource.data.pendingApproval == true
+        && request.resource.data.createdBy.uid == request.auth.uid;
+      // Linking/unlinking a charger to a CRM lead (charging-stations-panel.tsx)
+      // — a Sales role may touch only leadId/leadCode, and only to point at a
+      // lead they're allowed to edit (or to null, to unlink).
+      allow update: if canWriteLeads()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leadId', 'leadCode'])
+        && (request.resource.data.leadId == null || canEditLead(request.resource.data.leadId));
+    }
+
+    // Zone groupings + sanctioned load cap (monitoring, not active control).
+    match /zones/{zoneId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+      // Paired with the self-serve chargerRegistry create above — a
+      // SITE_OWNER may create a site for their own self-registered charger,
+      // owned by themselves. Revenue-share fields are left for Admin/Ops to
+      // set at approval time (approveSelfServeCharger), not this create.
+      allow create: if role() == 'SITE_OWNER'
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.createdBy.uid == request.auth.uid;
+    }
+
+    // Fault/offline tickets — the OCPP server opens OFFLINE/FAULT ones via
+    // the Admin SDK (bypasses these rules entirely); the CRM's own users can
+    // only ever create a MANUAL one directly, keeping the automated types
+    // trustworthy as "the server actually observed this."
+    match /tickets/{ticketId} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS']
+                    && request.resource.data.type == 'MANUAL';
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+      allow delete: if isSuperAdmin();
+    }
+
+    // Customer/driver-initiated complaints — separate from charger-fault tickets above.
+    match /complaints/{complaintId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'CUSTOMER_SUPPORT'];
+    }
+
+    // RFID/tag allow-list the OCPP server's Authorize handler reads.
+    match /rfidTokens/{tokenId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
+    // OEM fault-code reference for NOC/support triage.
+    match /diagnosticCodes/{codeId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'CUSTOMER_SUPPORT'];
+    }
+
+    // Charging-session pricing rules — read by the OCPP server (Admin SDK,
+    // bypasses this) to bill a session at TransactionEvent "Ended".
+    match /tariffs/{tariffId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
+    // EMSP (driver-facing) users and the corporate accounts they can bill to.
+    match /corporateAccounts/{accountId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE', 'CUSTOMER_SUPPORT'];
+    }
+    match /emspUsers/{userId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE', 'CUSTOMER_SUPPORT'];
+    }
+
+    // Fleet operators: fleets, their vehicles and drivers.
+    match /fleets/{fleetId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
+    }
+    match /vehicles/{vehicleId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
+    }
+    // Depot/scheduled charging — the CRM only creates/cancels; ocpp-server
+    // (Admin SDK, bypasses this) marks TRIGGERED/FAILED when a schedule fires.
+    match /chargingSchedules/{scheduleId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
+    }
+    match /drivers/{driverId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
+    }
+    // Manually logged odometer readings, used to derive cost-per-km.
+    match /odometerReadings/{readingId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FLEET_MANAGER'];
+    }
+
+    // Wallet top-ups/debits — written only by the Razorpay verify API route
+    // (Admin SDK, bypasses this) after checking a real payment signature, so
+    // a client can never credit its own wallet directly.
+    match /walletTransactions/{txnId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // GST invoices for billed charging sessions.
+    match /invoices/{invoiceId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
+    match /creditDebitNotes/{noteId} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+      // Notes are an immutable correction record — issue a new one instead of editing.
+      allow update, delete: if isSuperAdmin();
+    }
+
+    match /subscriptionPlans/{planId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
+    // Subscribing debits the user's wallet client-side (same emspUsers write
+    // path as a top-up), then writes this record — no Admin SDK step needed
+    // since it's staff-initiated, not a self-service checkout.
+    match /userSubscriptions/{subId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
+    // Wallet top-up promo codes. Redemption (usedCount increments) only ever
+    // happens via the Admin SDK in /api/payments/razorpay/verify, so client
+    // writes here are just the admin-authoring side (create/enable/disable/delete).
+    match /coupons/{couponId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
+    // Marketing campaigns — email/notification blasts and banners. Public
+    // banner rendering (api/public/banners) reads via the Admin SDK, so
+    // this rule only covers the CRM's own signed-in-staff access.
+    match /campaigns/{campaignId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
+    // Manually-entered DISCOM electricity bills, for the Station Profit
+    // figure on Business Insights — bookkeeping input, same access as
+    // Settlements (Finance/Admin/SuperAdmin).
+    match /electricityBills/{billId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
+    // Written only by the Razorpay webhook route (Admin SDK) on payment.failed.
+    match /failedPayments/{paymentId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+      allow write: if false;
+    }
+
+    // Site (host) revenue-share ledger — written by ocpp-server's Admin SDK
+    // at session-bill time; the CRM only ever reads and flips PENDING→PAID.
+    match /siteRevenueShares/{shareId} {
+      allow read: if signedIn();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE']
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt']);
+      allow create, delete: if false;
+    }
+
+    // OCPI roaming partners. Contains partner bearer tokens, so this is
+    // deliberately NOT readable by ordinary signed-in users (unlike every
+    // other collection above) — only admins, and only the server-side OCPI
+    // API routes (Admin SDK, bypasses this) actually validate a token
+    // against it.
+    match /ocpiParties/{partyId} {
+      allow read, write: if role() in ['SUPER_ADMIN', 'ADMIN'];
+    }
+
+    // CPO↔CPO roaming — this app as an eMSP client of a partner CPO (see
+    // lib/ocpi/roaming-client.ts). All three are written by Admin SDK only
+    // (the registration/start/stop API routes and the partner-push
+    // receivers); client access is read-only for the CRM's /roaming page.
+    match /ocpiRoamingPartners/{partnerId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+    match /roamingSessions/{sessionId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+    match /roamingCommands/{commandId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+    // Short-TTL cache of a partner's own pulled location list (see
+    // lib/ocpi/roaming-client.ts's getCachedPartnerLocations) — same
+    // Admin-SDK-only write pattern as the three collections above.
+    match /roamingPartnerLocationsCache/{partnerId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+    match /roamingCdrs/{cdrId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+
+    // Developer API keys. Only the hash is ever stored (see lib/db/api-keys.ts),
+    // but the key list itself (names, prefixes) is still admin-only.
+    match /apiKeys/{keyId} {
+      allow read, write: if role() in ['SUPER_ADMIN', 'ADMIN'];
+    }
+
+    // Structured per-call log written by api/v1/_lib/apikey.ts (Admin SDK)
+    // for support/debugging — admins can read for a given key, never write
+    // directly, since it's a record of what actually happened.
+    match /apiRequestLogs/{logId} {
+      allow read: if role() in ['SUPER_ADMIN', 'ADMIN'];
+      allow write: if false;
+    }
+
+    // Driver ratings/reviews from the app-less QR charging page. Public
+    // read — the landing page shows a charger's rating before anyone
+    // commits to using it — but write only via the Admin-SDK-backed
+    // api/public/qr-charge/review route (which verifies the review names a
+    // real session before accepting it); a signed-in CRM user can't write
+    // here either, since this is deliberately never editable after the
+    // fact from either side.
+    match /chargerReviews/{reviewId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Webhook subscriptions hold a real signing secret (unlike apiKeys,
+    // which only ever stores a hash) — admin-only, same as ocpiParties.
+    match /webhookSubscriptions/{subId} {
+      allow read, write: if role() in ['SUPER_ADMIN', 'ADMIN'];
+    }
+
+    // Phase 5 workflow-engine rules — additive custom automation attached to
+    // the same four trigger points the hardcoded automation already fires
+    // at. Admin-only, same bar as Auto Triggers.
+    match /workflowRules/{ruleId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Phase 4's durable command-queue trail — ocpp-server (Admin SDK) is the
+    // only writer; CRM users can read it for support/audit but never edit it
+    // directly, since it's a log of what actually happened, not editable state.
+    match /commandQueue/{queueId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // OCPI Tokens module: an eMSP partner pushes their token whitelist here
+    // (ocpp-server's Admin SDK writes it from the CRM's PUT/DELETE receiver
+    // route) — CRM users can read for support, never write directly.
+    match /ocpiPartnerTokens/{tokenDocId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // OCPI HubClientInfo module: a connected hub's pushed party-status
+    // registry — same read-only-from-the-client pattern as the token
+    // whitelist above.
+    match /hubClientInfo/{partyDocId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ------------------------------------------------------------------- mail
+
+    // Outbound email queue for the Firebase "Trigger Email" extension. Any
+    // signed-in user may queue a notification (assignment, @mention); nobody
+    // may read or edit one back — that's the extension's job, and it uses
+    // the Admin SDK, which bypasses these rules.
+    match /mail/{mailId} {
+      allow create: if signedIn();
+      allow read, update, delete: if false;
+    }
+
+    // In-app notification bell. Created by whoever triggers the event (an
+    // assignment, an @mention) on behalf of the recipient; only the
+    // recipient can read their own notifications or mark them read.
+    match /notifications/{notificationId} {
+      // The investor portal also creates exactly one kind of notification —
+      // "a support request came in" — for the lead's own sales owner. Tightly
+      // scoped: only for a lead the investor actually owns, and only
+      // addressed to that exact lead's ownerId, so this can never become a
+      // way to spam an arbitrary uid.
+      allow create: if signedIn()
+                    || (investorSignedIn()
+                        && request.resource.data.leadId != null
+                        && ownsLeadAsInvestor(request.resource.data.leadId)
+                        && get(/databases/$(database)/documents/leads/$(request.resource.data.leadId)).data.ownerId == request.resource.data.uid);
+      // `resource == null` is a not-yet-created doc — notifyFollowUpDueSafe
+      // checks for one under a deterministic id before writing it, and that
+      // existence check must be allowed to succeed (returning exists: false)
+      // rather than erroring, since `resource.data` isn't there to read yet.
+      allow read, update: if signedIn() && (resource == null || resource.data.uid == uid());
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------- tasks
+
+    // Follow-up task engine. Same visibility shape as leads/activities: an
+    // agent sees their own tasks, org-wide roles see everything.
+    match /tasks/{taskId} {
+      allow read: if seesAllLeads() || resource.data.ownerId == uid();
+      allow create: if canWriteLeads() && actorIsSelf('createdBy');
+      allow update: if canWriteLeads() && (seesAllLeads() || resource.data.ownerId == uid());
+      allow delete: if isAdmin();
+    }
+
+    // Admin-configured follow-up sequences (Day 0, Day 1, Day 3 …), applied
+    // on demand to a lead. Readable org-wide so any agent can apply one.
+    match /sequences/{sequenceId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // ------------------------------------------------------------- activities
+
+    // The audit trail. Append-only by design: nothing in the application ever
+    // edits or removes a log entry, and the rules make that structural.
+    match /activities/{activityId} {
+      allow read: if seesAllLeads() || ownsExisting();
+
+      allow create: if signedIn()
+                    && actorIsSelf('actor')
+                    && request.resource.data.actor.uid == uid()
+                    && (seesAllLeads() || canTouchLead(request.resource.data.leadId));
+
+      allow update, delete: if false;
+    }
+
+    // General CMS audit trail (lib/db/change-log.ts) — the non-Leads
+    // counterpart to `activities` above: charger/tariff/zone/workflow/user/
+    // settings edits. Append-only and self-attributed the same way; read
+    // restricted to admins (matching the /logs page's own gate), except
+    // Quotation/Proforma Invoice/Purchase Order entries — those documents
+    // are already readable by any signed-in user, so their activity trail
+    // (shown on each document's own detail page) is too.
+    match /changeLog/{entryId} {
+      allow read: if isAdmin()
+                  || (signedIn() && resource.data.entityType in ['QUOTATION', 'PROFORMA_INVOICE', 'PURCHASE_ORDER']);
+      allow create: if signedIn() && actorIsSelf('actor');
+      allow update, delete: if false;
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

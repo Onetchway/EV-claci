@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// Lead documents (Aadhaar, PAN, load sanction letters, site photos).
+//
+// Storage rules cannot read Firestore, so ownership cannot be checked here.
+// Access is therefore gated on being a signed-in CRM user, and the Firestore
+// `documents` sub-collection — which is properly owner-scoped — is the only
+// place download URLs are ever surfaced.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() && request.auth.token.role != null
+        ? request.auth.token.role
+        : 'AGENT';
+    }
+
+    function isAdmin() {
+      return role() in ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS'];
+    }
+
+    function acceptableFile() {
+      return request.resource.size < 15 * 1024 * 1024
+             && (request.resource.contentType.matches('image/.*')
+                 || request.resource.contentType == 'application/pdf');
+    }
+
+    match /leads/{leadId}/{kind}/{fileName} {
+      allow read: if signedIn();
+      allow create: if signedIn() && acceptableFile();
+      // Files are immutable once uploaded; a correction is a new upload.
+      allow update: if false;
+      allow delete: if isAdmin()
+                    || (signedIn() && resource.metadata.uploadedBy == request.auth.uid);
+    }
+
+    // Project site-progress photos (see projects/{id}/photos in Firestore).
+    // Same posture as leads/** above: Storage can't check Firestore
+    // ownership, so this is gated on being signed in generally, and the
+    // investor portal only ever learns a photo's path through its own
+    // Firestore-side, ownership-scoped read of that subcollection.
+    match /projects/{projectId}/{kind}/{fileName} {
+      allow read: if signedIn();
+      allow create: if signedIn() && acceptableFile();
+      allow update: if false;
+      allow delete: if isAdmin()
+                    || (signedIn() && resource.metadata.uploadedBy == request.auth.uid);
+    }
+
+    match /tickets/{ticketId}/{fileName} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'] && acceptableFile();
+      allow update: if false;
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
+    match /chargers/{chargerId}/{fileName} {
+      allow read: if signedIn();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'] && acceptableFile();
+      allow update: if false;
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

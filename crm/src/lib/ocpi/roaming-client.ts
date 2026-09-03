@@ -1,0 +1,213 @@
+import "server-only";
+
+/**
+ * The other half of OCPI roaming: this app has only ever been a CPO
+ * (publishing our own chargers to partners, accepting their commands). This
+ * module makes it an eMSP client too — registering with a partner CPO,
+ * pulling their locations, and sending START_SESSION/STOP_SESSION commands
+ * on their chargers so our own RFID tokens can be used on a partner's
+ * network ("CPO↔CPO roaming" — we're a CPO to our own end users and an
+ * eMSP to a partner CPO at the same time, which is exactly what OCPI's
+ * role model allows a party to be).
+ *
+ * The registration handshake here is the mirror image of
+ * /api/ocpi/2.2.1/credentials (where a partner registers with US as their
+ * CPO): here WE call THEM, presenting the token_a they gave us out of
+ * band, and store the token_c they hand back.
+ */
+
+import { randomUUID } from "node:crypto";
+
+import { adminDb } from "@/lib/firebase/admin";
+import { OCPI_COUNTRY_CODE, OCPI_PARTY_ID } from "./identity";
+import type { OcpiCredentials, OcpiEndpoint } from "./types";
+
+export const ROAMING_PARTNERS = "ocpiRoamingPartners";
+
+/** OCPI §3.2 requires the Authorization header's token to be base64-encoded — the receiving side (api/ocpi/2.2.1/*) also accepts a raw token for interop with implementations that don't, but our own outbound calls should be spec-correct. */
+function tokenHeader(token: string): string {
+  return `Token ${Buffer.from(token).toString("base64")}`;
+}
+
+export interface RoamingPartner {
+  id: string;
+  businessName: string;
+  versionsUrl: string;
+  theirTokenC?: string;
+  ourTokenForThem?: string;
+  endpoints?: Partial<Record<"locations" | "sessions" | "cdrs" | "commands", string>>;
+  status: "PENDING" | "REGISTERED" | "REVOKED";
+}
+
+async function fetchJson<T>(url: string, token: string): Promise<T> {
+  const res = await fetch(url, { headers: { Authorization: tokenHeader(token) }, signal: AbortSignal.timeout(15_000) });
+  if (!res.ok) throw new Error(`${url} returned HTTP ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+async function discoverEndpoints(versionsUrl: string, token: string): Promise<{ endpoints: OcpiEndpoint[]; detailsUrl: string }> {
+  const versions = await fetchJson<{ data: Array<{ version: string; url: string }> }>(versionsUrl, token);
+  // 2.2.1 is a backwards-compatible errata patch of 2.2, not a breaking
+  // version — plenty of real implementations (including Pipelet's own
+  // tools) only advertise "2.2" in their versions list even though the
+  // modules we call are 2.2.1-compatible, so accept either label.
+  const v22x = versions.data?.find((v) => v.version === "2.2.1") ?? versions.data?.find((v) => v.version === "2.2");
+  if (!v22x) throw new Error("Partner does not advertise OCPI 2.2 or 2.2.1.");
+  const details = await fetchJson<{ data: { endpoints: OcpiEndpoint[] } }>(v22x.url, token);
+  return { endpoints: details.data?.endpoints ?? [], detailsUrl: v22x.url };
+}
+
+/**
+ * Performs the outbound registration handshake and stores the resulting
+ * partner record. `theirTokenA` is the one-time token the partner gave us
+ * out of band (their equivalent of what this app's own /ocpi page issues
+ * to inbound partners).
+ */
+export async function registerWithPartner(
+  businessName: string,
+  versionsUrl: string,
+  theirTokenA: string,
+  ourAppUrl: string,
+): Promise<RoamingPartner> {
+  const { endpoints } = await discoverEndpoints(versionsUrl, theirTokenA);
+  // Prefer an exact identifier+role match (spec-correct), but some
+  // implementations label the role differently or omit it for the
+  // credentials module specifically (it's inherently the one bidirectional
+  // module in OCPI) — if there's exactly one "credentials" endpoint listed
+  // at all, that's unambiguously the one to POST to regardless of how its
+  // role field is labeled.
+  const isCredentials = (e: OcpiEndpoint) => e.identifier?.toLowerCase() === "credentials";
+  const credentialsEndpoint = endpoints.find((e) => isCredentials(e) && String(e.role).toUpperCase() === "RECEIVER")
+    ?? endpoints.filter(isCredentials)[0];
+  if (!credentialsEndpoint) throw new Error("Partner does not expose a credentials endpoint.");
+
+  const ourTokenForThem = randomUUID();
+  const requestBody = JSON.stringify({
+    token: ourTokenForThem,
+    url: `${ourAppUrl}/api/ocpi/versions`,
+    roles: [{
+      role: "EMSP",
+      business_details: { name: "Livanto Green" },
+      party_id: OCPI_PARTY_ID,
+      country_code: OCPI_COUNTRY_CODE,
+    }],
+  });
+  const postCredentials = (authorization: string) => fetch(credentialsEndpoint.url, {
+    method: "POST",
+    headers: { "content-type": "application/json", Authorization: authorization },
+    body: requestBody,
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  // The GET calls above (discoverEndpoints) already proved this partner
+  // accepts a base64 token, but a 401 here specifically can still mean
+  // their credentials POST validates the header differently than their
+  // GET routes do — so on a 401 (and only a 401, not a generic failure),
+  // retry once with the token sent raw before giving up. Cheap and safe:
+  // token_a is one-time-use either way, so a second attempt after a
+  // genuine rejection just fails again with the same status.
+  let res = await postCredentials(tokenHeader(theirTokenA));
+  if (res.status === 401) res = await postCredentials(`Token ${theirTokenA}`);
+  if (!res.ok) {
+    // Surface whatever the partner actually said instead of just the
+    // status — an OCPI error body's status_message (or any plain-text
+    // body) is the only way to tell "token already used" apart from
+    // "wrong role" apart from a partner-side bug without guessing.
+    const detail = await res.text().catch(() => "");
+    let message = "";
+    try { message = (JSON.parse(detail) as { status_message?: string; message?: string }).status_message ?? JSON.parse(detail).message ?? ""; } catch { message = detail; }
+    throw new Error(`Partner rejected registration: HTTP ${res.status}${message ? ` — ${message.slice(0, 300)}` : ""}`);
+  }
+  const body = (await res.json()) as { data: OcpiCredentials };
+  const theirTokenC = body.data.token;
+
+  // Re-discover with the new token — the definitive endpoint list may differ from the one fetched with token_a.
+  const { endpoints: finalEndpoints } = await discoverEndpoints(versionsUrl, theirTokenC).catch(() => ({ endpoints }));
+  const cachedEndpoints: RoamingPartner["endpoints"] = {};
+  for (const mod of ["locations", "sessions", "cdrs", "commands"] as const) {
+    const ep = finalEndpoints.find((e) => e.identifier === mod && e.role === "SENDER") // locations/sessions/cdrs: we pull, they send
+      ?? finalEndpoints.find((e) => e.identifier === mod && e.role === "RECEIVER"); // commands: we push, they receive
+    if (ep) cachedEndpoints[mod] = ep.url;
+  }
+
+  const ref = adminDb().collection(ROAMING_PARTNERS).doc();
+  const partner: RoamingPartner = {
+    id: ref.id, businessName, versionsUrl, theirTokenC, ourTokenForThem, endpoints: cachedEndpoints, status: "REGISTERED",
+  };
+  await ref.set({ ...partner, createdAt: new Date() });
+  return partner;
+}
+
+export async function getRoamingPartner(id: string): Promise<RoamingPartner | null> {
+  const snap = await adminDb().collection(ROAMING_PARTNERS).doc(id).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...(snap.data() as Omit<RoamingPartner, "id">) };
+}
+
+async function pullPartnerLocations(partner: RoamingPartner): Promise<unknown[]> {
+  if (!partner.endpoints?.locations || !partner.theirTokenC) throw new Error("Partner has no locations endpoint on file.");
+  const body = await fetchJson<{ data: unknown[] }>(partner.endpoints.locations, partner.theirTokenC);
+  return body.data ?? [];
+}
+
+export const ROAMING_PARTNER_LOCATIONS_CACHE = "roamingPartnerLocationsCache";
+const LOCATIONS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Cached wrapper around pullPartnerLocations — a partner's full location
+ * list rarely changes minute to minute, and this page can get opened
+ * repeatedly while someone's browsing available chargers to start a
+ * session on, so re-hitting the partner's live endpoint on every load was
+ * both slow and needless load on their server. Pass force to bypass the
+ * cache (e.g. a manual "Refresh" action), otherwise a cached pull under
+ * LOCATIONS_CACHE_TTL_MS old is served as-is.
+ */
+export async function getCachedPartnerLocations(partner: RoamingPartner, force = false): Promise<unknown[]> {
+  const cacheRef = adminDb().collection(ROAMING_PARTNER_LOCATIONS_CACHE).doc(partner.id);
+  if (!force) {
+    const cached = await cacheRef.get();
+    const pulledAt = (cached.data()?.pulledAt as { toMillis?: () => number } | undefined)?.toMillis?.();
+    if (pulledAt && Date.now() - pulledAt < LOCATIONS_CACHE_TTL_MS) {
+      return (cached.data()?.locations as unknown[]) ?? [];
+    }
+  }
+  const locations = await pullPartnerLocations(partner);
+  await cacheRef.set({ locations, pulledAt: new Date() }).catch(() => undefined);
+  return locations;
+}
+
+export async function sendStartSessionToPartner(
+  partner: RoamingPartner,
+  locationId: string,
+  evseUid: string | undefined,
+  idToken: string,
+  responseUrl: string,
+): Promise<{ result: string }> {
+  if (!partner.endpoints?.commands || !partner.theirTokenC) throw new Error("Partner has no commands endpoint on file.");
+  const res = await fetch(`${partner.endpoints.commands.replace(/\/$/, "")}/START_SESSION`, {
+    method: "POST",
+    headers: { "content-type": "application/json", Authorization: tokenHeader(partner.theirTokenC!) },
+    body: JSON.stringify({ response_url: responseUrl, token: { uid: idToken, contract_id: idToken }, location_id: locationId, evse_uid: evseUid }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`Partner returned HTTP ${res.status} for START_SESSION.`);
+  const body = (await res.json()) as { data: { result: string } };
+  return body.data;
+}
+
+export async function sendStopSessionToPartner(
+  partner: RoamingPartner,
+  sessionId: string,
+  responseUrl: string,
+): Promise<{ result: string }> {
+  if (!partner.endpoints?.commands || !partner.theirTokenC) throw new Error("Partner has no commands endpoint on file.");
+  const res = await fetch(`${partner.endpoints.commands.replace(/\/$/, "")}/STOP_SESSION`, {
+    method: "POST",
+    headers: { "content-type": "application/json", Authorization: tokenHeader(partner.theirTokenC!) },
+    body: JSON.stringify({ response_url: responseUrl, session_id: sessionId }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`Partner returned HTTP ${res.status} for STOP_SESSION.`);
+  const body = (await res.json()) as { data: { result: string } };
+  return body.data;
+}

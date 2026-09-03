@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  @apply h-full;
+}
+
+body {
+  @apply bg-ink-50 text-ink-900 antialiased;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-ink-200 bg-white shadow-card;
+  }
+
+  .card-pad {
+    @apply p-4 sm:p-5;
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-500;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm text-ink-900
+      placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20
+      disabled:cursor-not-allowed disabled:bg-ink-100 disabled:text-ink-500;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset;
+  }
+
+  .th {
+    @apply whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-500;
+  }
+
+  .td {
+    @apply whitespace-nowrap px-3 py-3 text-sm text-ink-800;
+  }
+
+  .scroll-thin::-webkit-scrollbar {
+    @apply h-2 w-2;
+  }
+
+  .scroll-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-ink-300;
+  }
+}
+
+/* Keeps a dragged kanban card above sticky column headers. */
+.dnd-overlay {
+  z-index: 60;
+}
+
+/*
+ * Printing a Letter of Intent.
+ *
+ * The browser's own print dialog is the PDF generator — "Save as PDF" is
+ * built in, the output is real selectable text, and it avoids shipping a PDF
+ * library to render one page. Everything that is not the letter is hidden,
+ * and the inline editors are flattened so the page reads as a document.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  /* Chrome's Print-to-PDF pipeline can otherwise drop background colors/images the on-screen renderer shows fine. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide the app shell: sidebar, headers, toasts, and anything opted out. */
+  aside,
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .loi-sheet {
+    max-width: none;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    font-size: 10.5pt;
+    line-height: 1.5;
+    color: #000;
+  }
+
+  /* The Payment Receipt is meant to look the same printed as it does
+     on-screen — a bordered, shadowed card — unlike the formal-letter
+     documents (invoice/quotation/LOI) above, which intentionally print
+     flat to the page. Higher specificity than .loi-sheet alone wins the
+     cascade without needing !important. */
+  .loi-sheet.receipt-sheet {
+    max-width: 640px;
+    border: 1px solid #e2e2e2;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    padding: 32px;
+  }
+
+  /* Inputs become plain text so the letter does not print as a form. */
+  .loi-sheet input,
+  .loi-sheet textarea,
+  .loi-sheet select {
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    resize: none;
+    overflow: hidden;
+    color: #000;
+    font: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .loi-sheet textarea {
+    height: auto;
+    min-height: 0;
+  }
+
+  .loi-sheet table {
+    page-break-inside: auto;
+  }
+
+  .loi-sheet tr,
+  .loi-sheet li {
+    page-break-inside: avoid;
+  }
+
+  .loi-sheet h2 {
+    page-break-after: avoid;
+  }
+
+  /*
+   * Repeating letterhead + footer on every printed page.
+   *
+   * `position: fixed` was tried first and doesn't work: fixed elements are
+   * pulled out of flow, so nothing tells the browser to leave room for them
+   * before each page break — content kept printing straight through and
+   * landing underneath the footer. A <table> with <thead>/<tfoot> is the
+   * one technique every major print engine actually paginates correctly:
+   * the header/footer repeat on every page AND the browser reserves their
+   * height when laying out each page, because that's ordinary table layout,
+   * not a positioning hack. The whole letter body is the table's single
+   * <tbody> cell.
+   */
+  .loi-print-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .loi-print-header-cell,
+  .loi-print-footer-cell {
+    padding: 0;
+  }
+
+  /*
+   * The wrapper table's own <tr> elements (one giant tbody row holding the
+   * whole letter body) must stay breakable — otherwise the broader
+   * `.loi-sheet tr { page-break-inside: avoid }` rule above would tell the
+   * browser to keep that entire multi-page row on one page, which silently
+   * defeats pagination. Three classes + two combinators outweighs the
+   * two-class rule above regardless of source order.
+   */
+  .loi-print-table > thead > tr,
+  .loi-print-table > tbody > tr,
+  .loi-print-table > tfoot > tr {
+    page-break-inside: auto;
+  }
+
+  /*
+   * A fixed min-height here used to approximate "push the footer down to the
+   * bottom of the page," but a flat number is wrong for both a one-page
+   * letter and a five-page one at once, and double-counts against the exact
+   * trailing spacer PrintDocument now computes and injects itself (measured
+   * against the real header/footer heights in its `beforeprint` handler in
+   * print-letterhead.tsx) — so there's deliberately no CSS rule here now.
+   */
+}
