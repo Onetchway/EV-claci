@@ -368,11 +368,19 @@ export default function EmployeesPage() {
               />
             </Field>
 
-            <Field label="Employee ID" hint="HR-assigned code, e.g. LG-EMP-001 — printed on their payslip.">
-              <Input
-                defaultValue={editing.employeeCode ?? ""}
-                onBlur={(e) => void run(() => patchUser(editing.uid, { employeeCode: e.target.value.trim() || null }), "Saved.")}
-              />
+            <Field label="Employee ID" hint="Auto-assigned for new hires (LG-EMP-00001 style) — printed on their payslip. Edit by hand any time, or generate one now if this employee predates auto-assignment.">
+              <div className="flex gap-2">
+                <Input
+                  defaultValue={editing.employeeCode ?? ""}
+                  onBlur={(e) => void run(() => patchUser(editing.uid, { employeeCode: e.target.value.trim() || null }), "Saved.")}
+                  className="flex-1"
+                />
+                {!editing.employeeCode && (
+                  <Button type="button" onClick={() => void run(() => patchUser(editing.uid, { generateEmployeeCode: true }), "Employee ID generated.")}>
+                    Generate
+                  </Button>
+                )}
+              </div>
             </Field>
 
             <Field label="Department" hint={departments.length ? undefined : "None created yet — use the Departments button on the directory page."}>
