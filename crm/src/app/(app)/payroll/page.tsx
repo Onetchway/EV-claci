@@ -36,7 +36,11 @@ export default function PayrollPage() {
   useEffect(() => {
     if (!canManage) return;
     setLoading(true);
-    return subscribePayslips({ month, year }, (rows) => { setPayslips(rows); setLoading(false); }, () => setLoading(false));
+    return subscribePayslips(
+      { month, year },
+      (rows) => { setPayslips(rows); setLoading(false); },
+      (e) => { setLoading(false); push(e.message, "error"); },
+    );
   }, [canManage, month, year]);
 
   if (!canManage) {
