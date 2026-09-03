@@ -7,7 +7,8 @@ import { Upload } from "lucide-react";
 import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { ItemsTable, PO_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
-import { COMPANY_INFO, gstTypeForCounterparty } from "@/lib/constants";
+import { useCompanyInfo } from "@/components/print-document";
+import { gstTypeForCounterparty } from "@/lib/constants";
 import { getBoq } from "@/lib/db/boq";
 import { uploadDocument } from "@/lib/db/documents";
 import { computePoTotals, createPurchaseOrder, nextPoNo } from "@/lib/db/purchase-orders";
@@ -31,6 +32,7 @@ function NewPurchaseOrderForm() {
   const actor = useActor();
   const { push } = useToast();
   const { busy, run } = useAsyncAction();
+  const company = useCompanyInfo();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -90,8 +92,8 @@ function NewPurchaseOrderForm() {
   const vendor = vendors.find((v) => v.id === vendorId);
 
   useEffect(() => {
-    if (vendor?.gstin) setGstType(gstTypeForCounterparty(COMPANY_INFO.gstin, vendor.gstin));
-  }, [vendor?.gstin]);
+    if (vendor?.gstin) setGstType(gstTypeForCounterparty(company.gstin, vendor.gstin));
+  }, [vendor?.gstin, company.gstin]);
 
   async function onCreate() {
     if (!projectId || !vendorId) {

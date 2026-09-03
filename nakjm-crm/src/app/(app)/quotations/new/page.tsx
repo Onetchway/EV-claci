@@ -8,7 +8,8 @@ import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { GstTypeField, ShipToField } from "@/components/gst-fields";
 import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
-import { COMPANY_INFO, gstTypeForCounterparty, type GstType } from "@/lib/constants";
+import { useCompanyInfo } from "@/components/print-document";
+import { gstTypeForCounterparty, type GstType } from "@/lib/constants";
 import { getBoq } from "@/lib/db/boq";
 import { uploadDocument } from "@/lib/db/documents";
 import { createQuotation, computeLineTotals, nextQuotationNo, nextQuotationVersion } from "@/lib/db/quotations";
@@ -32,6 +33,7 @@ function NewQuotationForm() {
   const actor = useActor();
   const { push } = useToast();
   const { busy, run } = useAsyncAction();
+  const company = useCompanyInfo();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [quotationNo, setQuotationNo] = useState("");
@@ -101,8 +103,8 @@ function NewQuotationForm() {
   const project = projects.find((p) => p.id === projectId);
 
   useEffect(() => {
-    if (project?.billingGstin) setGstType(gstTypeForCounterparty(COMPANY_INFO.gstin, project.billingGstin));
-  }, [project?.billingGstin]);
+    if (project?.billingGstin) setGstType(gstTypeForCounterparty(company.gstin, project.billingGstin));
+  }, [project?.billingGstin, company.gstin]);
 
   async function onCreate() {
     if (!projectId || !project) {

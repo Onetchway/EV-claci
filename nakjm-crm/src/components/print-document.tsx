@@ -18,7 +18,7 @@ import { Button } from "@/components/ui";
  * Settings → Company profile (falls back to the deploy-time default while
  * that first snapshot loads, so there's no flash of blank content).
  */
-function useCompanyInfo() {
+export function useCompanyInfo() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings());
   useEffect(() => subscribeSettings(setSettings), []);
   return settings.company;
