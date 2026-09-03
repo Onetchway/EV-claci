@@ -51,6 +51,11 @@ function NewProformaInvoiceForm() {
   const [sourceQuotationId, setSourceQuotationId] = useState<string | null>(null);
   const [sourceQuotationNo, setSourceQuotationNo] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [milestoneBasis, setMilestoneBasis] = useState<"PERCENT" | "AMOUNT">("PERCENT");
+  const [milestoneValue, setMilestoneValue] = useState("");
+  const [milestoneGst, setMilestoneGst] = useState<"WITH" | "WITHOUT">("WITH");
+  const [milestoneTaxTreatment, setMilestoneTaxTreatment] = useState<"EXCLUSIVE" | "INCLUSIVE">("EXCLUSIVE");
+  const [milestoneGstPercent, setMilestoneGstPercent] = useState("18");
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
 
@@ -105,6 +110,28 @@ function NewProformaInvoiceForm() {
   useEffect(() => {
     if (project?.billingGstin) setGstType(gstTypeForCounterparty(company.gstin, project.billingGstin));
   }, [project?.billingGstin, company.gstin]);
+
+  const milestoneBaseAmount = milestoneBasis === "PERCENT"
+    ? ((project?.contractValue ?? 0) * (Number(milestoneValue) || 0)) / 100
+    : Number(milestoneValue) || 0;
+
+  function applyMilestone() {
+    if (!milestoneBaseAmount) return;
+    let rate = milestoneBaseAmount;
+    let tax = 0;
+    if (milestoneGst === "WITH") {
+      const gstPct = Number(milestoneGstPercent) || 0;
+      if (milestoneTaxTreatment === "INCLUSIVE") {
+        rate = milestoneBaseAmount / (1 + gstPct / 100);
+        tax = milestoneBaseAmount - rate;
+      } else {
+        tax = (milestoneBaseAmount * gstPct) / 100;
+      }
+    }
+    setItems([{ description: milestone.trim() || "Milestone payment", unit: "LS", qty: 1, rate: Number(rate.toFixed(2)) }]);
+    setTaxAmount(tax.toFixed(2));
+    push("Line item and tax updated from the milestone.", "success");
+  }
 
   async function onCreate() {
     if (!piNo.trim() || !projectId || !project) {
@@ -165,6 +192,45 @@ function NewProformaInvoiceForm() {
                 </label>
               </Field>
             </div>
+          </Card>
+
+          <Card title="Bill by milestone" subtitle="Optional — compute this PI's amount from the client PO's payment schedule (e.g. 30% advance, balance at delivery, final with tax) instead of entering line items by hand.">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Basis">
+                <div className="flex items-center gap-4 pt-2 text-sm">
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneBasis === "PERCENT"} onChange={() => setMilestoneBasis("PERCENT")} /> % of contract value</label>
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneBasis === "AMOUNT"} onChange={() => setMilestoneBasis("AMOUNT")} /> Fixed amount (₹)</label>
+                </div>
+              </Field>
+              <Field label={milestoneBasis === "PERCENT" ? "Percentage (%)" : "Amount (₹)"}>
+                <Input type="number" value={milestoneValue} onChange={(e) => setMilestoneValue(e.target.value)} />
+              </Field>
+              {milestoneBasis === "PERCENT" && (
+                <p className="col-span-2 -mt-2 text-xs text-ink-500">
+                  {project
+                    ? `${milestoneValue || 0}% of contract value ${formatINR(project.contractValue)} = ${formatINR(milestoneBaseAmount)}`
+                    : "Select a project above to compute this from its contract value."}
+                </p>
+              )}
+              <Field label="GST">
+                <div className="flex items-center gap-4 pt-2 text-sm">
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneGst === "WITH"} onChange={() => setMilestoneGst("WITH")} /> With GST</label>
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneGst === "WITHOUT"} onChange={() => setMilestoneGst("WITHOUT")} /> Without GST</label>
+                </div>
+              </Field>
+              {milestoneGst === "WITH" && (
+                <Field label="GST %"><Input type="number" value={milestoneGstPercent} onChange={(e) => setMilestoneGstPercent(e.target.value)} /></Field>
+              )}
+              {milestoneGst === "WITH" && (
+                <Field label="Entered value is" className="col-span-2">
+                  <div className="flex items-center gap-4 pt-2 text-sm">
+                    <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneTaxTreatment === "EXCLUSIVE"} onChange={() => setMilestoneTaxTreatment("EXCLUSIVE")} /> Without tax (GST added on top)</label>
+                    <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneTaxTreatment === "INCLUSIVE"} onChange={() => setMilestoneTaxTreatment("INCLUSIVE")} /> With tax (already includes GST)</label>
+                  </div>
+                </Field>
+              )}
+            </div>
+            <Button className="mt-3" variant="secondary" disabled={!milestoneBaseAmount} onClick={applyMilestone}>Apply to line item &amp; tax below</Button>
           </Card>
 
           <Card
