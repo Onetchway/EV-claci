@@ -32,9 +32,10 @@ export function computePoTotals(items: Omit<LineItem, "amount" | "srNo">[], gstT
     srNo: i + 1,
     description: it.description,
     unit: it.unit,
-    qty: Number(it.qty) || 0,
+    // Qty defaults to 1, not 0 -- a lump-sum line has no meaningful quantity, and a blank/0 qty should never silently zero out the amount.
+    qty: Number(it.qty) || 1,
     rate: Number(it.rate) || 0,
-    amount: (Number(it.qty) || 0) * (Number(it.rate) || 0),
+    amount: (Number(it.qty) || 1) * (Number(it.rate) || 0),
     hsnCode: it.hsnCode,
     gstPercent: Number(it.gstPercent) || 0,
   }));

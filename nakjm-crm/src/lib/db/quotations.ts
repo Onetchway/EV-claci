@@ -22,9 +22,10 @@ export function computeLineTotals(items: Omit<LineItem, "amount" | "srNo">[], ta
     srNo: i + 1,
     description: it.description,
     unit: it.unit,
-    qty: Number(it.qty) || 0,
+    // Qty defaults to 1, not 0 -- a lump-sum line (an advance, a milestone payment) has no meaningful quantity, and a blank/0 qty should never silently zero out the amount.
+    qty: Number(it.qty) || 1,
     rate: Number(it.rate) || 0,
-    amount: (Number(it.qty) || 0) * (Number(it.rate) || 0),
+    amount: (Number(it.qty) || 1) * (Number(it.rate) || 0),
     hsnCode: it.hsnCode,
   }));
   const subtotal = withAmounts.reduce((s, it) => s + it.amount, 0);

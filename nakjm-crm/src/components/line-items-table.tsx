@@ -67,8 +67,8 @@ export function ItemsTable<T extends Record<string, unknown>>({
           )}
           {showAmount && (
             <p className="mt-2 text-right text-xs text-ink-500">
-              Amount: <span className={`font-semibold tabular-nums ${(Number(it.qty) || 0) * (Number(it.rate) || 0) ? "text-ink-800" : "text-rose-600"}`}>{formatINR((Number(it.qty) || 0) * (Number(it.rate) || 0))}</span>
-              {!(Number(it.qty) || 0) && " — Qty is 0, so this line adds nothing to the total."}
+              Amount: <span className="font-semibold tabular-nums text-ink-800">{formatINR((Number(it.qty) || 1) * (Number(it.rate) || 0))}</span>
+              {!(Number(it.qty) || 0) && " — Qty left blank/0, treated as 1 (a lump-sum line, e.g. an advance)."}
             </p>
           )}
         </div>
