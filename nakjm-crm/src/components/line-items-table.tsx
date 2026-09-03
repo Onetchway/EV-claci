@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui";
 import type { BoqLineItem, LineItem } from "@/lib/types";
+import { formatINR } from "@/lib/utils";
 
 /**
  * Each line item renders as its own full-width block, description on its own
@@ -21,8 +22,10 @@ export function ItemsTable<T extends Record<string, unknown>>({
 }) {
   const descField = fields.find((f) => f.key === "description");
   const otherFields = fields.filter((f) => f.key !== "description");
+  // Qty defaults to 1, not 0 -- a fresh row left at qty 0 silently zeroes out its amount (qty x rate) with no visible warning.
+  const showAmount = fields.some((f) => f.key === "qty") && fields.some((f) => f.key === "rate");
 
-  const addRow = () => setItems([...items, Object.fromEntries(fields.map((f) => [f.key, f.type === "number" ? 0 : ""])) as T]);
+  const addRow = () => setItems([...items, Object.fromEntries(fields.map((f) => [f.key, f.key === "qty" ? 1 : f.type === "number" ? 0 : ""])) as T]);
   const update = (i: number, key: keyof T, value: string) =>
     setItems(items.map((it, idx) => (idx === i ? { ...it, [key]: value } : it)));
   const remove = (i: number) => setItems(items.filter((_, idx) => idx !== i));
@@ -61,6 +64,12 @@ export function ItemsTable<T extends Record<string, unknown>>({
                 </div>
               ))}
             </div>
+          )}
+          {showAmount && (
+            <p className="mt-2 text-right text-xs text-ink-500">
+              Amount: <span className={`font-semibold tabular-nums ${(Number(it.qty) || 0) * (Number(it.rate) || 0) ? "text-ink-800" : "text-rose-600"}`}>{formatINR((Number(it.qty) || 0) * (Number(it.rate) || 0))}</span>
+              {!(Number(it.qty) || 0) && " — Qty is 0, so this line adds nothing to the total."}
+            </p>
           )}
         </div>
       ))}
