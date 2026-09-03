@@ -6,15 +6,17 @@ import { useEffect, useState } from "react";
 import { BankDetailsPrintBlock, PrintFooter, PrintHeader, PrintSheet, PrintToolbar, useDocumentTitle } from "@/components/print-document";
 import { EmptyState, Spinner } from "@/components/ui";
 import { getClient } from "@/lib/db/clients";
+import { getProject } from "@/lib/db/projects";
 import { getProformaInvoice } from "@/lib/db/proforma-invoices";
 import { defaultSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
-import type { Client, ProformaInvoice } from "@/lib/types";
+import type { Client, ProformaInvoice, Project } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
 export default function ProformaInvoicePrintPage() {
   const { id, piid } = useParams<{ id: string; piid: string }>();
   const [pi, setPi] = useState<ProformaInvoice | null | undefined>(undefined);
   const [client, setClient] = useState<Client | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings());
 
   useEffect(() => {
@@ -22,8 +24,13 @@ export default function ProformaInvoicePrintPage() {
       setPi(row);
       if (row?.clientId) setClient(await getClient(row.clientId));
     });
-  }, [piid]);
+    void getProject(id).then(setProject);
+  }, [id, piid]);
   useEffect(() => subscribeSettings(setSettings), []);
+
+  // The project's billed-under GSTIN (state-specific, set at project creation/edit) is what the tax
+  // type was computed from -- fall back to the client's default GSTIN only if the project has none.
+  const billedGstin = project?.billingGstin || client?.gstin;
   useDocumentTitle(pi ? `NAKJM PI ${pi.piNo}` : undefined);
 
   if (pi === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
@@ -48,7 +55,7 @@ export default function ProformaInvoicePrintPage() {
             {client?.contactName && <p className="text-ink-600">{client.contactName}</p>}
             {client?.contactPhone && <p className="text-ink-600">{client.contactPhone}</p>}
             {client?.contactEmail && <p className="text-ink-600">{client.contactEmail}</p>}
-            {client?.gstin && <p className="text-ink-600">GSTIN: {client.gstin}</p>}
+            {billedGstin && <p className="text-ink-600">GSTIN: {billedGstin}</p>}
             {pi.clientPoNumber && <p className="text-ink-600">Client PO: {pi.clientPoNumber}</p>}
           </div>
           <div className="text-right">

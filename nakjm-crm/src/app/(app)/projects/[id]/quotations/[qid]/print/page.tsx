@@ -6,22 +6,29 @@ import { useEffect, useState } from "react";
 import { PrintFooter, PrintHeader, PrintSheet, PrintToolbar, useDocumentTitle } from "@/components/print-document";
 import { EmptyState, Spinner } from "@/components/ui";
 import { getClient } from "@/lib/db/clients";
+import { getProject } from "@/lib/db/projects";
 import { getQuotation } from "@/lib/db/quotations";
-import type { Client, Quotation } from "@/lib/types";
+import type { Client, Project, Quotation } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
 export default function QuotationPrintPage() {
   const { id, qid } = useParams<{ id: string; qid: string }>();
   const [q, setQ] = useState<Quotation | null | undefined>(undefined);
   const [client, setClient] = useState<Client | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
 
   useEffect(() => {
     void getQuotation(qid).then(async (row) => {
       setQ(row);
       if (row?.clientId) setClient(await getClient(row.clientId));
     });
-  }, [qid]);
+    void getProject(id).then(setProject);
+  }, [id, qid]);
   useDocumentTitle(q ? `NAKJM Quotation ${q.quotationNo}` : undefined);
+
+  // The project's billed-under GSTIN (state-specific, set at project creation/edit) is what the tax
+  // type was computed from -- fall back to the client's default GSTIN only if the project has none.
+  const billedGstin = project?.billingGstin || client?.gstin;
 
   if (q === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (q === null) return <EmptyState title="Quotation not found" />;
@@ -45,7 +52,7 @@ export default function QuotationPrintPage() {
             {client?.contactName && <p className="text-ink-600">{client.contactName}</p>}
             {client?.contactPhone && <p className="text-ink-600">{client.contactPhone}</p>}
             {client?.contactEmail && <p className="text-ink-600">{client.contactEmail}</p>}
-            {client?.gstin && <p className="text-ink-600">GSTIN: {client.gstin}</p>}
+            {billedGstin && <p className="text-ink-600">GSTIN: {billedGstin}</p>}
           </div>
           <div className="text-right">
             <p className="text-xs text-ink-500">Project</p>
