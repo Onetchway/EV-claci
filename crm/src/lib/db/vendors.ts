@@ -35,6 +35,9 @@ async function nextVendorCode(): Promise<string> {
 
 export interface VendorDraft {
   name: string;
+  /** Set to engage this vendor as a subcontractor of another vendor rather than directly. */
+  parentVendorId?: string | null;
+  parentVendorName?: string | null;
   category: VendorCategory;
   contactName?: string;
   phone: string;
@@ -58,6 +61,8 @@ export async function createVendor(draft: VendorDraft, actor: Actor): Promise<{ 
     code,
     orgId,
     name: draft.name,
+    parentVendorId: draft.parentVendorId ?? null,
+    parentVendorName: draft.parentVendorName ?? null,
     category: draft.category,
     contactName: draft.contactName ?? "",
     phone: draft.phone,

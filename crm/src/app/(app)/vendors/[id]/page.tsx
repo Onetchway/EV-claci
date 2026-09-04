@@ -3,22 +3,23 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { FileText, Plus, Star, Trash2 } from "lucide-react";
+import { Briefcase, FileText, Plus, Star, Trash2, Users } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select,
-  Spinner, Textarea, useAsyncAction,
+  Spinner, Textarea, useAsyncAction, useToast,
 } from "@/components/ui";
 import {
-  PO_STATUS_COLOR, PO_STATUS_LABEL, VENDOR_CATEGORIES, VENDOR_CATEGORY_LABEL,
+  ASSIGNMENT_STATUS_META, PO_STATUS_COLOR, PO_STATUS_LABEL, VENDOR_CATEGORIES, VENDOR_CATEGORY_LABEL,
   VENDOR_STATUSES, type VendorCategory, type VendorStatus,
 } from "@/lib/constants";
 import { subscribePurchaseOrders } from "@/lib/db/purchase-orders";
-import { subscribeVendor, trashVendor, updateVendor } from "@/lib/db/vendors";
+import { createVendor, subscribeVendor, subscribeVendors, trashVendor, updateVendor } from "@/lib/db/vendors";
 import { rateVendor, subscribeVendorRatings } from "@/lib/db/vendor-ratings";
-import { canManageVendors, canTrash } from "@/lib/permissions";
-import type { PurchaseOrder, Vendor, VendorRating } from "@/lib/types";
+import { subscribeVendorAssignments } from "@/lib/db/vendor-assignments";
+import { canManageVendorAssignments, canManageVendors, canTrash } from "@/lib/permissions";
+import type { PurchaseOrder, Vendor, VendorAssignment, VendorRating } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 export default function VendorDetailPage() {
@@ -26,9 +27,12 @@ export default function VendorDetailPage() {
   const router = useRouter();
   const { actor } = useAuth();
   const viewer = useViewer();
+  const { push } = useToast();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [ratings, setRatings] = useState<VendorRating[]>([]);
+  const [allVendors, setAllVendors] = useState<Vendor[]>([]);
+  const [assignments, setAssignments] = useState<VendorAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
@@ -36,8 +40,11 @@ export default function VendorDetailPage() {
   const [rateValue, setRateValue] = useState(5);
   const [rateNote, setRateNote] = useState("");
   const [form, setForm] = useState<Partial<Vendor>>({});
+  const [subVendorOpen, setSubVendorOpen] = useState(false);
+  const [subVendorForm, setSubVendorForm] = useState({ name: "", category: "OTHER" as VendorCategory, phone: "" });
   const { busy, run } = useAsyncAction();
   const { busy: rating, run: runRate } = useAsyncAction();
+  const { busy: addingSub, run: runAddSub } = useAsyncAction();
 
   useEffect(
     () => subscribeVendor(params.id, (v) => { setVendor(v); setLoading(false); }, () => setLoading(false)),
@@ -45,6 +52,21 @@ export default function VendorDetailPage() {
   );
   useEffect(() => subscribePurchaseOrders({ vendorId: params.id }, setPos), [params.id]);
   useEffect(() => subscribeVendorRatings(params.id, setRatings), [params.id]);
+  useEffect(() => subscribeVendors(setAllVendors), []);
+  useEffect(() => subscribeVendorAssignments({ vendorId: params.id }, setAssignments), [params.id]);
+
+  const subVendors = allVendors.filter((v) => v.parentVendorId === params.id);
+  const parentVendor = vendor?.parentVendorId ? allVendors.find((v) => v.id === vendor.parentVendorId) : null;
+
+  async function addSubVendor() {
+    if (!actor || !vendor || !subVendorForm.name.trim() || !subVendorForm.phone.trim()) {
+      push("Name and phone are required.", "error");
+      return;
+    }
+    await createVendor({ ...subVendorForm, parentVendorId: vendor.id, parentVendorName: vendor.name }, actor);
+    setSubVendorOpen(false);
+    setSubVendorForm({ name: "", category: "OTHER", phone: "" });
+  }
 
   async function submitRating() {
     if (!actor) return;
@@ -84,7 +106,14 @@ export default function VendorDetailPage() {
     <>
       <PageHeader
         title={vendor.name}
-        description={`${vendor.code} · ${VENDOR_CATEGORY_LABEL[vendor.category]}`}
+        description={(
+          <>
+            {vendor.code} · {VENDOR_CATEGORY_LABEL[vendor.category]}
+            {parentVendor && (
+              <> · Sub-vendor of <Link href={`/vendors/${parentVendor.id}`} className="text-brand-700 hover:underline">{parentVendor.name}</Link></>
+            )}
+          </>
+        )}
         actions={
           <>
             <Badge className={vendor.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-ink-100 text-ink-600 ring-ink-200"}>
@@ -232,6 +261,82 @@ export default function VendorDetailPage() {
             </div>
           </Field>
           <Field label="Note (optional)"><Textarea value={rateNote} onChange={(e) => setRateNote(e.target.value)} /></Field>
+        </div>
+      </Modal>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Card
+          title="Sub-vendors"
+          subtitle="Subcontractors this vendor itself engages"
+          actions={canManageVendors(viewer) && <Button size="sm" onClick={() => setSubVendorOpen(true)}><Plus className="h-3.5 w-3.5" /> Add sub-vendor</Button>}
+        >
+          {subVendors.length === 0 ? (
+            <EmptyState icon={<Users className="h-6 w-6" />} title="No sub-vendors" description="Add one if this vendor subcontracts part of its work." />
+          ) : (
+            <ul className="divide-y divide-ink-100">
+              {subVendors.map((sv) => (
+                <li key={sv.id} className="flex items-center justify-between py-2 text-sm">
+                  <Link href={`/vendors/${sv.id}`} className="font-medium text-brand-700 hover:underline">{sv.name}</Link>
+                  <span className="text-xs text-ink-500">{VENDOR_CATEGORY_LABEL[sv.category]}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card
+          title="Work assignments"
+          subtitle="Milestones, payment terms, penalty clause and timeline per work package"
+          actions={canManageVendorAssignments(viewer) && (
+            <Link href={`/vendor-assignments/new?vendorId=${vendor.id}`}>
+              <Button size="sm" variant="primary"><Plus className="h-3.5 w-3.5" /> New assignment</Button>
+            </Link>
+          )}
+        >
+          {assignments.length === 0 ? (
+            <EmptyState icon={<Briefcase className="h-6 w-6" />} title="No assignments yet" />
+          ) : (
+            <ul className="divide-y divide-ink-100">
+              {assignments.map((a) => (
+                <li key={a.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                  <div className="min-w-0">
+                    <Link href={`/vendor-assignments/${a.id}`} className="truncate font-medium text-brand-700 hover:underline">{a.title}</Link>
+                    <p className="truncate text-xs text-ink-500">{a.projectName} · {formatINR(a.contractAmount)}</p>
+                  </div>
+                  <Badge className={ASSIGNMENT_STATUS_META[a.status].className}>{ASSIGNMENT_STATUS_META[a.status].label}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      <Modal
+        open={subVendorOpen}
+        onClose={() => setSubVendorOpen(false)}
+        title={`Add a sub-vendor of ${vendor.name}`}
+        footer={(
+          <>
+            <Button onClick={() => setSubVendorOpen(false)}>Cancel</Button>
+            <Button variant="primary" loading={addingSub} onClick={() => void runAddSub(addSubVendor, "Sub-vendor added.")}>Add</Button>
+          </>
+        )}
+      >
+        <div className="space-y-3">
+          <Field label="Name" required>
+            <Input value={subVendorForm.name} onChange={(e) => setSubVendorForm((f) => ({ ...f, name: e.target.value }))} />
+          </Field>
+          <Field label="Category">
+            <Select
+              value={subVendorForm.category}
+              onChange={(e) => setSubVendorForm((f) => ({ ...f, category: e.target.value as VendorCategory }))}
+              options={VENDOR_CATEGORIES.map((c) => ({ value: c, label: VENDOR_CATEGORY_LABEL[c] }))}
+            />
+          </Field>
+          <Field label="Phone" required>
+            <Input value={subVendorForm.phone} onChange={(e) => setSubVendorForm((f) => ({ ...f, phone: e.target.value }))} />
+          </Field>
+          <p className="text-xs text-ink-500">Everything else (bank details, GSTIN, payment terms) can be filled in from its own vendor page afterward.</p>
         </div>
       </Modal>
 

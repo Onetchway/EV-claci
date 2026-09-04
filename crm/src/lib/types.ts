@@ -13,7 +13,7 @@ import type {
   ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
   TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
-  WebhookEvent, WeekDay, Workstream, TenderStatus, BoqCategory, BoqStatus,
+  WebhookEvent, WeekDay, Workstream, TenderStatus, BoqCategory, BoqStatus, AssignmentStatus, MilestoneStatus,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -654,6 +654,9 @@ export interface Vendor {
   /** Human-friendly reference, e.g. LG-VN-0004. */
   code: string;
   name: string;
+  /** Set when this vendor is itself a subcontractor engaged BY another vendor (e.g. a civil contractor's own electrical sub-vendor) rather than directly by the company — the parent vendor still carries the prime contract; this one's own work is tracked through vendorAssignments the same way any vendor's is. */
+  parentVendorId?: string | null;
+  parentVendorName?: string | null;
   category: VendorCategory;
   contactName?: string;
   phone: string;
@@ -1594,6 +1597,9 @@ export interface Project {
   /** The won lead this was converted from, when there is one. */
   sourceLeadId?: string | null;
   sourceLeadCode?: string | null;
+  /** Set when this project is itself a sub-project of another (e.g. a site's civil-works phase tracked separately from the parent installation project) — vendorAssignments can target either the parent or any of its sub-projects. */
+  parentProjectId?: string | null;
+  parentProjectCode?: string | null;
   targetLiveAt?: TS;
   liveAt?: TS;
   note?: string;
@@ -2051,6 +2057,58 @@ export interface Boq {
   revisedFrom?: string | null;
   approval?: DocApproval | null;
   orgId?: string | null;
+  search: string[];
+  createdAt: TS;
+  updatedAt?: TS;
+  createdBy?: Actor;
+}
+
+// ---------------------------------------------------------------------------
+// Vendor Assignments — a work package handed to a vendor/sub-vendor
+// ---------------------------------------------------------------------------
+
+export interface AssignmentMilestone {
+  id: string;
+  name: string;
+  dueDate?: TS | null;
+  amount?: number;
+  status: MilestoneStatus;
+  completedAt?: TS | null;
+  notes?: string;
+}
+
+export interface VendorAssignment {
+  id: string;
+  assignmentNo: string;
+  vendorId: string;
+  vendorName: string;
+  /** Set only when vendorId is itself a sub-vendor (Vendor.parentVendorId) — carried here too so this doesn't need a join to show "via <parent>" on a list row. */
+  parentVendorId?: string | null;
+  parentVendorName?: string | null;
+  projectId: string;
+  projectName: string;
+  title: string;
+  scope?: string;
+  status: AssignmentStatus;
+  contractAmount: number;
+  paymentTerms?: string;
+  penaltyClause?: string;
+  startDate?: TS | null;
+  deadline?: TS | null;
+  milestones: AssignmentMilestone[];
+  /** Optional references to the commercial documents this work package is actually billed/procured through — an assignment is the umbrella scope, these are how money actually moves under it. */
+  linkedQuotationId?: string | null;
+  linkedQuotationNo?: string | null;
+  linkedPoId?: string | null;
+  linkedPoNo?: string | null;
+  linkedPiId?: string | null;
+  linkedPiNo?: string | null;
+  linkedBoqId?: string | null;
+  linkedBoqNo?: string | null;
+  notes?: string;
+  orgId?: string | null;
+  deletedAt?: TS | null;
+  deletedBy?: Actor | null;
   search: string[];
   createdAt: TS;
   updatedAt?: TS;

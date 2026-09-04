@@ -518,6 +518,16 @@ service cloud.firestore {
       allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting();
     }
 
+    // A scope of work handed to a vendor or one of its own sub-vendors, for
+    // a project or sub-project — same write bar as the vendor/PO records it
+    // links.
+    match /vendorAssignments/{assignmentId} {
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgIncoming();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting();
+    }
+
     // One immutable event per rating — no update/delete, matching
     // rateVendor()'s "never edited after creation" contract; a correction
     // is a fresh rating; write bar matches vendors' own update rule since
@@ -1131,7 +1141,7 @@ service cloud.firestore {
     // (shown on each document's own detail page) is too.
     match /changeLog/{entryId} {
       allow read: if isAdmin()
-                  || (signedIn() && resource.data.entityType in ['QUOTATION', 'PROFORMA_INVOICE', 'PURCHASE_ORDER', 'TENDER', 'BOQ']);
+                  || (signedIn() && resource.data.entityType in ['QUOTATION', 'PROFORMA_INVOICE', 'PURCHASE_ORDER', 'TENDER', 'BOQ', 'VENDOR_ASSIGNMENT']);
       allow create: if signedIn() && actorIsSelf('actor');
       allow update, delete: if false;
     }

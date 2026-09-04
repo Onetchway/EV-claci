@@ -1738,3 +1738,32 @@ export const BOQ_CATEGORY_LABEL: Record<BoqCategory, string> = {
   HT: "HT Works", LT: "LT Works", CIVIL: "Civil Work", MEP: "MEP", CHARGER: "Charger Installation", OTHER: "Other Works",
 };
 
+// ---------------------------------------------------------------------------
+// Vendor Assignments — a scope of work (with its own milestones, payment
+// terms, penalty clause and timeline) handed to a vendor or one of its own
+// sub-vendors, for a project or any of its sub-projects. Distinct from a
+// Purchase Order: a PO buys specific line items; an assignment is the
+// broader work-package contract a PO/PI/Quotation/BOQ can then attach to.
+// ---------------------------------------------------------------------------
+
+export const ASSIGNMENT_STATUSES = ["DRAFT", "ACTIVE", "ON_HOLD", "COMPLETED", "TERMINATED"] as const;
+export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
+
+export const ASSIGNMENT_STATUS_META: Record<AssignmentStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  ACTIVE: { label: "Active", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  ON_HOLD: { label: "On hold", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  COMPLETED: { label: "Completed", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  TERMINATED: { label: "Terminated", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+
+export const MILESTONE_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED", "DELAYED"] as const;
+export type MilestoneStatus = (typeof MILESTONE_STATUSES)[number];
+
+export const MILESTONE_STATUS_META: Record<MilestoneStatus, { label: string; className: string }> = {
+  PENDING: { label: "Pending", className: "bg-ink-100 text-ink-600 ring-ink-200" },
+  IN_PROGRESS: { label: "In progress", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  COMPLETED: { label: "Completed", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  DELAYED: { label: "Delayed", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+

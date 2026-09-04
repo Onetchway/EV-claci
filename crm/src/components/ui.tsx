@@ -227,7 +227,7 @@ export function EmptyState({
 export function PageHeader({
   title, description, actions, className,
 }: {
-  title: string; description?: string; actions?: ReactNode; className?: string;
+  title: string; description?: ReactNode; actions?: ReactNode; className?: string;
 }) {
   return (
     <div className={cn("mb-5 flex flex-wrap items-end justify-between gap-3", className)}>
