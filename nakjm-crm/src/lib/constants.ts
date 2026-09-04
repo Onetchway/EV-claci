@@ -158,6 +158,30 @@ export const SITE_VISIT_STATUS_META: Record<SiteVisitStatus, { label: string; cl
 };
 
 // ---------------------------------------------------------------------------
+// Sub-vendor contracts (work subcontracted out to a vendor, with its own stages/payment schedule)
+// ---------------------------------------------------------------------------
+
+export const SUB_VENDOR_CONTRACT_STATUSES = ["DRAFT", "ACTIVE", "DELAYED", "COMPLETED", "TERMINATED"] as const;
+export type SubVendorContractStatus = (typeof SUB_VENDOR_CONTRACT_STATUSES)[number];
+
+export const SUB_VENDOR_CONTRACT_STATUS_META: Record<SubVendorContractStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  ACTIVE: { label: "Active", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  DELAYED: { label: "Delayed", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  COMPLETED: { label: "Completed", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  TERMINATED: { label: "Terminated", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+
+export const SUB_VENDOR_PAYMENT_STATUSES = ["PENDING", "INVOICED", "PAID"] as const;
+export type SubVendorPaymentStatus = (typeof SUB_VENDOR_PAYMENT_STATUSES)[number];
+
+export const SUB_VENDOR_PAYMENT_STATUS_META: Record<SubVendorPaymentStatus, { label: string; className: string }> = {
+  PENDING: { label: "Pending", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  INVOICED: { label: "Invoiced", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  PAID: { label: "Paid", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Quotations / BOQ / PO / PI
 // ---------------------------------------------------------------------------
 
@@ -418,7 +442,8 @@ export const HANDOVER_STAGE_LABEL: Record<HandoverStage, string> = {
 
 export const ACTIVITY_ENTITY_TYPES = [
   "CLIENT", "VENDOR", "PROJECT", "TENDER", "RFQ", "QUOTATION", "BOQ", "PURCHASE_ORDER",
-  "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "SITE_VISIT", "TEAM_MEMBER", "USER", "ASSET",
+  "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "SITE_VISIT", "SUB_VENDOR_CONTRACT",
+  "TEAM_MEMBER", "USER", "ASSET",
   "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
   "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST",
 ] as const;
@@ -438,6 +463,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   VENDOR_PAYMENT: "Vendor Payment",
   SITE_REPORT: "Site Report",
   SITE_VISIT: "Site Visit",
+  SUB_VENDOR_CONTRACT: "Sub-Vendor Contract",
   TEAM_MEMBER: "Team Member",
   USER: "User",
   ASSET: "Asset",

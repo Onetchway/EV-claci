@@ -5,7 +5,8 @@ import type {
   ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, EmploymentType,
   HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus, LeaveType, NcrStatus,
   PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus,
-  RfqStatus, Role, RollStatus, SiteReportType, SiteVisitStatus, StageStatus, TaskStatus, TenderStatus, VendorCategory,
+  RfqStatus, Role, RollStatus, SiteReportType, SiteVisitStatus, StageStatus, SubVendorContractStatus, TaskStatus,
+  TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -430,6 +431,54 @@ export interface ProjectStage {
   updatedAt: TS;
 }
 
+/** One work stage within a sub-vendor's contract -- its own mini timeline, distinct from the parent project's own Stages tab. */
+export interface SubVendorStage {
+  name: string;
+  status: StageStatus;
+  startDate?: TS;
+  endDate?: TS;
+  amount?: number;
+  notes?: string;
+}
+
+/** One payment milestone in a sub-vendor's contract -- mirrors how PIs bill a client, but for what NAKJM owes the sub-vendor. */
+export interface SubVendorPaymentTerm {
+  milestone: string;
+  percent?: number;
+  amount?: number;
+  status: "PENDING" | "INVOICED" | "PAID";
+}
+
+/**
+ * A work package NAKJM has subcontracted out -- assigns a vendor to a project (or sub-project) with
+ * its own stages, payment schedule, and penalty clause, distinct from a one-off Purchase Order.
+ * PO/PI/Quotation/BOQ for the same engagement live in their own collections, linked by project + vendor.
+ */
+export interface SubVendorContract {
+  id: string;
+  contractNo: string;
+  projectId: string;
+  projectName: string;
+  vendorId: string;
+  vendorName: string;
+  scopeOfWork: string;
+  contractValue: number;
+  status: SubVendorContractStatus;
+  startDate?: TS;
+  targetEndDate?: TS;
+  stages: SubVendorStage[];
+  paymentTerms: SubVendorPaymentTerm[];
+  penaltyClause?: string;
+  penaltyAmount?: number;
+  penaltyTimelineDays?: number;
+  terms?: string;
+  notes?: string;
+  createdAt: TS;
+  updatedAt: TS;
+  createdBy?: Actor;
+  updatedBy?: Actor;
+}
+
 /** A dated site photo filed against one stage — a name/caption and details, alongside the image itself. */
 export interface StageProgressPhoto {
   id: string;
@@ -682,7 +731,7 @@ export interface NakjmDocument {
   id: string;
   projectId?: string | null;
   /** When set, this document is filed against a specific BOQ/PO/Quotation/PI rather than just the project. */
-  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | "RFQ" | "SITE_VISIT" | null;
+  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | "RFQ" | "SITE_VISIT" | "SUB_VENDOR_CONTRACT" | null;
   linkedEntityId?: string | null;
   docType: DocumentCategory;
   fileName: string;
