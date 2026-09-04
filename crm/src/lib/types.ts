@@ -1744,7 +1744,7 @@ export interface OfficeLocation {
   updatedBy?: Actor | null;
 }
 
-export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "WEEK_OFF" | "HOLIDAY";
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "WEEK_OFF" | "HOLIDAY" | "WORK_FROM_HOME";
 
 export interface AttendancePunch {
   at: TS;
@@ -1822,6 +1822,44 @@ export interface LeaveRequest {
   days: number;
   reason?: string;
   status: LeaveStatus;
+  appliedAt: TS;
+  appliedBy?: Actor | null;
+  decidedAt?: TS | null;
+  decidedBy?: Actor | null;
+  decisionNote?: string;
+}
+
+/**
+ * Shared request+approval shape for two employee-facing exceptions to their
+ * attendance record, distinguished by `kind`:
+ *  - "WFH": today only (fromDate === toDate === today), asks to be marked
+ *    WORK_FROM_HOME instead of needing a geofenced check-in.
+ *  - "REGULARIZATION": a date range within last-calendar-month..today, asks
+ *    for a correction (e.g. a forgotten punch) with an optional desired
+ *    status and backfilled check-in/check-out times.
+ * On approval, a manager/admin decision is applied via markAttendance (see
+ * db/attendance.ts) once per date in [fromDate, toDate] — this doc itself
+ * never writes attendance records directly. Mirrors LeaveRequest's lifecycle
+ * shape exactly (see db/leave.ts).
+ */
+export type AttendanceRequestKind = "WFH" | "REGULARIZATION";
+export type AttendanceRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+export interface AttendanceRequest {
+  id: string;
+  uid: string;
+  userName: string;
+  kind: AttendanceRequestKind;
+  /** yyyy-mm-dd, inclusive. For WFH always equal to toDate and to today. */
+  fromDate: string;
+  toDate: string;
+  reason?: string;
+  /** Status to apply on approval — defaults to PRESENT (WFH requests always resolve to WORK_FROM_HOME regardless of this field). */
+  desiredStatus?: AttendanceStatus;
+  /** "HH:MM", regularization only — optionally backfills a punch time on approval. */
+  requestedCheckIn?: string;
+  requestedCheckOut?: string;
+  status: AttendanceRequestStatus;
   appliedAt: TS;
   appliedBy?: Actor | null;
   decidedAt?: TS | null;

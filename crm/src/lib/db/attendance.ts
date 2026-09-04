@@ -138,8 +138,8 @@ export async function getAttendanceMonth(uid: string, monthStart: string, monthE
  * this can't lean on attendance alone to know who was on paid leave — it
  * falls back to the simplest defensible rule: a day counts as paid unless
  * it's explicitly marked ABSENT or left unmarked (PRESENT/ON_LEAVE/
- * WEEK_OFF/HOLIDAY all pay in full, HALF_DAY pays half and counts toward
- * `halfDays`; ABSENT/unmarked count toward `absentDays`). This is
+ * WEEK_OFF/HOLIDAY/WORK_FROM_HOME all pay in full, HALF_DAY pays half and
+ * counts toward `halfDays`; ABSENT/unmarked count toward `absentDays`). This is
  * deliberately a starting point, not a verdict — the payroll generator
  * surfaces the counts as editable fields per employee so an operator can
  * correct them before finalizing a payslip (see computeLossOfPay in
@@ -157,7 +157,7 @@ export function computeAttendanceBreakdown(
     const status = byDate.get(`${year}-${mm}-${String(day).padStart(2, "0")}`);
     if (status === "HALF_DAY") { paid += 0.5; halfDays += 1; }
     else if (status === "ABSENT" || status === undefined) { absentDays += 1; }
-    else paid += 1; // PRESENT, ON_LEAVE, WEEK_OFF, HOLIDAY
+    else paid += 1; // PRESENT, ON_LEAVE, WEEK_OFF, HOLIDAY, WORK_FROM_HOME
   }
   return { paidDays: paid, absentDays, halfDays };
 }

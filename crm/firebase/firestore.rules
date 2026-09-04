@@ -569,6 +569,26 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Employee self-service attendance exceptions (WFH for today, or a
+    // regularization correction for a past date range) — same lifecycle and
+    // authorization shape as leaveRequests above: role-only at the rules
+    // layer (no managerId scoping here either; that narrowing happens
+    // client-side in the Approvals tab).
+    match /attendanceRequests/{attendanceRequestId} {
+      allow read: if canManageHrms() || resource.data.uid == uid();
+      // An employee applies for their own request, starting PENDING.
+      allow create: if signedIn()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.status == 'PENDING';
+      // A manager/admin approves or rejects; the employee themself may only
+      // cancel their own still-pending request.
+      allow update: if (canManageHrms() && request.resource.data.uid == resource.data.uid)
+                    || (resource.data.uid == uid()
+                        && resource.data.status == 'PENDING'
+                        && request.resource.data.status == 'CANCELLED');
+      allow delete: if isAdmin();
+    }
+
     // --------------------------------------------------------- OCPP / chargers
 
     // Written only by the standalone OCPP central system (ocpp-server/),
