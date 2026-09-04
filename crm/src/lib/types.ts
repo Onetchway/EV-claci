@@ -669,12 +669,29 @@ export interface Vendor {
   notes?: string;
   totalOrdered: number;
   totalPaid: number;
+  /** Denormalized from vendorRatings (see lib/db/vendor-ratings.ts) so list views can sort/show a score without a join. */
+  avgRating?: number;
+  ratingCount?: number;
   createdAt: TS;
   createdBy?: Actor | null;
   updatedAt?: TS;
   updatedBy?: Actor | null;
   deletedAt?: TS | null;
   deletedBy?: Actor | null;
+}
+
+/** One immutable rating event for a vendor — e.g. after a purchase order closes out. Never edited after creation; a correction is a fresh rating, so the average reflects real history rather than a rewritten one. */
+export interface VendorRating {
+  id: string;
+  vendorId: string;
+  rating: number;
+  note?: string;
+  /** The purchase order this rating followed from, if any. */
+  poId?: string | null;
+  poNo?: string | null;
+  orgId?: string | null;
+  createdAt: TS;
+  createdBy?: Actor;
 }
 
 export interface PoItem {

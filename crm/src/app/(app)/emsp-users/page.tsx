@@ -15,7 +15,7 @@ import {
   createCorporateAccount, createEmspUser, deleteCorporateAccount, deleteEmspUser, setEmspUserActive,
   subscribeCorporateAccounts, subscribeEmspUsers, updateCorporateAccount, updateEmspUser,
 } from "@/lib/db/emsp-users";
-import { EMSP_USER_TYPE_LABEL, EMSP_USER_TYPES } from "@/lib/constants";
+import { EMSP_USER_TYPE_LABEL, EMSP_USER_TYPES, INDIAN_STATES } from "@/lib/constants";
 import { emailPaymentReceipt } from "@/lib/db/notifications";
 import { subscribeOrganizations } from "@/lib/db/organizations";
 import { canManageEmspUsers, hasRole, isSuperAdmin } from "@/lib/permissions";
@@ -308,7 +308,14 @@ export default function EmspUsersPage() {
           <Field label="Email"><Input value={uEmail} onChange={(e) => setUEmail(e.target.value)} /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="City"><Input value={uCity} onChange={(e) => setUCity(e.target.value)} placeholder="Optional — used for city/state-restricted coupons" /></Field>
-            <Field label="State"><Input value={uState} onChange={(e) => setUState(e.target.value)} placeholder="Optional" /></Field>
+            <Field label="State">
+              <Select
+                value={uState}
+                onChange={(e) => setUState(e.target.value)}
+                placeholder="Optional"
+                options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
+              />
+            </Field>
           </div>
           <Field label="Type">
             <Select value={uType} onChange={(e) => setUType(e.target.value as "RETAIL" | "CORPORATE")} options={EMSP_USER_TYPES.map((t) => ({ value: t, label: EMSP_USER_TYPE_LABEL[t] }))} />

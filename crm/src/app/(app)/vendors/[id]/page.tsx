@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { FileText, Plus, Trash2 } from "lucide-react";
+import { FileText, Plus, Star, Trash2 } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -16,9 +16,10 @@ import {
 } from "@/lib/constants";
 import { subscribePurchaseOrders } from "@/lib/db/purchase-orders";
 import { subscribeVendor, trashVendor, updateVendor } from "@/lib/db/vendors";
+import { rateVendor, subscribeVendorRatings } from "@/lib/db/vendor-ratings";
 import { canManageVendors, canTrash } from "@/lib/permissions";
-import type { PurchaseOrder, Vendor } from "@/lib/types";
-import { formatDate, formatINR } from "@/lib/utils";
+import type { PurchaseOrder, Vendor, VendorRating } from "@/lib/types";
+import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 export default function VendorDetailPage() {
   const params = useParams<{ id: string }>();
@@ -27,17 +28,33 @@ export default function VendorDetailPage() {
   const viewer = useViewer();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
+  const [ratings, setRatings] = useState<VendorRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [rateOpen, setRateOpen] = useState(false);
+  const [rateValue, setRateValue] = useState(5);
+  const [rateNote, setRateNote] = useState("");
   const [form, setForm] = useState<Partial<Vendor>>({});
   const { busy, run } = useAsyncAction();
+  const { busy: rating, run: runRate } = useAsyncAction();
 
   useEffect(
     () => subscribeVendor(params.id, (v) => { setVendor(v); setLoading(false); }, () => setLoading(false)),
     [params.id],
   );
   useEffect(() => subscribePurchaseOrders({ vendorId: params.id }, setPos), [params.id]);
+  useEffect(() => subscribeVendorRatings(params.id, setRatings), [params.id]);
+
+  async function submitRating() {
+    if (!actor) return;
+    await runRate(async () => {
+      await rateVendor({ vendorId: params.id, rating: rateValue, note: rateNote }, actor);
+      setRateOpen(false);
+      setRateNote("");
+      setRateValue(5);
+    }, "Rating saved.");
+  }
 
   if (loading) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (!vendor) {
@@ -155,9 +172,68 @@ export default function VendorDetailPage() {
               <p className="text-xs uppercase tracking-wide text-ink-500">Outstanding</p>
               <p className="text-lg font-semibold text-amber-600">{formatINR(outstanding)}</p>
             </div>
+            <div className="border-t border-ink-100 pt-3">
+              <p className="text-xs uppercase tracking-wide text-ink-500">Rating</p>
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                <span className="text-lg font-semibold">{vendor.ratingCount ? vendor.avgRating!.toFixed(1) : "—"}</span>
+                <span className="text-xs text-ink-500">({vendor.ratingCount ?? 0})</span>
+              </div>
+              {canManageVendors(viewer) && (
+                <Button size="sm" className="mt-2" onClick={() => setRateOpen(true)}>
+                  <Star className="h-3.5 w-3.5" /> Rate vendor
+                </Button>
+              )}
+            </div>
           </div>
         </Card>
       </div>
+
+      {ratings.length > 0 && (
+        <Card title="Rating history" className="mt-4">
+          <ul className="space-y-2">
+            {ratings.map((r) => (
+              <li key={r.id} className="flex items-start justify-between gap-3 border-b border-ink-100 pb-2 text-sm last:border-0 last:pb-0">
+                <div>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-amber-400 text-amber-400" : "text-ink-200"}`} />
+                    ))}
+                    {r.poNo && <span className="ml-1 text-xs text-ink-500">— {r.poNo}</span>}
+                  </div>
+                  {r.note && <p className="mt-1 text-ink-600">{r.note}</p>}
+                </div>
+                <span className="shrink-0 text-xs text-ink-400">{formatDateTime(r.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      <Modal
+        open={rateOpen}
+        onClose={() => setRateOpen(false)}
+        title="Rate this vendor"
+        footer={(
+          <>
+            <Button onClick={() => setRateOpen(false)}>Cancel</Button>
+            <Button variant="primary" loading={rating} onClick={() => void submitRating()}>Save rating</Button>
+          </>
+        )}
+      >
+        <div className="space-y-3">
+          <Field label="Rating">
+            <div className="flex gap-1">
+              {Array.from({ length: 5 }, (_, i) => (
+                <button key={i} type="button" onClick={() => setRateValue(i + 1)}>
+                  <Star className={`h-6 w-6 ${i < rateValue ? "fill-amber-400 text-amber-400" : "text-ink-200"}`} />
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Note (optional)"><Textarea value={rateNote} onChange={(e) => setRateNote(e.target.value)} /></Field>
+        </div>
+      </Modal>
 
       <Card title="Purchase orders" subtitle={`${pos.length} order${pos.length === 1 ? "" : "s"}`} className="mt-4">
         {pos.length === 0 ? (

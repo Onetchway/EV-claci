@@ -511,6 +511,16 @@ service cloud.firestore {
       allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgExisting();
     }
 
+    // One immutable event per rating — no update/delete, matching
+    // rateVendor()'s "never edited after creation" contract; a correction
+    // is a fresh rating; write bar matches vendors' own update rule since
+    // rateVendor() denormalizes avgRating/ratingCount onto that doc in the
+    // same transaction.
+    match /vendorRatings/{ratingId} {
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgIncoming();
+    }
+
     match /purchaseOrders/{poId} {
       allow read: if signedIn() && sameOrgExisting();
       allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'] && sameOrgIncoming();

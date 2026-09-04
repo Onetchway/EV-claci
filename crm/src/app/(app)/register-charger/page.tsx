@@ -11,6 +11,7 @@ import {
   CHARGER_TYPES, CHARGER_VENDORS, CONNECTOR_TYPES, registerOwnCharger, subscribeChargerRegistry,
   type ChargerRegistration,
 } from "@/lib/db/charger-registry";
+import { INDIAN_STATES } from "@/lib/constants";
 import { canSelfServeRegisterCharger } from "@/lib/permissions";
 import type { RevenueShareType } from "@/lib/types";
 
@@ -96,7 +97,14 @@ export default function RegisterChargerPage() {
             <Field label="Address" required><Input value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="City"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
-              <Field label="State"><Input value={state} onChange={(e) => setState(e.target.value)} /></Field>
+              <Field label="State">
+                <Select
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="Select state"
+                  options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
+                />
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Power type">
