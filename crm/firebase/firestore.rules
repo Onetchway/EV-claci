@@ -125,6 +125,13 @@ service cloud.firestore {
       return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
     }
 
+    // Salary/payroll is strictly Super Admin, Admin, Finance -- deliberately
+    // NOT everyone canManageHrms() covers. Mirrors canManagePayroll in
+    // permissions.ts.
+    function canManagePayroll() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
     function uid() {
       return request.auth.uid;
     }
@@ -698,6 +705,28 @@ service cloud.firestore {
                         && resource.data.status == 'PENDING'
                         && request.resource.data.status == 'CANCELLED');
       allow delete: if isAdmin() && sameOrgExisting();
+    }
+
+    // Salary structure per employee, doc id == uid. An employee may read
+    // their own; only Payroll (Super Admin/Admin/Finance) may write, or
+    // read anyone else's.
+    match /salaryProfiles/{profileUid} {
+      allow read: if (canManagePayroll() && sameOrgExisting()) || (signedIn() && profileUid == uid());
+      allow create: if canManagePayroll() && sameOrgIncoming();
+      allow update: if canManagePayroll() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if canManagePayroll() && sameOrgExisting();
+    }
+
+    // One per employee per month (id `${uid}_${month}`). An employee reads
+    // only their own PUBLISHED payslips ("My Payslips") -- a DRAFT is
+    // payroll's own working copy, not yet visible to the employee it's
+    // about.
+    match /payslips/{payslipId} {
+      allow read: if (canManagePayroll() && sameOrgExisting())
+                  || (signedIn() && 'uid' in resource.data && resource.data.uid == uid() && resource.data.status == 'PUBLISHED');
+      allow create: if canManagePayroll() && sameOrgIncoming();
+      allow update: if canManagePayroll() && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if canManagePayroll() && sameOrgExisting();
     }
 
     // --------------------------------------------------------- OCPP / chargers

@@ -205,6 +205,13 @@ export const canManageTenders = (viewer: Viewer) =>
 export const canManageBoq = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
 
+// Payroll/salary data — strictly Super Admin, Admin, Finance. No flag-based
+// exception (e.g. hrmsAdmin) grants this: HR having HRMS reach for
+// attendance/roster/leave is a different, much wider audience than who
+// should see everyone's salary.
+export const canManagePayroll = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");
+
 // Charger fault tickets and RFID allow-listing — same bar as chargers themselves.
 export const canManageTickets = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");

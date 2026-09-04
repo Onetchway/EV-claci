@@ -69,6 +69,12 @@ export const DEFAULT_PAGE_ACCESS: Record<string, Role[]> = {
   "/attendance": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   "/roster": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   "/holidays": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
+  // Payroll is salary data -- narrower than the rest of HRMS above, matching
+  // canManagePayroll. /my-payslips and /payslip/[id] (an employee's own
+  // issued payslip) are deliberately NOT restricted here — every real
+  // employee role needs to open their own, and Firestore rules already
+  // scope which payslip they can actually read.
+  "/payroll": ["ADMIN", "FINANCE"],
   // Settings (the adminOnly-flagged nav items — /users, /settings, /logs,
   // /developer, /trash, /ocpi, /organizations — are locked to Admin/Super
   // Admin at the nav level already and deliberately left out of this
@@ -118,6 +124,7 @@ export const PAGE_LABEL: Record<string, string> = {
   "/attendance": "Attendance",
   "/roster": "Roster",
   "/holidays": "Holidays",
+  "/payroll": "Payroll",
 };
 
 export const PAGE_ACCESS_PATHS = Object.keys(DEFAULT_PAGE_ACCESS);

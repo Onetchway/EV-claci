@@ -38,6 +38,8 @@ export interface AppUser {
   managerId?: string | null;
   /** Job title, e.g. "Sales Manager - North" — free text, set from HRMS → Employees. */
   designation?: string;
+  /** Sequential, auto-assigned on creation (see lib/db/payroll.ts's nextEmployeeId) — unset on accounts created before this existed until backfilled. */
+  employeeId?: string;
   /** Which Department doc (see the `departments` collection) this person belongs to — set from HRMS → Employees. */
   departmentId?: string | null;
   /** Which OfficeLocation (see `officeLocations`, also used for attendance geofencing) this person is based at — set from HRMS → Employees. */
@@ -1893,6 +1895,79 @@ export interface AttendanceRequest {
   decidedAt?: TS | null;
   decidedBy?: Actor | null;
   decisionNote?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Payroll
+// ---------------------------------------------------------------------------
+
+/** One per employee — salary structure, statutory identifiers, and bank details. Payslips are generated from a snapshot of this plus the month's real attendance, not a live reference, so amending a profile never rewrites an already-generated payslip. */
+export interface SalaryProfile {
+  id: string;
+  uid: string;
+  userName: string;
+  /** Entered once; CTC auto-fill (Basic 50% / HRA 25% / TA 10% / Others 10% / Misc 5%) seeds the fields below, all of which stay independently editable afterward. */
+  annualCtc?: number;
+  basic: number;
+  hra: number;
+  ta: number;
+  others: number;
+  misc: number;
+  pan?: string;
+  uan?: string;
+  pfNumber?: string;
+  esiNumber?: string;
+  bankAccountName?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifsc?: string;
+  epfEnabled?: boolean;
+  esicEnabled?: boolean;
+  gratuityEnabled?: boolean;
+  bonusEnabled?: boolean;
+  healthInsuranceEnabled?: boolean;
+  /** Manual TDS override — when unset, the payslip uses the auto-estimate (see lib/tax.ts). */
+  monthlyTdsOverride?: number | null;
+  createdAt: TS;
+  updatedAt?: TS;
+  updatedBy?: Actor;
+}
+
+export type PayslipStatus = "DRAFT" | "PUBLISHED";
+
+export interface Payslip {
+  id: string;
+  payslipNumber: string;
+  uid: string;
+  userName: string;
+  /** yyyy-mm. */
+  month: string;
+  status: PayslipStatus;
+  basic: number;
+  hra: number;
+  ta: number;
+  others: number;
+  misc: number;
+  grossEarnings: number;
+  /** Attendance snapshot the payslip was computed from. */
+  totalDays: number;
+  paidDays: number;
+  absentDays: number;
+  halfDays: number;
+  lopDays: number;
+  lopAmount: number;
+  pfDeduction: number;
+  esiDeduction: number;
+  tds: number;
+  otherDeductions: number;
+  totalDeductions: number;
+  netPay: number;
+  notes?: string;
+  createdAt: TS;
+  createdBy?: Actor;
+  updatedAt?: TS;
+  publishedAt?: TS | null;
+  publishedBy?: Actor | null;
 }
 
 // ---------------------------------------------------------------------------
