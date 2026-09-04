@@ -182,6 +182,33 @@ export const SUB_VENDOR_PAYMENT_STATUS_META: Record<SubVendorPaymentStatus, { la
 };
 
 // ---------------------------------------------------------------------------
+// Employee expenses & reimbursement
+// ---------------------------------------------------------------------------
+
+export const EXPENSE_CATEGORIES = ["TRAVEL_BIKE", "TRAVEL_CAR", "OTHER_TRAVEL", "HOTEL", "DAILY_ALLOWANCE", "OTHER"] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
+  TRAVEL_BIKE: "Travel — Bike", TRAVEL_CAR: "Travel — Car", OTHER_TRAVEL: "Other Travel",
+  HOTEL: "Hotel", DAILY_ALLOWANCE: "Daily Allowance", OTHER: "Other",
+};
+
+/** These two categories take a distance (km) and auto-compute the amount from Settings -> Expense policy; every other category is a direct amount entry. */
+export const DISTANCE_BASED_EXPENSE_CATEGORIES: ExpenseCategory[] = ["TRAVEL_BIKE", "TRAVEL_CAR"];
+
+export const EXPENSE_REPORT_STATUSES = ["DRAFT", "SUBMITTED", "MANAGER_APPROVED", "FINANCE_APPROVED", "REJECTED", "PAID"] as const;
+export type ExpenseReportStatus = (typeof EXPENSE_REPORT_STATUSES)[number];
+
+export const EXPENSE_REPORT_STATUS_META: Record<ExpenseReportStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  SUBMITTED: { label: "Pending Manager", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  MANAGER_APPROVED: { label: "Pending Finance", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  FINANCE_APPROVED: { label: "Approved", className: "bg-violet-50 text-violet-700 ring-violet-200" },
+  REJECTED: { label: "Rejected", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+  PAID: { label: "Paid", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Quotations / BOQ / PO / PI
 // ---------------------------------------------------------------------------
 
@@ -445,7 +472,7 @@ export const ACTIVITY_ENTITY_TYPES = [
   "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "SITE_VISIT", "SUB_VENDOR_CONTRACT",
   "TEAM_MEMBER", "USER", "ASSET",
   "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
-  "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST",
+  "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST", "EXPENSE_REPORT",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -479,6 +506,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   PUNCH_ITEM: "Punch Item",
   HANDOVER: "Handover",
   LEAVE_REQUEST: "Leave Request",
+  EXPENSE_REPORT: "Expense Report",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;

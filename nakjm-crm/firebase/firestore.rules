@@ -338,6 +338,21 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Owner edits/submits their own report; their manager decides at SUBMITTED; Finance decides at
+    // MANAGER_APPROVED and marks it paid; HR/Admin has oversight throughout.
+    match /expenseReports/{reportId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && (request.resource.data.uid == uid() || canManageHrms());
+      allow update: if signedIn()
+                    && (
+                      resource.data.uid == uid()
+                      || resource.data.managerId == uid()
+                      || canManagePayments()
+                      || canManageHrms()
+                    );
+      allow delete: if signedIn() && (resource.data.uid == uid() || isAdmin());
+    }
+
     match /holidays/{holidayId} {
       allow read: if signedIn();
       allow create, delete: if canManageHrms();

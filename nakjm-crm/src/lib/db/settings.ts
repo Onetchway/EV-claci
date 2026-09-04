@@ -36,10 +36,17 @@ export interface TallySettings {
   sgstLedger: string;
 }
 
+/** Per-km reimbursement rates for the two vehicle-based travel expense categories -- everything else (hotel, DA, other) is a direct amount, no rate to configure. */
+export interface ExpensePolicy {
+  bikeRatePerKm: number;
+  carRatePerKm: number;
+}
+
 export interface AppSettings {
   bank: BankDetails;
   company: CompanyInfo;
   tally: TallySettings;
+  expensePolicy: ExpensePolicy;
 }
 
 /** Seeded from the deploy-time COMPANY_INFO constant so a fresh install prints correctly before anyone edits Settings. */
@@ -62,6 +69,10 @@ export function defaultSettings(): AppSettings {
       igstLedger: "IGST",
       cgstLedger: "CGST",
       sgstLedger: "SGST",
+    },
+    expensePolicy: {
+      bikeRatePerKm: 3,
+      carRatePerKm: 8,
     },
   };
 }

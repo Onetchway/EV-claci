@@ -3,10 +3,10 @@ import type { Timestamp } from "firebase/firestore";
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
   ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, EmploymentType,
-  HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus, LeaveType, NcrStatus,
-  PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus,
-  RfqStatus, Role, RollStatus, SiteReportType, SiteVisitStatus, StageStatus, SubVendorContractStatus, TaskStatus,
-  TenderStatus, VendorCategory,
+  ExpenseCategory, ExpenseReportStatus, HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus,
+  LeaveType, NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus,
+  RfiStatus, RfqStatus, Role, RollStatus, SiteReportType, SiteVisitStatus, StageStatus, SubVendorContractStatus,
+  TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -817,6 +817,48 @@ export interface LeaveRequest {
   decisionNote?: string;
 }
 
+/** One line in an expense report -- for the two vehicle categories, distanceKm/ratePerKm drove amount; everything else is a direct amount entry. */
+export interface ExpenseLineItem {
+  category: ExpenseCategory;
+  date: TS;
+  description?: string;
+  distanceKm?: number;
+  ratePerKm?: number;
+  amount: number;
+  receiptUrl?: string;
+  receiptPath?: string;
+}
+
+/**
+ * An employee's expense/reimbursement claim -- a bundle of line items submitted together,
+ * routed to their manager first and then Finance before it's payable.
+ */
+export interface ExpenseReport {
+  id: string;
+  reportNo: string;
+  uid: string;
+  userName: string;
+  managerId?: string | null;
+  managerName?: string | null;
+  /** "YYYY-MM" -- the month this report is for, so employee-wise/team-wise views can group by month without re-deriving it from line items. */
+  month: string;
+  items: ExpenseLineItem[];
+  totalAmount: number;
+  status: ExpenseReportStatus;
+  notes?: string;
+  submittedAt?: TS | null;
+  managerDecisionBy?: Actor | null;
+  managerDecisionAt?: TS | null;
+  managerNote?: string;
+  financeDecisionBy?: Actor | null;
+  financeDecisionAt?: TS | null;
+  financeNote?: string;
+  paidAt?: TS | null;
+  paidBy?: Actor | null;
+  paidReferenceNo?: string;
+  createdAt: TS;
+  updatedAt: TS;
+}
 
 export interface Holiday {
   id: string;

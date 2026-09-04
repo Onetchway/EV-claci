@@ -95,6 +95,13 @@ export default function SettingsPage() {
         <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-500"><Landmark className="h-3.5 w-3.5" /> Leave blank to omit the bank block from printed documents.</p>
       </Card>
 
+      <Card title="Expense policy" subtitle="Per-km reimbursement rate for travel expense claims by vehicle type — hotel, daily allowance and other expenses are entered as a direct amount, no rate needed.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Bike rate (₹/km)"><Input type="number" value={form.expensePolicy.bikeRatePerKm} onChange={(e) => setForm((f) => ({ ...f, expensePolicy: { ...f.expensePolicy, bikeRatePerKm: Number(e.target.value) || 0 } }))} /></Field>
+          <Field label="Car rate (₹/km)"><Input type="number" value={form.expensePolicy.carRatePerKm} onChange={(e) => setForm((f) => ({ ...f, expensePolicy: { ...f.expensePolicy, carRatePerKm: Number(e.target.value) || 0 } }))} /></Field>
+        </div>
+      </Card>
+
       <Card title="Tally integration" subtitle="Ledger names used when exporting a PO or PI as a Tally-importable voucher — must match the ledgers in your Tally company exactly.">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Purchase account ledger" hint="Used on PO exports."><Input value={form.tally.purchaseLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, purchaseLedger: e.target.value } }))} /></Field>
