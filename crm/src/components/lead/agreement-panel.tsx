@@ -780,7 +780,17 @@ export function AgreementPanel({
       <Card
         className="print:hidden"
         title="Franchise Agreement"
-        subtitle={`${current.number} · ${AGREEMENT_STATUS_LABEL[current.status]} · Site Holder: ${AGREEMENT_SITE_HOLDER_LABEL[current.siteHolder]} · ${AGREEMENT_PAYMENT_MODEL_LABEL[current.paymentModel]}${dirty ? " · Unsaved changes" : ""}`}
+        subtitle={
+          <>
+            {`${current.number} · ${AGREEMENT_STATUS_LABEL[current.status]} · Site Holder: ${AGREEMENT_SITE_HOLDER_LABEL[current.siteHolder]} · ${AGREEMENT_PAYMENT_MODEL_LABEL[current.paymentModel]}${dirty ? " · Unsaved changes" : ""}`}
+            {current.acceptedAt && (
+              <span className="mt-0.5 block font-medium text-emerald-700">
+                Accepted by investor on {formatDate(current.acceptedAt)}
+                {current.acceptedBy?.name ? ` — ${current.acceptedBy.name}` : ""}
+              </span>
+            )}
+          </>
+        }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={AGREEMENT_STATUS_COLOR[current.status]}>{AGREEMENT_STATUS_LABEL[current.status]}</Badge>

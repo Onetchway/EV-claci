@@ -203,6 +203,8 @@ export interface EoiDoc {
   updatedBy?: Actor;
   issuedBy?: Actor | null;
   acceptedAt?: TS;
+  /** Set only when the investor accepted it themselves from the portal (see api/portal/[leadId]/eoi-accept) — absent when acceptedAt was set some other way (e.g. staff moving the status by hand from the panel). */
+  acceptedBy?: PortalAcceptance;
 }
 
 /** A superseded LOI, archived to leads/{id}/eoiVersions the moment it's replaced by a regenerated one — so a letter a signatory already saw stays retrievable and reprintable even after the client's details or the config change and a fresh one is issued. */
@@ -255,6 +257,9 @@ export interface AgreementDoc {
   updatedAt?: TS;
   updatedBy?: Actor;
   issuedBy?: Actor | null;
+  /** Set only when the investor accepted it themselves from the portal (see api/portal/[leadId]/agreement-accept) — distinct from SIGNED, which is staff later recording that the fully executed document was collected. */
+  acceptedAt?: TS;
+  acceptedBy?: PortalAcceptance;
 }
 
 /** A superseded Agreement, archived to leads/{id}/agreementVersions the moment it's replaced by a regenerated one — same reasoning as EoiVersion. */
@@ -268,6 +273,20 @@ export interface Actor {
   uid: string;
   name: string;
   role: Role;
+}
+
+/**
+ * Who accepted an EOI/Agreement from the investor portal — deliberately not
+ * an `Actor`: that type's `role` field is a CRM `Role`, which doesn't fit a
+ * phone/OTP-authenticated investor (see lib/portal-auth.tsx — this
+ * principal never holds a CRM role at all). Set only by the trusted
+ * server-side accept route (api/portal/[leadId]/eoi-accept,
+ * .../agreement-accept), never written by the investor's client directly.
+ */
+export interface PortalAcceptance {
+  name: string;
+  /** +91XXXXXXXXXX, from the investor's verified phone-auth session. */
+  phone: string;
 }
 
 /** A delivery address distinct from the billed party — set only when shipToEnabled is true on the document. */

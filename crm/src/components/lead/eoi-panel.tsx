@@ -186,6 +186,12 @@ export function EoiPanel({
               {eoi.issuedDate ? `Issued ${formatDate(eoi.issuedDate)}` : "Not yet issued"}
               {dirty && <span className="ml-2 font-medium text-amber-700">Unsaved changes</span>}
             </p>
+            {eoi.acceptedAt && (
+              <p className="mt-0.5 text-xs font-medium text-emerald-700">
+                Accepted by investor on {formatDate(eoi.acceptedAt)}
+                {eoi.acceptedBy?.name ? ` — ${eoi.acceptedBy.name}` : ""}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

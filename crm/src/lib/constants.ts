@@ -1302,12 +1302,14 @@ export const EOI_STATUS_COLOR: Record<EoiStatus, string> = {
 // Franchise Agreement
 // ---------------------------------------------------------------------------
 
-export const AGREEMENT_STATUSES = ["DRAFT", "ISSUED", "SIGNED", "CANCELLED", "SUPERSEDED"] as const;
+export const AGREEMENT_STATUSES = ["DRAFT", "ISSUED", "ACCEPTED", "SIGNED", "CANCELLED", "SUPERSEDED"] as const;
 export type AgreementStatus = (typeof AGREEMENT_STATUSES)[number];
 
 export const AGREEMENT_STATUS_LABEL: Record<AgreementStatus, string> = {
   DRAFT: "Draft",
   ISSUED: "Issued to client",
+  /** The investor accepted it from the portal — distinct from SIGNED, which is staff recording that the fully executed document was later collected. */
+  ACCEPTED: "Accepted by investor",
   SIGNED: "Signed",
   CANCELLED: "Cancelled by client",
   SUPERSEDED: "Superseded",
@@ -1316,6 +1318,7 @@ export const AGREEMENT_STATUS_LABEL: Record<AgreementStatus, string> = {
 export const AGREEMENT_STATUS_COLOR: Record<AgreementStatus, string> = {
   DRAFT: "bg-slate-100 text-slate-700 ring-slate-200",
   ISSUED: "bg-sky-100 text-sky-800 ring-sky-200",
+  ACCEPTED: "bg-violet-100 text-violet-800 ring-violet-200",
   SIGNED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
   SUPERSEDED: "bg-amber-100 text-amber-800 ring-amber-200",
