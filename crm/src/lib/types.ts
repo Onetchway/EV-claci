@@ -14,6 +14,7 @@ import type {
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
   TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
   WebhookEvent, WeekDay, Workstream, TenderStatus, BoqCategory, BoqStatus, AssignmentStatus, MilestoneStatus,
+  ExpenseCategory, ExpenseClaimStatus,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -1674,6 +1675,8 @@ export interface AppSettings {
   };
   /** Org-wide shift timing and lateness rules — the same thresholds apply whether an employee is on a weekly Roster or the standard FLAT_SHIFT with no roster at all; see lib/attendance-rules.ts. */
   attendance: AttendanceRules;
+  /** Reimbursement rates — Travel and Daily Allowance expense items auto-calculate from these; see lib/db/expenses.ts. */
+  expense: ExpenseRates;
   updatedAt?: TS;
   updatedBy?: Actor;
 }
@@ -1695,6 +1698,60 @@ export interface AttendanceRules {
   absentAfterMinutes: number;
   /** Working days for anyone on FLAT_SHIFT mode. ROSTER-mode employees use their own weekly roster instead. */
   workingDays: WeekDay[];
+}
+
+export interface ExpenseRates {
+  bikeRatePerKm: number;
+  carRatePerKm: number;
+  /** Flat amount per day claimed, not per km. */
+  dailyAllowanceRate: number;
+}
+
+// ---------------------------------------------------------------------------
+// Expense claims
+// ---------------------------------------------------------------------------
+
+export interface ExpenseItem {
+  id: string;
+  category: ExpenseCategory;
+  date: TS;
+  description?: string;
+  /** Distance claimed — only meaningful for TRAVEL_BIKE/TRAVEL_CAR. */
+  km?: number;
+  /** The configured rate at the moment this item was added (Settings → Expense) — snapshotted so a later rate change never rewrites an already-submitted claim. Per-km for travel, flat for Daily Allowance. */
+  rate?: number;
+  /** Auto-computed for AUTO_CALC_CATEGORIES (km x rate, or the flat daily rate); typed in directly for Hotel/Other. */
+  amount: number;
+  receiptUrl?: string | null;
+  receiptName?: string | null;
+}
+
+export interface ExpenseDecision {
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  by?: Actor | null;
+  at?: TS | null;
+  note?: string;
+}
+
+export interface ExpenseClaim {
+  id: string;
+  claimNo: string;
+  uid: string;
+  userName: string;
+  /** Snapshotted from the employee's AppUser.managerId at submission time, so a later reporting-line change never reroutes an already-submitted claim. */
+  managerId?: string | null;
+  /** yyyy-mm — the earliest item date, used to group claims by month for the employee-wise/team-wise reports. */
+  month: string;
+  title: string;
+  items: ExpenseItem[];
+  totalAmount: number;
+  status: ExpenseClaimStatus;
+  managerDecision?: ExpenseDecision | null;
+  financeDecision?: ExpenseDecision | null;
+  submittedAt?: TS | null;
+  orgId?: string | null;
+  createdAt: TS;
+  updatedAt?: TS;
 }
 
 /**

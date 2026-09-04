@@ -6,7 +6,7 @@ import { COMPANY, DEFAULT_PAYOUT_MONTHS, DEFAULT_SCOPE_ITEMS, DEFAULT_TENURE_YEA
 import { DEFAULT_CLOSING } from "../loi-template";
 import { getDb } from "../firebase/client";
 import { getCurrentTenantId } from "../tenant";
-import type { Actor, AppSettings, AttendanceRules } from "../types";
+import type { Actor, AppSettings, AttendanceRules, ExpenseRates } from "../types";
 import { logActivitySafe } from "./activity";
 
 export const SETTINGS = "settings";
@@ -31,6 +31,11 @@ export function defaultAttendanceRules(): AttendanceRules {
     absentAfterMinutes: 180,
     workingDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT"],
   };
+}
+
+/** Same starting point for every org — generic reimbursement rates any tenant can use as-is or override from Settings → Expense. */
+export function defaultExpenseRates(): ExpenseRates {
+  return { bikeRatePerKm: 3, carRatePerKm: 8, dailyAllowanceRate: 300 };
 }
 
 /**
@@ -93,6 +98,7 @@ export function defaultSettings(): AppSettings {
     lists: { chargerOems: [], banks: [], discoms: [], vendors: [] },
     ocpp: { serverHost: "" },
     attendance: defaultAttendanceRules(),
+    expense: defaultExpenseRates(),
   };
 }
 
@@ -132,6 +138,7 @@ export function blankSettings(): AppSettings {
     lists: { chargerOems: [], banks: [], discoms: [], vendors: [] },
     ocpp: { serverHost: "" },
     attendance: defaultAttendanceRules(),
+    expense: defaultExpenseRates(),
   };
 }
 
@@ -157,6 +164,7 @@ export function withDefaults(stored: Partial<AppSettings> | undefined, isTenantS
     lists: { ...base.lists, ...stored.lists },
     ocpp: { ...base.ocpp, ...stored.ocpp },
     attendance: { ...base.attendance, ...stored.attendance },
+    expense: { ...base.expense, ...stored.expense },
     updatedAt: stored.updatedAt ?? null,
     updatedBy: stored.updatedBy,
   };

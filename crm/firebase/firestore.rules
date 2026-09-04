@@ -717,6 +717,23 @@ service cloud.firestore {
       allow delete: if isAdmin() && sameOrgExisting();
     }
 
+    // Expense claims — DRAFT is the owner's own working copy (edit/delete
+    // freely); submitting hands it to their manager (canManageHrms), who
+    // hands it to finance (canManagePayroll) for the second approval.
+    // Mirrors decideManager/decideFinance in lib/db/expenses.ts exactly:
+    // each stage may only act on the status it owns.
+    match /expenseClaims/{claimId} {
+      allow read: if ((canManageHrms() || canManagePayroll()) && sameOrgExisting())
+                  || (signedIn() && 'uid' in resource.data && resource.data.uid == uid());
+      allow create: if signedIn() && request.resource.data.uid == uid()
+                    && request.resource.data.status == 'DRAFT' && sameOrgIncoming();
+      allow update: if sameOrgExisting() && sameOrgIncoming()
+                    && ((resource.data.uid == uid() && resource.data.status == 'DRAFT')
+                        || (canManageHrms() && resource.data.status == 'SUBMITTED')
+                        || (canManagePayroll() && resource.data.status == 'MANAGER_APPROVED'));
+      allow delete: if resource.data.uid == uid() && resource.data.status == 'DRAFT' && sameOrgExisting();
+    }
+
     // Salary structure per employee, doc id == uid. An employee may read
     // their own; only Payroll (Super Admin/Admin/Finance) may write, or
     // read anyone else's.

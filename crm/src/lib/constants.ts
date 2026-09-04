@@ -1767,3 +1767,31 @@ export const MILESTONE_STATUS_META: Record<MilestoneStatus, { label: string; cla
   DELAYED: { label: "Delayed", className: "bg-rose-50 text-rose-700 ring-rose-200" },
 };
 
+// ---------------------------------------------------------------------------
+// Expense claims — employee reimbursement. Travel-by-bike/car and Daily
+// Allowance auto-calculate from configured rates (Settings → Expense);
+// Hotel/Other are manually entered amounts, e.g. against an uploaded bill.
+// ---------------------------------------------------------------------------
+
+export const EXPENSE_CATEGORIES = ["TRAVEL_BIKE", "TRAVEL_CAR", "HOTEL", "DAILY_ALLOWANCE", "OTHER"] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
+  TRAVEL_BIKE: "Travel — Bike", TRAVEL_CAR: "Travel — Car", HOTEL: "Hotel", DAILY_ALLOWANCE: "Daily Allowance", OTHER: "Other",
+};
+
+/** Whether this category's amount is auto-computed from a configured rate (km x rate, or a flat daily rate) rather than typed in directly. */
+export const AUTO_CALC_CATEGORIES: ExpenseCategory[] = ["TRAVEL_BIKE", "TRAVEL_CAR", "DAILY_ALLOWANCE"];
+
+/** DRAFT (owner edits/deletes freely) -> SUBMITTED (goes to manager) -> MANAGER_APPROVED (goes to finance) -> FINANCE_APPROVED (reimbursed). REJECTED can happen at either approval stage. */
+export const EXPENSE_CLAIM_STATUSES = ["DRAFT", "SUBMITTED", "MANAGER_APPROVED", "FINANCE_APPROVED", "REJECTED"] as const;
+export type ExpenseClaimStatus = (typeof EXPENSE_CLAIM_STATUSES)[number];
+
+export const EXPENSE_STATUS_META: Record<ExpenseClaimStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  SUBMITTED: { label: "Pending manager approval", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  MANAGER_APPROVED: { label: "Pending finance approval", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  FINANCE_APPROVED: { label: "Approved", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  REJECTED: { label: "Rejected", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+

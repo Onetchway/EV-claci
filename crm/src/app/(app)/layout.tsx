@@ -81,6 +81,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/attendance", label: "Attendance", icon: CalendarCheck, featureKey: "attendance" },
       { href: "/roster", label: "Roster", icon: KanbanSquare, featureKey: "roster" },
       { href: "/holidays", label: "Holidays", icon: CalendarDays, featureKey: "holidays" },
+      { href: "/expenses", label: "Expenses", icon: Receipt, featureKey: "expenses" },
       { href: "/payroll", label: "Payroll", icon: IndianRupee, featureKey: "payroll" },
       { href: "/my-payslips", label: "My Payslips", icon: Receipt, featureKey: "payroll" },
     ],

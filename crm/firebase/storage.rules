@@ -66,6 +66,18 @@ service firebase.storage {
       allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
     }
 
+    // Expense claim receipts. Any signed-in employee uploads their own
+    // (the claim owner check happens Firestore-side, same posture as
+    // leads/** and projects/** above); only an admin or the uploader can
+    // remove one.
+    match /expenses/{claimId}/{fileName} {
+      allow read: if signedIn();
+      allow create: if signedIn() && acceptableFile();
+      allow update: if false;
+      allow delete: if isAdmin()
+                    || (signedIn() && resource.metadata.uploadedBy == request.auth.uid);
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

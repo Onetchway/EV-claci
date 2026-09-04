@@ -266,3 +266,17 @@ export const canSeeAllHrms = (viewer: Viewer) =>
 /** Office/geofence config and the leave-type catalogue are org-wide policy — admin only, same bar as OCPI credentials. */
 export const canManageHrmsSetup = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN");
+
+// ---------------------------------------------------------------------------
+// Expense claims — DRAFT/SUBMITTED by the employee, then manager approval,
+// then finance approval.
+// ---------------------------------------------------------------------------
+
+/** Stage 1 of expense approval — same bar as the rest of day-to-day HRMS decisions. */
+export const canApproveExpenseAsManager = canManageHrms;
+
+/** Stage 2 — money actually moving, so narrower than manager approval: Finance/Admin only, same bar as Payroll. */
+export const canApproveExpenseAsFinance = canManagePayroll;
+
+/** Reimbursement rate configuration (Settings → Expense) — same bar as finance approval. */
+export const canManageExpenseSettings = canManagePayroll;
