@@ -1471,6 +1471,35 @@ export const DEFAULT_SCOPE_ITEMS = [
 export const DEFAULT_TENURE_YEARS = 10;
 export const DEFAULT_PAYOUT_MONTHS = 24;
 
+// ------------------------------------------------------------- employee KYC
+// documents (Employee Detail page). Deliberately a separate enum from
+// DocKind above — that one is lead/investor KYC (verification workflow,
+// PENDING/VERIFIED/REJECTED); this is an employee's own on-file paperwork,
+// simpler (upload/list/delete, no review step) and scoped under
+// users/{uid}/documents rather than a lead. See src/lib/db/employee-documents.ts.
+export const EMPLOYEE_DOC_KINDS = [
+  "AADHAAR",
+  "PAN",
+  "ADDRESS_PROOF",
+  "EDUCATIONAL_CERTIFICATE",
+  "OFFER_LETTER",
+  "BANK_PROOF",
+  "PHOTOGRAPH",
+  "OTHER",
+] as const;
+export type EmployeeDocKind = (typeof EMPLOYEE_DOC_KINDS)[number];
+
+export const EMPLOYEE_DOC_KIND_LABEL: Record<EmployeeDocKind, string> = {
+  AADHAAR: "Aadhaar Card",
+  PAN: "PAN Card",
+  ADDRESS_PROOF: "Address Proof",
+  EDUCATIONAL_CERTIFICATE: "Educational Certificate",
+  OFFER_LETTER: "Offer Letter",
+  BANK_PROOF: "Bank Proof / Cancelled Cheque",
+  PHOTOGRAPH: "Passport Photograph",
+  OTHER: "Other Document",
+};
+
 export const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh", "Chhattisgarh",
   "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu & Kashmir", "Jharkhand",

@@ -4,7 +4,7 @@ import type {
   ActivityType, AgreementPaymentModel, AgreementScheduleKey, AgreementSiteHolder, AgreementStatus, AssetCategory, AssetStatus, ChargingScheduleStatus,
   CommercialModel, CommissionStatus,
   ComplaintCategory, ComplaintPriority, ComplaintStatus,
-  ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EoiStatus,
+  ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EmployeeDocKind, EoiStatus,
   FollowupPriority, FollowupStatus, FollowupType, FundingMode, GstType, LandType,
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
@@ -607,6 +607,25 @@ export interface LeadDocument {
   uploadedBy: Actor;
   reviewedAt?: TS;
   reviewedBy?: Actor | null;
+}
+
+/**
+ * An employee's own KYC/on-file document — users/{uid}/documents/{id}. See
+ * src/lib/db/employee-documents.ts's module doc comment for how this
+ * differs from LeadDocument (no review workflow, list+delete only).
+ */
+export interface EmployeeDocument {
+  id: string;
+  uid: string;
+  kind: EmployeeDocKind;
+  fileName: string;
+  storagePath: string;
+  url: string;
+  contentType: string;
+  size: number;
+  note?: string;
+  uploadedAt: TS;
+  uploadedBy: Actor;
 }
 
 export interface FieldChange {
