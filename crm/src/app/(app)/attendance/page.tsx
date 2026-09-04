@@ -14,6 +14,10 @@ import { performCheckIn, performCheckOut } from "@/lib/attendance-actions";
 import {
   markAttendance, subscribeAttendanceRange, subscribeMyAttendanceMonth,
 } from "@/lib/db/attendance";
+import {
+  applyForAttendanceRequest, cancelAttendanceRequest, decideAttendanceRequest,
+  subscribeAllAttendanceRequests, subscribeMyAttendanceRequests,
+} from "@/lib/db/attendance-requests";
 import { ymd } from "@/lib/dates";
 import {
   createOfficeLocation, deleteOfficeLocation, subscribeOfficeLocations, updateOfficeLocation,
@@ -27,7 +31,7 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { getCurrentCoords } from "@/lib/geo";
 import { canManageHrms, canManageHrmsSetup, canSeeAllHrms, isAdmin } from "@/lib/permissions";
 import type {
-  AppUser, AttendanceRecord, AttendanceStatus, LeaveRequest, LeaveType, OfficeLocation,
+  AppUser, AttendanceRecord, AttendanceRequest, AttendanceStatus, LeaveRequest, LeaveType, OfficeLocation,
 } from "@/lib/types";
 import { downloadCsv, formatDate, formatDateTime, toDate } from "@/lib/utils";
 
@@ -47,7 +51,7 @@ function combineDateTime(date: string, time: string): Date | null {
 }
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
-  PRESENT: "Present", ABSENT: "Absent", HALF_DAY: "Half day", ON_LEAVE: "On leave", WEEK_OFF: "Week off", HOLIDAY: "Holiday",
+  PRESENT: "Present", ABSENT: "Absent", HALF_DAY: "Half day", ON_LEAVE: "On leave", WEEK_OFF: "Week off", HOLIDAY: "Holiday", WFH: "Work from home",
 };
 const STATUS_STYLE: Record<AttendanceStatus, string> = {
   PRESENT: "bg-emerald-100 text-emerald-800 ring-emerald-200",
@@ -56,6 +60,7 @@ const STATUS_STYLE: Record<AttendanceStatus, string> = {
   ON_LEAVE: "bg-violet-100 text-violet-800 ring-violet-200",
   WEEK_OFF: "bg-ink-100 text-ink-600 ring-ink-200",
   HOLIDAY: "bg-sky-100 text-sky-800 ring-sky-200",
+  WFH: "bg-indigo-100 text-indigo-800 ring-indigo-200",
 };
 
 const LEAVE_STATUS_STYLE: Record<string, string> = {
@@ -99,6 +104,14 @@ function MyAttendanceTab() {
   const [toDate, setToDate] = useState(ymd(new Date()));
   const [reason, setReason] = useState("");
 
+  const [myRequests, setMyRequests] = useState<AttendanceRequest[]>([]);
+  const [wfhReason, setWfhReason] = useState("");
+  const [regModalOpen, setRegModalOpen] = useState(false);
+  const [regFrom, setRegFrom] = useState(ymd(new Date()));
+  const [regTo, setRegTo] = useState(ymd(new Date()));
+  const [regReason, setRegReason] = useState("");
+  const { busy: requesting, run: runRequest } = useAsyncAction();
+
   const { start, end, label } = useMemo(() => monthRange(monthCursor), [monthCursor]);
 
   useEffect(() => {
@@ -117,6 +130,10 @@ function MyAttendanceTab() {
   useEffect(() => {
     if (!profile) return;
     return subscribeMyLeaveRequests(profile.uid, setMyLeaves);
+  }, [profile]);
+  useEffect(() => {
+    if (!profile) return;
+    return subscribeMyAttendanceRequests(profile.uid, setMyRequests);
   }, [profile]);
 
   const today = ymd(new Date());
@@ -156,6 +173,29 @@ function MyAttendanceTab() {
     setLeaveModalOpen(false);
     setReason("");
   }
+
+  async function submitWfh() {
+    if (!profile) return;
+    const date = ymd(new Date());
+    await applyForAttendanceRequest({
+      uid: profile.uid, userName: profile.name, type: "WFH", fromDate: date, toDate: date, reason: wfhReason,
+    }, actor);
+    setWfhReason("");
+  }
+
+  async function submitRegularization() {
+    if (!profile) return;
+    if (regTo < regFrom) throw new Error("End date can't be before the start date.");
+    if (regTo > today) throw new Error("Regularization can't be requested for a future date.");
+    if (!regReason.trim()) throw new Error("Add a reason for the regularization.");
+    await applyForAttendanceRequest({
+      uid: profile.uid, userName: profile.name, type: "REGULARIZATION", fromDate: regFrom, toDate: regTo, reason: regReason,
+    }, actor);
+    setRegModalOpen(false);
+    setRegReason("");
+  }
+
+  const wfhRequestedToday = myRequests.some((r) => r.type === "WFH" && r.fromDate === today && r.status !== "CANCELLED" && r.status !== "REJECTED");
 
   return (
     <div className="space-y-4">
@@ -201,6 +241,65 @@ function MyAttendanceTab() {
             )}
           </div>
         </div>
+      </Card>
+
+      <Card
+        title="WFH & Regularization"
+        subtitle="Request an exception to your attendance record — a manager or admin decides."
+        actions={<Button size="sm" onClick={() => setRegModalOpen(true)}>Request regularization</Button>}
+      >
+        {!todayRecord?.checkIn?.at && (
+          <div className="mb-4 flex flex-wrap items-end gap-2 border-b border-ink-100 pb-4">
+            <Field label="Reason for WFH today" className="min-w-[220px] flex-1">
+              <Input value={wfhReason} onChange={(e) => setWfhReason(e.target.value)} placeholder="e.g. Not feeling well, working from home" />
+            </Field>
+            <Button
+              loading={requesting}
+              disabled={wfhRequestedToday || !wfhReason.trim()}
+              onClick={() => void runRequest(submitWfh, "WFH request submitted.")}
+            >
+              {wfhRequestedToday ? "WFH already requested" : "Request WFH for today"}
+            </Button>
+          </div>
+        )}
+        {myRequests.length === 0 ? (
+          <p className="py-2 text-center text-sm text-ink-500">No requests yet.</p>
+        ) : (
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr>
+                  <th className="th">Type</th>
+                  <th className="th">Dates</th>
+                  <th className="th">Reason</th>
+                  <th className="th">Status</th>
+                  <th className="th" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {myRequests.map((r) => (
+                  <tr key={r.id}>
+                    <td className="td">{r.type === "WFH" ? "WFH" : "Regularization"}</td>
+                    <td className="td text-ink-600">{r.fromDate === r.toDate ? formatDate(r.fromDate) : `${formatDate(r.fromDate)} – ${formatDate(r.toDate)}`}</td>
+                    <td className="td max-w-[260px] whitespace-normal break-words text-ink-500">{r.reason || "—"}</td>
+                    <td className="td"><Badge className={LEAVE_STATUS_STYLE[r.status]}>{r.status}</Badge></td>
+                    <td className="td text-right">
+                      {r.status === "PENDING" && (
+                        <button
+                          type="button"
+                          onClick={() => void cancelAttendanceRequest(r.id).then(() => push("Request cancelled.", "success"))}
+                          className="text-xs font-medium text-rose-600 hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       {balances.length > 0 && (
@@ -340,6 +439,27 @@ function MyAttendanceTab() {
           </div>
           {toDate >= fromDate && <p className="text-xs text-ink-500">{daysBetween(fromDate, toDate)} day(s)</p>}
           <Field label="Reason" required><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={regModalOpen}
+        onClose={() => setRegModalOpen(false)}
+        title="Request regularization"
+        description="For a day you forgot to check in — up to last month, through today."
+        footer={
+          <>
+            <Button onClick={() => setRegModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" loading={requesting} onClick={() => void runRequest(submitRegularization, "Regularization request submitted.")}>Submit</Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="From" required><Input type="date" max={today} value={regFrom} onChange={(e) => setRegFrom(e.target.value)} /></Field>
+            <Field label="To" required><Input type="date" max={today} value={regTo} onChange={(e) => setRegTo(e.target.value)} /></Field>
+          </div>
+          <Field label="Reason" required><Textarea rows={3} value={regReason} onChange={(e) => setRegReason(e.target.value)} placeholder="e.g. Forgot to check in, was on-site all day" /></Field>
         </div>
       </Modal>
     </div>
@@ -556,13 +676,18 @@ function ApprovalsTab() {
   const actor = useActor();
   const viewer = useViewer();
   const [rows, setRows] = useState<LeaveRequest[]>([]);
+  const [attRows, setAttRows] = useState<AttendanceRequest[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [decisionTarget, setDecisionTarget] = useState<{ req: LeaveRequest; status: "APPROVED" | "REJECTED" } | null>(null);
+  const [attDecisionTarget, setAttDecisionTarget] = useState<{ req: AttendanceRequest; status: "APPROVED" | "REJECTED" } | null>(null);
   const [note, setNote] = useState("");
+  const [attNote, setAttNote] = useState("");
   const { busy, run } = useAsyncAction();
+  const { busy: attBusy, run: attRun } = useAsyncAction();
 
   useEffect(() => subscribeAllLeaveRequests((r) => { setRows(r); setLoading(false); }, () => setLoading(false)), []);
+  useEffect(() => subscribeAllAttendanceRequests(setAttRows), []);
   useEffect(() => subscribeUsers(setUsers), []);
 
   const seesAll = canSeeAllHrms(viewer);
@@ -578,11 +703,25 @@ function ApprovalsTab() {
   const pending = scoped.filter((r) => r.status === "PENDING");
   const decided = scoped.filter((r) => r.status !== "PENDING");
 
+  const scopedAtt = useMemo(
+    () => (seesAll ? attRows : attRows.filter((r) => directReportIds.has(r.uid))),
+    [attRows, seesAll, directReportIds],
+  );
+  const attPending = scopedAtt.filter((r) => r.status === "PENDING");
+  const attDecided = scopedAtt.filter((r) => r.status !== "PENDING");
+
   async function decide() {
     if (!decisionTarget) return;
     await decideLeaveRequest(decisionTarget.req.id, decisionTarget.status, actor, note);
     setDecisionTarget(null);
     setNote("");
+  }
+
+  async function decideAtt() {
+    if (!attDecisionTarget) return;
+    await decideAttendanceRequest(attDecisionTarget.req.id, attDecisionTarget.status, actor, attNote);
+    setAttDecisionTarget(null);
+    setAttNote("");
   }
 
   return (
@@ -682,6 +821,95 @@ function ApprovalsTab() {
         }
       >
         <Field label="Note (optional)"><Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      </Modal>
+
+      <Card title="WFH & regularization — pending" subtitle={`${attPending.length} waiting`}>
+        {attPending.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-500">Nothing pending.</p>
+        ) : (
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr>
+                  <th className="th">Employee</th>
+                  <th className="th">Type</th>
+                  <th className="th">Dates</th>
+                  <th className="th">Reason</th>
+                  <th className="th text-right">Decision</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {attPending.map((r) => (
+                  <tr key={r.id}>
+                    <td className="td font-medium text-ink-900">{r.userName}</td>
+                    <td className="td">{r.type === "WFH" ? "WFH" : "Regularization"}</td>
+                    <td className="td text-ink-600">{r.fromDate === r.toDate ? formatDate(r.fromDate) : `${formatDate(r.fromDate)} – ${formatDate(r.toDate)}`}</td>
+                    <td className="td max-w-[260px] whitespace-normal break-words text-ink-500">{r.reason || "—"}</td>
+                    <td className="td text-right">
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setAttDecisionTarget({ req: r, status: "APPROVED" })} className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                        </button>
+                        <button type="button" onClick={() => setAttDecisionTarget({ req: r, status: "REJECTED" })} className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:underline">
+                          <XCircle className="h-3.5 w-3.5" /> Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {attDecided.length > 0 && (
+        <Card title="WFH & regularization — decided" subtitle="Most recent first">
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr>
+                  <th className="th">Employee</th>
+                  <th className="th">Type</th>
+                  <th className="th">Dates</th>
+                  <th className="th">Status</th>
+                  <th className="th">Decided by</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {attDecided.slice(0, 100).map((r) => (
+                  <tr key={r.id}>
+                    <td className="td">{r.userName}</td>
+                    <td className="td">{r.type === "WFH" ? "WFH" : "Regularization"}</td>
+                    <td className="td text-ink-600">{r.fromDate === r.toDate ? formatDate(r.fromDate) : `${formatDate(r.fromDate)} – ${formatDate(r.toDate)}`}</td>
+                    <td className="td"><Badge className={LEAVE_STATUS_STYLE[r.status]}>{r.status}</Badge></td>
+                    <td className="td text-ink-500">{r.decidedBy?.name ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      <Modal
+        open={!!attDecisionTarget}
+        onClose={() => setAttDecisionTarget(null)}
+        title={`${attDecisionTarget?.status === "APPROVED" ? "Approve" : "Reject"} — ${attDecisionTarget?.req.userName ?? ""}`}
+        footer={
+          <>
+            <Button onClick={() => setAttDecisionTarget(null)}>Cancel</Button>
+            <Button
+              variant={attDecisionTarget?.status === "REJECTED" ? "danger" : "primary"}
+              loading={attBusy}
+              onClick={() => void attRun(decideAtt, "Request updated.")}
+            >
+              Confirm
+            </Button>
+          </>
+        }
+      >
+        <Field label="Note (optional)"><Textarea rows={3} value={attNote} onChange={(e) => setAttNote(e.target.value)} /></Field>
       </Modal>
     </div>
   );

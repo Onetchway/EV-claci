@@ -1778,7 +1778,7 @@ export interface OfficeLocation {
   updatedBy?: Actor | null;
 }
 
-export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "WEEK_OFF" | "HOLIDAY";
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "WEEK_OFF" | "HOLIDAY" | "WFH";
 
 export interface AttendancePunch {
   at: TS;
@@ -1858,6 +1858,36 @@ export interface LeaveRequest {
   days: number;
   reason?: string;
   status: LeaveStatus;
+  appliedAt: TS;
+  appliedBy?: Actor | null;
+  decidedAt?: TS | null;
+  decidedBy?: Actor | null;
+  decisionNote?: string;
+}
+
+export type AttendanceRequestType = "WFH" | "REGULARIZATION";
+export type AttendanceRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+/**
+ * WFH ("today, please") and regularization ("I forgot to check in on a past
+ * day") share one shape and one approval flow — the only real difference is
+ * which dates are legal (WFH is always today; regularization is any date
+ * from last month through today). Approval doesn't itself write an
+ * attendance record — checkIn()/markAttendance() still do that — it just
+ * unlocks performCheckIn()'s geofence bypass (WFH) or lets a manager mark
+ * the day by hand without it looking like an unexplained correction
+ * (regularization).
+ */
+export interface AttendanceRequest {
+  id: string;
+  uid: string;
+  userName: string;
+  type: AttendanceRequestType;
+  /** yyyy-mm-dd. Equal to toDate for a WFH request (always a single day). */
+  fromDate: string;
+  toDate: string;
+  reason?: string;
+  status: AttendanceRequestStatus;
   appliedAt: TS;
   appliedBy?: Actor | null;
   decidedAt?: TS | null;

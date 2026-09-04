@@ -684,6 +684,22 @@ service cloud.firestore {
       allow delete: if isAdmin() && sameOrgExisting();
     }
 
+    // WFH ("today, please") and attendance regularization ("I forgot to
+    // check in on a past day") -- same shape/rule as leaveRequests above.
+    match /attendanceRequests/{requestId} {
+      allow read: if (canManageHrms() && sameOrgExisting())
+                  || ('uid' in resource.data && resource.data.uid == uid());
+      allow create: if signedIn()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.status == 'PENDING'
+                    && sameOrgIncoming();
+      allow update: if (canManageHrms() && request.resource.data.uid == resource.data.uid && sameOrgExisting() && sameOrgIncoming())
+                    || ('uid' in resource.data && resource.data.uid == uid()
+                        && resource.data.status == 'PENDING'
+                        && request.resource.data.status == 'CANCELLED');
+      allow delete: if isAdmin() && sameOrgExisting();
+    }
+
     // --------------------------------------------------------- OCPP / chargers
 
     // Written only by the standalone OCPP central system (ocpp-server/),

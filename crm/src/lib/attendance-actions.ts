@@ -3,9 +3,10 @@
 import { evaluateCheckIn } from "./attendance-rules";
 import type { Role } from "./constants";
 import { checkIn, checkOut } from "./db/attendance";
+import { hasApprovedWfhToday } from "./db/attendance-requests";
 import { getRosterWeek } from "./db/roster";
 import { getSettingsOnce } from "./db/settings";
-import { mondayOf } from "./dates";
+import { mondayOf, ymd } from "./dates";
 import { getCurrentCoords, nearestOffice, type Coords, type NearestOffice } from "./geo";
 import { isAdmin } from "./permissions";
 import type { Actor, AppUser, OfficeLocation } from "./types";
@@ -38,7 +39,8 @@ async function resolveLocation(bypass: boolean, offices: OfficeLocation[]): Prom
 export async function performCheckIn(
   profile: AppUser, actor: Actor, offices: OfficeLocation[], role: Role | null,
 ): Promise<void> {
-  const bypass = canBypassGeofence(role, profile);
+  const wfhToday = await hasApprovedWfhToday(profile.uid, ymd(new Date()));
+  const bypass = canBypassGeofence(role, profile) || wfhToday;
   const { coords, nearest } = await resolveLocation(bypass, offices);
   if (!bypass && !nearest.withinGeofence) {
     const accuracyNote = coords?.accuracyMeters
@@ -54,9 +56,13 @@ export async function performCheckIn(
   const rules = await getSettingsOnce().then((s) => s.attendance);
   const roster = await getRosterWeek(profile.uid, mondayOf(now));
   const evaluated = evaluateCheckIn(now, profile.scheduleMode, roster, rules);
+  // An approved WFH day is a full paid day regardless of check-in time —
+  // the office lateness rules don't apply to someone who was never expected
+  // at the office in the first place.
+  const computed = wfhToday ? { status: "WFH" as const, lateMinutes: 0 } : (evaluated ?? { status: "PRESENT" as const, lateMinutes: 0 });
   await checkIn(
     profile.uid, profile.name, coords, bypass ? { ...nearest, withinGeofence: true } : nearest, actor,
-    evaluated ?? { status: "PRESENT", lateMinutes: 0 },
+    computed,
   );
 }
 
