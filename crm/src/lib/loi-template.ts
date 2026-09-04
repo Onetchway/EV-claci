@@ -21,8 +21,14 @@ export interface LoiClause {
  *   {{scheduleSentence}} {{tenureYears}}        {{payoutMonths}}
  *   {{minMonthlyPayout}} {{maxAggregate}}       {{siteName}}
  *   {{pronounSubject}}  {{kw}}                  {{company}}
- *   {{arbitrationSeat}} {{jurisdiction}}
+ *   {{arbitrationSeat}} {{jurisdiction}} {{tenureExtensionPhrase}}
  */
+
+/** Short-form counterpart to agreement-template.ts's tenureExtensionNote — same tenureExtendable toggle, phrased for the EOI's one-sentence Project Tenure clause rather than the Agreement's full clause 3.2. */
+export function tenureExtensionPhrase(extendable: boolean): string {
+  return extendable ? "extendable by mutual written consent" : "not extendable beyond that term save by a fresh written agreement";
+}
+
 export const LOI_CLAUSES: LoiClause[] = [
   {
     key: "nature",
@@ -48,8 +54,8 @@ export const LOI_CLAUSES: LoiClause[] = [
     key: "tenure",
     heading: "Project Tenure",
     body:
-      "The project shall run for a minimum of {{tenureYears}} years from the date of commercial commissioning, extendable by mutual " +
-      "written consent, and shall be operated exclusively by {{company}} throughout.",
+      "The project shall run for a minimum of {{tenureYears}} years from the date of commercial commissioning, {{tenureExtensionPhrase}}, " +
+      "and shall be operated exclusively by {{company}} throughout.",
   },
   {
     key: "payout",

@@ -1,7 +1,8 @@
 import type { Timestamp } from "firebase/firestore";
 import type { AgreementClause } from "./agreement-template";
 import type {
-  ActivityType, AgreementScheduleKey, AgreementStatus, AssetCategory, AssetStatus, ChargingScheduleStatus,
+  ActivityType, AgreementPaymentModel, AgreementScheduleIIKey, AgreementScheduleIIIKey, AgreementScheduleIVKey,
+  AgreementScheduleKey, AgreementStatus, AssetCategory, AssetStatus, ChargingScheduleStatus,
   CommercialModel, CommissionStatus,
   ComplaintCategory, ComplaintPriority, ComplaintStatus,
   ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EoiStatus,
@@ -196,6 +197,8 @@ export interface EoiDoc {
   gstShownSeparately: boolean;
   scopeItems: string[];
   tenureYears: number;
+  /** Drives the Project Tenure clause's renewal sentence — the same toggle name as AgreementDoc.tenureExtendable, so the two documents are set from one place and never contradict each other. Undefined (older EOIs) is treated as true, matching the old always-extendable wording. */
+  tenureExtendable?: boolean;
   payoutMonths: number;
   minMonthlyPayout: number;
   maxAggregateSupport: number;
@@ -232,6 +235,15 @@ export interface AgreementDoc {
   recitals?: string[];
   clauses?: AgreementClause[];
   scheduleI: Partial<Record<AgreementScheduleKey, string>>;
+  /** Whether the Franchisee is itself the registered holder of the Site, or a third party is — drives the Site Holder Arrangement clause; Schedule III only matters when this is false. Undefined (agreements drafted before this existed) is treated as true. */
+  siteHolder?: boolean;
+  /** A / B / C — drives the Payment Model clause; see AGREEMENT_PAYMENT_MODEL_LABEL and Schedule II. Undefined (older agreements) is treated as "A", matching the old flat Minimum-Assured-Amount model. */
+  paymentModel?: AgreementPaymentModel;
+  /** Whether Clause 3.2's extension language applies — one toggle so the EOI and Agreement never say different things about renewal (see tenureExtensionNote in agreement-template.ts). Undefined (older documents) is treated as true, matching the old always-extendable wording. */
+  tenureExtendable?: boolean;
+  scheduleII?: Partial<Record<AgreementScheduleIIKey, string>>;
+  scheduleIII?: Partial<Record<AgreementScheduleIIIKey, string>>;
+  scheduleIV?: Partial<Record<AgreementScheduleIVKey, string>>;
   createdAt: TS;
   createdBy?: Actor;
   updatedAt?: TS;

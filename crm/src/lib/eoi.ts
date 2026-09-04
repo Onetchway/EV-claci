@@ -20,7 +20,7 @@ import {
   LAND_TYPE_LABEL, locationProviderLabel, SITE_COMPENSATION_TYPE_LABEL,
 } from "./constants";
 import {
-  amountInWords, DEFAULT_CLOSING, defaultIntro, defaultSubject, LOI_CLAUSES,
+  amountInWords, DEFAULT_CLOSING, defaultIntro, defaultSubject, LOI_CLAUSES, tenureExtensionPhrase,
   renderTemplate,
 } from "./loi-template";
 import { getSpec } from "./catalog";
@@ -61,6 +61,8 @@ export function scheduleSentence(rows: EoiScheduleRow[]): string {
 export interface BuildEoiOptions {
   number: string;
   tenureYears?: number;
+  /** Same toggle name/meaning as AgreementDoc.tenureExtendable — set once here, or later on the EOI panel, so the EOI and any Agreement generated from it agree on renewal language. Defaults true. */
+  tenureExtendable?: boolean;
   payoutMonths?: number;
   extraEquipment?: string;
   /** Org settings from Settings → Company/Letter of Intent, when available. */
@@ -181,6 +183,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     participationWords: amountInWords(quote.grandTotal),
     scheduleSentence: scheduleSentence(schedule),
     tenureYears: String(tenureYears),
+    tenureExtensionPhrase: tenureExtensionPhrase(opts.tenureExtendable ?? true),
     payoutMonths: String(payoutMonths),
     minMonthlyPayout: formatINR(minMonthlyPayout),
     maxAggregate: formatINR(maxAggregateSupport),
@@ -223,6 +226,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
     gstShownSeparately: false,
     scopeItems: [...scopeItems],
     tenureYears,
+    tenureExtendable: opts.tenureExtendable ?? true,
     payoutMonths,
     minMonthlyPayout,
     maxAggregateSupport,

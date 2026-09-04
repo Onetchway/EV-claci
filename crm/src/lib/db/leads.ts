@@ -11,7 +11,7 @@ import {
   type ActivityType, type AgreementStatus, type CommercialModel, type EoiStatus, type LeadStatus,
   type LeadType, type RejectionReason, type Source, type Stage,
 } from "../constants";
-import { AGREEMENT_CLAUSES, AGREEMENT_RECITALS } from "../agreement-template";
+import { AGREEMENT_RECITALS, buildAgreementClauses } from "../agreement-template";
 import { renderTemplate } from "../loi-template";
 import { diffLead, summariseChanges } from "../diff";
 import { getDb } from "../firebase/client";
@@ -1291,7 +1291,10 @@ export function buildAgreementFromLead(lead: Lead, number: string, companyShortN
     // once, against the issuing tenant's own Settings → Company -- the
     // template itself stays tenant-agnostic (see agreement-template.ts).
     recitals: AGREEMENT_RECITALS.map((r) => renderTemplate(r, { company: companyShortName })),
-    clauses: AGREEMENT_CLAUSES.map((c) => ({
+    siteHolder: true,
+    paymentModel: "A",
+    tenureExtendable: eoi?.tenureExtendable ?? true,
+    clauses: buildAgreementClauses({ siteHolder: true, paymentModel: "A", tenureExtendable: eoi?.tenureExtendable ?? true }).map((c) => ({
       ...c,
       paragraphs: c.paragraphs.map((p) => renderTemplate(p, { company: companyShortName })),
     })),

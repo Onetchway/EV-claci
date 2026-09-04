@@ -1367,6 +1367,47 @@ export function agreementScheduleFields(companyShortName: string) {
 export type AgreementScheduleKey = ReturnType<typeof agreementScheduleFields>[number]["key"];
 
 /**
+ * Payment Model — replaces the old flat "Minimum Assured Amount" as the
+ * single commercial-terms model: A keeps that fixed-payout shape, B is a
+ * pure revenue share, C blends the two. Schedule II carries the numbers;
+ * this only selects which clause language applies.
+ */
+export const AGREEMENT_PAYMENT_MODELS = ["A", "B", "C"] as const;
+export type AgreementPaymentModel = (typeof AGREEMENT_PAYMENT_MODELS)[number];
+export const AGREEMENT_PAYMENT_MODEL_LABEL: Record<AgreementPaymentModel, string> = {
+  A: "Model A — Fixed (Minimum Assured Amount)",
+  B: "Model B — Revenue Share",
+  C: "Model C — Hybrid (Fixed + Revenue Share)",
+};
+
+/** Schedule II — Payment Model detail, only the fields relevant to the selected model need filling in. */
+export function agreementScheduleIIFields() {
+  return [
+    { key: "paymentModel", label: "Payment Model (A / B / C)" },
+    { key: "fixedMonthlyAmount", label: "Fixed Monthly Amount (Model A, or the fixed component of Model C)" },
+    { key: "revenueSharePct", label: "Revenue Share % of net collections (Model B, or the share component of Model C)" },
+    { key: "hybridSplitNotes", label: "Hybrid split terms (Model C only)" },
+  ] as const;
+}
+export type AgreementScheduleIIKey = ReturnType<typeof agreementScheduleIIFields>[number]["key"];
+
+/** Schedule III — Site Holder detail, only meaningful when the Site Holder toggle is on (the Franchisee is not itself the registered holder of the Site). */
+export function agreementScheduleIIIFields() {
+  return [
+    { key: "siteHolderName", label: "Site Holder Name (if different from the Franchisee)" },
+    { key: "siteHolderRelationship", label: "Site Holder's relationship to the Franchisee" },
+    { key: "siteHolderDocumentRef", label: "Ownership / lease document reference" },
+  ] as const;
+}
+export type AgreementScheduleIIIKey = ReturnType<typeof agreementScheduleIIIFields>[number]["key"];
+
+/** Schedule IV — reserved for whatever deal-specific terms don't fit Schedules I–III. */
+export function agreementScheduleIVFields() {
+  return [{ key: "notes", label: "Additional terms / notes" }] as const;
+}
+export type AgreementScheduleIVKey = ReturnType<typeof agreementScheduleIVFields>[number]["key"];
+
+/**
  * Issuing entity. Appears on every generated Letter of Intent. These are the
  * compiled defaults a fresh project starts with — Settings → Company can
  * override every field without a redeploy.

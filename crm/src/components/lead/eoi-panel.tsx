@@ -15,6 +15,7 @@ import {
   subscribeEoiVersions,
 } from "@/lib/db/leads";
 import { buildEoiFromLead, scheduleTotal } from "@/lib/eoi";
+import { tenureExtensionPhrase } from "@/lib/loi-template";
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { useSettings } from "@/hooks/use-settings";
 import { canDeleteEoi, canIssueEoi, type Viewer } from "@/lib/permissions";
@@ -859,8 +860,18 @@ export function LoiLetterArticle({
           className="w-14"
           aria-label="Tenure years"
         />{" "}
-        years from the date of commercial commissioning, extendable by mutual written agreement
-        between the parties, and shall be operated exclusively by {company.shortName} throughout the Tenure.
+        years from the date of commercial commissioning, {tenureExtensionPhrase(eoi.tenureExtendable ?? true)},
+        and shall be operated exclusively by {company.shortName} throughout the Tenure.
+        {!readOnly && (
+          <label className="ml-2 inline-flex items-center gap-1 align-middle text-xs font-normal text-ink-500 print:hidden">
+            <input
+              type="checkbox"
+              checked={eoi.tenureExtendable ?? true}
+              onChange={(e) => onPatch({ tenureExtendable: e.target.checked })}
+            />
+            Extendable
+          </label>
+        )}
       </p>
 
       <h2 className="mt-6 text-sm font-bold text-ink-900 break-after-avoid">Minimum Monthly Payout</h2>

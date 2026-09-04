@@ -1,16 +1,34 @@
 /**
  * The Franchise and Commercial Partnership Agreement's fixed legal text —
- * the 20 numbered clauses plus recitals, definitions and signature blocks.
- * Unlike the Letter of Intent, this is never edited per lead (it's the same
- * legal language for every deal); only Schedule I (see AGREEMENT_SCHEDULE_FIELDS
- * in constants.ts) varies. Sourced from the Livanto Standard Franchise
- * Agreement Template (FINAL).
+ * numbered clauses plus recitals, definitions and signature blocks. Unlike
+ * the Letter of Intent, this is never edited per lead (it's the same legal
+ * language for every deal); only Schedule I (see agreementScheduleFields in
+ * constants.ts) varies. Sourced from the Livanto Standard Franchise
+ * Agreement Template (FINAL) — the MASTER v3, 20-clause version.
+ *
+ * PLACEHOLDER NOTICE: Livanto's MASTER v4 template (27 clauses, Schedules
+ * I-IV, a Site Holder toggle and Payment Model A/B/C replacing the old flat
+ * commercial-terms model) has not been supplied yet. The two clauses below
+ * marked "[PLACEHOLDER — MASTER v4 text pending]" are structural stand-ins
+ * only, written to exercise the new siteHolder/paymentModel/tenureExtendable
+ * toggles end-to-end — they are NOT reviewed legal language and must be
+ * replaced with the real MASTER v4 clause text before an agreement built
+ * from them is issued to a real investor.
  */
+
+import type { AgreementPaymentModel } from "./constants";
 
 export interface AgreementClause {
   number: string;
   heading: string;
   paragraphs: string[];
+}
+
+/** Drives Clause 3.2 (renewal) in the Agreement, and the matching Project Tenure clause in the EOI (see loi-template.ts) — one toggle so the two documents never say different things about renewal. */
+export function tenureExtensionNote(extendable: boolean): string {
+  return extendable
+    ? "The Tenure may be extended by mutual written agreement of the Parties on such terms as may be agreed at that time. However, {{company}} shall give the Franchisee a right of first refusal to extend the term for a further period equal to the Tenure, at the commercials prevailing as at the end of the initial Tenure. The Site shall be first offered to the Franchisee upon completion of the initial Tenure."
+    : "The Tenure is fixed and shall not be extended or renewed, save by way of a fresh agreement freely negotiated and executed by both Parties at that time.";
 }
 
 export const AGREEMENT_RECITALS = [
@@ -49,7 +67,7 @@ export const AGREEMENT_CLAUSES: AgreementClause[] = [
   {
     number: "3", heading: "TERM, TENURE AND COMMENCEMENT", paragraphs: [
       "3.1 This Agreement shall commence on the Effective Date and the Tenure shall be as specified in Schedule I, commencing from the Commercial Commissioning Date, unless earlier terminated in accordance with Clause 13.",
-      "3.2 The Tenure may be extended by mutual written agreement of the Parties on such terms as may be agreed at that time. However, {{company}} shall give the Franchisee a right of first refusal to extend the term for a further period equal to the Tenure, at the commercials prevailing as at the end of the initial Tenure. The Site shall be first offered to the Franchisee upon completion of the initial Tenure.",
+      `3.2 ${tenureExtensionNote(true)}`,
       "3.3 {{company}} shall undertake installation and commissioning of the Charging Station within [X] months or a mutually agreed timeframe following the Effective Date, and shall notify the Franchisee in writing of the Commercial Commissioning Date.",
       "3.4 Where this Agreement is not otherwise terminated or exited earlier, the Parties may, upon completion of the Tenure from the Commercial Commissioning Date, mutually agree to renew this Agreement for such further period as may be agreed, subject to continued availability of the Site (including continued right, title and interest of the Franchisee over the Site, or renewal of the underlying land/property arrangement, as applicable). The duration of any such renewal and the commercial terms applicable thereto shall be as mutually agreed and recorded in writing between the Parties at that time, and nothing in this Agreement obliges either Party to renew. However, {{company}} shall give the Franchisee a right of first refusal to extend the term for a further period equal to the Tenure, at the commercials prevailing as at the end of the initial Tenure.",
     ],
@@ -161,3 +179,49 @@ export const AGREEMENT_CLAUSES: AgreementClause[] = [
     ],
   },
 ];
+
+/** [PLACEHOLDER — MASTER v4 text pending] Inserted after Clause 2 (Grant of Franchise) when the Agreement is built with siteHolder toggled. */
+function siteHolderClause(siteHolder: boolean): AgreementClause {
+  return {
+    number: "2A", heading: "SITE HOLDER ARRANGEMENT", paragraphs: [
+      siteHolder
+        ? "2A.1 [PLACEHOLDER — MASTER v4 text pending] The Franchisee confirms that it is itself the registered owner or lawful holder of the Site, and no third-party consent is required for the Franchisee to grant the rights under this Agreement."
+        : "2A.1 [PLACEHOLDER — MASTER v4 text pending] The Site is held by a third party distinct from the Franchisee (\"Site Holder\"), particulars of whom are set out in Schedule III. The Franchisee represents that it has obtained, or shall obtain prior to the Commercial Commissioning Date, all consents from the Site Holder necessary to grant the rights under this Agreement, and shall remain liable to {{company}} for any failure of the Site Holder to honour those consents.",
+    ],
+  };
+}
+
+/** [PLACEHOLDER — MASTER v4 text pending] Inserted after Clause 5 (Commercial Terms and Payment) when the Agreement is built with a paymentModel other than the old flat default. */
+function paymentModelClause(model: AgreementPaymentModel): AgreementClause {
+  const body: Record<AgreementPaymentModel, string> = {
+    A: "5A.1 [PLACEHOLDER — MASTER v4 text pending] The Parties have selected Payment Model A (Fixed): {{company}} shall pay the Franchisee the Fixed Monthly Amount specified in Schedule II, on the terms set out in Clause 5.",
+    B: "5A.1 [PLACEHOLDER — MASTER v4 text pending] The Parties have selected Payment Model B (Revenue Share): in lieu of a Minimum Assured Amount, {{company}} shall pay the Franchisee the Revenue Share percentage of net collections specified in Schedule II, computed and settled on the schedule set out in Clause 5.3.",
+    C: "5A.1 [PLACEHOLDER — MASTER v4 text pending] The Parties have selected Payment Model C (Hybrid): {{company}} shall pay the Franchisee the combination of a Fixed Monthly Amount and a Revenue Share percentage specified in Schedule II, on the split terms recorded there.",
+  };
+  return { number: "5A", heading: "PAYMENT MODEL", paragraphs: [body[model]] };
+}
+
+export interface AgreementClauseOptions {
+  siteHolder: boolean;
+  paymentModel: AgreementPaymentModel;
+  tenureExtendable: boolean;
+}
+
+/**
+ * Builds the clause list for a given deal's toggles — inserts the Site
+ * Holder and Payment Model clauses (both currently placeholders, see the
+ * file-level notice above) and rewrites Clause 3.2's renewal language.
+ * AGREEMENT_CLAUSES below is just this called with the historical
+ * defaults, kept as the fallback for agreements drafted before these
+ * toggles existed.
+ */
+export function buildAgreementClauses(opts: AgreementClauseOptions): AgreementClause[] {
+  return AGREEMENT_CLAUSES.flatMap((clause) => {
+    if (clause.number === "2") return [clause, siteHolderClause(opts.siteHolder)];
+    if (clause.number === "3") {
+      return [{ ...clause, paragraphs: clause.paragraphs.map((p) => (p.startsWith("3.2 ") ? `3.2 ${tenureExtensionNote(opts.tenureExtendable)}` : p)) }];
+    }
+    if (clause.number === "5") return [clause, paymentModelClause(opts.paymentModel)];
+    return [clause];
+  });
+}

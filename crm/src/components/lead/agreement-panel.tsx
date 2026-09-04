@@ -11,7 +11,9 @@ import {
 import { PrintDocument, PrintFooter, PrintHeader } from "@/components/print-letterhead";
 import { useSettings } from "@/hooks/use-settings";
 import {
-  agreementScheduleFields, AGREEMENT_STATUSES, AGREEMENT_STATUS_COLOR, AGREEMENT_STATUS_LABEL,
+  agreementScheduleFields, agreementScheduleIIFields, agreementScheduleIIIFields, agreementScheduleIVFields,
+  AGREEMENT_PAYMENT_MODELS, AGREEMENT_PAYMENT_MODEL_LABEL, AGREEMENT_STATUSES, AGREEMENT_STATUS_COLOR, AGREEMENT_STATUS_LABEL,
+  type AgreementScheduleIIKey, type AgreementScheduleIIIKey, type AgreementScheduleIVKey,
   type AgreementScheduleKey, type AgreementStatus,
 } from "@/lib/constants";
 import { AGREEMENT_CLAUSES, AGREEMENT_RECITALS } from "@/lib/agreement-template";
@@ -203,12 +205,30 @@ export function AgreementLetterArticle({
   /** When set, Schedule I, recitals and clause text all become editable directly on the letter — mirrors how the Letter of Intent stays editable inline. */
   onPatch?: (p: Partial<AgreementDoc>) => void;
 }) {
+  const siteHolder = agreement.siteHolder ?? true;
+  const paymentModel = agreement.paymentModel ?? "A";
+  const tenureExtendable = agreement.tenureExtendable ?? true;
   const recitals = agreement.recitals ?? AGREEMENT_RECITALS;
+  // Agreements drafted before these toggles existed have no `clauses` field
+  // at all and fall back to the plain (pre-placeholder-clause) static list,
+  // so an already-issued document's rendering never shifts underneath it.
   const clauses = agreement.clauses ?? AGREEMENT_CLAUSES;
   const editable = Boolean(onPatch) && !readOnly;
 
   function patchSchedule(key: AgreementScheduleKey, value: string) {
     onPatch?.({ scheduleI: { ...agreement.scheduleI, [key]: value } });
+  }
+
+  function patchScheduleII(key: AgreementScheduleIIKey, value: string) {
+    onPatch?.({ scheduleII: { ...agreement.scheduleII, [key]: value } });
+  }
+
+  function patchScheduleIII(key: AgreementScheduleIIIKey, value: string) {
+    onPatch?.({ scheduleIII: { ...agreement.scheduleIII, [key]: value } });
+  }
+
+  function patchScheduleIV(key: AgreementScheduleIVKey, value: string) {
+    onPatch?.({ scheduleIV: { ...agreement.scheduleIV, [key]: value } });
   }
 
   function patchRecital(index: number, value: string) {
@@ -286,41 +306,106 @@ export function AgreementLetterArticle({
           </div>
         </div>
 
+        {editable && (
+          <div className="mt-6 grid gap-3 rounded-lg border border-dashed border-ink-300 p-3 text-sm print:hidden sm:grid-cols-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-ink-500">Site Holder</span>
+              <Select
+                value={siteHolder ? "yes" : "no"}
+                onChange={(e) => onPatch?.({ siteHolder: e.target.value === "yes" })}
+                options={[
+                  { value: "yes", label: "Franchisee holds the Site" },
+                  { value: "no", label: "A third party holds the Site" },
+                ]}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-ink-500">Payment Model</span>
+              <Select
+                value={paymentModel}
+                onChange={(e) => onPatch?.({ paymentModel: e.target.value as AgreementDoc["paymentModel"] })}
+                options={AGREEMENT_PAYMENT_MODELS.map((m) => ({ value: m, label: AGREEMENT_PAYMENT_MODEL_LABEL[m] }))}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-ink-500">Tenure extendable</span>
+              <Select
+                value={tenureExtendable ? "yes" : "no"}
+                onChange={(e) => onPatch?.({ tenureExtendable: e.target.value === "yes" })}
+                options={[
+                  { value: "yes", label: "Yes — Clause 3.2 applies" },
+                  { value: "no", label: "No — fixed Tenure" },
+                ]}
+              />
+            </label>
+          </div>
+        )}
+
         <h3 className="mt-8 text-center text-sm font-bold text-ink-900">SCHEDULE I</h3>
         <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Site, Charger, Tenure and Commercial Details</p>
-        <table className="mt-3 w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="border border-ink-300 bg-brand-700 px-3 py-1.5 text-left text-xs font-semibold text-white">Parameter</th>
-              <th className="border border-ink-300 bg-brand-700 px-3 py-1.5 text-left text-xs font-semibold text-white">Detail</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agreementScheduleFields(company.shortName).map((f, i) => (
-              <tr key={f.key} className={i % 2 === 0 ? "bg-ink-50" : "bg-white"}>
-                <td className="border border-ink-300 px-3 py-1.5 font-medium text-ink-800">{f.label}</td>
-                <td className="border border-ink-300 px-3 py-1.5 text-ink-700">
-                  {editable ? (
-                    <>
-                      <input
-                        value={agreement.scheduleI[f.key] ?? ""}
-                        onChange={(e) => patchSchedule(f.key, e.target.value)}
-                        placeholder="—"
-                        aria-label={f.label}
-                        className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 print:hidden"
-                      />
-                      <span className="hidden print:inline">{agreement.scheduleI[f.key] || "—"}</span>
-                    </>
-                  ) : (
-                    agreement.scheduleI[f.key] || "—"
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ScheduleTable fields={agreementScheduleFields(company.shortName)} values={agreement.scheduleI} editable={editable} onChange={patchSchedule} />
+
+        <h3 className="mt-8 text-center text-sm font-bold text-ink-900">SCHEDULE II</h3>
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Payment Model Detail</p>
+        <ScheduleTable fields={agreementScheduleIIFields()} values={agreement.scheduleII ?? {}} editable={editable} onChange={patchScheduleII} />
+
+        {!siteHolder && (
+          <>
+            <h3 className="mt-8 text-center text-sm font-bold text-ink-900">SCHEDULE III</h3>
+            <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Site Holder Detail</p>
+            <ScheduleTable fields={agreementScheduleIIIFields()} values={agreement.scheduleIII ?? {}} editable={editable} onChange={patchScheduleIII} />
+          </>
+        )}
+
+        <h3 className="mt-8 text-center text-sm font-bold text-ink-900">SCHEDULE IV</h3>
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-500">Additional Terms</p>
+        <ScheduleTable fields={agreementScheduleIVFields()} values={agreement.scheduleIV ?? {}} editable={editable} onChange={patchScheduleIV} />
       </PrintDocument>
     </article>
+  );
+}
+
+/** Shared Parameter/Detail table renderer for Schedule I-IV — same editable-inline pattern each time, just a different field list and value bag. */
+function ScheduleTable<K extends string>({
+  fields, values, editable, onChange,
+}: {
+  fields: readonly { key: K; label: string }[];
+  values: Partial<Record<K, string>>;
+  editable: boolean;
+  onChange: (key: K, value: string) => void;
+}) {
+  return (
+    <table className="mt-3 w-full border-collapse text-sm">
+      <thead>
+        <tr>
+          <th className="border border-ink-300 bg-brand-700 px-3 py-1.5 text-left text-xs font-semibold text-white">Parameter</th>
+          <th className="border border-ink-300 bg-brand-700 px-3 py-1.5 text-left text-xs font-semibold text-white">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {fields.map((f, i) => (
+          <tr key={f.key} className={i % 2 === 0 ? "bg-ink-50" : "bg-white"}>
+            <td className="border border-ink-300 px-3 py-1.5 font-medium text-ink-800">{f.label}</td>
+            <td className="border border-ink-300 px-3 py-1.5 text-ink-700">
+              {editable ? (
+                <>
+                  <input
+                    value={values[f.key] ?? ""}
+                    onChange={(e) => onChange(f.key, e.target.value)}
+                    placeholder="—"
+                    aria-label={f.label}
+                    className="w-full rounded border border-transparent bg-transparent px-1 hover:border-ink-200 hover:bg-ink-50 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 print:hidden"
+                  />
+                  <span className="hidden print:inline">{values[f.key] || "—"}</span>
+                </>
+              ) : (
+                values[f.key] || "—"
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
