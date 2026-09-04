@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -58,6 +58,29 @@ export async function applyForAttendanceRequest(draft: AttendanceRequestDraft, a
     decidedAt: null,
     decidedBy: null,
     decisionNote: "",
+  });
+}
+
+/**
+ * Does this employee have a Work From Home request covering today — pending
+ * OR already approved? Checked at the moment of check-in/out so the office
+ * geofence lifts as soon as they've flagged today as WFH, rather than
+ * making them wait for a manager to act on the approval first (the
+ * attendance STATUS still needs that approval to stick; this only decides
+ * whether today's punch is exempt from the location check). Pure-equality
+ * filters only (uid/kind/fromDate) — no composite index needed.
+ */
+export async function hasWfhToday(uid: string): Promise<boolean> {
+  const today = ymd(new Date());
+  const snap = await getDocs(query(
+    collection(getDb(), ATTENDANCE_REQUESTS),
+    where("uid", "==", uid),
+    where("kind", "==", "WFH"),
+    where("fromDate", "==", today),
+  ));
+  return snap.docs.some((d) => {
+    const status = d.data().status as AttendanceRequestStatus;
+    return status === "PENDING" || status === "APPROVED";
   });
 }
 
