@@ -417,10 +417,14 @@ export function describeConfig(items: ConfigItem[] | undefined | null): string {
   return config.map((it) => `${it.qty} × ${getSpec(it.sku)?.label ?? it.sku}`).join(" + ");
 }
 
-/** "60 kW" / "60 kW + 120 kW" — used in the LOI subject line. */
+/** "60 kW" / "4 × 7.4 kW" / "60 kW + 2 × 120 kW" — used in the LOI/Agreement subject line and capacity clause. Quantity is only shown when >1, but always shown then — a bare `new Set` of labels used to silently drop it entirely. */
 export function describeCapacity(items: ConfigItem[] | undefined | null): string {
   const config = normaliseConfig(items);
   if (!config.length) return "";
-  const labels = [...new Set(config.map((it) => getSpec(it.sku)?.label ?? it.sku))];
-  return labels.join(" + ");
+  return config
+    .map((it) => {
+      const label = getSpec(it.sku)?.label ?? it.sku;
+      return it.qty > 1 ? `${it.qty} × ${label}` : label;
+    })
+    .join(" + ");
 }

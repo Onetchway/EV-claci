@@ -239,6 +239,7 @@ export function buildEoiFromLead(lead: Lead, opts: BuildEoiOptions): EoiDoc {
 }
 
 function salutationFor(lead: Lead): string {
+  if (lead.client?.salutation) return lead.client.salutation;
   if (lead.client?.company?.trim()) return "M/s";
   return "Mr.";
 }

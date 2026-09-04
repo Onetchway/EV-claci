@@ -310,6 +310,19 @@ export function LeadForm({ initial, submitLabel, onSubmit, onCancel, currentLead
           <Field label={isInstitutional ? "POC name" : "Client name"} required error={errors["client.name"]}>
             <Input value={values.client.name} onChange={(e) => setClient({ name: e.target.value })} placeholder="Shoyeb Khan" />
           </Field>
+          <Field label="Salutation" hint="Drives EOI/Agreement wording — not guessed from the name.">
+            <Select
+              placeholder="Select"
+              value={values.client.salutation ?? ""}
+              onChange={(e) => setClient({ salutation: (e.target.value || undefined) as ClientInfo["salutation"] })}
+              options={[
+                { value: "Mr.", label: "Mr." },
+                { value: "Ms.", label: "Ms." },
+                { value: "Mrs.", label: "Mrs." },
+                { value: "M/s", label: "M/s (firm)" },
+              ]}
+            />
+          </Field>
           <Field label="Phone number" required error={errors["client.phone"]}>
             <Input
               inputMode="numeric"

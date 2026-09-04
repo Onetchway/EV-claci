@@ -259,8 +259,12 @@ export interface ShipToInfo {
   gstin?: string;
 }
 
+/** Drives the pronoun/salutation used in EOI and Agreement documents — an explicit field rather than guessed from the name, since guessing gender from a name is unreliable and was previously defaulting to "Mr." regardless. */
+export type ClientSalutation = "Mr." | "Ms." | "Mrs." | "M/s";
+
 export interface ClientInfo {
   name: string;
+  salutation?: ClientSalutation;
   phone: string;
   altPhone?: string;
   email?: string;
