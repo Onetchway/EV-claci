@@ -23,7 +23,7 @@ const ENTITY_TYPE_LABEL: Record<ChangeEntityType, string> = {
   USER: "User", SETTINGS: "Settings", WEBHOOK: "Webhook", API_KEY: "API key", RFID_TOKEN: "RFID token",
   QUOTATION: "Quotation", PROFORMA_INVOICE: "Proforma invoice", PURCHASE_ORDER: "Purchase order",
   PAYROLL_PROFILE: "Payroll profile", PAYSLIP: "Payslip", EMPLOYEE_DOCUMENT: "Employee document",
-  EXPENSE_CLAIM: "Expense claim",
+  EXPENSE_CLAIM: "Expense claim", VENDOR_ENGAGEMENT: "Vendor engagement",
 };
 
 const ACTION_STYLE: Record<string, string> = {

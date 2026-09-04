@@ -12,7 +12,7 @@ import type {
   EmspUserType, InvoiceBillToType, InvoiceStatus, PaymentStatus, PoStatus, PowerLoad,
   PayslipStatus, ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
-  TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
+  TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorEngagementStatus, VendorPaymentStatus, VendorStatus,
   WebhookEvent, WeekDay, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
@@ -774,6 +774,79 @@ export interface VendorPayment {
   note?: string;
   createdAt: TS;
   createdBy?: Actor | null;
+}
+
+/**
+ * One stage/deliverable within a sub-vendor VendorEngagement — modeled on
+ * ProjectWorkstream's planned/actual date pairing and status, but scoped to
+ * a single work item (a milestone) rather than a whole delivery strand, and
+ * carrying its own amount since a vendor engagement's payment schedule is
+ * usually broken up milestone-by-milestone. Embedded in the parent
+ * VendorEngagement doc, same "small list, no subcollection" reasoning as
+ * ExpenseClaim.items / AgreementBomRow.
+ */
+export interface VendorEngagementMilestone {
+  id: string;
+  label: string;
+  status: TaskStatus;
+  plannedStart?: TS;
+  plannedEnd?: TS;
+  actualStart?: TS;
+  actualEnd?: TS;
+  amount?: number;
+  note?: string;
+}
+
+/**
+ * A single job/engagement Livanto has assigned to a sub-vendor — distinct
+ * from the Vendor directory record itself (name, contact, bank details),
+ * since one vendor may be running several separate engagements over time
+ * (e.g. civil work on one station while also doing EPC scope on another).
+ * Lives under its own top-level collection (vendorEngagements), the same
+ * structural shape as purchaseOrders keyed by vendorId — not nested under
+ * vendors/{id} — and is surfaced as a "Work Engagements" tab on the vendor
+ * detail page rather than new top-level nav.
+ *
+ * Linked documents (Project/PO/PI/Quotation) are reference-only {id, number}
+ * pairs, the same convention Asset uses for vendorId/poId/linkedProjectId —
+ * never a duplicate copy of the linked doc's data. BOQ is deliberately just
+ * a free-text reference (boqReference) rather than a structured link: no BOQ
+ * entity exists anywhere in this codebase, and building one is out of scope
+ * here — flag this to the user if they actually wanted a real BOQ module.
+ */
+export interface VendorEngagement {
+  id: string;
+  /** Human-friendly reference, e.g. LG-VE-000012. */
+  number: string;
+  vendorId: string;
+  vendorName: string;
+  /** What the work is, e.g. "Civil + electrical work — Sector 62 station". */
+  title: string;
+  description?: string;
+  status: VendorEngagementStatus;
+  linkedProjectId?: string | null;
+  linkedProjectCode?: string | null;
+  linkedPoId?: string | null;
+  linkedPoNumber?: string | null;
+  linkedPiId?: string | null;
+  linkedPiNumber?: string | null;
+  linkedQuotationId?: string | null;
+  linkedQuotationNumber?: string | null;
+  /** Free-text BOQ document number/note — no structured BOQ entity exists in this codebase. */
+  boqReference?: string;
+  /** Prefilled from Vendor.paymentTerms as a convenience default, freely overridable per engagement. */
+  paymentTerms?: string;
+  totalAmount?: number;
+  penaltyClause?: string;
+  /** Only set once a penalty is actually enforced against this engagement — this is not a calculation engine. */
+  penaltyAppliedAmount?: number;
+  targetCompletionAt?: TS | null;
+  actualCompletionAt?: TS | null;
+  milestones: VendorEngagementMilestone[];
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
 }
 
 /**

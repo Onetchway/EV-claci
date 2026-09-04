@@ -934,6 +934,34 @@ export const PO_STATUS_COLOR: Record<PoStatus, string> = {
 export const VENDOR_PAYMENT_STATUSES = ["PENDING", "PAID"] as const;
 export type VendorPaymentStatus = (typeof VENDOR_PAYMENT_STATUSES)[number];
 
+/**
+ * A sub-vendor/contractor work engagement's own lifecycle — distinct from a
+ * milestone's status (which reuses TaskStatus, see VendorEngagementMilestone
+ * in types.ts). This one doesn't need the two-stage approval Expense Claims
+ * introduced — an engagement is created and managed directly by whoever can
+ * already edit vendors (canManageVendors), so a simple flat lifecycle is enough.
+ */
+export const VENDOR_ENGAGEMENT_STATUSES = [
+  "DRAFT", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED",
+] as const;
+export type VendorEngagementStatus = (typeof VENDOR_ENGAGEMENT_STATUSES)[number];
+
+export const VENDOR_ENGAGEMENT_STATUS_LABEL: Record<VendorEngagementStatus, string> = {
+  DRAFT: "Draft",
+  ACTIVE: "Active",
+  ON_HOLD: "On hold",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+export const VENDOR_ENGAGEMENT_STATUS_COLOR: Record<VendorEngagementStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  ACTIVE: "bg-sky-100 text-sky-800 ring-sky-200",
+  ON_HOLD: "bg-amber-100 text-amber-800 ring-amber-200",
+  COMPLETED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
 // ----------------------------------------------------------- client quotations
 
 export const QUOTATION_STATUSES = [

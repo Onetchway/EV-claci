@@ -505,6 +505,16 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
     }
 
+    // Sub-vendor work engagements — a specific job (milestones, payment
+    // terms, PO/PI/Quotation/BOQ references, penalty clause, timeline)
+    // assigned to a vendor. Top-level, keyed by vendorId, same structural
+    // shape as purchaseOrders — not nested under vendors/{id}. Same
+    // operational class of data, same role bar.
+    match /vendorEngagements/{engagementId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
     // Client-facing quotations (chargers and/or EPC services) — the mirror
     // image of purchaseOrders, but money coming IN. Same bar as making a
     // pricing decision (canManageCatalog / discount / price-override).
