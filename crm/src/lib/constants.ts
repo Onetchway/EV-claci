@@ -1675,3 +1675,25 @@ export const TENDER_STATUS_META: Record<TenderStatus, { label: string; className
   CANCELLED: { label: "Cancelled", className: "bg-ink-100 text-ink-500 ring-ink-200" },
 };
 
+// ---------------------------------------------------------------------------
+// BOQ — Bill of Quantities per project. Ported from nakjm-crm: a project's
+// full BOQ can be revised (a new DRAFT version carrying the lineage forward)
+// and requires a typed-name sign-off before it moves to APPROVED.
+// ---------------------------------------------------------------------------
+
+export const BOQ_STATUSES = ["DRAFT", "APPROVED", "REVISED"] as const;
+export type BoqStatus = (typeof BOQ_STATUSES)[number];
+
+export const BOQ_STATUS_META: Record<BoqStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  APPROVED: { label: "Approved", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  REVISED: { label: "Revised", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+};
+
+export const BOQ_CATEGORIES = ["HT", "LT", "CIVIL", "MEP", "CHARGER", "OTHER"] as const;
+export type BoqCategory = (typeof BOQ_CATEGORIES)[number];
+
+export const BOQ_CATEGORY_LABEL: Record<BoqCategory, string> = {
+  HT: "HT Works", LT: "LT Works", CIVIL: "Civil Work", MEP: "MEP", CHARGER: "Charger Installation", OTHER: "Other Works",
+};
+

@@ -12,7 +12,7 @@ import type {
   ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
   TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
-  WebhookEvent, WeekDay, Workstream, TenderStatus,
+  WebhookEvent, WeekDay, Workstream, TenderStatus, BoqCategory, BoqStatus,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
 
@@ -1857,6 +1857,62 @@ export interface Tender {
   orgId?: string | null;
   deletedAt?: TS | null;
   deletedBy?: Actor | null;
+  search: string[];
+  createdAt: TS;
+  updatedAt?: TS;
+  createdBy?: Actor;
+}
+
+// ---------------------------------------------------------------------------
+// BOQ (Bill of Quantities) — ported from nakjm-crm
+// ---------------------------------------------------------------------------
+
+/** Line item shape shared by BOQ/Quotation/PO-style documents that don't already have their own (e.g. the pricing engine's ConfigItem/ExtraItem). */
+export interface LineItem {
+  srNo: number;
+  description: string;
+  unit?: string;
+  qty: number;
+  rate: number;
+  amount: number;
+  hsnCode?: string;
+  gstPercent?: number;
+}
+
+export interface BoqLineItem extends LineItem {
+  section?: string;
+  makeOem?: string;
+  supplyRate?: number;
+  installationRate?: number;
+  category: BoqCategory;
+  remarks?: string;
+}
+
+/** A typed-name sign-off — a lightweight internal approval, not a cryptographic signature. */
+export interface DocApproval {
+  approvedBy: Actor;
+  approvedAt: TS;
+  signatureName: string;
+  note?: string;
+}
+
+export interface Boq {
+  id: string;
+  boqNo: string;
+  projectId: string;
+  projectName: string;
+  siteName?: string;
+  version: number;
+  status: BoqStatus;
+  boqDate: TS;
+  items: BoqLineItem[];
+  totalAmount: number;
+  notes?: string;
+  /** Revision lineage: rootBoqId is the same across every version of one BOQ (the first version's own id); revisedFrom is the immediate prior version's id. Absent on a v1 BOQ. */
+  rootBoqId?: string | null;
+  revisedFrom?: string | null;
+  approval?: DocApproval | null;
+  orgId?: string | null;
   search: string[];
   createdAt: TS;
   updatedAt?: TS;

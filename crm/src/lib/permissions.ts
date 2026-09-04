@@ -201,6 +201,10 @@ export const canManageProformaInvoices = (viewer: Viewer) =>
 export const canManageTenders = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "SALES_MANAGER", "OPERATIONS");
 
+// BOQ — a project cost decision, same bar as vendors/assets.
+export const canManageBoq = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");
+
 // Charger fault tickets and RFID allow-listing — same bar as chargers themselves.
 export const canManageTickets = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN", "OPERATIONS");

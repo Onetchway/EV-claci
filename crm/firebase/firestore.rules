@@ -577,6 +577,16 @@ service cloud.firestore {
       allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'OPERATIONS'] && sameOrgExisting();
     }
 
+    // Bill of Quantities — org-wide visible like quotations/POs, same write
+    // bar as a project cost decision (Operations owns BOQ content, Admin can
+    // always override).
+    match /boqs/{boqId} {
+      allow read: if signedIn() && sameOrgExisting();
+      allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'] && sameOrgIncoming();
+      allow update: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'] && sameOrgExisting() && sameOrgIncoming();
+      allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'] && sameOrgExisting();
+    }
+
     // ------------------------------------------------------------------ HRMS
 
     // Office/geofence config — org-wide policy, admin only.
@@ -1066,7 +1076,7 @@ service cloud.firestore {
     // (shown on each document's own detail page) is too.
     match /changeLog/{entryId} {
       allow read: if isAdmin()
-                  || (signedIn() && resource.data.entityType in ['QUOTATION', 'PROFORMA_INVOICE', 'PURCHASE_ORDER', 'TENDER']);
+                  || (signedIn() && resource.data.entityType in ['QUOTATION', 'PROFORMA_INVOICE', 'PURCHASE_ORDER', 'TENDER', 'BOQ']);
       allow create: if signedIn() && actorIsSelf('actor');
       allow update, delete: if false;
     }
