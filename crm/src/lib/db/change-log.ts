@@ -26,6 +26,7 @@ export const CHANGE_LOG = "changeLog";
 export const CHANGE_ENTITY_TYPES = [
   "CHARGER", "TARIFF", "ZONE", "WORKFLOW_RULE", "USER", "SETTINGS", "WEBHOOK", "API_KEY", "RFID_TOKEN",
   "QUOTATION", "PROFORMA_INVOICE", "PURCHASE_ORDER", "PAYROLL_PROFILE", "PAYSLIP", "EMPLOYEE_DOCUMENT",
+  "EXPENSE_CLAIM",
 ] as const;
 export type ChangeEntityType = (typeof CHANGE_ENTITY_TYPES)[number];
 

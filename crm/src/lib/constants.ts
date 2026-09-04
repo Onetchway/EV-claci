@@ -1500,6 +1500,39 @@ export const EMPLOYEE_DOC_KIND_LABEL: Record<EmployeeDocKind, string> = {
   OTHER: "Other Document",
 };
 
+// ------------------------------------------------------ expense management
+// Employee expense claims and reimbursement — see src/lib/db/expense-claims.ts
+// for the two-stage (manager, then Finance) approval lifecycle.
+export const EXPENSE_CATEGORIES = ["TRAVEL_BIKE", "TRAVEL_CAR", "HOTEL", "DAILY_ALLOWANCE", "OTHER"] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
+  TRAVEL_BIKE: "Travel — Bike",
+  TRAVEL_CAR: "Travel — Car",
+  HOTEL: "Hotel",
+  DAILY_ALLOWANCE: "Daily Allowance",
+  OTHER: "Other",
+};
+
+export const EXPENSE_CLAIM_STATUSES = ["DRAFT", "PENDING_MANAGER", "PENDING_FINANCE", "APPROVED", "REJECTED"] as const;
+export type ExpenseClaimStatus = (typeof EXPENSE_CLAIM_STATUSES)[number];
+
+export const EXPENSE_CLAIM_STATUS_LABEL: Record<ExpenseClaimStatus, string> = {
+  DRAFT: "Draft",
+  PENDING_MANAGER: "Pending Manager",
+  PENDING_FINANCE: "Pending Finance",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+};
+
+export const EXPENSE_CLAIM_STATUS_COLOR: Record<ExpenseClaimStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  PENDING_MANAGER: "bg-amber-100 text-amber-800 ring-amber-200",
+  PENDING_FINANCE: "bg-sky-100 text-sky-800 ring-sky-200",
+  APPROVED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  REJECTED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
 export const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh", "Chhattisgarh",
   "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu & Kashmir", "Jharkhand",

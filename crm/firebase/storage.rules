@@ -86,6 +86,29 @@ service firebase.storage {
       allow delete: if canManagePayroll();
     }
 
+    // Same bar as canManagePayroll() above — role visible to Finance/Admin/
+    // Super Admin — reused here so a manager who isn't also Finance/Admin
+    // can still see a claim's receipts they're approving.
+    function canManageHrms() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
+    // Expense claim receipts (see src/lib/db/expense-receipts.ts). Storage
+    // can't check Firestore, so — same mechanism as employees/{uid}/** above
+    // — "own" is the path's {uid} segment against the caller's uid. Visible
+    // to the claimant, any HRMS manager, and Finance/Admin/Super Admin
+    // (receipts need to be seen by whoever is deciding the claim, at either
+    // stage); only the claimant may upload, and only while their claim is
+    // still editable (DRAFT) — Storage can't see the claim's status either,
+    // so that's additionally enforced by the app only ever calling this
+    // while the claim is a DRAFT the owner controls.
+    match /expenses/{uid}/{claimId}/{fileName} {
+      allow read: if canManagePayroll() || canManageHrms() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid && acceptableFile();
+      allow update: if false;
+      allow delete: if canManagePayroll() || (signedIn() && request.auth.uid == uid);
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

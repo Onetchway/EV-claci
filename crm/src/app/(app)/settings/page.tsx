@@ -20,7 +20,7 @@ import type { AppSettings, FollowupSequence } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
 const TABS = [
-  "Company", "Bank", "Letter of Intent", "Finance", "OCPP", "Dropdown lists", "Follow-up sequences", "Investor portal",
+  "Company", "Bank", "Letter of Intent", "Finance", "Expenses", "OCPP", "Dropdown lists", "Follow-up sequences", "Investor portal",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -447,6 +447,45 @@ export default function SettingsPage() {
             Charger prices and modelled returns come from the Livanto investment workbook and are
             deliberately not editable here — <code>npm run verify</code> checks them against that
             workbook on every build. Individual deals can still override a price on the quotation.
+          </p>
+        </Card>
+      )}
+
+      {tab === "Expenses" && (
+        <Card title="Expense reimbursement rates" subtitle="Used to auto-calculate travel line items and prefill the daily allowance on a new expense claim.">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Bike — rate per km (₹)">
+              <Input
+                type="number"
+                min={0}
+                step={0.5}
+                value={form.expense.ratePerKmBike}
+                onChange={(e) => set("expense", { ...form.expense, ratePerKmBike: Number(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="Car — rate per km (₹)">
+              <Input
+                type="number"
+                min={0}
+                step={0.5}
+                value={form.expense.ratePerKmCar}
+                onChange={(e) => set("expense", { ...form.expense, ratePerKmCar: Number(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="Default daily allowance (₹)" hint="Prefilled on a new Daily Allowance line — still freely editable.">
+              <Input
+                type="number"
+                min={0}
+                value={form.expense.defaultDailyAllowance}
+                onChange={(e) => set("expense", { ...form.expense, defaultDailyAllowance: Number(e.target.value) || 0 })}
+              />
+            </Field>
+          </div>
+
+          <p className="mt-4 rounded-lg bg-ink-50 px-3 py-2.5 text-xs text-ink-600">
+            A rate change here only affects new travel line items entered from now on — an already-saved
+            line keeps the rate it was calculated with, so a rate change never silently rewrites a
+            submitted claim.
           </p>
         </Card>
       )}

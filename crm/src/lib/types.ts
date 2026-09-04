@@ -5,6 +5,7 @@ import type {
   CommercialModel, CommissionStatus,
   ComplaintCategory, ComplaintPriority, ComplaintStatus,
   ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EmployeeDocKind, EoiStatus,
+  ExpenseCategory, ExpenseClaimStatus,
   FollowupPriority, FollowupStatus, FollowupType, FundingMode, GstType, LandType,
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
@@ -1677,6 +1678,12 @@ export interface AppSettings {
     defaultInterestRate: number;
     defaultTenureYears: number;
   };
+  /** Reimbursement rates for the Expense Management module — see ExpenseLineItem/ExpenseClaim below. */
+  expense: {
+    ratePerKmBike: number;
+    ratePerKmCar: number;
+    defaultDailyAllowance: number;
+  };
   /** Extra options appended to the built-in dropdowns. */
   lists: {
     chargerOems: string[];
@@ -2026,4 +2033,80 @@ export interface Payslip {
   finalizedBy?: Actor | null;
   paidAt?: TS | null;
   paidBy?: Actor | null;
+}
+
+// ---------------------------------------------------------------------------
+// Expense management & reimbursement — an employee-filed claim of one or
+// more line items (travel by bike/car, hotel, daily allowance, other),
+// carried through a two-stage sequential approval (manager, then Finance)
+// before it's reimbursed. New ground in this codebase — no prior module
+// does two-stage approval — so this is deliberately built to match every
+// adjacent convention precisely: embedded line items (mirrors
+// EoiScheduleRow/AgreementBomRow, small enough lists that a subcollection
+// would be overkill), a DRAFT-editable-only lifecycle with a transactional
+// LG-EXP-000001 number (mirrors Payslip/nextPayslipNumber), and money as
+// plain whole-rupee numbers throughout (see formatINR in lib/utils.ts — this
+// codebase never stores paise). See src/lib/db/expense-claims.ts.
+// ---------------------------------------------------------------------------
+
+/** One priced entry on an expense claim. yyyy-mm-dd, matching AttendanceRequest.fromDate/LeaveRequest — a per-line date, not a Timestamp. */
+export interface ExpenseLineItem {
+  id: string;
+  category: ExpenseCategory;
+  date: string;
+  description?: string;
+  /** TRAVEL_BIKE / TRAVEL_CAR only. */
+  km?: number;
+  /** The per-km rate (settings.expense.ratePerKmBike/ratePerKmCar) snapshotted at the moment this line was last saved, TRAVEL_* only — so a later change to the org-wide rate never silently rewrites an already-submitted claim's amount. */
+  rateApplied?: number;
+  /** Auto-computed (km × rateApplied) for TRAVEL_*; manually entered for HOTEL/DAILY_ALLOWANCE/OTHER (DAILY_ALLOWANCE is prefilled from settings.expense.defaultDailyAllowance as a convenience default, still freely editable). */
+  amount: number;
+  receiptUrl?: string;
+  receiptFileName?: string;
+  receiptStoragePath?: string;
+}
+
+/**
+ * One employee's expense claim for one reporting month — doc id is
+ * auto-generated, `number` is the human-friendly LG-EXP-000001 reference
+ * (nextExpenseClaimNumber, mirrors nextPayslipNumber exactly). `month`/`year`
+ * are which payroll/reporting month the claim is FOR (drives the
+ * employee-wise/team-wise monthly reports), independent of `submittedAt`.
+ *
+ * Lifecycle: DRAFT (employee builds it, full edit) → submit → PENDING_MANAGER
+ * (or straight to PENDING_FINANCE if the employee had no managerId on file at
+ * submit time — see submitExpenseClaim's doc comment) → PENDING_FINANCE →
+ * APPROVED, with a REJECTED off-ramp at either stage that the employee can
+ * revise back into DRAFT and resubmit. `managerId` is snapshotted from
+ * AppUser.managerId at submit time (same reasoning as `rateApplied` above)
+ * so a later manager reassignment never reroutes an in-flight claim.
+ */
+export interface ExpenseClaim {
+  id: string;
+  /** e.g. LG-EXP-000001 */
+  number: string;
+  uid: string;
+  userName: string;
+  /** Snapshotted from AppUser.managerId at submit time. Null/absent if the employee had no manager on file — see routedDirectToFinance. */
+  managerId?: string | null;
+  /** 1-12, which reporting month this claim is FOR. */
+  month: number;
+  year: number;
+  items: ExpenseLineItem[];
+  /** Sum of items[].amount — denormalized, recomputed on every save. */
+  totalAmount: number;
+  status: ExpenseClaimStatus;
+  /** Set when submitted with no managerId on file, routing straight to PENDING_FINANCE — surfaced on the claim so everyone can see why the manager stage was skipped. */
+  routedDirectToFinance?: boolean;
+  managerDecisionAt?: TS | null;
+  managerDecisionBy?: Actor | null;
+  managerNote?: string;
+  financeDecisionAt?: TS | null;
+  financeDecisionBy?: Actor | null;
+  financeNote?: string;
+  submittedAt?: TS | null;
+  createdAt: TS;
+  createdBy?: Actor;
+  updatedAt?: TS;
+  updatedBy?: Actor;
 }

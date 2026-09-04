@@ -611,6 +611,40 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Expense management & reimbursement — a two-stage sequential approval
+    // (manager, then Finance). Role-only at the rules layer, same posture as
+    // leaveRequests/attendanceRequests just above (no managerId
+    // cross-reference here either — that narrowing is client-side in
+    // (app)/expenses/approvals/page.tsx): canManageHrms() covers the manager
+    // stage (PENDING_MANAGER -> PENDING_FINANCE/REJECTED), canManagePayroll()
+    // the Finance stage (PENDING_FINANCE -> APPROVED/REJECTED), same bar as
+    // payslips. Delete mirrors deletePayslip's DRAFT-vs-locked two tier.
+    match /expenseClaims/{claimId} {
+      allow read: if canManageHrms() || canManagePayroll() || resource.data.uid == uid();
+      // An employee starts their own claim as a DRAFT with no line items yet.
+      allow create: if signedIn()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.status == 'DRAFT';
+      allow update: if
+        // The owner may keep editing a DRAFT (items/totalAmount), or submit
+        // it (DRAFT -> PENDING_MANAGER/PENDING_FINANCE), or revise a
+        // REJECTED claim back to DRAFT.
+        (resource.data.uid == uid()
+          && ((resource.data.status == 'DRAFT' && request.resource.data.status in ['DRAFT', 'PENDING_MANAGER', 'PENDING_FINANCE'])
+              || (resource.data.status == 'REJECTED' && request.resource.data.status == 'DRAFT')))
+        // The manager stage: only while PENDING_MANAGER, only into
+        // PENDING_FINANCE or REJECTED.
+        || (canManageHrms()
+            && resource.data.status == 'PENDING_MANAGER'
+            && request.resource.data.status in ['PENDING_FINANCE', 'REJECTED'])
+        // The Finance stage: only while PENDING_FINANCE, only into APPROVED
+        // or REJECTED.
+        || (canManagePayroll()
+            && resource.data.status == 'PENDING_FINANCE'
+            && request.resource.data.status in ['APPROVED', 'REJECTED']);
+      allow delete: if (resource.data.uid == uid() && resource.data.status == 'DRAFT') || isSuperAdmin();
+    }
+
     // --------------------------------------------------------- OCPP / chargers
 
     // Written only by the standalone OCPP central system (ocpp-server/),
