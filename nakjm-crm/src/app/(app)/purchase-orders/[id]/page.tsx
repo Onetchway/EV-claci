@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Plus, Printer, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, Printer, ShieldCheck, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
 import { EntityActivityLog } from "@/components/entity-activity-log";
@@ -14,8 +14,10 @@ import {
 import { PAYMENT_MODES, PO_STATUSES, type PaymentMode, type PoStatus } from "@/lib/constants";
 import { recordVendorPayment, subscribeVendorPayments } from "@/lib/db/payments";
 import { approvePurchaseOrder, deletePurchaseOrder, subscribePurchaseOrder, updatePoStatus } from "@/lib/db/purchase-orders";
+import { defaultSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
 import { getVendor } from "@/lib/db/vendors";
 import { canManageProcurement, canTrash } from "@/lib/permissions";
+import { buildPurchaseOrderTallyXml, downloadTallyXml } from "@/lib/tally-export";
 import type { PurchaseOrder, Vendor, VendorPayment } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
@@ -31,6 +33,7 @@ export default function PurchaseOrderDetailPage() {
   const [po, setPo] = useState<PurchaseOrder | null | undefined>(undefined);
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [payments, setPayments] = useState<VendorPayment[] | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings());
   const [payOpen, setPayOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -41,6 +44,7 @@ export default function PurchaseOrderDetailPage() {
   useEffect(() => subscribePurchaseOrder(id, setPo), [id]);
   useEffect(() => { if (po?.vendorId) void getVendor(po.vendorId).then(setVendor); }, [po?.vendorId]);
   useEffect(() => subscribeVendorPayments({ projectId: po?.projectId }, setPayments), [po?.projectId]);
+  useEffect(() => subscribeSettings(setSettings), []);
 
   if (po === undefined) return <div className="flex justify-center py-20 text-ink-400"><Spinner className="h-7 w-7" /></div>;
   if (po === null) return <EmptyState title="Purchase order not found" action={<Link href="/purchase-orders"><Button>Back to purchase orders</Button></Link>} />;
@@ -71,6 +75,11 @@ export default function PurchaseOrderDetailPage() {
     }, "Payment recorded.");
   }
 
+  function onExportTally() {
+    const xml = buildPurchaseOrderTallyXml(po!, settings.tally, settings.company.name);
+    downloadTallyXml(`${po!.poNo}-tally`, xml);
+  }
+
   const due = Math.max(po.totalAmount - po.paidAmount, 0);
 
   return (
@@ -92,9 +101,15 @@ export default function PurchaseOrderDetailPage() {
             {canManageProcurement(viewer) && po.status === "DRAFT" && (
               <Button variant="primary" onClick={() => setApproveOpen(true)}><ShieldCheck className="h-4 w-4" /> Approve &amp; Issue</Button>
             )}
+            {canManageProcurement(viewer) && po.status === "DRAFT" && (
+              <Link href={`/purchase-orders/${po.id}/edit`}><Button><Pencil className="h-4 w-4" /> Edit</Button></Link>
+            )}
             <Link href={`/projects/${po.projectId}/purchase-orders/${po.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
             </Link>
+            {canManageProcurement(viewer) && (
+              <Button onClick={onExportTally}><Download className="h-4 w-4" /> Export to Tally</Button>
+            )}
             {canManageProcurement(viewer) && due > 0 && (
               <Button variant="primary" onClick={() => setPayOpen(true)}><Plus className="h-4 w-4" /> Record payment</Button>
             )}
@@ -109,28 +124,28 @@ export default function PurchaseOrderDetailPage() {
         <div className="space-y-4 lg:col-span-2">
           <Card title="Line items">
             <div className="overflow-x-auto scroll-thin">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
-                    <th className="pb-2">Description</th>
-                    <th className="pb-2">HSN/SAC</th>
-                    <th className="pb-2">Unit</th>
-                    <th className="pb-2 text-right">Qty</th>
-                    <th className="pb-2 text-right">Unit price</th>
-                    <th className="pb-2 text-right">GST %</th>
-                    <th className="pb-2 text-right">Amount</th>
+                    <th className="py-2 pr-3">Description</th>
+                    <th className="px-3 py-2">HSN/SAC</th>
+                    <th className="px-3 py-2">Unit</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right">Qty</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right">Unit price</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right">GST %</th>
+                    <th className="whitespace-nowrap py-2 pl-3 text-right">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {po.items.map((line) => (
                     <tr key={line.srNo} className="border-b border-ink-100">
-                      <td className="py-2">{line.description}</td>
-                      <td className="py-2 text-ink-500">{line.hsnCode || "—"}</td>
-                      <td className="py-2 text-ink-500">{line.unit || "—"}</td>
-                      <td className="py-2 text-right tabular-nums">{line.qty}</td>
-                      <td className="py-2 text-right tabular-nums">{formatINR(line.rate)}</td>
-                      <td className="py-2 text-right tabular-nums">{line.gstPercent ?? 0}%</td>
-                      <td className="py-2 text-right tabular-nums">{formatINR(line.amount)}</td>
+                      <td className="py-2.5 pr-3 align-top">{line.description}</td>
+                      <td className="px-3 py-2.5 align-top text-ink-500">{line.hsnCode || "—"}</td>
+                      <td className="px-3 py-2.5 align-top text-ink-500">{line.unit || "—"}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right align-top tabular-nums">{line.qty}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right align-top tabular-nums">{formatINR(line.rate)}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right align-top tabular-nums">{line.gstPercent ?? 0}%</td>
+                      <td className="whitespace-nowrap py-2.5 pl-3 text-right align-top tabular-nums">{formatINR(line.amount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -158,11 +173,13 @@ export default function PurchaseOrderDetailPage() {
             </Card>
           )}
 
-          {po.terms && (
-            <Card title="Terms &amp; conditions">
+          <Card title="Terms &amp; conditions">
+            {po.terms ? (
               <p className="whitespace-pre-line text-sm text-ink-700">{po.terms}</p>
-            </Card>
-          )}
+            ) : (
+              <p className="text-sm text-ink-400">No terms added yet.{canManageProcurement(viewer) && po.status === "DRAFT" ? " Click Edit to add." : ""}</p>
+            )}
+          </Card>
 
           {po.notes && (
             <Card title="Notes">

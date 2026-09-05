@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, deleteDoc, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc,
+  collection, deleteDoc, doc, getDoc, onSnapshot, query, runTransaction, serverTimestamp, setDoc,
   Timestamp, updateDoc, where,
 } from "firebase/firestore";
 
@@ -12,15 +12,30 @@ import { logActivitySafe } from "./activity";
 
 export const PURCHASE_ORDERS = "purchaseOrders";
 
+/** NKJM-PO-000142, allocated transactionally so two office staff can't collide. */
+export async function nextPoNo(): Promise<string> {
+  const db = getDb();
+  const ref = doc(db, "counters", "purchaseOrders");
+  const seq = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const current = (snap.exists() ? (snap.data().seq as number | undefined) : undefined) ?? 0;
+    const next = current + 1;
+    tx.set(ref, { seq: next }, { merge: true });
+    return next;
+  });
+  return `NKJM-PO-${String(seq).padStart(5, "0")}`;
+}
+
 /** Per-line GST (from each item's own gstPercent), then split by the PO's GST type. */
 export function computePoTotals(items: Omit<LineItem, "amount" | "srNo">[], gstType: "IGST" | "CGST_SGST" = "IGST") {
   const withAmounts: LineItem[] = items.map((it, i) => ({
     srNo: i + 1,
     description: it.description,
     unit: it.unit,
-    qty: Number(it.qty) || 0,
+    // Qty defaults to 1, not 0 -- a lump-sum line has no meaningful quantity, and a blank/0 qty should never silently zero out the amount.
+    qty: Number(it.qty) || 1,
     rate: Number(it.rate) || 0,
-    amount: (Number(it.qty) || 0) * (Number(it.rate) || 0),
+    amount: (Number(it.qty) || 1) * (Number(it.rate) || 0),
     hsnCode: it.hsnCode,
     gstPercent: Number(it.gstPercent) || 0,
   }));
@@ -136,7 +151,7 @@ export async function updatePoStatus(po: PurchaseOrder, status: PoStatus, actor:
   await updateDoc(doc(getDb(), PURCHASE_ORDERS, po.id), { status, updatedAt: serverTimestamp() });
   logActivitySafe({
     entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNo, action: "STATUS_CHANGE",
-    message: `Marked PO ${po.poNo} ${status}`, actor, projectId: po.projectId,
+    message: `status: ${po.status} → ${status}`, actor, projectId: po.projectId,
   });
 }
 
@@ -157,7 +172,7 @@ export async function approvePurchaseOrder(po: PurchaseOrder, signatureName: str
   });
   logActivitySafe({
     entityType: "PURCHASE_ORDER", entityId: po.id, entityLabel: po.poNo, action: "STATUS_CHANGE",
-    message: `${actor.name} approved and issued PO ${po.poNo}`, actor, projectId: po.projectId,
+    message: `status: ${po.status} → ISSUED`, actor, projectId: po.projectId,
   });
 }
 

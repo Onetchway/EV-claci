@@ -6,18 +6,44 @@ import { ClipboardList, Plus } from "lucide-react";
 
 import { Badge, Button, EmptyState, PageHeader, Select, StatCard } from "@/components/ui";
 import { ExportButton } from "@/components/export-button";
-import { BOQ_STATUSES, type BoqStatus } from "@/lib/constants";
+import { BOQ_CATEGORIES, BOQ_STATUSES, type BoqCategory, type BoqStatus } from "@/lib/constants";
 import { subscribeBoqs } from "@/lib/db/boq";
 import type { Boq } from "@/lib/types";
-import { formatCompactINR, formatDate, formatINR } from "@/lib/utils";
+import { formatCompactINR, formatDate, formatINR, MONTH_NAMES, toDate } from "@/lib/utils";
 
 export default function BoqListPage() {
   const [rows, setRows] = useState<Boq[] | null>(null);
   const [status, setStatus] = useState<BoqStatus | "ALL">("ALL");
+  const [year, setYear] = useState<string>("ALL");
+  const [month, setMonth] = useState<string>("ALL");
+  const [projectId, setProjectId] = useState<string>("ALL");
+  const [category, setCategory] = useState<BoqCategory | "ALL">("ALL");
 
   useEffect(() => subscribeBoqs(setRows), []);
 
-  const filtered = useMemo(() => (!rows ? [] : status === "ALL" ? rows : rows.filter((r) => r.status === status)), [rows, status]);
+  const years = useMemo(() => {
+    const s = new Set<number>();
+    (rows ?? []).forEach((r) => { const d = toDate(r.boqDate); if (d) s.add(d.getFullYear()); });
+    return [...s].sort((a, b) => b - a);
+  }, [rows]);
+  const projects = useMemo(() => {
+    const m = new Map<string, string>();
+    (rows ?? []).forEach((r) => { if (r.projectId) m.set(r.projectId, r.projectName); });
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    return rows.filter((r) => {
+      if (status !== "ALL" && r.status !== status) return false;
+      if (projectId !== "ALL" && r.projectId !== projectId) return false;
+      if (category !== "ALL" && !r.items.some((it) => it.category === category)) return false;
+      const d = toDate(r.boqDate);
+      if (year !== "ALL" && (!d || d.getFullYear() !== Number(year))) return false;
+      if (month !== "ALL" && (!d || d.getMonth() !== Number(month))) return false;
+      return true;
+    });
+  }, [rows, status, year, month, projectId, category]);
 
   const stats = useMemo(() => {
     const all = rows ?? [];
@@ -35,7 +61,6 @@ export default function BoqListPage() {
         description="Bills of quantities, across every project — original and revised."
         actions={
           <>
-            <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...BOQ_STATUSES.map((s) => ({ value: s, label: s }))]} onChange={(e) => setStatus(e.target.value as BoqStatus | "ALL")} />
             <ExportButton
               filename="boq"
               sheetName="BOQ"
@@ -48,6 +73,14 @@ export default function BoqListPage() {
           </>
         }
       />
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...BOQ_STATUSES.map((s) => ({ value: s, label: s }))]} onChange={(e) => setStatus(e.target.value as BoqStatus | "ALL")} />
+        <Select value={year} className="w-auto" options={[{ value: "ALL", label: "All years" }, ...years.map((y) => ({ value: String(y), label: String(y) }))]} onChange={(e) => setYear(e.target.value)} />
+        <Select value={month} className="w-auto" options={[{ value: "ALL", label: "All months" }, ...MONTH_NAMES.map((m, i) => ({ value: String(i), label: m }))]} onChange={(e) => setMonth(e.target.value)} />
+        <Select value={projectId} className="w-auto" options={[{ value: "ALL", label: "All projects" }, ...projects.map(([id, name]) => ({ value: id, label: name }))]} onChange={(e) => setProjectId(e.target.value)} />
+        <Select value={category} className="w-auto" options={[{ value: "ALL", label: "All categories" }, ...BOQ_CATEGORIES.map((c) => ({ value: c, label: c }))]} onChange={(e) => setCategory(e.target.value as BoqCategory | "ALL")} />
+      </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="BOQs" value={stats.total} icon={<ClipboardList className="h-4 w-4" />} />

@@ -7,10 +7,11 @@ import { Upload } from "lucide-react";
 import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { ItemsTable, PO_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
-import { COMPANY_INFO, gstTypeForCounterparty } from "@/lib/constants";
+import { useCompanyInfo } from "@/components/print-document";
+import { gstTypeForCounterparty } from "@/lib/constants";
 import { getBoq } from "@/lib/db/boq";
 import { uploadDocument } from "@/lib/db/documents";
-import { computePoTotals, createPurchaseOrder } from "@/lib/db/purchase-orders";
+import { computePoTotals, createPurchaseOrder, nextPoNo } from "@/lib/db/purchase-orders";
 import { parseLineItemFile } from "@/lib/lineitem-parser";
 import { subscribeProjects } from "@/lib/db/projects";
 import { listActiveVendors } from "@/lib/db/vendors";
@@ -31,6 +32,7 @@ function NewPurchaseOrderForm() {
   const actor = useActor();
   const { push } = useToast();
   const { busy, run } = useAsyncAction();
+  const company = useCompanyInfo();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -38,6 +40,7 @@ function NewPurchaseOrderForm() {
   const [projectId, setProjectId] = useState(params.get("projectId") ?? "");
   const [vendorId, setVendorId] = useState(params.get("vendorId") ?? "");
   const [deliveryDate, setDeliveryDate] = useState("");
+  const [terms, setTerms] = useState("");
   const [notes, setNotes] = useState("");
   const [gstType, setGstType] = useState<"IGST" | "CGST_SGST">("IGST");
   const [shipToDifferent, setShipToDifferent] = useState(false);
@@ -47,6 +50,7 @@ function NewPurchaseOrderForm() {
   const [sourceBoqNo, setSourceBoqNo] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
   useEffect(() => { void listActiveVendors().then(setVendors); }, []);
@@ -88,23 +92,29 @@ function NewPurchaseOrderForm() {
   const vendor = vendors.find((v) => v.id === vendorId);
 
   useEffect(() => {
-    if (vendor?.gstin) setGstType(gstTypeForCounterparty(COMPANY_INFO.gstin, vendor.gstin));
-  }, [vendor?.gstin]);
+    if (vendor?.gstin) setGstType(gstTypeForCounterparty(company.gstin, vendor.gstin));
+  }, [vendor?.gstin, company.gstin]);
 
   async function onCreate() {
-    if (!poNo.trim() || !projectId || !vendorId) {
-      push("PO number, project and vendor are required.", "error");
+    if (!projectId || !vendorId) {
+      push("Project and vendor are required.", "error");
       return;
     }
     await run(async () => {
+      // Allocated here, at actual creation, not on page load -- so opening this page repeatedly
+      // without creating anything never burns a sequence number.
+      const finalPoNo = poNo.trim() || (await nextPoNo());
       const project = projects.find((p) => p.id === projectId);
       const po = await createPurchaseOrder({
-        poNo, projectId, projectName: project?.name ?? "", vendorId, vendorName: vendor?.name ?? "",
+        poNo: finalPoNo, projectId, projectName: project?.name ?? "", vendorId, vendorName: vendor?.name ?? "",
         deliveryDate: deliveryDate ? new Date(deliveryDate) : null, items, gstType, sourceBoqId,
-        shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "", notes,
+        shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "", terms, notes,
       }, actor);
       if (sourceFile) {
         await uploadDocument({ file: sourceFile, projectId, linkedEntityType: "PURCHASE_ORDER", linkedEntityId: po.id, docType: "PO_UPLOAD", notes: "Original uploaded PO file", actor });
+      }
+      if (attachedFile) {
+        await uploadDocument({ file: attachedFile, projectId, linkedEntityType: "PURCHASE_ORDER", linkedEntityId: po.id, docType: "PO_UPLOAD", notes: "Attached source document", actor });
       }
       router.push(`/purchase-orders/${po.id}`);
     }, "Purchase order created.");
@@ -124,10 +134,11 @@ function NewPurchaseOrderForm() {
         <div className="space-y-4 lg:col-span-2">
           <Card title="Vendor & delivery">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="PO Number" required><Input value={poNo} onChange={(e) => setPoNo(e.target.value)} /></Field>
+              <Field label="PO Number" hint="Leave blank to auto-generate a sequential number on save."><Input value={poNo} onChange={(e) => setPoNo(e.target.value)} placeholder="Auto-generated if left blank" /></Field>
               <Field label="Vendor" required><Select value={vendorId} placeholder="Select a vendor…" options={vendors.map((v) => ({ value: v.id, label: v.name }))} onChange={(e) => setVendorId(e.target.value)} /></Field>
               <Field label="Link to Project" required><Select value={projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setProjectId(e.target.value)} /></Field>
               <Field label="Expected Delivery"><Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></Field>
+              <Field label="Terms &amp; Conditions" className="col-span-2"><Textarea value={terms} onChange={(e) => setTerms(e.target.value)} /></Field>
               <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
             </div>
 
@@ -147,14 +158,23 @@ function NewPurchaseOrderForm() {
                 <div className="mt-2"><Textarea value={shipToAddress} onChange={(e) => setShipToAddress(e.target.value)} placeholder="Delivery address" /></div>
               )}
             </div>
+
+            <div className="mt-4">
+              <Field label="Attach source document" hint="Optional — the vendor's original quote or a signed PO, kept on record even if it can't be auto-imported below.">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-ink-300 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50">
+                  <Upload className="h-4 w-4" /> {attachedFile ? attachedFile.name : "Choose a file…"}
+                  <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.doc,.docx,image/*" onChange={(e) => setAttachedFile(e.target.files?.[0] ?? null)} />
+                </label>
+              </Field>
+            </div>
           </Card>
 
           <Card
             title="Line items"
             actions={
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-800 hover:bg-ink-50">
-                <Upload className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import from Excel"}
-                <input type="file" accept=".xlsx,.xls" className="hidden" disabled={importing} onChange={(e) => void onFileSelect(e)} />
+                <Upload className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import from Excel/PDF"}
+                <input type="file" accept=".xlsx,.xls,.pdf" className="hidden" disabled={importing} onChange={(e) => void onFileSelect(e)} />
               </label>
             }
           >

@@ -2,7 +2,7 @@
 
 import {
   collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query,
-  serverTimestamp, setDoc, updateDoc, where, Timestamp,
+  runTransaction, serverTimestamp, setDoc, updateDoc, where, Timestamp,
 } from "firebase/firestore";
 
 import type { QuotationStatus } from "../constants";
@@ -22,9 +22,10 @@ export function computeLineTotals(items: Omit<LineItem, "amount" | "srNo">[], ta
     srNo: i + 1,
     description: it.description,
     unit: it.unit,
-    qty: Number(it.qty) || 0,
+    // Qty defaults to 1, not 0 -- a lump-sum line (an advance, a milestone payment) has no meaningful quantity, and a blank/0 qty should never silently zero out the amount.
+    qty: Number(it.qty) || 1,
     rate: Number(it.rate) || 0,
-    amount: (Number(it.qty) || 0) * (Number(it.rate) || 0),
+    amount: (Number(it.qty) || 1) * (Number(it.rate) || 0),
     hsnCode: it.hsnCode,
   }));
   const subtotal = withAmounts.reduce((s, it) => s + it.amount, 0);
@@ -76,6 +77,20 @@ export function subscribeQuotation(id: string, cb: (q: Quotation | null) => void
 export async function nextQuotationVersion(projectId: string): Promise<number> {
   const snap = await getDocs(query(collection(getDb(), QUOTATIONS), where("projectId", "==", projectId)));
   return snap.docs.reduce((max, d) => Math.max(max, (d.data().version as number) || 0), 0) + 1;
+}
+
+/** NKJM-QT-000142, allocated transactionally so two office staff can't collide. */
+export async function nextQuotationNo(): Promise<string> {
+  const db = getDb();
+  const ref = doc(db, "counters", "quotations");
+  const seq = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const current = (snap.exists() ? (snap.data().seq as number | undefined) : undefined) ?? 0;
+    const next = current + 1;
+    tx.set(ref, { seq: next }, { merge: true });
+    return next;
+  });
+  return `NKJM-QT-${String(seq).padStart(5, "0")}`;
 }
 
 export interface QuotationDraft {
@@ -196,12 +211,12 @@ export async function reviseQuotation(quotation: Quotation, actor: Actor): Promi
   return { id: ref.id, ...(payload as unknown as Omit<Quotation, "id">) };
 }
 
-export async function updateQuotationStatus(id: string, status: QuotationStatus, actor?: Actor, context?: { quotationNo: string; projectId: string }): Promise<void> {
+export async function updateQuotationStatus(id: string, status: QuotationStatus, actor?: Actor, context?: { quotationNo: string; projectId: string; fromStatus?: QuotationStatus }): Promise<void> {
   await updateDoc(doc(getDb(), QUOTATIONS, id), { status, updatedAt: serverTimestamp() });
   if (actor && context) {
     logActivitySafe({
       entityType: "QUOTATION", entityId: id, entityLabel: context.quotationNo, action: "STATUS_CHANGE",
-      message: `Marked quotation ${context.quotationNo} ${status}`, actor, projectId: context.projectId,
+      message: `status: ${context.fromStatus ?? "—"} → ${status}`, actor, projectId: context.projectId,
     });
   }
 }
@@ -222,7 +237,7 @@ export async function approveQuotation(quotation: Quotation, signatureName: stri
   });
   logActivitySafe({
     entityType: "QUOTATION", entityId: quotation.id, entityLabel: quotation.quotationNo, action: "STATUS_CHANGE",
-    message: `${actor.name} approved quotation ${quotation.quotationNo}`, actor, projectId: quotation.projectId,
+    message: `status: ${quotation.status} → APPROVED`, actor, projectId: quotation.projectId,
   });
 }
 

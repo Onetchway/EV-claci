@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Landmark, Plus, Trash2 } from "lucide-react";
 
 import { useActor, useViewer } from "@/components/auth-provider";
-import { Button, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, useAsyncAction, useToast } from "@/components/ui";
-import { COMPANY_INFO, PROJECT_TYPES, type ProjectType } from "@/lib/constants";
+import { Button, Card, EmptyState, Field, Input, PageHeader, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
+import { PROJECT_TYPES, type ProjectType } from "@/lib/constants";
 import { saveProjectTemplate, subscribeProjectTemplates } from "@/lib/db/project-templates";
 import { defaultSettings, saveSettings, subscribeSettings, type AppSettings } from "@/lib/db/settings";
 import { isAdmin } from "@/lib/permissions";
@@ -71,16 +71,17 @@ export default function SettingsPage() {
         actions={<Button variant="primary" loading={busy} onClick={() => void onSave()}>Save changes</Button>}
       />
 
-      <Card title="Company profile" subtitle="Printed on every Quotation / PO / PI / BOQ letterhead. To change these legal details or the logo, contact your developer — they're set once at deploy time.">
-        <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          <div><dt className="text-xs text-ink-500">Legal name</dt><dd className="text-ink-900">{COMPANY_INFO.name}</dd></div>
-          <div><dt className="text-xs text-ink-500">GSTIN</dt><dd className="text-ink-900">{COMPANY_INFO.gstin}</dd></div>
-          <div><dt className="text-xs text-ink-500">CIN</dt><dd className="text-ink-900">{COMPANY_INFO.cin}</dd></div>
-          <div><dt className="text-xs text-ink-500">Email</dt><dd className="text-ink-900">{COMPANY_INFO.email}</dd></div>
-          <div><dt className="text-xs text-ink-500">Website</dt><dd className="text-ink-900">{COMPANY_INFO.website}</dd></div>
-          <div className="sm:col-span-2"><dt className="text-xs text-ink-500">Registered address</dt><dd className="text-ink-900">{COMPANY_INFO.registeredAddress}</dd></div>
-          <div className="sm:col-span-2"><dt className="text-xs text-ink-500">Office address</dt><dd className="text-ink-900">{COMPANY_INFO.officeAddress}</dd></div>
-        </dl>
+      <Card title="Company profile" subtitle="Printed on every Quotation / PO / PI / BOQ letterhead.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Legal name"><Input value={form.company.name} onChange={(e) => setForm((f) => ({ ...f, company: { ...f.company, name: e.target.value } }))} /></Field>
+          <Field label="GSTIN"><Input value={form.company.gstin} onChange={(e) => setForm((f) => ({ ...f, company: { ...f.company, gstin: e.target.value } }))} /></Field>
+          <Field label="CIN"><Input value={form.company.cin} onChange={(e) => setForm((f) => ({ ...f, company: { ...f.company, cin: e.target.value } }))} /></Field>
+          <Field label="Email"><Input value={form.company.email} onChange={(e) => setForm((f) => ({ ...f, company: { ...f.company, email: e.target.value } }))} /></Field>
+          <Field label="Website"><Input value={form.company.website} onChange={(e) => setForm((f) => ({ ...f, company: { ...f.company, website: e.target.value } }))} /></Field>
+          <Field label="Logo URL" hint="A file under /public (e.g. /logo.png) or a full https:// link."><Input value={form.company.logoUrl} onChange={(e) => setForm((f) => ({ ...f, company: { ...f.company, logoUrl: e.target.value } }))} /></Field>
+          <Field label="Registered address" className="sm:col-span-2"><Textarea value={form.company.registeredAddress} onChange={(e) => setForm((f) => ({ ...f, company: { ...f.company, registeredAddress: e.target.value } }))} /></Field>
+          <Field label="Office address" className="sm:col-span-2"><Textarea value={form.company.officeAddress} onChange={(e) => setForm((f) => ({ ...f, company: { ...f.company, officeAddress: e.target.value } }))} /></Field>
+        </div>
       </Card>
 
       <Card title="Bank details" subtitle="Shown on printed Purchase Orders and Proforma Invoices so vendors and clients know where to pay.">
@@ -92,6 +93,26 @@ export default function SettingsPage() {
           <Field label="Branch" className="sm:col-span-2"><Input value={form.bank.branch} onChange={(e) => setForm((f) => ({ ...f, bank: { ...f.bank, branch: e.target.value } }))} /></Field>
         </div>
         <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-500"><Landmark className="h-3.5 w-3.5" /> Leave blank to omit the bank block from printed documents.</p>
+      </Card>
+
+      <Card title="Expense policy" subtitle="Per-km reimbursement rate for travel expense claims by vehicle type — hotel, daily allowance and other expenses are entered as a direct amount, no rate needed.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Bike rate (₹/km)"><Input type="number" value={form.expensePolicy.bikeRatePerKm} onChange={(e) => setForm((f) => ({ ...f, expensePolicy: { ...f.expensePolicy, bikeRatePerKm: Number(e.target.value) || 0 } }))} /></Field>
+          <Field label="Car rate (₹/km)"><Input type="number" value={form.expensePolicy.carRatePerKm} onChange={(e) => setForm((f) => ({ ...f, expensePolicy: { ...f.expensePolicy, carRatePerKm: Number(e.target.value) || 0 } }))} /></Field>
+        </div>
+      </Card>
+
+      <Card title="Tally integration" subtitle="Ledger names used when exporting a PO or PI as a Tally-importable voucher — must match the ledgers in your Tally company exactly.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Purchase account ledger" hint="Used on PO exports."><Input value={form.tally.purchaseLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, purchaseLedger: e.target.value } }))} /></Field>
+          <Field label="Sales account ledger" hint="Used on PI exports."><Input value={form.tally.salesLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, salesLedger: e.target.value } }))} /></Field>
+          <Field label="IGST ledger"><Input value={form.tally.igstLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, igstLedger: e.target.value } }))} /></Field>
+          <Field label="CGST ledger"><Input value={form.tally.cgstLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, cgstLedger: e.target.value } }))} /></Field>
+          <Field label="SGST ledger"><Input value={form.tally.sgstLedger} onChange={(e) => setForm((f) => ({ ...f, tally: { ...f.tally, sgstLedger: e.target.value } }))} /></Field>
+        </div>
+        <p className="mt-3 text-xs text-ink-500">
+          The party ledger (vendor or client name) must also already exist in Tally with that exact name. Exported vouchers are ledger-only — line items are listed in the voucher narration for reference, not posted as individual stock items. Import via Tally: Gateway of Tally → Import Data → select the downloaded XML file.
+        </p>
       </Card>
 
       <Card

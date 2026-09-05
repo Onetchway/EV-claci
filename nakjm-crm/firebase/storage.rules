@@ -47,6 +47,15 @@ service firebase.storage {
       allow delete: if canManage();
     }
 
+    // Expense receipts -- any signed-in employee uploads their own (not just office-role staff),
+    // since anyone can file an expense report. Finance/Admin can remove a bad upload.
+    match /nakjm/expenses/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow create: if signedIn() && (request.auth.uid == uid || role() in ['SUPER_ADMIN', 'ADMIN']) && acceptableFile();
+      allow update: if false;
+      allow delete: if signedIn() && (request.auth.uid == uid || role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE']);
+    }
+
     match /nakjm/{scope}/{fileName} {
       allow read: if signedIn();
       allow create: if canManage() && acceptableFile();

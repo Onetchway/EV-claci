@@ -145,6 +145,13 @@ function NewProjectForm() {
 
   const selectedClient = clients.find((c) => c.id === form.clientId);
 
+  // Prefer the client's registration for the selected state; fall back to their only registration if they have just one.
+  function autoGstin(client: Client | undefined, state: string): string {
+    if (!client?.gstRegistrations?.length) return "";
+    return client.gstRegistrations.find((r) => r.state === state)?.gstin
+      ?? (client.gstRegistrations.length === 1 ? client.gstRegistrations[0].gstin : "");
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
@@ -190,7 +197,7 @@ function NewProjectForm() {
               options={clients.map((c) => ({ value: c.id, label: c.name }))}
               onChange={(e) => {
                 const client = clients.find((c) => c.id === e.target.value);
-                setForm((f) => ({ ...f, clientId: e.target.value, billingGstin: client?.gstRegistrations?.length === 1 ? client.gstRegistrations[0].gstin : "" }));
+                setForm((f) => ({ ...f, clientId: e.target.value, billingGstin: autoGstin(client, f.state) }));
               }}
             />
           </Field>
@@ -213,7 +220,12 @@ function NewProjectForm() {
           </Field>
           <Field label="City"><Input value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} /></Field>
           <Field label="State">
-            <Select placeholder="Select state…" value={form.state} options={INDIAN_STATES.map((s) => ({ value: s, label: s }))} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} />
+            <Select
+              placeholder="Select state…"
+              value={form.state}
+              options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
+              onChange={(e) => setForm((f) => ({ ...f, state: e.target.value, billingGstin: autoGstin(selectedClient, e.target.value) }))}
+            />
           </Field>
           <Field label="Capacity (kW)"><Input type="number" value={form.capacityKw} onChange={(e) => setForm((f) => ({ ...f, capacityKw: e.target.value }))} /></Field>
           <Field label="Status">

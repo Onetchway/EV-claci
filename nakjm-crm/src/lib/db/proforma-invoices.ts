@@ -61,6 +61,7 @@ export interface PiDraft {
   projectName: string;
   clientId: string;
   quotationId?: string | null;
+  clientPoNumber?: string;
   piDate?: Date | null;
   dueDate?: Date | null;
   status?: PiStatus;
@@ -94,6 +95,7 @@ export async function createProformaInvoice(draft: PiDraft, actor?: Actor): Prom
     projectName: draft.projectName,
     clientId: draft.clientId,
     quotationId: draft.quotationId ?? null,
+    clientPoNumber: draft.clientPoNumber ?? "",
     piDate: draft.piDate ? Timestamp.fromDate(draft.piDate) : Timestamp.now(),
     dueDate: draft.dueDate ? Timestamp.fromDate(draft.dueDate) : null,
     status: draft.status ?? "DRAFT",
@@ -159,7 +161,7 @@ export async function updateProformaInvoice(pi: ProformaInvoice, patch: PiPatch,
   logActivitySafe({
     entityType: "PROFORMA_INVOICE", entityId: pi.id, entityLabel: pi.piNo,
     action: patch.status && patch.status !== pi.status ? "STATUS_CHANGE" : "UPDATE",
-    message: patch.status && patch.status !== pi.status ? `Marked PI ${pi.piNo} ${patch.status}` : `Edited PI ${pi.piNo}`,
+    message: patch.status && patch.status !== pi.status ? `status: ${pi.status} → ${patch.status}` : `Edited PI ${pi.piNo}`,
     actor, projectId: pi.projectId,
   });
 }

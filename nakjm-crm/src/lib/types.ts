@@ -3,9 +3,10 @@ import type { Timestamp } from "firebase/firestore";
 import type {
   ActivityAction, ActivityEntityType, AssetCategory, AssetStatus, AttendanceStatus, BoqCategory, BoqStatus,
   ClientType, Department, DepreciationMethod, DocumentCategory, DrawingDiscipline, DrawingStatus, EmploymentType,
-  HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus, LeaveType, NcrStatus,
-  PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus, RfiStatus,
-  Role, RollStatus, SiteReportType, StageStatus, TaskStatus, TenderStatus, VendorCategory,
+  ExpenseCategory, ExpenseReportStatus, HandoverStage, InspectionResult, IssuePriority, IssueStatus, LeaveRequestStatus,
+  LeaveType, NcrStatus, PaymentMode, PiStatus, PoStatus, ProjectStatus, ProjectType, PunchItemStatus, QuotationStatus,
+  RfiStatus, RfqStatus, Role, RollStatus, SiteReportType, SiteVisitStatus, StageStatus, SubVendorContractStatus,
+  TaskStatus, TenderStatus, VendorCategory,
 } from "./constants";
 
 type TS = Timestamp | null;
@@ -161,6 +162,31 @@ export interface Tender {
 }
 
 // ---------------------------------------------------------------------------
+// RFQs — a client's Request for Quotation, upstream of the priced Quotation
+// itself. Distinct from a Tender (a public/institutional bid process): an
+// RFQ is a direct ask from an existing or prospective client.
+// ---------------------------------------------------------------------------
+
+export interface Rfq {
+  id: string;
+  rfqNo: string;
+  clientId: string;
+  clientName: string;
+  projectId?: string | null;
+  projectName?: string;
+  subject: string;
+  receivedDate?: TS;
+  dueDate?: TS;
+  status: RfqStatus;
+  notes?: string;
+  sourceDocumentId?: string | null;
+  convertedQuotationId?: string | null;
+  createdAt: TS;
+  updatedAt: TS;
+  createdBy?: Actor;
+}
+
+// ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
 
@@ -286,6 +312,7 @@ export interface Boq {
   boqDate: TS;
   items: BoqLineItem[];
   totalAmount: number;
+  terms?: string;
   notes?: string;
   sourceDocumentId?: string | null;
   /** Revision lineage: rootBoqId is the same across every version of one BOQ (the first version's own id); revisedFrom is the immediate prior version's id. Absent on BOQs created before this existed. */
@@ -334,6 +361,7 @@ export interface ProformaInvoice {
   projectName: string;
   clientId: string;
   quotationId?: string | null;
+  clientPoNumber?: string;
   piDate: TS;
   dueDate?: TS;
   status: PiStatus;
@@ -401,6 +429,54 @@ export interface ProjectStage {
   notes?: string;
   createdAt: TS;
   updatedAt: TS;
+}
+
+/** One work stage within a sub-vendor's contract -- its own mini timeline, distinct from the parent project's own Stages tab. */
+export interface SubVendorStage {
+  name: string;
+  status: StageStatus;
+  startDate?: TS;
+  endDate?: TS;
+  amount?: number;
+  notes?: string;
+}
+
+/** One payment milestone in a sub-vendor's contract -- mirrors how PIs bill a client, but for what NAKJM owes the sub-vendor. */
+export interface SubVendorPaymentTerm {
+  milestone: string;
+  percent?: number;
+  amount?: number;
+  status: "PENDING" | "INVOICED" | "PAID";
+}
+
+/**
+ * A work package NAKJM has subcontracted out -- assigns a vendor to a project (or sub-project) with
+ * its own stages, payment schedule, and penalty clause, distinct from a one-off Purchase Order.
+ * PO/PI/Quotation/BOQ for the same engagement live in their own collections, linked by project + vendor.
+ */
+export interface SubVendorContract {
+  id: string;
+  contractNo: string;
+  projectId: string;
+  projectName: string;
+  vendorId: string;
+  vendorName: string;
+  scopeOfWork: string;
+  contractValue: number;
+  status: SubVendorContractStatus;
+  startDate?: TS;
+  targetEndDate?: TS;
+  stages: SubVendorStage[];
+  paymentTerms: SubVendorPaymentTerm[];
+  penaltyClause?: string;
+  penaltyAmount?: number;
+  penaltyTimelineDays?: number;
+  terms?: string;
+  notes?: string;
+  createdAt: TS;
+  updatedAt: TS;
+  createdBy?: Actor;
+  updatedBy?: Actor;
 }
 
 /** A dated site photo filed against one stage — a name/caption and details, alongside the image itself. */
@@ -607,6 +683,38 @@ export interface SiteReport {
   createdAt: TS;
 }
 
+export interface SiteVisitEngineer {
+  teamMemberId: string;
+  name: string;
+}
+
+export interface SiteVisit {
+  id: string;
+  visitNo: string;
+  projectId: string;
+  projectName: string;
+  siteName?: string;
+  locationLink?: string;
+  address?: string;
+  pocName?: string;
+  pocContact?: string;
+  pocEmail?: string;
+  chargerType?: string;
+  scheduledDate?: TS;
+  status: SiteVisitStatus;
+  assignedEngineers: SiteVisitEngineer[];
+  managerId?: string;
+  managerName?: string;
+  notes?: string;
+  /** Filled in by the engineer(s) after the visit actually happens. */
+  observations?: string;
+  observedBy?: Actor | null;
+  observedAt?: TS;
+  createdAt: TS;
+  updatedAt: TS;
+  createdBy?: Actor;
+}
+
 export interface Activity {
   id: string;
   entityType: ActivityEntityType;
@@ -623,7 +731,7 @@ export interface NakjmDocument {
   id: string;
   projectId?: string | null;
   /** When set, this document is filed against a specific BOQ/PO/Quotation/PI rather than just the project. */
-  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | null;
+  linkedEntityType?: "BOQ" | "PURCHASE_ORDER" | "QUOTATION" | "PROFORMA_INVOICE" | "RFQ" | "SITE_VISIT" | "SUB_VENDOR_CONTRACT" | null;
   linkedEntityId?: string | null;
   docType: DocumentCategory;
   fileName: string;
@@ -709,6 +817,48 @@ export interface LeaveRequest {
   decisionNote?: string;
 }
 
+/** One line in an expense report -- for the two vehicle categories, distanceKm/ratePerKm drove amount; everything else is a direct amount entry. */
+export interface ExpenseLineItem {
+  category: ExpenseCategory;
+  date: TS;
+  description?: string;
+  distanceKm?: number;
+  ratePerKm?: number;
+  amount: number;
+  receiptUrl?: string;
+  receiptPath?: string;
+}
+
+/**
+ * An employee's expense/reimbursement claim -- a bundle of line items submitted together,
+ * routed to their manager first and then Finance before it's payable.
+ */
+export interface ExpenseReport {
+  id: string;
+  reportNo: string;
+  uid: string;
+  userName: string;
+  managerId?: string | null;
+  managerName?: string | null;
+  /** "YYYY-MM" -- the month this report is for, so employee-wise/team-wise views can group by month without re-deriving it from line items. */
+  month: string;
+  items: ExpenseLineItem[];
+  totalAmount: number;
+  status: ExpenseReportStatus;
+  notes?: string;
+  submittedAt?: TS | null;
+  managerDecisionBy?: Actor | null;
+  managerDecisionAt?: TS | null;
+  managerNote?: string;
+  financeDecisionBy?: Actor | null;
+  financeDecisionAt?: TS | null;
+  financeNote?: string;
+  paidAt?: TS | null;
+  paidBy?: Actor | null;
+  paidReferenceNo?: string;
+  createdAt: TS;
+  updatedAt: TS;
+}
 
 export interface Holiday {
   id: string;

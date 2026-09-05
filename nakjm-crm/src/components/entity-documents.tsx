@@ -68,7 +68,7 @@ export function EntityDocuments({
           {filtered.map((d) => (
             <li key={d.id} className="flex items-center justify-between gap-2 text-sm">
               <div className="min-w-0">
-                <a href={d.downloadUrl} target="_blank" rel="noreferrer" className="truncate font-medium text-brand-700 hover:underline">{d.fileName}</a>
+                <a href={d.downloadUrl} target="_blank" rel="noreferrer" className="block truncate font-medium text-brand-700 hover:underline">{d.fileName}</a>
                 <p className="text-xs text-ink-500">{DOCUMENT_CATEGORY_LABEL[d.docType]} · {formatDate(d.createdAt)}{d.uploadedBy?.name ? ` · ${d.uploadedBy.name}` : ""}</p>
               </div>
               {canDelete && (

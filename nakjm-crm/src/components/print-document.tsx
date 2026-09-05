@@ -3,37 +3,41 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Printer } from "lucide-react";
 
-import { COMPANY_INFO } from "@/lib/constants";
-import type { BankDetails } from "@/lib/db/settings";
+import type { AppSettings, BankDetails } from "@/lib/db/settings";
+import { defaultSettings, subscribeSettings } from "@/lib/db/settings";
 import { Button } from "@/components/ui";
 
 /**
  * Shared letterhead for every printed document — Quotation, Purchase
  * Order, Proforma Invoice and BOQ all print as a simple bordered page
- * carrying the NAKJM logo + GSTIN/CIN at the top and the registered/office
- * address in the footer, matching the company letterhead.
+ * carrying the company logo + GSTIN/CIN at the top and the registered/office
+ * address in the footer, matching the company letterhead. Reads live from
+ * Settings → Company profile (falls back to the deploy-time default while
+ * that first snapshot loads, so there's no flash of blank content).
  */
+export function useCompanyInfo() {
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings());
+  useEffect(() => subscribeSettings(setSettings), []);
+  return settings.company;
+}
+
 export function PrintHeader({ docLabel, docNumber, meta }: {
   docLabel: string;
   docNumber: string;
   meta?: ReactNode;
 }) {
+  const company = useCompanyInfo();
   return (
     <div className="mb-4 border-b-2 border-brand-600 pb-3">
       <div className="flex items-start justify-between gap-4">
-        <Image src="/logo.png" alt={COMPANY_INFO.name} width={180} height={58} priority className="h-12 w-auto" />
-        <div className="text-right text-[11px] leading-tight text-ink-500">
-          <p>GSTIN: {COMPANY_INFO.gstin}</p>
-          <p>CIN: {COMPANY_INFO.cin}</p>
-        </div>
-      </div>
-      <div className="mt-3 flex items-end justify-between gap-4">
-        <h1 className="text-lg font-bold uppercase tracking-wide text-navy-900">{docLabel}</h1>
-        <div className="text-right text-sm">
-          <p className="font-semibold text-ink-900">{docNumber}</p>
+        <Image src={company.logoUrl || "/logo.png"} alt={company.name} width={180} height={58} priority className="h-12 w-auto" unoptimized={company.logoUrl.startsWith("http")} />
+        <div className="text-right text-ink-500">
+          <p className="text-sm font-semibold text-navy-900">{docLabel} &middot; {docNumber}</p>
           {meta}
+          <p className="mt-0.5 text-[11px]">{company.email}{company.website ? <>&nbsp;|&nbsp; {company.website}</> : null}</p>
         </div>
       </div>
     </div>
@@ -41,16 +45,44 @@ export function PrintHeader({ docLabel, docNumber, meta }: {
 }
 
 export function PrintFooter() {
+  const company = useCompanyInfo();
   return (
-    <footer className="mt-6 border-t-2 border-brand-600 pt-2 text-center text-[10px] leading-tight text-ink-400">
-      <p className="font-semibold text-ink-600">{COMPANY_INFO.name}</p>
-      <p>{COMPANY_INFO.email} &nbsp;|&nbsp; {COMPANY_INFO.website}</p>
-      <div className="mt-1 grid grid-cols-2 gap-4 text-left">
-        <p><span className="font-medium text-ink-500">Registered address: </span>{COMPANY_INFO.registeredAddress}</p>
-        <p><span className="font-medium text-ink-500">Office address: </span>{COMPANY_INFO.officeAddress}</p>
+    <footer className="mt-6 border-t-2 border-brand-600 pt-2 text-[10px] leading-tight text-ink-500">
+      <div className="grid grid-cols-3 divide-x divide-ink-200">
+        <div className="pr-4">
+          <p className="font-semibold text-ink-700">{company.name}</p>
+          <p className="mt-0.5">GSTIN: {company.gstin} &nbsp;|&nbsp; CIN: {company.cin}</p>
+          <p className="mt-0.5">{company.email}</p>
+          <p>{company.website}</p>
+        </div>
+        <div className="px-4">
+          <p className="font-semibold uppercase tracking-wide text-ink-500">Registered Address</p>
+          <p className="mt-0.5">{company.registeredAddress}</p>
+        </div>
+        <div className="pl-4">
+          <p className="font-semibold uppercase tracking-wide text-ink-500">Office Address</p>
+          <p className="mt-0.5">{company.officeAddress}</p>
+        </div>
       </div>
     </footer>
   );
+}
+
+/**
+ * Sets the browser tab title while a print page is mounted, restoring the
+ * previous title on unmount -- the tab title is what Chrome's "Save as PDF"
+ * pre-fills as the download filename, so this is what makes an exported PDF
+ * save as e.g. "NAKJM PO NKJM-PO-00007.pdf" instead of the app's generic title.
+ */
+export function useDocumentTitle(title: string | undefined) {
+  useEffect(() => {
+    if (!title) return;
+    const prev = document.title;
+    document.title = title;
+    return () => {
+      document.title = prev;
+    };
+  }, [title]);
 }
 
 export function PrintToolbar({ backHref }: { backHref: string }) {

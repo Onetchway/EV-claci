@@ -7,13 +7,16 @@ import { Upload } from "lucide-react";
 import { useActor } from "@/components/auth-provider";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useAsyncAction, useToast } from "@/components/ui";
 import { GstTypeField, ShipToField } from "@/components/gst-fields";
-import { ItemsTable, QUOTATION_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
-import { COMPANY_INFO, gstTypeForCounterparty, type GstType } from "@/lib/constants";
+import { ItemsTable, PI_ITEM_FIELDS, type DraftItem } from "@/components/line-items-table";
+import { useCompanyInfo } from "@/components/print-document";
+import { billedGstinForProject, gstTypeForCounterparty, type GstType } from "@/lib/constants";
+import { getClient } from "@/lib/db/clients";
 import { createProformaInvoice } from "@/lib/db/proforma-invoices";
 import { computeLineTotals, getQuotation } from "@/lib/db/quotations";
 import { uploadDocument } from "@/lib/db/documents";
+import { parseLineItemFile } from "@/lib/lineitem-parser";
 import { subscribeProjects } from "@/lib/db/projects";
-import type { Project } from "@/lib/types";
+import type { Client, Project } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 export default function NewProformaInvoicePage() {
@@ -30,6 +33,7 @@ function NewProformaInvoiceForm() {
   const actor = useActor();
   const { push } = useToast();
   const { busy, run } = useAsyncAction();
+  const company = useCompanyInfo();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [piNo, setPiNo] = useState("");
@@ -42,12 +46,37 @@ function NewProformaInvoiceForm() {
   const [notes, setNotes] = useState("");
   const [shipToDifferent, setShipToDifferent] = useState(false);
   const [shipToAddress, setShipToAddress] = useState("");
+  const [clientPoNumber, setClientPoNumber] = useState("");
   const [poFile, setPoFile] = useState<File | null>(null);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [sourceQuotationId, setSourceQuotationId] = useState<string | null>(null);
   const [sourceQuotationNo, setSourceQuotationNo] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [milestoneBasis, setMilestoneBasis] = useState<"PERCENT" | "AMOUNT">("PERCENT");
+  const [milestoneValue, setMilestoneValue] = useState("");
+  const [milestoneGst, setMilestoneGst] = useState<"WITH" | "WITHOUT">("WITH");
+  const [milestoneTaxTreatment, setMilestoneTaxTreatment] = useState<"EXCLUSIVE" | "INCLUSIVE">("EXCLUSIVE");
+  const [milestoneGstPercent, setMilestoneGstPercent] = useState("18");
 
   useEffect(() => subscribeProjects({ status: "ALL", max: 500 }, setProjects), []);
+
+  async function onFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    try {
+      const parsed = await parseLineItemFile(file);
+      if (!parsed.length) throw new Error("Could not detect a line-item table in this file.");
+      setItems(parsed);
+      setPiNo((n) => n || file.name.replace(/\.[^.]+$/, ""));
+      push(`Imported ${parsed.length} line items — review before saving.`, "success");
+    } catch (err) {
+      push((err as Error).message, "error");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   useEffect(() => {
     const quotationId = params.get("sourceQuotationId");
@@ -68,6 +97,10 @@ function NewProformaInvoiceForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount from the URL param
   }, []);
 
+  function onClientPoNumberBlur() {
+    if (clientPoNumber.trim()) setPiNo((n) => n || `${clientPoNumber.trim()}-PI`);
+  }
+
   const { subtotal } = computeLineTotals(items);
   const tax = Number(taxAmount) || 0;
   const igst = gstType === "IGST" ? tax : 0;
@@ -75,9 +108,36 @@ function NewProformaInvoiceForm() {
   const sgst = gstType === "CGST_SGST" ? tax / 2 : 0;
   const project = projects.find((p) => p.id === projectId);
 
+  const [client, setClient] = useState<Client | null>(null);
+  useEffect(() => { void (project?.clientId ? getClient(project.clientId) : Promise.resolve(null)).then(setClient); }, [project?.clientId]);
+  // Live match against the project's current site state -- not just the billingGstin stored at creation.
+  const billedGstin = billedGstinForProject(client, project);
+
   useEffect(() => {
-    if (project?.billingGstin) setGstType(gstTypeForCounterparty(COMPANY_INFO.gstin, project.billingGstin));
-  }, [project?.billingGstin]);
+    if (billedGstin) setGstType(gstTypeForCounterparty(company.gstin, billedGstin));
+  }, [billedGstin, company.gstin]);
+
+  const milestoneBaseAmount = milestoneBasis === "PERCENT"
+    ? ((project?.contractValue ?? 0) * (Number(milestoneValue) || 0)) / 100
+    : Number(milestoneValue) || 0;
+
+  function applyMilestone() {
+    if (!milestoneBaseAmount) return;
+    let rate = milestoneBaseAmount;
+    let tax = 0;
+    if (milestoneGst === "WITH") {
+      const gstPct = Number(milestoneGstPercent) || 0;
+      if (milestoneTaxTreatment === "INCLUSIVE") {
+        rate = milestoneBaseAmount / (1 + gstPct / 100);
+        tax = milestoneBaseAmount - rate;
+      } else {
+        tax = (milestoneBaseAmount * gstPct) / 100;
+      }
+    }
+    setItems([{ description: milestone.trim() || "Milestone payment", unit: "LS", qty: 1, rate: Number(rate.toFixed(2)) }]);
+    setTaxAmount(tax.toFixed(2));
+    push("Line item and tax updated from the milestone.", "success");
+  }
 
   async function onCreate() {
     if (!piNo.trim() || !projectId || !project) {
@@ -93,7 +153,7 @@ function NewProformaInvoiceForm() {
       const pi = await createProformaInvoice({
         piNo, projectId, projectName: project.name, clientId: project.clientId, quotationId: sourceQuotationId,
         dueDate: dueDate ? new Date(dueDate) : null, milestone, items,
-        taxAmount: tax, gstType, terms, notes, sourceDocumentId,
+        taxAmount: tax, gstType, terms, notes, sourceDocumentId, clientPoNumber,
         shipToDifferent, shipToAddress: shipToDifferent ? shipToAddress : "",
       }, actor);
       router.push(`/proforma-invoices/${pi.id}`);
@@ -104,7 +164,7 @@ function NewProformaInvoiceForm() {
     <div>
       <div className="mb-5">
         <h1 className="text-lg font-semibold text-navy-900">New Proforma Invoice</h1>
-        <p className="text-sm text-ink-500">Raise a pre-sale bill against a project so the client can arrange payment.</p>
+        <p className="text-sm text-ink-500">Raise a pre-sale bill against a project so the client can arrange payment, or import one from Excel/PDF below.</p>
         {sourceQuotationNo && (
           <p className="mt-2 rounded-lg bg-brand-50 px-3 py-1.5 text-xs text-brand-800">Prefilled from Quotation {sourceQuotationNo} — review before creating.</p>
         )}
@@ -114,6 +174,7 @@ function NewProformaInvoiceForm() {
         <div className="space-y-4 lg:col-span-2">
           <Card title="PI details">
             <div className="grid grid-cols-2 gap-3">
+              <Field label="Client PO Number" hint="The client's own PO/order number — PI No. below is derived from it."><Input value={clientPoNumber} onChange={(e) => setClientPoNumber(e.target.value)} onBlur={onClientPoNumberBlur} /></Field>
               <Field label="PI No." required><Input value={piNo} onChange={(e) => setPiNo(e.target.value)} /></Field>
               <Field label="Project" required>
                 <Select value={projectId} placeholder="Select project…" options={projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }))} onChange={(e) => setProjectId(e.target.value)} />
@@ -122,9 +183,9 @@ function NewProformaInvoiceForm() {
               <Field label="Milestone"><Input value={milestone} onChange={(e) => setMilestone(e.target.value)} /></Field>
               <Field label="Tax Amount (₹)"><Input type="number" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} /></Field>
               <GstTypeField value={gstType} onChange={setGstType} />
-              {project?.billingGstin && (
+              {billedGstin && (
                 <p className="col-span-2 -mt-2 text-xs text-ink-500">
-                  Billing GSTIN: {project.billingGstin}{project.billingState ? ` (${project.billingState})` : ""} — GST type auto-set from this, override above if needed.
+                  Billing GSTIN: {billedGstin} — GST type auto-set from this, override above if needed.
                 </p>
               )}
               <ShipToField enabled={shipToDifferent} onEnabledChange={setShipToDifferent} address={shipToAddress} onAddressChange={setShipToAddress} className="col-span-2" />
@@ -139,8 +200,55 @@ function NewProformaInvoiceForm() {
             </div>
           </Card>
 
-          <Card title="Line items">
-            <ItemsTable items={items} setItems={setItems} fields={QUOTATION_ITEM_FIELDS} />
+          <Card title="Bill by milestone" subtitle="Optional — compute this PI's amount from the client PO's payment schedule (e.g. 30% advance, balance at delivery, final with tax) instead of entering line items by hand.">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Basis">
+                <div className="flex items-center gap-4 pt-2 text-sm">
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneBasis === "PERCENT"} onChange={() => setMilestoneBasis("PERCENT")} /> % of contract value</label>
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneBasis === "AMOUNT"} onChange={() => setMilestoneBasis("AMOUNT")} /> Fixed amount (₹)</label>
+                </div>
+              </Field>
+              <Field label={milestoneBasis === "PERCENT" ? "Percentage (%)" : "Amount (₹)"}>
+                <Input type="number" value={milestoneValue} onChange={(e) => setMilestoneValue(e.target.value)} />
+              </Field>
+              {milestoneBasis === "PERCENT" && (
+                <p className="col-span-2 -mt-2 text-xs text-ink-500">
+                  {project
+                    ? `${milestoneValue || 0}% of contract value ${formatINR(project.contractValue)} = ${formatINR(milestoneBaseAmount)}`
+                    : "Select a project above to compute this from its contract value."}
+                </p>
+              )}
+              <Field label="GST">
+                <div className="flex items-center gap-4 pt-2 text-sm">
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneGst === "WITH"} onChange={() => setMilestoneGst("WITH")} /> With GST</label>
+                  <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneGst === "WITHOUT"} onChange={() => setMilestoneGst("WITHOUT")} /> Without GST</label>
+                </div>
+              </Field>
+              {milestoneGst === "WITH" && (
+                <Field label="GST %"><Input type="number" value={milestoneGstPercent} onChange={(e) => setMilestoneGstPercent(e.target.value)} /></Field>
+              )}
+              {milestoneGst === "WITH" && (
+                <Field label="Entered value is" className="col-span-2">
+                  <div className="flex items-center gap-4 pt-2 text-sm">
+                    <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneTaxTreatment === "EXCLUSIVE"} onChange={() => setMilestoneTaxTreatment("EXCLUSIVE")} /> Without tax (GST added on top)</label>
+                    <label className="flex cursor-pointer items-center gap-1.5"><input type="radio" checked={milestoneTaxTreatment === "INCLUSIVE"} onChange={() => setMilestoneTaxTreatment("INCLUSIVE")} /> With tax (already includes GST)</label>
+                  </div>
+                </Field>
+              )}
+            </div>
+            <Button className="mt-3" variant="secondary" disabled={!milestoneBaseAmount} onClick={applyMilestone}>Apply to line item &amp; tax below</Button>
+          </Card>
+
+          <Card
+            title="Line items"
+            actions={
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-800 hover:bg-ink-50">
+                <Upload className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import from Excel/PDF"}
+                <input type="file" accept=".xlsx,.xls,.pdf" className="hidden" disabled={importing} onChange={(e) => void onFileSelect(e)} />
+              </label>
+            }
+          >
+            <ItemsTable items={items} setItems={setItems} fields={PI_ITEM_FIELDS} />
           </Card>
         </div>
 

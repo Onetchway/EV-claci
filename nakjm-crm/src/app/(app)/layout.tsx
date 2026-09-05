@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AlertTriangle, Boxes, Briefcase, Building2, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Cog,
-  FileSignature, FileSpreadsheet, FileText, Gavel, History, LayoutDashboard, Layers, LogOut, Menu, Search,
+  FileSignature, FileSpreadsheet, FileText, Gavel, HandCoins, History, LayoutDashboard, Layers, LogOut, Mail, MapPin, Menu, Receipt, Search,
   ShieldCheck, Trash2, Truck, Users, Users2, X,
 } from "lucide-react";
 
@@ -48,9 +48,12 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Operations",
     items: [
       { href: "/projects", label: "Project Management", icon: Briefcase },
+      { href: "/site-visits", label: "Site Visit", icon: MapPin },
       { href: "/vendors", label: "Vendor Management", icon: Truck },
+      { href: "/sub-vendors", label: "Sub-Vendor Contracts", icon: HandCoins },
       { href: "/purchase-orders", label: "Purchase Orders", icon: FileText },
       { href: "/proforma-invoices", label: "Proforma Invoices", icon: FileSpreadsheet },
+      { href: "/rfqs", label: "RFQs", icon: Mail },
       { href: "/quotations", label: "Quotations", icon: FileSignature },
       { href: "/boq", label: "BOQ", icon: Layers },
       { href: "/assets", label: "Asset Register", icon: Boxes },
@@ -63,6 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/employees", label: "Employees", icon: Users2 },
       { href: "/attendance", label: "Attendance", icon: CalendarCheck },
+      { href: "/expenses", label: "Expenses", icon: Receipt },
       { href: "/holidays", label: "Holidays", icon: CalendarDays },
     ],
   },
@@ -179,7 +183,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <p className="truncate text-sm font-medium text-navy-900">{profile?.name}</p>
             <p className="truncate text-[11px] text-ink-500">{role ? ROLE_LABEL[role] : ""}</p>
           </div>
-          <NotificationsBell />
           <button
             onClick={() => void signOut().then(() => router.replace("/login"))}
             className="rounded-lg p-1.5 text-ink-500 hover:bg-ink-100 hover:text-navy-900"
@@ -219,7 +222,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setNavOpen(true)} className="rounded-lg p-1.5 text-ink-600 hover:bg-ink-100" aria-label="Open navigation">
             <Menu className="h-5 w-5" />
           </button>
-          <span className="text-sm font-semibold text-ink-900">NAKJM Infrastructure</span>
+          <span className="flex-1 text-sm font-semibold text-ink-900">NAKJM Infrastructure</span>
+          <NotificationsBell />
+        </header>
+
+        <header className="sticky top-0 z-20 hidden items-center justify-end border-b border-ink-200 bg-white/90 px-6 py-2.5 backdrop-blur lg:flex">
+          <NotificationsBell />
         </header>
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>

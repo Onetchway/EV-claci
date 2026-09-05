@@ -10,11 +10,10 @@ import { BoqDiff } from "@/components/boq-diff";
 import { EntityActivityLog } from "@/components/entity-activity-log";
 import { EntityDocuments } from "@/components/entity-documents";
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, Textarea, useAsyncAction } from "@/components/ui";
-import { ItemsTable, BOQ_FIELDS, type DraftBoqItem } from "@/components/line-items-table";
-import { BOQ_CATEGORIES, BOQ_STATUSES, type BoqCategory, type BoqStatus } from "@/lib/constants";
-import { approveBoq, deleteBoq, reviseBoq, subscribeBoq, subscribeBoqLineage, updateBoq, updateBoqStatus } from "@/lib/db/boq";
+import { BOQ_STATUSES, type BoqStatus } from "@/lib/constants";
+import { approveBoq, deleteBoq, reviseBoq, subscribeBoq, subscribeBoqLineage, updateBoqStatus } from "@/lib/db/boq";
 import { canManageProcurement, canTrash } from "@/lib/permissions";
-import type { Boq, BoqLineItem } from "@/lib/types";
+import type { Boq } from "@/lib/types";
 import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 const NON_APPROVAL_STATUSES = BOQ_STATUSES.filter((s) => s !== "APPROVED");
@@ -27,10 +26,7 @@ export default function BoqDetailPage() {
   const { busy, run } = useAsyncAction();
 
   const [boq, setBoq] = useState<Boq | null | undefined>(undefined);
-  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [form, setForm] = useState({ boqNo: "", siteName: "", notes: "" });
-  const [items, setItems] = useState<DraftBoqItem[]>([]);
   const [lineage, setLineage] = useState<Boq[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareFromId, setCompareFromId] = useState("");
@@ -72,21 +68,6 @@ export default function BoqDetailPage() {
     setCompareOpen(true);
   }
 
-  function openEdit() {
-    setForm({ boqNo: boq!.boqNo, siteName: boq!.siteName ?? "", notes: boq!.notes ?? "" });
-    setItems(boq!.items.map((it) => ({ section: it.section, description: it.description, makeOem: it.makeOem, unit: it.unit, qty: it.qty, supplyRate: it.supplyRate, installationRate: it.installationRate, category: it.category })));
-    setEditOpen(true);
-  }
-
-  async function onSave() {
-    if (!form.boqNo.trim()) return;
-    await run(async () => {
-      const cleanItems = items.map((it) => ({ ...it, category: (it.category as BoqCategory) || "OTHER" })) as BoqLineItem[];
-      await updateBoq(boq!, { boqNo: form.boqNo, siteName: form.siteName, items: cleanItems, notes: form.notes }, actor);
-      setEditOpen(false);
-    }, "BOQ updated.");
-  }
-
   async function onStatusChange(status: BoqStatus) {
     await run(() => updateBoqStatus(boq!, status, actor), `Marked ${status}.`);
   }
@@ -113,7 +94,9 @@ export default function BoqDetailPage() {
             <Link href={`/projects/${boq.projectId}/boq/${boq.id}/print`}>
               <Button><Printer className="h-4 w-4" /> Print / PDF</Button>
             </Link>
-            {canManageProcurement(viewer) && <Button onClick={openEdit}><Pencil className="h-4 w-4" /> Edit</Button>}
+            {canManageProcurement(viewer) && boq.status !== "APPROVED" && (
+              <Link href={`/boq/${boq.id}/edit`}><Button><Pencil className="h-4 w-4" /> Edit</Button></Link>
+            )}
             {canManageProcurement(viewer) && <Button onClick={() => void onRevise()} loading={busy}><Copy className="h-4 w-4" /> New Version</Button>}
             {lineage.length > 1 && <Button variant="secondary" onClick={openCompare}>Compare Versions</Button>}
             {canTrash(viewer) && (
@@ -127,31 +110,31 @@ export default function BoqDetailPage() {
         <div className="space-y-4 lg:col-span-2">
           <Card title="Line items">
             <div className="overflow-x-auto scroll-thin">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-500">
-                    <th className="pb-2">Description</th>
-                    <th className="pb-2">Category</th>
-                    <th className="pb-2">Make/OEM</th>
-                    <th className="pb-2">Unit</th>
-                    <th className="pb-2 text-right">Qty</th>
-                    <th className="pb-2 text-right">Rate</th>
-                    <th className="pb-2 text-right">Amount</th>
+                    <th className="py-2 pr-3">Description</th>
+                    <th className="px-3 py-2">Category</th>
+                    <th className="px-3 py-2">Make/OEM</th>
+                    <th className="px-3 py-2">Unit</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right">Qty</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-right">Rate</th>
+                    <th className="whitespace-nowrap py-2 pl-3 text-right">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {boq.items.map((line) => (
                     <tr key={line.srNo} className="border-b border-ink-100">
-                      <td className="py-2">
+                      <td className="py-2.5 pr-3 align-top">
                         {line.section && <span className="mr-1 text-[10px] font-semibold uppercase text-ink-400">{line.section}</span>}
                         {line.description}
                       </td>
-                      <td className="py-2 text-ink-500">{line.category}</td>
-                      <td className="py-2 text-ink-500">{line.makeOem || "—"}</td>
-                      <td className="py-2 text-ink-500">{line.unit || "—"}</td>
-                      <td className="py-2 text-right tabular-nums">{line.qty}</td>
-                      <td className="py-2 text-right tabular-nums">{formatINR(line.rate)}</td>
-                      <td className="py-2 text-right tabular-nums">{formatINR(line.amount)}</td>
+                      <td className="px-3 py-2.5 align-top text-ink-500">{line.category}</td>
+                      <td className="px-3 py-2.5 align-top text-ink-500">{line.makeOem || "—"}</td>
+                      <td className="px-3 py-2.5 align-top text-ink-500">{line.unit || "—"}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right align-top tabular-nums">{line.qty}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right align-top tabular-nums">{formatINR(line.rate)}</td>
+                      <td className="whitespace-nowrap py-2.5 pl-3 text-right align-top tabular-nums">{formatINR(line.amount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -164,6 +147,13 @@ export default function BoqDetailPage() {
             </div>
           </Card>
 
+          <Card title="Terms &amp; conditions">
+            {boq.terms ? (
+              <p className="whitespace-pre-line text-sm text-ink-700">{boq.terms}</p>
+            ) : (
+              <p className="text-sm text-ink-400">No terms added yet.{canManageProcurement(viewer) && boq.status !== "APPROVED" ? " Click Edit to add." : ""}</p>
+            )}
+          </Card>
           {boq.notes && <Card title="Notes"><p className="whitespace-pre-line text-sm text-ink-700">{boq.notes}</p></Card>}
         </div>
 
@@ -210,21 +200,6 @@ export default function BoqDetailPage() {
           <EntityActivityLog entityType="BOQ" entityId={boq.id} />
         </div>
       </div>
-
-      <Modal
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        title="Edit BOQ"
-        wide
-        footer={<><Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={() => void onSave()} loading={busy}>Save</Button></>}
-      >
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <Field label="BOQ No." required><Input value={form.boqNo} onChange={(e) => setForm((f) => ({ ...f, boqNo: e.target.value }))} /></Field>
-          <Field label="Site Name"><Input value={form.siteName} onChange={(e) => setForm((f) => ({ ...f, siteName: e.target.value }))} /></Field>
-        </div>
-        <ItemsTable items={items} setItems={setItems} fields={BOQ_FIELDS} />
-        <p className="mt-2 text-xs text-ink-500">Categories: {BOQ_CATEGORIES.join(", ")}.</p>
-      </Modal>
 
       <Modal
         open={deleteOpen}

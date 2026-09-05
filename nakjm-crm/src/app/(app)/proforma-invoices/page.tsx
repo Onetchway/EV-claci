@@ -9,15 +9,39 @@ import { ExportButton } from "@/components/export-button";
 import { PI_STATUSES, type PiStatus } from "@/lib/constants";
 import { subscribeProformaInvoices } from "@/lib/db/proforma-invoices";
 import type { ProformaInvoice } from "@/lib/types";
-import { formatCompactINR, formatINR } from "@/lib/utils";
+import { formatCompactINR, formatINR, MONTH_NAMES, toDate } from "@/lib/utils";
 
 export default function ProformaInvoicesPage() {
   const [rows, setRows] = useState<ProformaInvoice[] | null>(null);
   const [status, setStatus] = useState<PiStatus | "ALL">("ALL");
+  const [year, setYear] = useState<string>("ALL");
+  const [month, setMonth] = useState<string>("ALL");
+  const [projectId, setProjectId] = useState<string>("ALL");
 
   useEffect(() => subscribeProformaInvoices(setRows), []);
 
-  const filtered = useMemo(() => (!rows ? [] : status === "ALL" ? rows : rows.filter((r) => r.status === status)), [rows, status]);
+  const years = useMemo(() => {
+    const s = new Set<number>();
+    (rows ?? []).forEach((r) => { const d = toDate(r.piDate); if (d) s.add(d.getFullYear()); });
+    return [...s].sort((a, b) => b - a);
+  }, [rows]);
+  const projects = useMemo(() => {
+    const m = new Map<string, string>();
+    (rows ?? []).forEach((r) => { if (r.projectId) m.set(r.projectId, r.projectName); });
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    return rows.filter((r) => {
+      if (status !== "ALL" && r.status !== status) return false;
+      if (projectId !== "ALL" && r.projectId !== projectId) return false;
+      const d = toDate(r.piDate);
+      if (year !== "ALL" && (!d || d.getFullYear() !== Number(year))) return false;
+      if (month !== "ALL" && (!d || d.getMonth() !== Number(month))) return false;
+      return true;
+    });
+  }, [rows, status, year, month, projectId]);
 
   const stats = useMemo(() => {
     const all = rows ?? [];
@@ -36,7 +60,6 @@ export default function ProformaInvoicesPage() {
         description="Every PI raised against a client, across every project."
         actions={
           <>
-            <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...PI_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))]} onChange={(e) => setStatus(e.target.value as PiStatus | "ALL")} />
             <ExportButton
               filename="proforma-invoices"
               sheetName="Proforma Invoices"
@@ -49,6 +72,13 @@ export default function ProformaInvoicesPage() {
           </>
         }
       />
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <Select value={status} className="w-auto" options={[{ value: "ALL", label: "All statuses" }, ...PI_STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))]} onChange={(e) => setStatus(e.target.value as PiStatus | "ALL")} />
+        <Select value={year} className="w-auto" options={[{ value: "ALL", label: "All years" }, ...years.map((y) => ({ value: String(y), label: String(y) }))]} onChange={(e) => setYear(e.target.value)} />
+        <Select value={month} className="w-auto" options={[{ value: "ALL", label: "All months" }, ...MONTH_NAMES.map((m, i) => ({ value: String(i), label: m }))]} onChange={(e) => setMonth(e.target.value)} />
+        <Select value={projectId} className="w-auto" options={[{ value: "ALL", label: "All projects" }, ...projects.map(([id, name]) => ({ value: id, label: name }))]} onChange={(e) => setProjectId(e.target.value)} />
+      </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Proforma invoices" value={stats.total} icon={<FileSpreadsheet className="h-4 w-4" />} />

@@ -60,7 +60,7 @@ export function NotificationsBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute bottom-full right-0 z-50 mb-2 w-80 rounded-2xl border border-ink-200 bg-white shadow-2xl">
+          <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-2xl border border-ink-200 bg-white shadow-2xl">
             <div className="border-b border-ink-200 px-4 py-3">
               <p className="text-sm font-semibold text-navy-900">Needs attention</p>
               <p className="text-xs text-ink-500">Across every project</p>

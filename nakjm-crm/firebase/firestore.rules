@@ -149,6 +149,12 @@ service cloud.firestore {
 
     // ------------------------------------------------------------- procurement
 
+    match /rfqs/{rfqId} {
+      allow read: if signedIn();
+      allow create, update: if canManageProcurement();
+      allow delete: if isAdmin();
+    }
+
     match /quotations/{quotationId} {
       allow read: if signedIn();
       allow create, update: if canManageProcurement();
@@ -170,6 +176,22 @@ service cloud.firestore {
     match /proformaInvoices/{piId} {
       allow read: if signedIn();
       allow create, update: if canManageProcurement() || canManagePayments();
+      allow delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------- site visits
+
+    match /siteVisits/{visitId} {
+      allow read: if signedIn();
+      allow create, update: if canManageProcurement() || canSubmitSiteReports();
+      allow delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------- sub-vendor contracts
+
+    match /subVendorContracts/{contractId} {
+      allow read: if signedIn();
+      allow create, update: if canManageProcurement();
       allow delete: if isAdmin();
     }
 
@@ -314,6 +336,21 @@ service cloud.firestore {
                       || canManageHrms()
                     );
       allow delete: if false;
+    }
+
+    // Owner edits/submits their own report; their manager decides at SUBMITTED; Finance decides at
+    // MANAGER_APPROVED and marks it paid; HR/Admin has oversight throughout.
+    match /expenseReports/{reportId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && (request.resource.data.uid == uid() || canManageHrms());
+      allow update: if signedIn()
+                    && (
+                      resource.data.uid == uid()
+                      || resource.data.managerId == uid()
+                      || canManagePayments()
+                      || canManageHrms()
+                    );
+      allow delete: if signedIn() && (resource.data.uid == uid() || isAdmin());
     }
 
     match /holidays/{holidayId} {

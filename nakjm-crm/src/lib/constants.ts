@@ -126,6 +126,89 @@ export const TENDER_STATUS_META: Record<TenderStatus, { label: string; className
 };
 
 // ---------------------------------------------------------------------------
+// RFQs — a client's direct Request for Quotation, upstream of the priced
+// Quotation itself (distinct from a Tender, which is a public/institutional
+// bid process).
+// ---------------------------------------------------------------------------
+
+export const RFQ_STATUSES = ["OPEN", "QUOTED", "CLOSED", "LOST"] as const;
+export type RfqStatus = (typeof RFQ_STATUSES)[number];
+
+export const RFQ_STATUS_META: Record<RfqStatus, { label: string; className: string }> = {
+  OPEN: { label: "Open", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  QUOTED: { label: "Quoted", className: "bg-violet-50 text-violet-700 ring-violet-200" },
+  CLOSED: { label: "Closed", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  LOST: { label: "Lost", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+
+// ---------------------------------------------------------------------------
+// Site Visit — an engineer (or several) dispatched to a client's project
+// site to inspect/survey before or during execution, distinct from a
+// recurring SiteReport (progress update on work already underway).
+// ---------------------------------------------------------------------------
+
+export const SITE_VISIT_STATUSES = ["SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
+export type SiteVisitStatus = (typeof SITE_VISIT_STATUSES)[number];
+
+export const SITE_VISIT_STATUS_META: Record<SiteVisitStatus, { label: string; className: string }> = {
+  SCHEDULED: { label: "Scheduled", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  IN_PROGRESS: { label: "In Progress", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  COMPLETED: { label: "Completed", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  CANCELLED: { label: "Cancelled", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+
+// ---------------------------------------------------------------------------
+// Sub-vendor contracts (work subcontracted out to a vendor, with its own stages/payment schedule)
+// ---------------------------------------------------------------------------
+
+export const SUB_VENDOR_CONTRACT_STATUSES = ["DRAFT", "ACTIVE", "DELAYED", "COMPLETED", "TERMINATED"] as const;
+export type SubVendorContractStatus = (typeof SUB_VENDOR_CONTRACT_STATUSES)[number];
+
+export const SUB_VENDOR_CONTRACT_STATUS_META: Record<SubVendorContractStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  ACTIVE: { label: "Active", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  DELAYED: { label: "Delayed", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  COMPLETED: { label: "Completed", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  TERMINATED: { label: "Terminated", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+};
+
+export const SUB_VENDOR_PAYMENT_STATUSES = ["PENDING", "INVOICED", "PAID"] as const;
+export type SubVendorPaymentStatus = (typeof SUB_VENDOR_PAYMENT_STATUSES)[number];
+
+export const SUB_VENDOR_PAYMENT_STATUS_META: Record<SubVendorPaymentStatus, { label: string; className: string }> = {
+  PENDING: { label: "Pending", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  INVOICED: { label: "Invoiced", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  PAID: { label: "Paid", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+};
+
+// ---------------------------------------------------------------------------
+// Employee expenses & reimbursement
+// ---------------------------------------------------------------------------
+
+export const EXPENSE_CATEGORIES = ["TRAVEL_BIKE", "TRAVEL_CAR", "OTHER_TRAVEL", "HOTEL", "DAILY_ALLOWANCE", "OTHER"] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
+  TRAVEL_BIKE: "Travel — Bike", TRAVEL_CAR: "Travel — Car", OTHER_TRAVEL: "Other Travel",
+  HOTEL: "Hotel", DAILY_ALLOWANCE: "Daily Allowance", OTHER: "Other",
+};
+
+/** These two categories take a distance (km) and auto-compute the amount from Settings -> Expense policy; every other category is a direct amount entry. */
+export const DISTANCE_BASED_EXPENSE_CATEGORIES: ExpenseCategory[] = ["TRAVEL_BIKE", "TRAVEL_CAR"];
+
+export const EXPENSE_REPORT_STATUSES = ["DRAFT", "SUBMITTED", "MANAGER_APPROVED", "FINANCE_APPROVED", "REJECTED", "PAID"] as const;
+export type ExpenseReportStatus = (typeof EXPENSE_REPORT_STATUSES)[number];
+
+export const EXPENSE_REPORT_STATUS_META: Record<ExpenseReportStatus, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-ink-100 text-ink-700 ring-ink-200" },
+  SUBMITTED: { label: "Pending Manager", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  MANAGER_APPROVED: { label: "Pending Finance", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+  FINANCE_APPROVED: { label: "Approved", className: "bg-violet-50 text-violet-700 ring-violet-200" },
+  REJECTED: { label: "Rejected", className: "bg-rose-50 text-rose-700 ring-rose-200" },
+  PAID: { label: "Paid", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+};
+
+// ---------------------------------------------------------------------------
 // Quotations / BOQ / PO / PI
 // ---------------------------------------------------------------------------
 
@@ -177,6 +260,20 @@ export function gstTypeForCounterparty(homeGstin: string, counterpartyGstin: str
   return homeGstin.trim().slice(0, 2) === counterpartyGstin.trim().slice(0, 2) ? "CGST_SGST" : "IGST";
 }
 
+/**
+ * The client GSTIN that actually applies to a project: a live match against the client's
+ * state-wise registrations for the project's own site state, so it always tracks state edits
+ * without needing the project's stored billingGstin to be manually re-synced. Falls back to
+ * billingGstin (set at project creation) and then the client's single default GSTIN.
+ */
+export function billedGstinForProject(
+  client: { gstin?: string; gstRegistrations?: { gstin: string; state: string }[] } | null | undefined,
+  project: { site?: { state?: string }; billingGstin?: string | null } | null | undefined,
+): string | undefined {
+  const stateMatch = client?.gstRegistrations?.find((r) => r.state === project?.site?.state)?.gstin;
+  return stateMatch || project?.billingGstin || client?.gstin || undefined;
+}
+
 /** Every Indian state/UT name, alphabetical, for a "State" dropdown -- the same list GST registration is drawn from, minus the old pre-bifurcation Andhra Pradesh code. */
 export const INDIAN_STATES = Object.values(GST_STATE_CODES)
   .filter((s) => s !== "Andhra Pradesh (Old)")
@@ -209,8 +306,19 @@ export const STAGE_STATUS_META: Record<StageStatus, { label: string; className: 
  * yet (a full admin-configurable template system is a larger follow-up);
  * for now this lives in code, mirroring the brief's example templates.
  */
+/**
+ * EV_CHARGING_STATION's sequence follows V-Green's Setup Playbook (v1.2) section-by-section --
+ * each stage name maps to one of its numbered sections, so stage progress lines up with the
+ * playbook's own document checklist and payment-milestone structure (30% Appendix Signing / 10%
+ * Civil / 30% Construction Handover / 25% Go-Live / 5% Warranty).
+ */
 export const STAGE_TEMPLATES: Record<ProjectType, string[]> = {
-  EV_CHARGING_STATION: ["Site Survey", "Design / Planning", "Civil Work", "Electrical Work", "Charger Installation", "Testing", "Commissioning", "Handover"],
+  EV_CHARGING_STATION: [
+    "Site Survey", "Appendix Signing & BOQ Approval", "DISCOM Application",
+    "Site Layout & Electrical Drawing Approval", "Civil Work", "ACDB Installation & Electrical Work",
+    "EVCS Delivery & Installation", "Electrical Testing & Pre-Energization",
+    "Final Energization & Commissioning (Go-Live)", "HOTO & Final Handover",
+  ],
   SOLAR: ["Site Survey", "Design", "Approval", "Civil Work", "Structure Installation", "Module Installation", "Electrical Installation", "Testing", "Commissioning", "Handover"],
   HT_CONNECTION: ["Site Survey", "Design", "HT Line Work", "Substation Work", "Testing", "Commissioning", "Handover"],
   SUBSTATION: ["Site Survey", "Design", "Civil Work", "Equipment Installation", "Testing", "Commissioning", "Handover"],
@@ -237,7 +345,8 @@ export const TASK_STATUS_META: Record<TaskStatus, { label: string; className: st
 
 export const DOCUMENT_CATEGORIES = [
   "CLIENT_PO", "WORK_ORDER", "TENDER", "BOQ_UPLOAD", "QUOTATION_UPLOAD", "PO_UPLOAD", "DRAWING", "TECHNICAL",
-  "APPROVAL", "DPR", "MEASUREMENT", "PHOTO", "INSPECTION", "COMPLETION", "OTHER",
+  "APPROVAL", "DPR", "MEASUREMENT", "PHOTO", "INSPECTION", "SITE_SURVEY", "TEST_REPORT", "HOTO", "COMPLETION",
+  "SITE_VISIT_REPORT", "OTHER",
 ] as const;
 export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
 
@@ -245,7 +354,8 @@ export const DOCUMENT_CATEGORY_LABEL: Record<DocumentCategory, string> = {
   CLIENT_PO: "Client PO", WORK_ORDER: "Work Order", TENDER: "Tender Document", BOQ_UPLOAD: "BOQ",
   QUOTATION_UPLOAD: "Quotation", PO_UPLOAD: "Purchase Order", DRAWING: "Drawing", TECHNICAL: "Technical Document", APPROVAL: "Approval",
   DPR: "DPR", MEASUREMENT: "Measurement", PHOTO: "Photo", INSPECTION: "Inspection Report",
-  COMPLETION: "Completion Document", OTHER: "Other",
+  SITE_SURVEY: "Site Survey Report", TEST_REPORT: "Test Report (Earthing/Voltage/IR/Continuity)", HOTO: "HOTO Checklist/Photos",
+  COMPLETION: "Completion Document", SITE_VISIT_REPORT: "Site Visit Report/Photos", OTHER: "Other",
 };
 
 // ---------------------------------------------------------------------------
@@ -358,10 +468,11 @@ export const HANDOVER_STAGE_LABEL: Record<HandoverStage, string> = {
 // ---------------------------------------------------------------------------
 
 export const ACTIVITY_ENTITY_TYPES = [
-  "CLIENT", "VENDOR", "PROJECT", "TENDER", "QUOTATION", "BOQ", "PURCHASE_ORDER",
-  "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "TEAM_MEMBER", "USER", "ASSET",
+  "CLIENT", "VENDOR", "PROJECT", "TENDER", "RFQ", "QUOTATION", "BOQ", "PURCHASE_ORDER",
+  "PROFORMA_INVOICE", "CLIENT_PAYMENT", "VENDOR_PAYMENT", "SITE_REPORT", "SITE_VISIT", "SUB_VENDOR_CONTRACT",
+  "TEAM_MEMBER", "USER", "ASSET",
   "STAGE", "TASK", "ISSUE", "MEASUREMENT", "DOCUMENT", "RFI", "INSPECTION", "NCR", "DRAWING",
-  "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST",
+  "PUNCH_ITEM", "HANDOVER", "LEAVE_REQUEST", "EXPENSE_REPORT",
 ] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -370,6 +481,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   VENDOR: "Vendor",
   PROJECT: "Project",
   TENDER: "Tender",
+  RFQ: "RFQ",
   QUOTATION: "Quotation",
   BOQ: "BOQ",
   PURCHASE_ORDER: "Purchase Order",
@@ -377,6 +489,8 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   CLIENT_PAYMENT: "Client Payment",
   VENDOR_PAYMENT: "Vendor Payment",
   SITE_REPORT: "Site Report",
+  SITE_VISIT: "Site Visit",
+  SUB_VENDOR_CONTRACT: "Sub-Vendor Contract",
   TEAM_MEMBER: "Team Member",
   USER: "User",
   ASSET: "Asset",
@@ -392,6 +506,7 @@ export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntityType, string> = {
   PUNCH_ITEM: "Punch Item",
   HANDOVER: "Handover",
   LEAVE_REQUEST: "Leave Request",
+  EXPENSE_REPORT: "Expense Report",
 };
 
 export const ACTIVITY_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "DELETE"] as const;
