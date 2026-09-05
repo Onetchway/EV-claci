@@ -52,6 +52,11 @@ export function defaultSettings(): AppSettings {
       defaultInterestRate: 9,
       defaultTenureYears: 5,
     },
+    expense: {
+      ratePerKmBike: 3,
+      ratePerKmCar: 8,
+      defaultDailyAllowance: 500,
+    },
     lists: { chargerOems: [], banks: [], discoms: [], vendors: [] },
     ocpp: { serverHost: "" },
   };
@@ -69,6 +74,7 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
     bank: { ...base.bank, ...stored.bank },
     loi: { ...base.loi, ...stored.loi },
     finance: { ...base.finance, ...stored.finance },
+    expense: { ...base.expense, ...stored.expense },
     lists: { ...base.lists, ...stored.lists },
     ocpp: { ...base.ocpp, ...stored.ocpp },
     updatedAt: stored.updatedAt ?? null,

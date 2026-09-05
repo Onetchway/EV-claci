@@ -247,3 +247,14 @@ export const canSeeAllHrms = (viewer: Viewer) =>
 /** Office/geofence config and the leave-type catalogue are org-wide policy — admin only, same bar as OCPI credentials. */
 export const canManageHrmsSetup = (viewer: Viewer) =>
   hasRole(viewer, "SUPER_ADMIN", "ADMIN");
+
+// ---------------------------------------------------------------------------
+// Payroll — salary data. Deliberately narrower than canManageHrms (which
+// includes a plain Sales Manager) and with NO hrmsAdmin-flag carve-out
+// (unlike most of the rest of HRMS) — only Super Admin/Admin/Finance may
+// see or edit salary structures and payslips, full stop. Exactly mirrors
+// canManagePayroll() in firebase/firestore.rules, which enforces the same
+// bar at the database level regardless of what this function says.
+// ---------------------------------------------------------------------------
+export const canManagePayroll = (viewer: Viewer) =>
+  hasRole(viewer, "SUPER_ADMIN", "ADMIN", "FINANCE");

@@ -24,6 +24,12 @@ service firebase.storage {
       return role() in ['ADMIN', 'SUPER_ADMIN', 'OPERATIONS'];
     }
 
+    // Same bar as the Firestore users/{userId}/documents rule (see
+    // firestore.rules) — salary data's bar, Finance/Admin/Super Admin only.
+    function canManagePayroll() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
     function acceptableFile() {
       return request.resource.size < 15 * 1024 * 1024
              && (request.resource.contentType.matches('image/.*')
@@ -64,6 +70,43 @@ service firebase.storage {
       allow create: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'] && acceptableFile();
       allow update: if false;
       allow delete: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS'];
+    }
+
+    // An employee's own KYC documents (Aadhaar, PAN, address proof, ...) —
+    // see src/lib/db/employee-documents.ts. Same bar as salary data
+    // (Finance/Admin/Super Admin) for upload/delete; the employee whose
+    // record this is may additionally read their own file — Storage can't
+    // check Firestore, so "own" is read straight off the path's {uid}
+    // segment against the caller's uid, same mechanism as role() above
+    // (the ID token's custom claims), not a Firestore cross-reference.
+    match /employees/{uid}/{kind}/{fileName} {
+      allow read: if canManagePayroll() || (signedIn() && request.auth.uid == uid);
+      allow create: if canManagePayroll() && acceptableFile();
+      allow update: if false;
+      allow delete: if canManagePayroll();
+    }
+
+    // Same bar as canManagePayroll() above — role visible to Finance/Admin/
+    // Super Admin — reused here so a manager who isn't also Finance/Admin
+    // can still see a claim's receipts they're approving.
+    function canManageHrms() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
+    }
+
+    // Expense claim receipts (see src/lib/db/expense-receipts.ts). Storage
+    // can't check Firestore, so — same mechanism as employees/{uid}/** above
+    // — "own" is the path's {uid} segment against the caller's uid. Visible
+    // to the claimant, any HRMS manager, and Finance/Admin/Super Admin
+    // (receipts need to be seen by whoever is deciding the claim, at either
+    // stage); only the claimant may upload, and only while their claim is
+    // still editable (DRAFT) — Storage can't see the claim's status either,
+    // so that's additionally enforced by the app only ever calling this
+    // while the claim is a DRAFT the owner controls.
+    match /expenses/{uid}/{claimId}/{fileName} {
+      allow read: if canManagePayroll() || canManageHrms() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid && acceptableFile();
+      allow update: if false;
+      allow delete: if canManagePayroll() || (signedIn() && request.auth.uid == uid);
     }
 
     match /{allPaths=**} {

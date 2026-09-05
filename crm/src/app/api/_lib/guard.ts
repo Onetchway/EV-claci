@@ -91,6 +91,27 @@ export function highestRole(roles: Role[]): Role {
 }
 
 /**
+ * Auto-assigned employee code, same numbered-sequence convention as
+ * leads/payslips/etc. (see nextLeadCode in api/public/apply/route.ts).
+ * Used both when a new employee is created (api/users POST) and, on
+ * request, to backfill one for an existing employee who doesn't have one
+ * yet (api/users/[uid] PATCH's `generateEmployeeCode` flag) — still a
+ * plain field afterward, HR can override it by hand either way.
+ */
+export async function nextEmployeeCode(): Promise<string> {
+  const db = adminDb();
+  const ref = db.collection("counters").doc("employees");
+  const seq = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const current = (snap.exists ? (snap.data()?.value as number | undefined) : undefined) ?? 0;
+    const next = current + 1;
+    tx.set(ref, { value: next }, { merge: true });
+    return next;
+  });
+  return `LG-EMP-${String(seq).padStart(5, "0")}`;
+}
+
+/**
  * Every failure response gets a requestId — cheap to generate, and the one
  * thing that lets us find "the request that failed for you at 3:14pm" in
  * logs/apiRequestLogs without the caller needing to have captured anything

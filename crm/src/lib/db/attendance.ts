@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, Timestamp, where,
+  collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, Timestamp, where,
 } from "firebase/firestore";
 
 import { getDb } from "../firebase/client";
@@ -117,6 +117,54 @@ export function subscribeMyAttendanceMonth(
     (snap) => cb(snap.docs.map((d) => mapAttendance(d.id, d.data()))),
     (err) => onError?.(err as Error),
   );
+}
+
+/** One-shot equivalent of subscribeMyAttendanceMonth — used by the payroll generator, which computes paid days for a whole month at once rather than staying subscribed. */
+export async function getAttendanceMonth(uid: string, monthStart: string, monthEnd: string): Promise<AttendanceRecord[]> {
+  const snap = await getDocs(
+    query(
+      collection(getDb(), ATTENDANCE),
+      where("uid", "==", uid),
+      where("date", ">=", monthStart),
+      where("date", "<=", monthEnd),
+    ),
+  );
+  return snap.docs.map((d) => mapAttendance(d.id, d.data()));
+}
+
+/**
+ * Paid/absent/half-day breakdown for a payslip. Approved leave requests do
+ * NOT currently write an ON_LEAVE attendance row (see lib/db/leave.ts), so
+ * this can't lean on attendance alone to know who was on paid leave — it
+ * falls back to the simplest defensible rule: a day counts as paid unless
+ * it's explicitly marked ABSENT or left unmarked (PRESENT/ON_LEAVE/
+ * WEEK_OFF/HOLIDAY/WORK_FROM_HOME all pay in full, HALF_DAY pays half and
+ * counts toward `halfDays`; ABSENT/unmarked count toward `absentDays`). This is
+ * deliberately a starting point, not a verdict — the payroll generator
+ * surfaces the counts as editable fields per employee so an operator can
+ * correct them before finalizing a payslip (see computeLossOfPay in
+ * db/payroll.ts for how absentDays/halfDays turn into a deduction amount).
+ */
+export function computeAttendanceBreakdown(
+  records: AttendanceRecord[], year: number, month: number, monthDays: number,
+): { paidDays: number; absentDays: number; halfDays: number } {
+  const byDate = new Map(records.map((r) => [r.date, r.status]));
+  const mm = String(month).padStart(2, "0");
+  let paid = 0;
+  let absentDays = 0;
+  let halfDays = 0;
+  for (let day = 1; day <= monthDays; day++) {
+    const status = byDate.get(`${year}-${mm}-${String(day).padStart(2, "0")}`);
+    if (status === "HALF_DAY") { paid += 0.5; halfDays += 1; }
+    else if (status === "ABSENT" || status === undefined) { absentDays += 1; }
+    else paid += 1; // PRESENT, ON_LEAVE, WEEK_OFF, HOLIDAY, WORK_FROM_HOME
+  }
+  return { paidDays: paid, absentDays, halfDays };
+}
+
+/** @deprecated Thin wrapper kept for anything still calling the old paid-days-only signature — prefer computeAttendanceBreakdown, which also reports the absent/half-day counts a payslip now itemizes. */
+export function computePaidDays(records: AttendanceRecord[], year: number, month: number, monthDays: number): number {
+  return computeAttendanceBreakdown(records, year, month, monthDays).paidDays;
 }
 
 /** For managers/admins — every employee's records for one calendar day (the "Team" tab) or a month (exports). */

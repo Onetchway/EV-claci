@@ -4,14 +4,15 @@ import type {
   ActivityType, AgreementPaymentModel, AgreementScheduleKey, AgreementSiteHolder, AgreementStatus, AssetCategory, AssetStatus, ChargingScheduleStatus,
   CommercialModel, CommissionStatus,
   ComplaintCategory, ComplaintPriority, ComplaintStatus,
-  ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EoiStatus,
+  ConnectionType, DepreciationMethod, DiscomStage, DocKind, DocStatus, EmployeeDocKind, EoiStatus,
+  ExpenseCategory, ExpenseClaimStatus,
   FollowupPriority, FollowupStatus, FollowupType, FundingMode, GstType, LandType,
   LeadStatus, LeadType, LoanStage, LocationType, Ownership, OwnerType,
   PartnerCategory, PartnerStatus, PartnerTier, PaymentMilestone, PaymentMode,
   EmspUserType, InvoiceBillToType, InvoiceStatus, PaymentStatus, PoStatus, PowerLoad,
-  ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
+  PayslipStatus, ProformaInvoiceStatus, ProjectOwnership, ProjectStage, ProjectStatus, QuotationStatus, RejectionReason,
   RfidTokenStatus, Role, SiteType, Source, Stage, TariffPricingType, TariffScope,
-  TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorPaymentStatus, VendorStatus,
+  TaskStatus, TicketFaultClass, TicketStatus, TicketType, VendorCategory, VendorEngagementStatus, VendorPaymentStatus, VendorStatus,
   WebhookEvent, WeekDay, Workstream,
 } from "./constants";
 import type { ConfigItem, ExtraItem, Quote } from "./pricing";
@@ -54,6 +55,8 @@ export interface AppUser {
   hrmsAdmin?: boolean;
   /** Whether this person is expected to check in/out at all — off by default is wrong for a normal employee, so undefined means required. Turn off for someone HRMS genuinely doesn't apply to (a channel partner contact, a board member with CRM access, etc.); they drop out of the header check-in control and the Team/Roster/leave-quota views. */
   attendanceRequired?: boolean;
+  /** HR-assigned employee code, e.g. "LG-EMP-001" — free text, set by hand from Employees, the same way PAN/UAN/PF numbers are set from the Salary form. Printed on the payslip as "Employee ID"; snapshotted onto each Payslip at generation time (see Payslip.employeeCode). */
+  employeeCode?: string | null;
   /** Set when this account was deleted (DELETE /api/users/[uid]) — the Firebase Auth credential is gone, but the profile row is kept so historical leads/activity still show a real owner name. Hidden from Team & Roles' main list by default. */
   deletedAt?: TS | null;
   createdAt: TS;
@@ -201,6 +204,8 @@ export interface EoiDoc {
   updatedBy?: Actor;
   issuedBy?: Actor | null;
   acceptedAt?: TS;
+  /** Set only when the investor accepted it themselves from the portal (see api/portal/[leadId]/eoi-accept) — absent when acceptedAt was set some other way (e.g. staff moving the status by hand from the panel). */
+  acceptedBy?: PortalAcceptance;
 }
 
 /** A superseded LOI, archived to leads/{id}/eoiVersions the moment it's replaced by a regenerated one — so a letter a signatory already saw stays retrievable and reprintable even after the client's details or the config change and a fresh one is issued. */
@@ -253,6 +258,9 @@ export interface AgreementDoc {
   updatedAt?: TS;
   updatedBy?: Actor;
   issuedBy?: Actor | null;
+  /** Set only when the investor accepted it themselves from the portal (see api/portal/[leadId]/agreement-accept) — distinct from SIGNED, which is staff later recording that the fully executed document was collected. */
+  acceptedAt?: TS;
+  acceptedBy?: PortalAcceptance;
 }
 
 /** A superseded Agreement, archived to leads/{id}/agreementVersions the moment it's replaced by a regenerated one — same reasoning as EoiVersion. */
@@ -266,6 +274,20 @@ export interface Actor {
   uid: string;
   name: string;
   role: Role;
+}
+
+/**
+ * Who accepted an EOI/Agreement from the investor portal — deliberately not
+ * an `Actor`: that type's `role` field is a CRM `Role`, which doesn't fit a
+ * phone/OTP-authenticated investor (see lib/portal-auth.tsx — this
+ * principal never holds a CRM role at all). Set only by the trusted
+ * server-side accept route (api/portal/[leadId]/eoi-accept,
+ * .../agreement-accept), never written by the investor's client directly.
+ */
+export interface PortalAcceptance {
+  name: string;
+  /** +91XXXXXXXXXX, from the investor's verified phone-auth session. */
+  phone: string;
 }
 
 /** A delivery address distinct from the billed party — set only when shipToEnabled is true on the document. */
@@ -588,6 +610,25 @@ export interface LeadDocument {
   reviewedBy?: Actor | null;
 }
 
+/**
+ * An employee's own KYC/on-file document — users/{uid}/documents/{id}. See
+ * src/lib/db/employee-documents.ts's module doc comment for how this
+ * differs from LeadDocument (no review workflow, list+delete only).
+ */
+export interface EmployeeDocument {
+  id: string;
+  uid: string;
+  kind: EmployeeDocKind;
+  fileName: string;
+  storagePath: string;
+  url: string;
+  contentType: string;
+  size: number;
+  note?: string;
+  uploadedAt: TS;
+  uploadedBy: Actor;
+}
+
 export interface FieldChange {
   field: string;
   label: string;
@@ -733,6 +774,79 @@ export interface VendorPayment {
   note?: string;
   createdAt: TS;
   createdBy?: Actor | null;
+}
+
+/**
+ * One stage/deliverable within a sub-vendor VendorEngagement — modeled on
+ * ProjectWorkstream's planned/actual date pairing and status, but scoped to
+ * a single work item (a milestone) rather than a whole delivery strand, and
+ * carrying its own amount since a vendor engagement's payment schedule is
+ * usually broken up milestone-by-milestone. Embedded in the parent
+ * VendorEngagement doc, same "small list, no subcollection" reasoning as
+ * ExpenseClaim.items / AgreementBomRow.
+ */
+export interface VendorEngagementMilestone {
+  id: string;
+  label: string;
+  status: TaskStatus;
+  plannedStart?: TS;
+  plannedEnd?: TS;
+  actualStart?: TS;
+  actualEnd?: TS;
+  amount?: number;
+  note?: string;
+}
+
+/**
+ * A single job/engagement Livanto has assigned to a sub-vendor — distinct
+ * from the Vendor directory record itself (name, contact, bank details),
+ * since one vendor may be running several separate engagements over time
+ * (e.g. civil work on one station while also doing EPC scope on another).
+ * Lives under its own top-level collection (vendorEngagements), the same
+ * structural shape as purchaseOrders keyed by vendorId — not nested under
+ * vendors/{id} — and is surfaced as a "Work Engagements" tab on the vendor
+ * detail page rather than new top-level nav.
+ *
+ * Linked documents (Project/PO/PI/Quotation) are reference-only {id, number}
+ * pairs, the same convention Asset uses for vendorId/poId/linkedProjectId —
+ * never a duplicate copy of the linked doc's data. BOQ is deliberately just
+ * a free-text reference (boqReference) rather than a structured link: no BOQ
+ * entity exists anywhere in this codebase, and building one is out of scope
+ * here — flag this to the user if they actually wanted a real BOQ module.
+ */
+export interface VendorEngagement {
+  id: string;
+  /** Human-friendly reference, e.g. LG-VE-000012. */
+  number: string;
+  vendorId: string;
+  vendorName: string;
+  /** What the work is, e.g. "Civil + electrical work — Sector 62 station". */
+  title: string;
+  description?: string;
+  status: VendorEngagementStatus;
+  linkedProjectId?: string | null;
+  linkedProjectCode?: string | null;
+  linkedPoId?: string | null;
+  linkedPoNumber?: string | null;
+  linkedPiId?: string | null;
+  linkedPiNumber?: string | null;
+  linkedQuotationId?: string | null;
+  linkedQuotationNumber?: string | null;
+  /** Free-text BOQ document number/note — no structured BOQ entity exists in this codebase. */
+  boqReference?: string;
+  /** Prefilled from Vendor.paymentTerms as a convenience default, freely overridable per engagement. */
+  paymentTerms?: string;
+  totalAmount?: number;
+  penaltyClause?: string;
+  /** Only set once a penalty is actually enforced against this engagement — this is not a calculation engine. */
+  penaltyAppliedAmount?: number;
+  targetCompletionAt?: TS | null;
+  actualCompletionAt?: TS | null;
+  milestones: VendorEngagementMilestone[];
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
 }
 
 /**
@@ -1637,6 +1751,12 @@ export interface AppSettings {
     defaultInterestRate: number;
     defaultTenureYears: number;
   };
+  /** Reimbursement rates for the Expense Management module — see ExpenseLineItem/ExpenseClaim below. */
+  expense: {
+    ratePerKmBike: number;
+    ratePerKmCar: number;
+    defaultDailyAllowance: number;
+  };
   /** Extra options appended to the built-in dropdowns. */
   lists: {
     chargerOems: string[];
@@ -1742,7 +1862,7 @@ export interface OfficeLocation {
   updatedBy?: Actor | null;
 }
 
-export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "WEEK_OFF" | "HOLIDAY";
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "ON_LEAVE" | "WEEK_OFF" | "HOLIDAY" | "WORK_FROM_HOME";
 
 export interface AttendancePunch {
   at: TS;
@@ -1825,4 +1945,241 @@ export interface LeaveRequest {
   decidedAt?: TS | null;
   decidedBy?: Actor | null;
   decisionNote?: string;
+}
+
+/**
+ * Shared request+approval shape for two employee-facing exceptions to their
+ * attendance record, distinguished by `kind`:
+ *  - "WFH": today only (fromDate === toDate === today), asks to be marked
+ *    WORK_FROM_HOME instead of needing a geofenced check-in.
+ *  - "REGULARIZATION": a date range within last-calendar-month..today, asks
+ *    for a correction (e.g. a forgotten punch) with an optional desired
+ *    status and backfilled check-in/check-out times.
+ * On approval, a manager/admin decision is applied via markAttendance (see
+ * db/attendance.ts) once per date in [fromDate, toDate] — this doc itself
+ * never writes attendance records directly. Mirrors LeaveRequest's lifecycle
+ * shape exactly (see db/leave.ts).
+ */
+export type AttendanceRequestKind = "WFH" | "REGULARIZATION";
+export type AttendanceRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+export interface AttendanceRequest {
+  id: string;
+  uid: string;
+  userName: string;
+  kind: AttendanceRequestKind;
+  /** yyyy-mm-dd, inclusive. For WFH always equal to toDate and to today. */
+  fromDate: string;
+  toDate: string;
+  reason?: string;
+  /** Status to apply on approval — defaults to PRESENT (WFH requests always resolve to WORK_FROM_HOME regardless of this field). */
+  desiredStatus?: AttendanceStatus;
+  /** "HH:MM", regularization only — optionally backfills a punch time on approval. */
+  requestedCheckIn?: string;
+  requestedCheckOut?: string;
+  status: AttendanceRequestStatus;
+  appliedAt: TS;
+  appliedBy?: Actor | null;
+  decidedAt?: TS | null;
+  decidedBy?: Actor | null;
+  decisionNote?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Payroll — salary structure per employee, and the monthly payslips
+// generated from it. Kept in its own collection (payrollProfiles) rather than
+// bloated onto AppUser, same reasoning as InvestorBankDetails: sensitive
+// money/bank data belongs in its own doc with its own access rule, not
+// mixed into a record every signed-in user can read.
+// ---------------------------------------------------------------------------
+
+/**
+ * One per employee — doc id is the employee's uid. Everything a monthly
+ * payslip run needs: salary structure, statutory numbers, bank details and
+ * the deduction/employer-contribution settings. `ctc` is the HR-entered
+ * target figure (shown for reference on the profile editor); the CTC printed
+ * on an actual payslip is computed from that month's gross earning plus the
+ * employer-side additions, so the two can drift slightly — see
+ * computePayslip in db/payroll.ts.
+ */
+export interface PayrollProfile {
+  id: string;
+  uid: string;
+  panNo?: string;
+  uanNo?: string;
+  pfNo?: string;
+  esiNo?: string;
+  bankAccountName?: string;
+  bankName?: string;
+  bankAccountNo?: string;
+  bankIfsc?: string;
+  dateOfJoining?: TS | null;
+  /** HR-entered target CTC (ANNUAL) — reference only, feeds the "Auto-fill from CTC" split/TDS estimate; see the doc comment above. */
+  ctc: number;
+  basic: number;
+  hra: number;
+  ta: number;
+  others: number;
+  misc?: number;
+  /** Employee-side EPF deduction %, applied to basic capped at the ₹15,000 PF wage ceiling. Defaults to 12 when unset. */
+  epfEmployeePct?: number;
+  /** Employer-side EPF contribution (₹/month, informational — "Additional (ER)" on the payslip). Defaults to matching the employee contribution when unset. */
+  epfEmployerAmount?: number;
+  /** Employee-side ESIC deduction %, applied to gross earning. Unset/0 = not ESIC-applicable (typical once gross crosses the ESIC wage threshold). */
+  esicEmployeePct?: number;
+  esicEmployerAmount?: number;
+  /** Monthly TDS to prefill on a new payslip. The Salary form's "Auto-fill from CTC" button computes this from India's New Tax Regime slabs (see lib/payroll-tax.ts) off the CTC field — a one-way convenience fill, always a plain manually editable number afterward, per payslip, before it's finalized. */
+  tdsMonthly?: number;
+  gratuityMonthly?: number;
+  bonusMonthly?: number;
+  healthMonthly?: number;
+  active: boolean;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+}
+
+/**
+ * One employee's payslip for one calendar month — doc id is auto-generated,
+ * `number` is the human-friendly LG-PS-000001 reference. Employee identity
+ * and bank/statutory details are snapshotted at generation time (mirrors
+ * buildEoiFromLead/buildAgreementFromLead's snapshot-at-draft-time pattern)
+ * so a later edit to the employee's PayrollProfile never rewrites an
+ * already-issued payslip.
+ */
+export interface Payslip {
+  id: string;
+  /** e.g. LG-PS-000001 */
+  number: string;
+  uid: string;
+  employeeName: string;
+  /** Snapshotted from AppUser.employeeCode at generation time — see that field's doc comment. Printed on the payslip as "Employee ID". */
+  employeeCode?: string | null;
+  designation?: string;
+  departmentName?: string;
+  panNo?: string;
+  uanNo?: string;
+  pfNo?: string;
+  esiNo?: string;
+  bankAccountNo?: string;
+  /** 1-12 */
+  month: number;
+  year: number;
+  monthDays: number;
+  /** Derived display value: monthDays − absentDays − halfDays×0.5 — see computeAttendanceBreakdown in db/attendance.ts. Not an independent input; edit absentDays/halfDays instead. */
+  paidDays: number;
+  /** Full-absent days this month, editable by an operator before finalizing. Drives the lossOfPay deduction — see computeLossOfPay in db/payroll.ts. */
+  absentDays: number;
+  /** Half-days this month (each counts as 0.5 of a paid day), editable before finalizing. */
+  halfDays: number;
+  basic: number;
+  hra: number;
+  ta: number;
+  others: number;
+  misc: number;
+  /** Full monthly salary structure total (not prorated) — days not worked are deducted explicitly via lossOfPay instead, see computePayslipMoney in db/payroll.ts. */
+  grossEarning: number;
+  epfEmployee: number;
+  esicEmployee: number;
+  tds: number;
+  otherDeduction: number;
+  miscDeduction: number;
+  /** Loss-of-Pay for absentDays/halfDays, itemized as its own deduction line — computed by default (computeLossOfPay) but directly overridable, same as tds/otherDeduction/miscDeduction. */
+  lossOfPay: number;
+  totalDeductions: number;
+  netPay: number;
+  /** "Additional (ER)" block — employer contributions, informational, not netted against pay. */
+  epfEmployer: number;
+  esicEmployer: number;
+  gratuity: number;
+  bonus: number;
+  health: number;
+  /** Computed as grossEarning + the employer-additions block above — see the PayrollProfile.ctc doc comment. */
+  ctc: number;
+  status: PayslipStatus;
+  createdAt: TS;
+  createdBy?: Actor | null;
+  updatedAt?: TS;
+  updatedBy?: Actor | null;
+  finalizedAt?: TS | null;
+  finalizedBy?: Actor | null;
+  paidAt?: TS | null;
+  paidBy?: Actor | null;
+}
+
+// ---------------------------------------------------------------------------
+// Expense management & reimbursement — an employee-filed claim of one or
+// more line items (travel by bike/car, hotel, daily allowance, other),
+// carried through a two-stage sequential approval (manager, then Finance)
+// before it's reimbursed. New ground in this codebase — no prior module
+// does two-stage approval — so this is deliberately built to match every
+// adjacent convention precisely: embedded line items (mirrors
+// EoiScheduleRow/AgreementBomRow, small enough lists that a subcollection
+// would be overkill), a DRAFT-editable-only lifecycle with a transactional
+// LG-EXP-000001 number (mirrors Payslip/nextPayslipNumber), and money as
+// plain whole-rupee numbers throughout (see formatINR in lib/utils.ts — this
+// codebase never stores paise). See src/lib/db/expense-claims.ts.
+// ---------------------------------------------------------------------------
+
+/** One priced entry on an expense claim. yyyy-mm-dd, matching AttendanceRequest.fromDate/LeaveRequest — a per-line date, not a Timestamp. */
+export interface ExpenseLineItem {
+  id: string;
+  category: ExpenseCategory;
+  date: string;
+  description?: string;
+  /** TRAVEL_BIKE / TRAVEL_CAR only. */
+  km?: number;
+  /** The per-km rate (settings.expense.ratePerKmBike/ratePerKmCar) snapshotted at the moment this line was last saved, TRAVEL_* only — so a later change to the org-wide rate never silently rewrites an already-submitted claim's amount. */
+  rateApplied?: number;
+  /** Auto-computed (km × rateApplied) for TRAVEL_*; manually entered for HOTEL/DAILY_ALLOWANCE/OTHER (DAILY_ALLOWANCE is prefilled from settings.expense.defaultDailyAllowance as a convenience default, still freely editable). */
+  amount: number;
+  receiptUrl?: string;
+  receiptFileName?: string;
+  receiptStoragePath?: string;
+}
+
+/**
+ * One employee's expense claim for one reporting month — doc id is
+ * auto-generated, `number` is the human-friendly LG-EXP-000001 reference
+ * (nextExpenseClaimNumber, mirrors nextPayslipNumber exactly). `month`/`year`
+ * are which payroll/reporting month the claim is FOR (drives the
+ * employee-wise/team-wise monthly reports), independent of `submittedAt`.
+ *
+ * Lifecycle: DRAFT (employee builds it, full edit) → submit → PENDING_MANAGER
+ * (or straight to PENDING_FINANCE if the employee had no managerId on file at
+ * submit time — see submitExpenseClaim's doc comment) → PENDING_FINANCE →
+ * APPROVED, with a REJECTED off-ramp at either stage that the employee can
+ * revise back into DRAFT and resubmit. `managerId` is snapshotted from
+ * AppUser.managerId at submit time (same reasoning as `rateApplied` above)
+ * so a later manager reassignment never reroutes an in-flight claim.
+ */
+export interface ExpenseClaim {
+  id: string;
+  /** e.g. LG-EXP-000001 */
+  number: string;
+  uid: string;
+  userName: string;
+  /** Snapshotted from AppUser.managerId at submit time. Null/absent if the employee had no manager on file — see routedDirectToFinance. */
+  managerId?: string | null;
+  /** 1-12, which reporting month this claim is FOR. */
+  month: number;
+  year: number;
+  items: ExpenseLineItem[];
+  /** Sum of items[].amount — denormalized, recomputed on every save. */
+  totalAmount: number;
+  status: ExpenseClaimStatus;
+  /** Set when submitted with no managerId on file, routing straight to PENDING_FINANCE — surfaced on the claim so everyone can see why the manager stage was skipped. */
+  routedDirectToFinance?: boolean;
+  managerDecisionAt?: TS | null;
+  managerDecisionBy?: Actor | null;
+  managerNote?: string;
+  financeDecisionAt?: TS | null;
+  financeDecisionBy?: Actor | null;
+  financeNote?: string;
+  submittedAt?: TS | null;
+  createdAt: TS;
+  createdBy?: Actor;
+  updatedAt?: TS;
+  updatedBy?: Actor;
 }

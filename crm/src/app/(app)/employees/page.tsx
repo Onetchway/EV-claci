@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, MapPin, Plus, Settings2, Trash2, UserPlus } from "lucide-react";
+import { IndianRupee, MapPin, Plus, Settings2, Trash2, UserPlus } from "lucide-react";
 
 import { useAuth, useViewer } from "@/components/auth-provider";
 import {
@@ -14,7 +14,7 @@ import { subscribeDepartments } from "@/lib/db/departments";
 import { subscribeOfficeLocations } from "@/lib/db/office-locations";
 import { subscribeUsers } from "@/lib/db/users";
 import { getFirebaseAuth } from "@/lib/firebase/client";
-import { canAssignRole, canManageHrms, canSeeAllHrms, isAdmin, isSuperAdmin } from "@/lib/permissions";
+import { canAssignRole, canManageHrms, canManagePayroll, canSeeAllHrms, isAdmin, isSuperAdmin } from "@/lib/permissions";
 import type { AppUser, Department, OfficeLocation } from "@/lib/types";
 
 async function authedFetch(path: string, init: RequestInit) {
@@ -41,7 +41,6 @@ export default function EmployeesPage() {
   const [offices, setOffices] = useState<OfficeLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<AppUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [deptManagerOpen, setDeptManagerOpen] = useState(false);
@@ -55,6 +54,7 @@ export default function EmployeesPage() {
   const canView = canManageHrms(viewer);
   const canEdit = !!role && isAdmin(role);
   const canDelete = !!role && isSuperAdmin(role);
+  const canSalary = canManagePayroll(viewer);
   const seeAll = canSeeAllHrms(viewer);
 
   useEffect(() => {
@@ -78,10 +78,6 @@ export default function EmployeesPage() {
         action={<Link href="/dashboard"><Button>Back to dashboard</Button></Link>}
       />
     );
-  }
-
-  async function patchUser(uid: string, patch: Record<string, unknown>) {
-    await authedFetch(`/api/users/${uid}`, { method: "PATCH", body: JSON.stringify(patch) });
   }
 
   async function createEmployee() {
@@ -191,13 +187,20 @@ export default function EmployeesPage() {
                       <td className="td text-ink-600">{u.phone || "—"}</td>
                       <td className="td text-right">
                         <div className="flex justify-end gap-1">
-                          {canEdit && (
-                            <button
-                              onClick={() => setEditing(u)}
+                          <Link
+                            href={`/employees/${u.uid}`}
+                            className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
+                          >
+                            {canEdit ? "Manage" : "View"}
+                          </Link>
+                          {canSalary && (
+                            <Link
+                              href={`/employees/${u.uid}`}
                               className="rounded px-2 py-1 text-xs font-medium text-ink-600 hover:bg-ink-100"
+                              title="Salary structure, statutory numbers, bank details and KYC documents"
                             >
-                              Manage
-                            </button>
+                              <span className="inline-flex items-center gap-1"><IndianRupee className="h-3 w-3" /> Salary</span>
+                            </Link>
                           )}
                           {canDelete && u.uid !== profile?.uid && (
                             <button
@@ -289,93 +292,6 @@ export default function EmployeesPage() {
       </Modal>
 
       <Modal
-        open={editing !== null}
-        onClose={() => setEditing(null)}
-        title={editing ? `Manage ${editing.name}` : ""}
-        footer={<Button onClick={() => setEditing(null)}>Done</Button>}
-      >
-        {editing && (
-          <div className="space-y-4">
-            <Field label="Phone">
-              <Input
-                defaultValue={editing.phone ?? ""}
-                onBlur={(e) => void run(() => patchUser(editing.uid, { phone: e.target.value }), "Saved.")}
-              />
-            </Field>
-
-            <Field label="Designation" hint="Job title, shown in the directory.">
-              <Input
-                defaultValue={editing.designation ?? ""}
-                onBlur={(e) => void run(() => patchUser(editing.uid, { designation: e.target.value }), "Saved.")}
-              />
-            </Field>
-
-            <Field label="Department" hint={departments.length ? undefined : "None created yet — use the Departments button on the directory page."}>
-              <Select
-                placeholder="No department"
-                value={editing.departmentId ?? ""}
-                onChange={(e) =>
-                  void run(async () => {
-                    const departmentId = e.target.value || null;
-                    await patchUser(editing.uid, { departmentId });
-                    setEditing({ ...editing, departmentId });
-                  }, "Saved.")
-                }
-                options={departments.map((d) => ({ value: d.id, label: d.name }))}
-              />
-            </Field>
-
-            <Field label="Location" hint="Office they're based at — also drives attendance geofencing.">
-              <Select
-                placeholder="No location"
-                value={editing.officeLocationId ?? ""}
-                onChange={(e) =>
-                  void run(async () => {
-                    const officeLocationId = e.target.value || null;
-                    await patchUser(editing.uid, { officeLocationId });
-                    setEditing({ ...editing, officeLocationId });
-                  }, "Saved.")
-                }
-                options={offices.map((o) => ({ value: o.id, label: o.name }))}
-              />
-            </Field>
-
-            <Field label="Reports to" hint="Who approves this person's leave/attendance requests.">
-              <Select
-                placeholder="No manager"
-                value={editing.managerId ?? ""}
-                onChange={(e) =>
-                  void run(async () => {
-                    const managerId = e.target.value || null;
-                    await patchUser(editing.uid, { managerId });
-                    setEditing({ ...editing, managerId });
-                  }, "Saved.")
-                }
-                options={activeUsers.filter((u) => u.uid !== editing.uid).map((u) => ({ value: u.uid, label: u.name }))}
-              />
-            </Field>
-
-            {(() => {
-              const reports = activeUsers.filter((u) => u.managerId === editing.uid);
-              return reports.length > 0 ? (
-                <Field label={`Direct reports (${reports.length})`} hint="Who currently reports to this person.">
-                  <div className="flex flex-wrap gap-1.5">
-                    {reports.map((u) => (
-                      <Badge key={u.uid} className="bg-ink-100 text-ink-700 ring-ink-200">{u.name}</Badge>
-                    ))}
-                  </div>
-                </Field>
-              ) : null;
-            })()}
-
-            <p className="flex items-center gap-1.5 text-xs text-ink-500">
-              <Building2 className="h-3.5 w-3.5" /> Role and access are managed from Settings → Team & Roles.
-            </p>
-          </div>
-        )}
-      </Modal>
-
-      <Modal
         open={deptManagerOpen}
         onClose={() => setDeptManagerOpen(false)}
         title="Departments"
@@ -452,7 +368,6 @@ export default function EmployeesPage() {
                   if (!deleteTarget) return;
                   await deleteEmployee(deleteTarget.uid);
                   setDeleteTarget(null);
-                  if (editing?.uid === deleteTarget.uid) setEditing(null);
                 }, "Employee deleted.")
               }
             >

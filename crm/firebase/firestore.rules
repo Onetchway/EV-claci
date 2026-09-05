@@ -119,6 +119,19 @@ service cloud.firestore {
       return role() in ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'];
     }
 
+    // Salary data — deliberately narrower than canManageHrms() above (which
+    // includes a plain Sales Manager): only Finance/Admin/Super Admin can
+    // read or write a salary structure, a generated payslip, or an
+    // employee's KYC documents (see users/{userId}/documents below).
+    // Mirrors canManagePayroll in src/lib/permissions.ts (the hrmsAdmin-flag
+    // carve-out there isn't reproduced here, same as canManageHrms() above —
+    // that flag isn't exposed as a token claim, so rules can't see it).
+    // Declared up here (not next to payrollProfiles/payslips further down)
+    // since the users/{userId}/documents match above also needs it.
+    function canManagePayroll() {
+      return role() in ['SUPER_ADMIN', 'ADMIN', 'FINANCE'];
+    }
+
     function uid() {
       return request.auth.uid;
     }
@@ -194,6 +207,22 @@ service cloud.firestore {
                     && request.resource.data.uid == resource.data.uid;
 
       allow delete: if false;
+
+      // ------------------------------------------------- employee documents
+
+      // An employee's own KYC/on-file paperwork (Aadhaar, PAN, address
+      // proof, offer letter, ...) — see src/lib/db/employee-documents.ts.
+      // Deliberately as strict as payrollProfiles/payslips above (this is
+      // PAN/Aadhaar-adjacent, same sensitivity as salary data, same
+      // Finance/Admin/Super Admin bar), PLUS the employee themselves may
+      // read (never write) their own file — `userId` is the path segment
+      // this subcollection is nested under, so it's compared directly
+      // rather than via a get() on the document (there's no `uid` field to
+      // read, the doc is already scoped by its parent path).
+      match /documents/{documentId} {
+        allow read: if canManagePayroll() || (signedIn() && userId == uid());
+        allow create, update, delete: if canManagePayroll();
+      }
     }
 
     // -------------------------------------------------------------- lead codes
@@ -438,6 +467,27 @@ service cloud.firestore {
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
     }
 
+    // canManagePayroll() is declared up in the helpers section above (next
+    // to canManageHrms()) since users/{userId}/documents needs it too.
+
+    match /payrollProfiles/{uid} {
+      allow read, write: if canManagePayroll();
+    }
+
+    // An employee may also read their OWN payslip once it's left DRAFT —
+    // the "My Payslips" self-service view (src/app/(app)/my-payslips) —
+    // never a still-draft one (even their own) and never anyone else's.
+    // Delete is a DRAFT-vs-locked two-tier bar mirroring deleteEoi/
+    // deletePurchaseOrder: canManagePayroll() may delete a DRAFT, but a
+    // FINALIZED/PAID payslip is an issued record and needs SUPER_ADMIN —
+    // see deletePayslip in src/lib/db/payroll.ts.
+    match /payslips/{payslipId} {
+      allow read: if canManagePayroll()
+        || (signedIn() && resource.data.uid == request.auth.uid && resource.data.status != 'DRAFT');
+      allow create, update: if canManagePayroll();
+      allow delete: if canManagePayroll() && (resource.data.status == 'DRAFT' || isSuperAdmin());
+    }
+
     match /purchaseOrders/{poId} {
       allow read: if signedIn();
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
@@ -451,6 +501,16 @@ service cloud.firestore {
     // Asset register — chargers/equipment tracked through their depreciable
     // life. Same bar as vendors/purchase orders.
     match /assets/{assetId} {
+      allow read: if signedIn();
+      allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
+    }
+
+    // Sub-vendor work engagements — a specific job (milestones, payment
+    // terms, PO/PI/Quotation/BOQ references, penalty clause, timeline)
+    // assigned to a vendor. Top-level, keyed by vendorId, same structural
+    // shape as purchaseOrders — not nested under vendors/{id}. Same
+    // operational class of data, same role bar.
+    match /vendorEngagements/{engagementId} {
       allow read: if signedIn();
       allow write: if role() in ['SUPER_ADMIN', 'ADMIN', 'OPERATIONS', 'FINANCE'];
     }
@@ -539,6 +599,60 @@ service cloud.firestore {
                         && resource.data.status == 'PENDING'
                         && request.resource.data.status == 'CANCELLED');
       allow delete: if isAdmin();
+    }
+
+    // Employee self-service attendance exceptions (WFH for today, or a
+    // regularization correction for a past date range) — same lifecycle and
+    // authorization shape as leaveRequests above: role-only at the rules
+    // layer (no managerId scoping here either; that narrowing happens
+    // client-side in the Approvals tab).
+    match /attendanceRequests/{attendanceRequestId} {
+      allow read: if canManageHrms() || resource.data.uid == uid();
+      // An employee applies for their own request, starting PENDING.
+      allow create: if signedIn()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.status == 'PENDING';
+      // A manager/admin approves or rejects; the employee themself may only
+      // cancel their own still-pending request.
+      allow update: if (canManageHrms() && request.resource.data.uid == resource.data.uid)
+                    || (resource.data.uid == uid()
+                        && resource.data.status == 'PENDING'
+                        && request.resource.data.status == 'CANCELLED');
+      allow delete: if isAdmin();
+    }
+
+    // Expense management & reimbursement — a two-stage sequential approval
+    // (manager, then Finance). Role-only at the rules layer, same posture as
+    // leaveRequests/attendanceRequests just above (no managerId
+    // cross-reference here either — that narrowing is client-side in
+    // (app)/expenses/approvals/page.tsx): canManageHrms() covers the manager
+    // stage (PENDING_MANAGER -> PENDING_FINANCE/REJECTED), canManagePayroll()
+    // the Finance stage (PENDING_FINANCE -> APPROVED/REJECTED), same bar as
+    // payslips. Delete mirrors deletePayslip's DRAFT-vs-locked two tier.
+    match /expenseClaims/{claimId} {
+      allow read: if canManageHrms() || canManagePayroll() || resource.data.uid == uid();
+      // An employee starts their own claim as a DRAFT with no line items yet.
+      allow create: if signedIn()
+                    && request.resource.data.uid == uid()
+                    && request.resource.data.status == 'DRAFT';
+      allow update: if
+        // The owner may keep editing a DRAFT (items/totalAmount), or submit
+        // it (DRAFT -> PENDING_MANAGER/PENDING_FINANCE), or revise a
+        // REJECTED claim back to DRAFT.
+        (resource.data.uid == uid()
+          && ((resource.data.status == 'DRAFT' && request.resource.data.status in ['DRAFT', 'PENDING_MANAGER', 'PENDING_FINANCE'])
+              || (resource.data.status == 'REJECTED' && request.resource.data.status == 'DRAFT')))
+        // The manager stage: only while PENDING_MANAGER, only into
+        // PENDING_FINANCE or REJECTED.
+        || (canManageHrms()
+            && resource.data.status == 'PENDING_MANAGER'
+            && request.resource.data.status in ['PENDING_FINANCE', 'REJECTED'])
+        // The Finance stage: only while PENDING_FINANCE, only into APPROVED
+        // or REJECTED.
+        || (canManagePayroll()
+            && resource.data.status == 'PENDING_FINANCE'
+            && request.resource.data.status in ['APPROVED', 'REJECTED']);
+      allow delete: if (resource.data.uid == uid() && resource.data.status == 'DRAFT') || isSuperAdmin();
     }
 
     // --------------------------------------------------------- OCPP / chargers

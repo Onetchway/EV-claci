@@ -19,6 +19,7 @@ import { subscribeVendor, trashVendor, updateVendor } from "@/lib/db/vendors";
 import { canManageVendors, canTrash } from "@/lib/permissions";
 import type { PurchaseOrder, Vendor } from "@/lib/types";
 import { formatDate, formatINR } from "@/lib/utils";
+import { VendorEngagementsPanel } from "@/components/vendor-engagements-panel";
 
 export default function VendorDetailPage() {
   const params = useParams<{ id: string }>();
@@ -201,6 +202,8 @@ export default function VendorDetailPage() {
           </div>
         )}
       </Card>
+
+      <VendorEngagementsPanel vendor={vendor} viewer={viewer} actor={actor} className="mt-4" />
 
       <Modal
         open={editing}

@@ -2,6 +2,7 @@
 
 import type { Role } from "./constants";
 import { checkIn, checkOut } from "./db/attendance";
+import { hasWfhToday } from "./db/attendance-requests";
 import { getCurrentCoords, nearestOffice, type Coords, type NearestOffice } from "./geo";
 import { isAdmin } from "./permissions";
 import type { Actor, AppUser, OfficeLocation } from "./types";
@@ -34,7 +35,8 @@ async function resolveLocation(bypass: boolean, offices: OfficeLocation[]): Prom
 export async function performCheckIn(
   profile: AppUser, actor: Actor, offices: OfficeLocation[], role: Role | null,
 ): Promise<void> {
-  const bypass = canBypassGeofence(role, profile);
+  const wfhToday = await hasWfhToday(profile.uid).catch(() => false);
+  const bypass = canBypassGeofence(role, profile) || wfhToday;
   const { coords, nearest } = await resolveLocation(bypass, offices);
   if (!bypass && !nearest.withinGeofence) {
     const accuracyNote = coords?.accuracyMeters
@@ -52,7 +54,8 @@ export async function performCheckIn(
 export async function performCheckOut(
   profile: AppUser, actor: Actor, offices: OfficeLocation[], role: Role | null,
 ): Promise<void> {
-  const bypass = canBypassGeofence(role, profile);
+  const wfhToday = await hasWfhToday(profile.uid).catch(() => false);
+  const bypass = canBypassGeofence(role, profile) || wfhToday;
   const { coords, nearest } = await resolveLocation(bypass, offices);
   await checkOut(profile.uid, coords, bypass ? { ...nearest, withinGeofence: true } : nearest, actor);
 }

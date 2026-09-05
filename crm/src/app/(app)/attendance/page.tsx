@@ -14,6 +14,10 @@ import { performCheckIn, performCheckOut } from "@/lib/attendance-actions";
 import {
   markAttendance, subscribeAttendanceRange, subscribeMyAttendanceMonth,
 } from "@/lib/db/attendance";
+import {
+  applyForAttendanceRequest, cancelAttendanceRequest, decideAttendanceRequest,
+  regularizationWindowStart, subscribeAllAttendanceRequests, subscribeMyAttendanceRequests,
+} from "@/lib/db/attendance-requests";
 import { ymd } from "@/lib/dates";
 import {
   createOfficeLocation, deleteOfficeLocation, subscribeOfficeLocations, updateOfficeLocation,
@@ -27,7 +31,8 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { getCurrentCoords } from "@/lib/geo";
 import { canManageHrms, canManageHrmsSetup, canSeeAllHrms, isAdmin } from "@/lib/permissions";
 import type {
-  AppUser, AttendanceRecord, AttendanceStatus, LeaveRequest, LeaveType, OfficeLocation,
+  AppUser, AttendanceRecord, AttendanceRequest, AttendanceRequestKind, AttendanceStatus,
+  LeaveRequest, LeaveType, OfficeLocation,
 } from "@/lib/types";
 import { downloadCsv, formatDate, formatDateTime, toDate } from "@/lib/utils";
 
@@ -48,6 +53,7 @@ function combineDateTime(date: string, time: string): Date | null {
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
   PRESENT: "Present", ABSENT: "Absent", HALF_DAY: "Half day", ON_LEAVE: "On leave", WEEK_OFF: "Week off", HOLIDAY: "Holiday",
+  WORK_FROM_HOME: "Work from home",
 };
 const STATUS_STYLE: Record<AttendanceStatus, string> = {
   PRESENT: "bg-emerald-100 text-emerald-800 ring-emerald-200",
@@ -56,13 +62,26 @@ const STATUS_STYLE: Record<AttendanceStatus, string> = {
   ON_LEAVE: "bg-violet-100 text-violet-800 ring-violet-200",
   WEEK_OFF: "bg-ink-100 text-ink-600 ring-ink-200",
   HOLIDAY: "bg-sky-100 text-sky-800 ring-sky-200",
+  WORK_FROM_HOME: "bg-teal-100 text-teal-800 ring-teal-200",
 };
 
-const LEAVE_STATUS_STYLE: Record<string, string> = {
+// Shared by leave requests and attendance requests — both use the same
+// PENDING/APPROVED/REJECTED/CANCELLED lifecycle.
+const REQUEST_STATUS_STYLE: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-800 ring-amber-200",
   APPROVED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   REJECTED: "bg-rose-100 text-rose-800 ring-rose-200",
   CANCELLED: "bg-ink-100 text-ink-600 ring-ink-200",
+};
+const LEAVE_STATUS_STYLE = REQUEST_STATUS_STYLE;
+
+const REQUEST_KIND_LABEL: Record<AttendanceRequestKind, string> = {
+  WFH: "Work from home",
+  REGULARIZATION: "Regularization",
+};
+const REQUEST_KIND_STYLE: Record<AttendanceRequestKind, string> = {
+  WFH: "bg-teal-100 text-teal-800 ring-teal-200",
+  REGULARIZATION: "bg-indigo-100 text-indigo-800 ring-indigo-200",
 };
 
 function monthRange(cursor: Date): { start: string; end: string; label: string } {
@@ -85,6 +104,8 @@ function MyAttendanceTab() {
   const { push } = useToast();
   const { busy: punching, run: runPunch } = useAsyncAction();
   const { busy: applying, run: runApply } = useAsyncAction();
+  const { busy: applyingWfh, run: runApplyWfh } = useAsyncAction();
+  const { busy: applyingRegularization, run: runApplyRegularization } = useAsyncAction();
 
   const [monthCursor, setMonthCursor] = useState(new Date());
   const [rows, setRows] = useState<AttendanceRecord[]>([]);
@@ -98,6 +119,17 @@ function MyAttendanceTab() {
   const [fromDate, setFromDate] = useState(ymd(new Date()));
   const [toDate, setToDate] = useState(ymd(new Date()));
   const [reason, setReason] = useState("");
+
+  const [myRequests, setMyRequests] = useState<AttendanceRequest[]>([]);
+  const [wfhModalOpen, setWfhModalOpen] = useState(false);
+  const [wfhReason, setWfhReason] = useState("");
+  const [regModalOpen, setRegModalOpen] = useState(false);
+  const [regFrom, setRegFrom] = useState(ymd(new Date()));
+  const [regTo, setRegTo] = useState(ymd(new Date()));
+  const [regStatus, setRegStatus] = useState<AttendanceStatus>("PRESENT");
+  const [regCheckIn, setRegCheckIn] = useState("");
+  const [regCheckOut, setRegCheckOut] = useState("");
+  const [regReason, setRegReason] = useState("");
 
   const { start, end, label } = useMemo(() => monthRange(monthCursor), [monthCursor]);
 
@@ -118,9 +150,14 @@ function MyAttendanceTab() {
     if (!profile) return;
     return subscribeMyLeaveRequests(profile.uid, setMyLeaves);
   }, [profile]);
+  useEffect(() => {
+    if (!profile) return;
+    return subscribeMyAttendanceRequests(profile.uid, setMyRequests);
+  }, [profile]);
 
   const today = ymd(new Date());
   const todayRecord = rows.find((r) => r.date === today) ?? null;
+  const regularizationMin = useMemo(() => regularizationWindowStart(), []);
 
   const balances = useMemo(() => {
     const year = new Date().getFullYear();
@@ -155,6 +192,32 @@ function MyAttendanceTab() {
     }, actor);
     setLeaveModalOpen(false);
     setReason("");
+  }
+
+  async function submitWfh() {
+    if (!profile) return;
+    if (!wfhReason.trim()) throw new Error("Add a reason for working from home.");
+    await applyForAttendanceRequest({
+      uid: profile.uid, userName: profile.name, kind: "WFH",
+      fromDate: today, toDate: today, reason: wfhReason,
+    }, actor);
+    setWfhModalOpen(false);
+    setWfhReason("");
+  }
+
+  async function submitRegularization() {
+    if (!profile) return;
+    if (regTo < regFrom) throw new Error("End date can't be before the start date.");
+    if (!regReason.trim()) throw new Error("Add a reason for the correction.");
+    await applyForAttendanceRequest({
+      uid: profile.uid, userName: profile.name, kind: "REGULARIZATION",
+      fromDate: regFrom, toDate: regTo, reason: regReason, desiredStatus: regStatus,
+      requestedCheckIn: regCheckIn, requestedCheckOut: regCheckOut,
+    }, actor);
+    setRegModalOpen(false);
+    setRegReason("");
+    setRegCheckIn("");
+    setRegCheckOut("");
   }
 
   return (
@@ -210,6 +273,62 @@ function MyAttendanceTab() {
           ))}
         </div>
       )}
+
+      <Card
+        title="Attendance requests"
+        subtitle="Work from home for today, or a correction for a past date — both go to your manager/admin for approval."
+        actions={
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => setWfhModalOpen(true)} disabled={todayRecord?.status === "WORK_FROM_HOME"}>
+              <Plus className="h-3.5 w-3.5" /> Request WFH
+            </Button>
+            <Button size="sm" variant="primary" onClick={() => setRegModalOpen(true)}>
+              <Plus className="h-3.5 w-3.5" /> Request regularization
+            </Button>
+          </div>
+        }
+      >
+        {myRequests.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-500">No attendance requests yet.</p>
+        ) : (
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr>
+                  <th className="th">Kind</th>
+                  <th className="th">Dates</th>
+                  <th className="th">Desired status</th>
+                  <th className="th">Reason</th>
+                  <th className="th">Status</th>
+                  <th className="th" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {myRequests.map((r) => (
+                  <tr key={r.id}>
+                    <td className="td"><Badge className={REQUEST_KIND_STYLE[r.kind]}>{REQUEST_KIND_LABEL[r.kind]}</Badge></td>
+                    <td className="td text-ink-600">{r.fromDate === r.toDate ? formatDate(r.fromDate) : `${formatDate(r.fromDate)} – ${formatDate(r.toDate)}`}</td>
+                    <td className="td text-ink-600">{STATUS_LABEL[r.kind === "WFH" ? "WORK_FROM_HOME" : (r.desiredStatus ?? "PRESENT")]}</td>
+                    <td className="td max-w-[220px] whitespace-normal break-words text-ink-500">{r.reason || "—"}</td>
+                    <td className="td"><Badge className={REQUEST_STATUS_STYLE[r.status]}>{r.status}</Badge></td>
+                    <td className="td text-right">
+                      {r.status === "PENDING" && (
+                        <button
+                          type="button"
+                          onClick={() => void cancelAttendanceRequest(r.id).then(() => push("Request cancelled.", "success"))}
+                          className="text-xs font-medium text-rose-600 hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       <Card
         title="Leave requests"
@@ -335,6 +454,67 @@ function MyAttendanceTab() {
           </div>
           {toDate >= fromDate && <p className="text-xs text-ink-500">{daysBetween(fromDate, toDate)} day(s)</p>}
           <Field label="Reason" required><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={wfhModalOpen}
+        onClose={() => setWfhModalOpen(false)}
+        title="Request work from home"
+        description={formatDate(today)}
+        footer={
+          <>
+            <Button onClick={() => setWfhModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" loading={applyingWfh} onClick={() => void runApplyWfh(submitWfh, "WFH request submitted.")}>Submit</Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-ink-500">Only available for today. Once approved, today is marked Work from home.</p>
+          <Field label="Reason" required><Textarea rows={3} value={wfhReason} onChange={(e) => setWfhReason(e.target.value)} /></Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={regModalOpen}
+        onClose={() => setRegModalOpen(false)}
+        title="Request regularization"
+        footer={
+          <>
+            <Button onClick={() => setRegModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" loading={applyingRegularization} onClick={() => void runApplyRegularization(submitRegularization, "Regularization request submitted.")}>Submit</Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-ink-500">Covers last calendar month through today — for correcting a forgotten punch or the wrong status.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="From" required>
+              <Input type="date" value={regFrom} min={regularizationMin} max={today} onChange={(e) => setRegFrom(e.target.value)} />
+            </Field>
+            <Field label="To" required>
+              <Input type="date" value={regTo} min={regularizationMin} max={today} onChange={(e) => setRegTo(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Desired status">
+            <Select
+              value={regStatus}
+              onChange={(e) => setRegStatus(e.target.value as AttendanceStatus)}
+              options={[
+                { value: "PRESENT", label: STATUS_LABEL.PRESENT },
+                { value: "HALF_DAY", label: STATUS_LABEL.HALF_DAY },
+              ]}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Check-in time" hint="Optional — leave blank to leave it unset.">
+              <Input type="time" value={regCheckIn} onChange={(e) => setRegCheckIn(e.target.value)} />
+            </Field>
+            <Field label="Check-out time" hint="Optional — leave blank to leave it unset.">
+              <Input type="time" value={regCheckOut} onChange={(e) => setRegCheckOut(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Reason" required><Textarea rows={3} value={regReason} onChange={(e) => setRegReason(e.target.value)} /></Field>
         </div>
       </Modal>
     </div>
@@ -552,7 +732,14 @@ function ApprovalsTab() {
   const [note, setNote] = useState("");
   const { busy, run } = useAsyncAction();
 
+  const [attReqRows, setAttReqRows] = useState<AttendanceRequest[]>([]);
+  const [attReqLoading, setAttReqLoading] = useState(true);
+  const [attReqDecisionTarget, setAttReqDecisionTarget] = useState<{ req: AttendanceRequest; status: "APPROVED" | "REJECTED" } | null>(null);
+  const [attReqNote, setAttReqNote] = useState("");
+  const { busy: attReqBusy, run: runAttReq } = useAsyncAction();
+
   useEffect(() => subscribeAllLeaveRequests((r) => { setRows(r); setLoading(false); }, () => setLoading(false)), []);
+  useEffect(() => subscribeAllAttendanceRequests((r) => { setAttReqRows(r); setAttReqLoading(false); }, () => setAttReqLoading(false)), []);
   useEffect(() => subscribeUsers(setUsers), []);
 
   const seesAll = canSeeAllHrms(viewer);
@@ -564,15 +751,28 @@ function ApprovalsTab() {
     () => (seesAll ? rows : rows.filter((r) => directReportIds.has(r.uid))),
     [rows, seesAll, directReportIds],
   );
+  const attReqScoped = useMemo(
+    () => (seesAll ? attReqRows : attReqRows.filter((r) => directReportIds.has(r.uid))),
+    [attReqRows, seesAll, directReportIds],
+  );
 
   const pending = scoped.filter((r) => r.status === "PENDING");
   const decided = scoped.filter((r) => r.status !== "PENDING");
+  const attReqPending = attReqScoped.filter((r) => r.status === "PENDING");
+  const attReqDecided = attReqScoped.filter((r) => r.status !== "PENDING");
 
   async function decide() {
     if (!decisionTarget) return;
     await decideLeaveRequest(decisionTarget.req.id, decisionTarget.status, actor, note);
     setDecisionTarget(null);
     setNote("");
+  }
+
+  async function decideAttReq() {
+    if (!attReqDecisionTarget) return;
+    await decideAttendanceRequest(attReqDecisionTarget.req, attReqDecisionTarget.status, actor, attReqNote);
+    setAttReqDecisionTarget(null);
+    setAttReqNote("");
   }
 
   return (
@@ -672,6 +872,111 @@ function ApprovalsTab() {
         }
       >
         <Field label="Note (optional)"><Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      </Modal>
+
+      <Card title="Pending WFH / regularization" subtitle={`${attReqPending.length} waiting`}>
+        {attReqLoading ? (
+          <div className="flex justify-center py-10 text-ink-400"><Spinner className="h-6 w-6" /></div>
+        ) : attReqPending.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-500">Nothing pending.</p>
+        ) : (
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr>
+                  <th className="th">Employee</th>
+                  <th className="th">Kind</th>
+                  <th className="th">Dates</th>
+                  <th className="th">Desired status</th>
+                  <th className="th">Reason</th>
+                  <th className="th text-right">Decision</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {attReqPending.map((r) => (
+                  <tr key={r.id}>
+                    <td className="td font-medium text-ink-900">{r.userName}</td>
+                    <td className="td"><Badge className={REQUEST_KIND_STYLE[r.kind]}>{REQUEST_KIND_LABEL[r.kind]}</Badge></td>
+                    <td className="td text-ink-600">{r.fromDate === r.toDate ? formatDate(r.fromDate) : `${formatDate(r.fromDate)} – ${formatDate(r.toDate)}`}</td>
+                    <td className="td text-ink-600">{STATUS_LABEL[r.kind === "WFH" ? "WORK_FROM_HOME" : (r.desiredStatus ?? "PRESENT")]}</td>
+                    <td className="td max-w-[220px] whitespace-normal break-words text-ink-500">{r.reason || "—"}</td>
+                    <td className="td text-right">
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setAttReqDecisionTarget({ req: r, status: "APPROVED" })} className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                        </button>
+                        <button type="button" onClick={() => setAttReqDecisionTarget({ req: r, status: "REJECTED" })} className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:underline">
+                          <XCircle className="h-3.5 w-3.5" /> Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Card title="WFH / regularization decided" subtitle="Most recent first">
+        {attReqDecided.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-500">No decisions yet.</p>
+        ) : (
+          <div className="overflow-x-auto scroll-thin">
+            <table className="w-full">
+              <thead className="border-b border-ink-200">
+                <tr>
+                  <th className="th">Employee</th>
+                  <th className="th">Kind</th>
+                  <th className="th">Dates</th>
+                  <th className="th">Reason</th>
+                  <th className="th">Status</th>
+                  <th className="th">Decided by</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {attReqDecided.slice(0, 100).map((r) => (
+                  <tr key={r.id}>
+                    <td className="td">{r.userName}</td>
+                    <td className="td"><Badge className={REQUEST_KIND_STYLE[r.kind]}>{REQUEST_KIND_LABEL[r.kind]}</Badge></td>
+                    <td className="td text-ink-600">{r.fromDate === r.toDate ? formatDate(r.fromDate) : `${formatDate(r.fromDate)} – ${formatDate(r.toDate)}`}</td>
+                    <td className="td max-w-[220px] whitespace-normal break-words text-ink-500">{r.reason || "—"}</td>
+                    <td className="td"><Badge className={REQUEST_STATUS_STYLE[r.status]}>{r.status}</Badge></td>
+                    <td className="td text-ink-500">{r.decidedBy?.name ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Modal
+        open={!!attReqDecisionTarget}
+        onClose={() => setAttReqDecisionTarget(null)}
+        title={`${attReqDecisionTarget?.status === "APPROVED" ? "Approve" : "Reject"} ${attReqDecisionTarget ? REQUEST_KIND_LABEL[attReqDecisionTarget.req.kind] : ""} — ${attReqDecisionTarget?.req.userName ?? ""}`}
+        footer={
+          <>
+            <Button onClick={() => setAttReqDecisionTarget(null)}>Cancel</Button>
+            <Button
+              variant={attReqDecisionTarget?.status === "REJECTED" ? "danger" : "primary"}
+              loading={attReqBusy}
+              onClick={() => void runAttReq(decideAttReq, "Request updated.")}
+            >
+              Confirm
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {attReqDecisionTarget?.status === "APPROVED" && (
+            <p className="text-xs text-ink-500">
+              Approving marks {attReqDecisionTarget.req.fromDate === attReqDecisionTarget.req.toDate ? "that day" : "each day in that range"} as{" "}
+              {STATUS_LABEL[attReqDecisionTarget.req.kind === "WFH" ? "WORK_FROM_HOME" : (attReqDecisionTarget.req.desiredStatus ?? "PRESENT")]}.
+            </p>
+          )}
+          <Field label="Note (optional)"><Textarea rows={3} value={attReqNote} onChange={(e) => setAttReqNote(e.target.value)} /></Field>
+        </div>
       </Modal>
     </div>
   );

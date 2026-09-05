@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { ROLE_ENFORCEMENT, ROLES, ROLE_RANK, type Role } from "@/lib/constants";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
-import { ApiError, errorResponse, highestRole, requireCaller } from "../_lib/guard";
+import { ApiError, errorResponse, highestRole, nextEmployeeCode, requireCaller } from "../_lib/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     if (existing) throw new ApiError("An account with that email already exists.", 409);
 
     const password = body.password ?? randomPassword();
+    const employeeCode = await nextEmployeeCode();
 
     const created = await auth.createUser({
       email: body.email,
@@ -86,6 +87,7 @@ export async function POST(req: Request) {
       email: body.email,
       name: body.name,
       phone: body.phone ?? "",
+      employeeCode,
       role: primary,
       roles,
       region: body.region ?? null,

@@ -934,6 +934,34 @@ export const PO_STATUS_COLOR: Record<PoStatus, string> = {
 export const VENDOR_PAYMENT_STATUSES = ["PENDING", "PAID"] as const;
 export type VendorPaymentStatus = (typeof VENDOR_PAYMENT_STATUSES)[number];
 
+/**
+ * A sub-vendor/contractor work engagement's own lifecycle — distinct from a
+ * milestone's status (which reuses TaskStatus, see VendorEngagementMilestone
+ * in types.ts). This one doesn't need the two-stage approval Expense Claims
+ * introduced — an engagement is created and managed directly by whoever can
+ * already edit vendors (canManageVendors), so a simple flat lifecycle is enough.
+ */
+export const VENDOR_ENGAGEMENT_STATUSES = [
+  "DRAFT", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED",
+] as const;
+export type VendorEngagementStatus = (typeof VENDOR_ENGAGEMENT_STATUSES)[number];
+
+export const VENDOR_ENGAGEMENT_STATUS_LABEL: Record<VendorEngagementStatus, string> = {
+  DRAFT: "Draft",
+  ACTIVE: "Active",
+  ON_HOLD: "On hold",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+export const VENDOR_ENGAGEMENT_STATUS_COLOR: Record<VendorEngagementStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  ACTIVE: "bg-sky-100 text-sky-800 ring-sky-200",
+  ON_HOLD: "bg-amber-100 text-amber-800 ring-amber-200",
+  COMPLETED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
 // ----------------------------------------------------------- client quotations
 
 export const QUOTATION_STATUSES = [
@@ -1302,12 +1330,14 @@ export const EOI_STATUS_COLOR: Record<EoiStatus, string> = {
 // Franchise Agreement
 // ---------------------------------------------------------------------------
 
-export const AGREEMENT_STATUSES = ["DRAFT", "ISSUED", "SIGNED", "CANCELLED", "SUPERSEDED"] as const;
+export const AGREEMENT_STATUSES = ["DRAFT", "ISSUED", "ACCEPTED", "SIGNED", "CANCELLED", "SUPERSEDED"] as const;
 export type AgreementStatus = (typeof AGREEMENT_STATUSES)[number];
 
 export const AGREEMENT_STATUS_LABEL: Record<AgreementStatus, string> = {
   DRAFT: "Draft",
   ISSUED: "Issued to client",
+  /** The investor accepted it from the portal — distinct from SIGNED, which is staff recording that the fully executed document was later collected. */
+  ACCEPTED: "Accepted by investor",
   SIGNED: "Signed",
   CANCELLED: "Cancelled by client",
   SUPERSEDED: "Superseded",
@@ -1316,6 +1346,7 @@ export const AGREEMENT_STATUS_LABEL: Record<AgreementStatus, string> = {
 export const AGREEMENT_STATUS_COLOR: Record<AgreementStatus, string> = {
   DRAFT: "bg-slate-100 text-slate-700 ring-slate-200",
   ISSUED: "bg-sky-100 text-sky-800 ring-sky-200",
+  ACCEPTED: "bg-violet-100 text-violet-800 ring-violet-200",
   SIGNED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
   SUPERSEDED: "bg-amber-100 text-amber-800 ring-amber-200",
@@ -1435,6 +1466,28 @@ export const COMPANY = {
   jurisdiction: "Lucknow",
 };
 
+// ------------------------------------------------------------------ payroll
+
+export const PAYSLIP_STATUSES = ["DRAFT", "FINALIZED", "PAID"] as const;
+export type PayslipStatus = (typeof PAYSLIP_STATUSES)[number];
+
+export const PAYSLIP_STATUS_LABEL: Record<PayslipStatus, string> = {
+  DRAFT: "Draft",
+  FINALIZED: "Finalized",
+  PAID: "Paid",
+};
+
+export const PAYSLIP_STATUS_COLOR: Record<PayslipStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  FINALIZED: "bg-sky-100 text-sky-800 ring-sky-200",
+  PAID: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+};
+
+export const MONTH_LABEL = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+] as const;
+
 export const DEFAULT_SCOPE_ITEMS = [
   "Location scouting, site feasibility assessment and EV demand evaluation",
   "Canopy structure installation, electrical infrastructure preparation and the DISCOM connection process",
@@ -1445,6 +1498,68 @@ export const DEFAULT_SCOPE_ITEMS = [
 
 export const DEFAULT_TENURE_YEARS = 10;
 export const DEFAULT_PAYOUT_MONTHS = 24;
+
+// ------------------------------------------------------------- employee KYC
+// documents (Employee Detail page). Deliberately a separate enum from
+// DocKind above — that one is lead/investor KYC (verification workflow,
+// PENDING/VERIFIED/REJECTED); this is an employee's own on-file paperwork,
+// simpler (upload/list/delete, no review step) and scoped under
+// users/{uid}/documents rather than a lead. See src/lib/db/employee-documents.ts.
+export const EMPLOYEE_DOC_KINDS = [
+  "AADHAAR",
+  "PAN",
+  "ADDRESS_PROOF",
+  "EDUCATIONAL_CERTIFICATE",
+  "OFFER_LETTER",
+  "BANK_PROOF",
+  "PHOTOGRAPH",
+  "OTHER",
+] as const;
+export type EmployeeDocKind = (typeof EMPLOYEE_DOC_KINDS)[number];
+
+export const EMPLOYEE_DOC_KIND_LABEL: Record<EmployeeDocKind, string> = {
+  AADHAAR: "Aadhaar Card",
+  PAN: "PAN Card",
+  ADDRESS_PROOF: "Address Proof",
+  EDUCATIONAL_CERTIFICATE: "Educational Certificate",
+  OFFER_LETTER: "Offer Letter",
+  BANK_PROOF: "Bank Proof / Cancelled Cheque",
+  PHOTOGRAPH: "Passport Photograph",
+  OTHER: "Other Document",
+};
+
+// ------------------------------------------------------ expense management
+// Employee expense claims and reimbursement — see src/lib/db/expense-claims.ts
+// for the two-stage (manager, then Finance) approval lifecycle.
+export const EXPENSE_CATEGORIES = ["TRAVEL_BIKE", "TRAVEL_CAR", "HOTEL", "DAILY_ALLOWANCE", "OTHER"] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
+  TRAVEL_BIKE: "Travel — Bike",
+  TRAVEL_CAR: "Travel — Car",
+  HOTEL: "Hotel",
+  DAILY_ALLOWANCE: "Daily Allowance",
+  OTHER: "Other",
+};
+
+export const EXPENSE_CLAIM_STATUSES = ["DRAFT", "PENDING_MANAGER", "PENDING_FINANCE", "APPROVED", "REJECTED"] as const;
+export type ExpenseClaimStatus = (typeof EXPENSE_CLAIM_STATUSES)[number];
+
+export const EXPENSE_CLAIM_STATUS_LABEL: Record<ExpenseClaimStatus, string> = {
+  DRAFT: "Draft",
+  PENDING_MANAGER: "Pending Manager",
+  PENDING_FINANCE: "Pending Finance",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+};
+
+export const EXPENSE_CLAIM_STATUS_COLOR: Record<ExpenseClaimStatus, string> = {
+  DRAFT: "bg-ink-100 text-ink-700 ring-ink-200",
+  PENDING_MANAGER: "bg-amber-100 text-amber-800 ring-amber-200",
+  PENDING_FINANCE: "bg-sky-100 text-sky-800 ring-sky-200",
+  APPROVED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  REJECTED: "bg-rose-100 text-rose-800 ring-rose-200",
+};
 
 export const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh", "Chhattisgarh",

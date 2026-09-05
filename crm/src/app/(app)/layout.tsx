@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3, Battery, BookOpen, Boxes, Building2, CalendarCheck, CalendarClock, CalendarDays, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
+  BarChart3, Battery, BookOpen, Boxes, Building2, CalendarCheck, CalendarClock, CalendarDays, CheckSquare, ChevronDown, FileClock, FileSignature, FileSpreadsheet, FileText,
   Gauge, Globe, HardHat, Handshake, IdCard, IndianRupee, KanbanSquare, Landmark, LayoutDashboard,
   ListTodo, LogOut, Mail, MapPin, Menu, MessageSquareWarning, Package, Percent, Plug, Receipt, Repeat, Scale, Search, Settings, ShieldCheck,
-  Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, Workflow, X, Zap,
+  Terminal, Ticket, Trash2, TrendingUp, Truck, UserCircle, Users, Users2, Wallet, Workflow, X, Zap,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -105,6 +105,15 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/attendance", label: "Attendance", icon: CalendarCheck },
       { href: "/roster", label: "Roster", icon: KanbanSquare },
       { href: "/holidays", label: "Holidays", icon: CalendarDays },
+      { href: "/payroll", label: "Payroll", icon: Wallet },
+      { href: "/my-payslips", label: "My Payslips", icon: Wallet },
+    ],
+  },
+  {
+    label: "Expenses",
+    items: [
+      { href: "/expenses", label: "My Expenses", icon: Receipt },
+      { href: "/expenses/approvals", label: "Approvals & Reports", icon: CheckSquare },
     ],
   },
   {

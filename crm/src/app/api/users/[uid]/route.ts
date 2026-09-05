@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { ROLE_ENFORCEMENT, ROLES, ROLE_RANK, type Role } from "@/lib/constants";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
-import { ApiError, errorResponse, highestRole, requireCaller } from "../../_lib/guard";
+import { ApiError, errorResponse, highestRole, nextEmployeeCode, requireCaller } from "../../_lib/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +14,10 @@ const PatchUser = z.object({
   region: z.string().max(60).nullable().optional(),
   managerId: z.string().max(128).nullable().optional(),
   designation: z.string().max(80).optional(),
+  /** HR-assigned employee code, e.g. "LG-EMP-00001" — free text, printed on the payslip as "Employee ID". */
+  employeeCode: z.string().max(40).nullable().optional(),
+  /** Backfills an auto-assigned employee code for an existing employee who doesn't have one yet — used instead of (not alongside) `employeeCode`. */
+  generateEmployeeCode: z.boolean().optional(),
   departmentId: z.string().max(128).nullable().optional(),
   officeLocationId: z.string().max(128).nullable().optional(),
   roles: z.array(z.enum(ROLES)).min(1).max(ROLES.length).optional(),
@@ -50,7 +54,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     const snap = await ref.get();
     if (!snap.exists) throw new ApiError("User not found.", 404);
 
-    const current = snap.data() as { role: Role; roles?: Role[] };
+    const current = snap.data() as { role: Role; roles?: Role[]; employeeCode?: string | null };
     const currentRoles = current.roles?.length ? current.roles : [current.role];
 
     // Changing an admin's record — or promoting anyone into an admin role —
@@ -84,8 +88,11 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
     }
 
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "phone", "region", "managerId", "designation", "departmentId", "officeLocationId", "active", "orgId", "pageAccessOverrides", "bypassGeofence", "hrmsAdmin", "attendanceRequired"] as const) {
+    for (const key of ["name", "phone", "region", "managerId", "designation", "employeeCode", "departmentId", "officeLocationId", "active", "orgId", "pageAccessOverrides", "bypassGeofence", "hrmsAdmin", "attendanceRequired"] as const) {
       if (body[key] !== undefined) update[key] = body[key];
+    }
+    if (body.generateEmployeeCode && !current.employeeCode) {
+      update.employeeCode = await nextEmployeeCode();
     }
     if (nextRoles && nextPrimary) {
       update.roles = nextRoles;

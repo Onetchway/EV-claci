@@ -69,6 +69,17 @@ export const DEFAULT_PAGE_ACCESS: Record<string, Role[]> = {
   "/attendance": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   "/roster": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   "/holidays": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
+  // Payroll — salary data, deliberately narrower than the rest of HRMS
+  // above (matches canManagePayroll in permissions.ts, which has no
+  // hrmsAdmin-flag carve-out at all for this one — Super Admin/Admin/
+  // Finance only). Anyone else needs a Super-Admin-set pageAccessOverride.
+  "/payroll": ["ADMIN", "FINANCE"],
+  // Expenses — open to every real employee role (everyone can file their own
+  // claims), same role list as /employees/attendance above. /expenses/approvals
+  // inherits this same entry (longest-prefix match) — a plain employee who
+  // opens it just sees an empty queue (no direct reports, no Finance role),
+  // which is simpler than a bespoke visibility gate; see (app)/expenses/approvals/page.tsx.
+  "/expenses": ["ADMIN", "SALES_MANAGER", "AGENT", "FINANCE", "OPERATIONS", "FLEET_MANAGER", "CUSTOMER_SUPPORT", "VIEWER"],
   // Settings (the adminOnly-flagged nav items — /users, /settings, /logs,
   // /developer, /trash, /ocpi, /organizations — are locked to Admin/Super
   // Admin at the nav level already and deliberately left out of this
@@ -118,6 +129,8 @@ export const PAGE_LABEL: Record<string, string> = {
   "/attendance": "Attendance",
   "/roster": "Roster",
   "/holidays": "Holidays",
+  "/payroll": "Payroll",
+  "/expenses": "My Expenses",
 };
 
 export const PAGE_ACCESS_PATHS = Object.keys(DEFAULT_PAGE_ACCESS);
